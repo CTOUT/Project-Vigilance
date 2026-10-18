@@ -52,3 +52,36 @@ Weapon Fragments ──────────────► Alien Laser Weapo
 
 - **Alien Alloys:** Extremely durable, lightweight structural material for walls, blast doors, and high-tier armour.
 - **Elerium-115 (Fuel / Power):** Rare consumable power source recovered from intact UFO flight cores, required to fuel advanced craft and plasma weapons.
+
+---
+
+## 5. Salvage-Driven Research & "Fog of Research"
+
+In the original 1994 X-COM, research is not a static tech tree known from day one. You cannot research a Plasma Rifle, Alien Alloys, or Sectoid Biology until your soldiers physically recover specimens and artifacts from the field.
+
+### 5.1 Dynamic Discovery Triggers
+
+Project Vigilance implements an item-triggered research discovery system via `ResearchDiscoveryRuleDef`:
+
+```
+[ Field Salvage / Autopsy / Interrogation ]
+                    │
+                    ▼  (Trigger Met)
+   ┌───────────────────────────────────┐
+   │  "Tech Discovered: Heavy Plasma"  │
+   │   Project revealed on Tech Tree   │
+   └────────────────┬──────────────────┘
+                    │
+                    ▼  (Colonist Research)
+[ Unlocked: Plasma Weapon Manufacturing ]
+```
+
+1. **Physical Artifact Acquisition:**
+   - Possessing a physical item in colony stockpiles (e.g., `Weapon_HeavyPlasma`, `Component_UFO_FlightComputer`, `Resource_AlienAlloy`).
+   - The research project remains completely hidden (`HiddenUntilDiscovered = true`) until an item is secured.
+2. **Autopsy Completion:**
+   - Performing a medical autopsy on a corpse unlocks species-specific projects (e.g., Sectoid Autopsy -> +15% damage bonus and unlocks Psionic Barrier study).
+3. **Live Interrogation Extraction:**
+   - Interrogating alien leaders or navigators reveals advanced craft propulsion schematics or coordinates to hidden planetary bases.
+4. **Standalone Utility for Vanilla & Modded Games:**
+   - This discovery system is fully standalone. Modders or vanilla purists can attach `ResearchDiscoveryRuleDef` to vanilla tech (e.g., requiring a salvaged Charge Rifle before "Charged Shot" can be researched, or a Mechanoid Sub-core before "Standard Mechtech").

@@ -23,6 +23,8 @@
 - [ ] Implement sensory blind spots and planetary fog of war masking on the `WorldGrid`.
 - [ ] Build Oceanic Sonar detection layer for water hexes.
 - [ ] Implement semi-transparent radar coverage overlay rendering on the world map.
+- [ ] **Physical Incursion Engine:** Hook into Storyteller incidents (`RaidEnemy`, `VisitorGroup`, `Caravan`, `CreepJoiner`) to assign origin hexes and simulate real-time planetary transit.
+- [ ] **Early Warning Dispatcher:** Generate advance warning alerts and reveal telemetry based on radar tier.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
 
 ---
@@ -34,6 +36,7 @@
 - [ ] Implement crash site generation (`SiteDef` with wreckage, debris, and survivor spawns).
 - [ ] Create tactical deployment and extraction drop-zone mechanics.
 - [ ] Build amphibious transport capabilities (Triton analogue for aquatic sites).
+- [ ] **Odyssey DLC Synergy:** Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
 - [ ] **Standalone Test:** Validate interception combat and dropship deployment against standard pirate shuttles without Module 1.
 
 ---
@@ -44,6 +47,7 @@
 - [ ] Hook into Anomaly DLC study mechanics (with standalone fallback for non-DLC).
 - [ ] Create autopsy bills and surgical extraction recipes.
 - [ ] Implement interrogation mechanics with mental resistance tracking.
+- [ ] **Item-Triggered Research Discovery:** Build "Fog of Research" system unlocking tech upon physical salvage, autopsy, or interrogation.
 - [ ] Design reverse-engineering knowledge tree (Alloys, Elerium-115, Weapon Fragments).
 - [ ] **Standalone Test:** Validate containment pods and autopsy bills on vanilla pawns/creatures in isolation.
 

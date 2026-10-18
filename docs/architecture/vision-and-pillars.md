@@ -96,3 +96,16 @@ This fundamental architectural shift moves modding away from legacy `.NET Framew
 1. **Zero-Allocation Planetary Geometry:** Planetary radar detection requires continuous spatial distance and raycasting queries across 100,000+ `WorldGrid` hex tiles. Under legacy Unity, large-scale world objects generated heavy GC allocation overhead. Leveraging modern C# features (`Span<T>`, `ref struct`, SIMD) alongside BRUTAL's low-level memory primitives allows sensory sweeps to run with near-zero GC allocations.
 2. **2x to 4x Engine TPS Gains:** Waylith delivers 2x to 4x throughput improvements in tick-heavy operations, giving Project Vigilance ample performance headroom for complex background simulations (multiple active UFO flight vectors, oceanic sonar sweeps, and planetary panic calculations).
 3. **Native Rendering & Vulkan Foundations:** Map overlays and radar bubbles are rendered against modern graphics APIs rather than legacy Unity immediate-mode GUI or legacy shader passes.
+
+### 4.3 Expansion Architecture: Odyssey (1.6) & Anomaly (1.5)
+
+Project Vigilance is engineered to dynamically hook into RimWorld's modern expansions while maintaining complete standalone stability for the base game:
+
+- **Odyssey (1.6) — Gravships & Orbital Operations:**
+  - Utilises Odyssey's player-controlled gravships and shuttles for late-game Skyranger and Avenger deployments.
+  - Extends radar tracking into Odyssey's orbital layer (`PlanetLayerDefs`), detecting UFOs loitering in orbit or entering atmosphere from asteroid fields.
+  - Stages the final campaign assault against the alien dreadnought as a true orbital mission.
+- **Anomaly (1.5) — Entity Containment & Study:**
+  - Maps alien holding pods directly to Anomaly's containment platforms, inheriting psychic suppression and study knowledge loops.
+- **Dynamic Fallback:**
+  - If expansions are absent, the suite falls back to its standalone C# implementations (`ThingComp_Containment` and sub-orbital drop mechanics).

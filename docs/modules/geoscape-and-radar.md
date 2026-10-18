@@ -116,3 +116,61 @@ Project-Vigilance/Geoscape/
             ├── RadarFacilityDef.cs
             └── CraftSizeDef.cs
 ```
+
+---
+
+## 6. Physical Incursion Tracking & Storyteller Overhaul
+
+In vanilla RimWorld, Storyteller incidents (such as `IncidentDefOf.RaidEnemy`, `VisitorGroup`, and `TravelerGroup`) instantiate pawns at the map boundary instantaneously out of thin air.
+
+The **Physical Incursion System** overhauls this behaviour completely: **every incident is given a physical origin point on the WorldGrid and travels across the planet before reaching the colony.**
+
+```
+[ Storyteller Fires Raid Event ]
+                │
+                ▼
+  [ Resolve Origin Hex Tile ]
+  (Nearest Hostile Settlement / Pirate Camp / Orbital Vector)
+                │
+                ▼
+  [ Spawn Travelling Incursion Entity ]
+  (WorldObject_Incursion marches/flies across WorldGrid)
+                │
+                ├─────────────────────────────────────────┐
+                │                                         │
+        (Enters Radar Bubble)                   (Travels in Blind Spot)
+                │                                         │
+                ▼                                         ▼
+   ┌─────────────────────────┐              ┌───────────────────────────┐
+   │ EARLY WARNING TRIGGERED │              │     NO EARLY WARNING      │
+   │ ETA: 12 Hours           │              │ Raid arrives at map edge  │
+   │ Interception Possible!  │              │ with vanilla suddenness   │
+   └─────────────────────────┘              └───────────────────────────┘
+```
+
+### 6.1 Origin Resolution Logic
+
+When an incident triggers, the system intercepts the event and calculates an appropriate source point:
+
+| Incursion Type                  | Resolved Source Origin                                    | Transit Method & Speed                          |
+| :------------------------------ | :-------------------------------------------------------- | :---------------------------------------------- |
+| **Faction Raid (Human/Tribal)** | Nearest hostile settlement or hidden pirate staging camp  | Overland march (terrain-dependent: 12–48 hours) |
+| **Drop-Pod / Shuttle Raid**     | Hostile base or orbital trajectory                        | Sub-orbital arc (high speed: 1–3 hours)         |
+| **Mechanoid Incursion**         | Mechanoid orbital carrier or dormant world hive           | Orbital drop or heavy mechanical crawl          |
+| **Friendly Caravan / Visitors** | Nearest allied faction settlement or trade road           | Overland caravan transit                        |
+| **Creepjoiners & Wanderers**    | Abandoned world ruins, crashed escape pods, or wilderness | Solitary overland journey                       |
+
+### 6.2 Early Warning & Tactical Interception en Route
+
+1. **Strategic Advance Warning:**
+   - Instead of sudden panic, colonies with radar installations receive actionable advance notice:
+     - _"Sensory Alert: Hostile group detected 15 hexes east. Vector heading: Colony. Estimated arrival: 18 hours."_
+   - Players can order miners and hunters back inside, seal perimeter blast doors, deploy field traps, and position heavy artillery.
+2. **Telemetry Quality by Radar Tier:**
+   - _Small Radar:_ Detects only an unclassified hostile vector and estimated ETA.
+   - _Large Radar:_ Identifies estimated force size and speed class.
+   - _Hyper-wave Decoder:_ Fully reveals faction identity, pawn count, and equipped armaments (e.g., _"18 Pirates from Broken Skull Clan armed with doomsday launchers and assault rifles"_).
+3. **Mid-Route Interception (Module 2 Synergy):**
+   - Because raiders physically exist as world entities during transit, the player can scramble **Interceptors** or deploy a **Skyranger Strike Team** to ambush and neutralise the raiding force on the world map before they ever reach the home base.
+4. **Standalone Framework Value:**
+   - This storyteller overhaul is entirely generic and modular. Players who want realistic military logistics, scouting, and early warning in vanilla RimWorld can use this module without any X-COM alien themes.

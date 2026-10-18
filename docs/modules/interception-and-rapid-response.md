@@ -20,6 +20,17 @@ Craft exist in two primary categories: **Interceptors** (air superiority) and **
 | **Firestorm**           | Advanced Interceptor  |      1 Pilot      |      75       | Mach 5.2  |  2 Alien Heavy   | Mid-game hybrid alien alloy craft   |
 | **Avenger**             | Assault Dreadnought   | 14 Pawns + 2000kg |    Global     | Mach 4.5  | 2 Heavy + 1 Bomb | Late-game multi-role planetary flag |
 
+### 2.2 Odyssey DLC Synergy: Gravships & Orbital Transit
+
+In update 1.6, the **Odyssey DLC** introduced player-piloted shuttles, gravships, and an orbital layer (`PlanetLayerDefs`) enabling travel to asteroids and orbital debris.
+
+Project Vigilance hooks into Odyssey's vehicle and orbital architecture:
+
+- **Gravship Integration:** When Odyssey is installed, late-game craft like the _Avenger_ and _Firestorm_ inherit or wrap native `Gravship` components. They can launch vertically, break atmosphere into low-orbit, and land anywhere on the planet with zero terrain penalty.
+- **Orbital Interception & Deep Space:** Interceptors can engage UFOs not only in atmospheric flight, but also as they de-orbit through Odyssey's orbital layer or loiter near orbital asteroids.
+- **Orbital Mothership Assault:** Late-game flagship assaults (Cydonia / Temple Ship) can be staged as true orbital missions in deep space.
+- **Standalone Fallback:** If Odyssey is absent, the module executes its independent sub-orbital drop-craft logic, remaining 100% playable in vanilla.
+
 ---
 
 ## 3. Aerial Combat Resolution
