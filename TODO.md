@@ -15,7 +15,7 @@
 
 ## Phase 2: Module 1 — Geoscape & Radar Grid (Standalone Framework)
 
-- [ ] Create `Geoscape/` C# project (`Geoscape.csproj`) targeting RimWorld 1.7 (Waylith) and `.NET 10` (`net10.0`).
+- [x] Create `Geoscape/` C# project (`Geoscape.csproj`) targeting RimWorld 1.7 (Waylith) and `.NET 10` (`net10.0`).
 - [ ] Implement `CompProperties_Radar` and `CompRadar` building components.
 - [ ] Implement `WorldObjectComp_Radar` for settlements and forward listening posts.
 - [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) for efficient spatial distance checks.
