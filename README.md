@@ -4,6 +4,7 @@
 [![RimWorld Version](<https://img.shields.io/badge/RimWorld-1.7%20(Waylith)-brightgreen.svg>)](https://rimworldgame.com/)
 [![Runtime](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
 [![Engine](https://img.shields.io/badge/Engine-Waylith%20%2F%20BRUTAL-red.svg)](https://github.com/ahwootech/BRUTAL)
+[![Steam Workshop](https://img.shields.io/badge/Steam_Workshop-3822378226-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)
 
 A modular total systems overhaul bringing the strategic depth and tactical tension of the **X-COM** universe into **RimWorld** (targeting **RimWorld 1.7 - Waylith** on the **BRUTAL** framework).
 
@@ -13,7 +14,10 @@ Rather than simply adding alien races and high-tier weapons, this project introd
 
 ## 🚀 Active Playtest: Project Vigilance - Overland Incursions (v0.1.0)
 
-The first standalone module of the suite—**Overland Incursions**—is implemented and ready for community playtesting in the [`Geoscape/`](Geoscape/) directory!
+[![Steam Workshop](https://img.shields.io/badge/Subscribe_on-Steam_Workshop-1b2838?style=for-the-badge&logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)
+[![GitHub Release](https://img.shields.io/badge/Direct_Download-GitHub_Release-238636?style=for-the-badge&logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.1.0)
+
+The first standalone module of the suite—**Overland Incursions**—is implemented and ready for community playtesting! Subscribe directly on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226) or grab the [v0.1.0 Release](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.1.0).
 
 ### What Does It Do?
 

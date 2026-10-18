@@ -81,6 +81,11 @@ if (Test-Path $previewPng) {
     Write-Warning "Preview.png not found in Geoscape/About/! Steam Workshop requires a preview thumbnail."
 }
 
+$publishedFileId = Join-Path $geoscapeDir 'About\PublishedFileId.txt'
+if (Test-Path $publishedFileId) {
+    Copy-Item $publishedFileId -Destination (Join-Path $stagingAbout 'PublishedFileId.txt') -Force
+}
+
 # 6. Copy 1.7 distribution files (Assemblies and Defs)
 $staging17 = Join-Path $stagingPath '1.7'
 $stagingAssemblies = Join-Path $staging17 'Assemblies'
