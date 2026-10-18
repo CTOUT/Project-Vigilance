@@ -23,35 +23,19 @@ For an in-depth breakdown of the design philosophy, see [docs/architecture/visio
 
 ## Modular Add-On Architecture
 
-To maintain performance, simplicity, and community compatibility, the project is structured as five decoupled modules:
+To maintain performance, simplicity, and community compatibility, the project is structured as decoupled modules. **Framework modules are strictly standalone**—they have zero dependencies on other Project Vigilance mods and can be used in any vanilla or modded playthrough without alien content.
 
-```
-┌────────────────────────────────────────────────────────┐
-│      Module 5: Alien Arsenal & Factions (Theme)        │
-└───────────────────────────┬────────────────────────────┘
-                            │ requires
-┌───────────────────────────▼────────────────────────────┐
-│      Module 4: Invasion Campaign & Panic (Engine)      │
-└───────────────┬────────────────────────┬───────────────┘
-                │                        │
-┌───────────────▼───────────┐ ┌──────────▼───────────────┐
-│ Module 1: Geoscape & Radar│ │ Module 3: Containment    │
-│ (Planetary Framework)     │ │ & Biology (Base Systems) │
-└───────────────┬───────────┘ └──────────────────────────┘
-                │ integrates
-┌───────────────▼───────────┐
-│ Module 2: Interception    │
-│ & Rapid Response (Craft)  │
-└───────────────────────────┘
-```
+### Standalone Frameworks (Zero Suite Dependencies)
 
-- **[Module 1: Geoscape & Radar Grid](docs/modules/geoscape-and-radar.md)** — Planetary sensory coverage, radar domes, detection formulas, and sensory blind spots on the `WorldGrid` _(Standalone Framework)_.
-- **[Module 2: Interception & Rapid Response](docs/modules/interception-and-rapid-response.md)** — Aircraft range, fuel, air-to-air dogfights, crash-site generation, and tactical dropship evacuations.
-- **[Module 3: Alien Containment & Biology](docs/modules/containment-and-biology.md)** — Stasis pods, autopsy tables, live alien interrogations, and reverse-engineering _(Standalone Base System)_.
-- **[Module 4: Invasion Campaign & Panic](docs/modules/campaign-and-panic.md)** — Council of Planetary Factions funding, regional panic meters, UFO invasion schedules, and the Alien Doom Clock.
-- **[Module 5: Alien Arsenal & Factions](docs/architecture/modular-system.md)** — Thematic content pack: Sectoids, Mutons, Chryssalids, Aquatoids, plasma weapons, and armour tiers.
+- **[Module 1: Geoscape & Radar Grid (`Vigilance.Geoscape`)](docs/modules/geoscape-and-radar.md)** `[STANDALONE]` — Planetary sensory coverage, radar domes, listening posts, detection formulas, and sensory blind spots on the `WorldGrid`. Tracks any airborne or orbital raid vectors (pirates, mechanoids, custom factions).
+- **[Module 2: Interception & Rapid Response (`Vigilance.Interception`)](docs/modules/interception-and-rapid-response.md)** `[STANDALONE]` — Aircraft range, fuel, air-to-air dogfights, crash-site generation, and tactical dropship evacuations.
+- **[Module 3: Alien Containment & Biology (`Vigilance.Containment`)](docs/modules/containment-and-biology.md)** `[STANDALONE]` — Stasis pods, autopsy tables, live prisoner interrogations, and reverse-engineering for any creature or faction.
+- **[Aquatic Operations & Sonar (`Vigilance.Aquatics`)](docs/modules/aquatic-operations.md)** `[STANDALONE]` — Deep ocean activation, coastal sonar arrays, seabed shipwreck recoveries, and diving gear for maritime operations.
 
-Additionally, see **[docs/modules/aquatic-operations.md](docs/modules/aquatic-operations.md)** for details on how oceanic and coastal operations are integrated across all modules.
+### Campaign Overhaul (Dependent Modules)
+
+- **[Module 4: Invasion Campaign & Panic (`Vigilance.Campaign`)](docs/modules/campaign-and-panic.md)** `[DEPENDENT]` — Requires Modules 1, 2, and 3. Council of Planetary Factions funding, regional panic meters, UFO invasion schedules, and the Alien Doom Clock.
+- **[Module 5: Alien Arsenal & Factions (`Vigilance.Theme.XCOM`)](docs/architecture/modular-system.md)** `[DEPENDENT]` — Requires Module 4. Thematic content pack: Sectoids, Mutons, Chryssalids, Aquatoids, plasma weapons, and armour tiers.
 
 ---
 

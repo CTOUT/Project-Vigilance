@@ -13,7 +13,7 @@
 
 ---
 
-## Phase 2: Module 1 — Geoscape & Radar Grid
+## Phase 2: Module 1 — Geoscape & Radar Grid (Standalone Framework)
 
 - [ ] Create `Geoscape/` C# project (`Geoscape.csproj`) targeting RimWorld 1.7 (Waylith) and `.NET 10` (`net10.0`).
 - [ ] Implement `CompProperties_Radar` and `CompRadar` building components.
@@ -23,30 +23,33 @@
 - [ ] Implement sensory blind spots and planetary fog of war masking on the `WorldGrid`.
 - [ ] Build Oceanic Sonar detection layer for water hexes.
 - [ ] Implement semi-transparent radar coverage overlay rendering on the world map.
+- [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
 
 ---
 
-## Phase 3: Module 2 — Interception & Rapid Response
+## Phase 3: Module 2 — Interception & Rapid Response (Standalone Framework)
 
 - [ ] Define craft stats (speed, fuel, range, armament slots).
 - [ ] Build tactical air interception dialogue UI.
 - [ ] Implement crash site generation (`SiteDef` with wreckage, debris, and survivor spawns).
 - [ ] Create tactical deployment and extraction drop-zone mechanics.
 - [ ] Build amphibious transport capabilities (Triton analogue for aquatic sites).
+- [ ] **Standalone Test:** Validate interception combat and dropship deployment against standard pirate shuttles without Module 1.
 
 ---
 
-## Phase 4: Module 3 — Alien Containment & Biology
+## Phase 4: Module 3 — Alien Containment & Biology (Standalone Base System)
 
 - [ ] Implement stasis pods and containment cell comps.
 - [ ] Hook into Anomaly DLC study mechanics (with standalone fallback for non-DLC).
 - [ ] Create autopsy bills and surgical extraction recipes.
 - [ ] Implement interrogation mechanics with mental resistance tracking.
 - [ ] Design reverse-engineering knowledge tree (Alloys, Elerium-115, Weapon Fragments).
+- [ ] **Standalone Test:** Validate containment pods and autopsy bills on vanilla pawns/creatures in isolation.
 
 ---
 
-## Phase 5: Module 4 — Invasion Campaign & Panic
+## Phase 5: Module 4 — Invasion Campaign & Panic (Dependent Campaign Engine)
 
 - [ ] Build Council of Planetary Factions funding and monthly evaluation ledger.
 - [ ] Implement regional panic tracking per territory.
@@ -56,7 +59,7 @@
 
 ---
 
-## Phase 6: Module 5 — Alien Arsenal & Factions
+## Phase 6: Module 5 — Alien Arsenal & Factions (Thematic Content Pack)
 
 - [ ] Implement alien pawn kinds (Sectoids, Mutons, Chryssalids, Aquatoids, Deep Ones).
 - [ ] Create weapon sets: Laser, Plasma, Sonic, and Harpoon/Gauss.
