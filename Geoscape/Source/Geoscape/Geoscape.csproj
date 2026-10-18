@@ -9,9 +9,14 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <RimWorldPath Condition="'$(RimWorldPath)' == ''">D:\Games\Steam\steamapps\common\RimWorld</RimWorldPath>
+    <HarmonyPath Condition="'$(HarmonyPath)' == ''">D:\Games\Steam\steamapps\workshop\content\294100\2009463077\1.7\Assemblies\0Harmony.dll</HarmonyPath>
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(HarmonyPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(RimWorldPath)\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
