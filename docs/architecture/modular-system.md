@@ -131,3 +131,17 @@ graph TD
   - Arsenal: Laser, Plasma, and Sonic weaponry.
   - Armour tiers: Kevlar, Carapace, Titan, Diving/Aqua-suits, Power Armour.
   - Audio and visual assets faithful to the original series.
+
+---
+
+## 6. Expansion Soft Hooks (DLC Architecture)
+
+Each official RimWorld expansion is supported as an optional, high-synergy layer. None are required, but all enrich the X-COM loop when present:
+
+- **Royalty (1.2):** Psionic warfare (Psi-Lab training, alien mind control, mind shields) and Imperial Council patronage.
+- **Ideology (1.3):** EXALT / Advent sympathiser fifth-columns, alien worship cults, and Human Purity vs Genetic Hybridisation precepts.
+- **Biotech (1.4):** Alien Xenotypes (Sectoid, Muton, Thin Man genes), Enemy Within soldier gene-modding, and MEC cybernetics.
+- **Anomaly (1.5):** Live alien containment platforms, psychic suppression, and Chryssalid zombification/parasitism horror.
+- **Odyssey (1.6):** Skyranger / Avenger gravships, orbital radar layer, and deep space mothership assaults.
+
+For the full expansion breakdown and fallback matrices, see **[docs/architecture/dlc-integrations.md](dlc-integrations.md)**.

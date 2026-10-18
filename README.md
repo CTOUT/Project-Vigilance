@@ -43,6 +43,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 
 - **[Vision & Architectural Pillars](docs/architecture/vision-and-pillars.md)**
 - **[Modular System Architecture](docs/architecture/modular-system.md)**
+- **[DLC Integration Architecture](docs/architecture/dlc-integrations.md)**
 - **[Module 1 Specification: Geoscape & Radar Grid](docs/modules/geoscape-and-radar.md)**
 - **[Module 2 Specification: Interception & Rapid Response](docs/modules/interception-and-rapid-response.md)**
 - **[Module 3 Specification: Alien Containment & Biology](docs/modules/containment-and-biology.md)**

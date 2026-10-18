@@ -18,3 +18,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Specified the Physical Incursion System in Geoscape to track non-player raids, visitors, travellers, creep-joiners, and caravans with real-world origin points on the WorldGrid.
 - Added Item-Triggered Research Discovery ("Fog of Research") requiring physical field salvage, medical autopsies, or live interrogations to reveal tech tree projects.
 - Integrated Odyssey DLC (1.6) gravships, player shuttles, and orbital layer travel for high-tier craft and space missions.
+- Authored full DLC Integration Architecture mapping Royalty psionics/Psi-Labs, Ideology EXALT cults/precepts, Biotech alien xenotypes/gene-modding, Anomaly containment/Chryssalids, and Odyssey orbital space.

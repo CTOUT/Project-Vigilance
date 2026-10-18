@@ -43,6 +43,15 @@ Planetary factions (Empire, Outlanders, Civil Outlanders, Tribals, etc.) form a 
   - If a faction's panic reaches 100%, they sign a non-aggression pact with the alien invaders.
   - Their monthly funding ceases, their settlements become hostile to X-COM, and alien infiltrators replace their leadership.
 
+### 2.2 Geopolitical Fractures: Cults & EXALT (Ideology & Royalty Synergies)
+
+- **Ideology — Fifth-Column Infiltration Cults (EXALT):**
+  - As regional panic climbs above 60%, settlements have a chance to fracture, spawning pro-alien extremist cults (e.g., _"The Ascended Ones"_, _"Harbingers of the Sky"_).
+  - Cultist splinter factions stage clandestine sabotage raids against player outposts: bombing power conduits, poisoning hospital stores, or liberating contained alien prisoners.
+  - Players must conduct counter-intelligence operations to locate and eliminate cult headquarters.
+- **Royalty — Imperial Council Patronage:**
+  - The Shattered Empire acts as a premier Council funding partner, demanding high-level alien intelligence in exchange for orbital shuttle support, royal favours, and elite cataphract assault teams.
+
 ---
 
 ## 3. The Alien Strategic AI & Invasion Progression

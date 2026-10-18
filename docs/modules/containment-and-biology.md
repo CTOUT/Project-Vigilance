@@ -36,6 +36,18 @@ Capturing aliens alive is the primary method to unlock high-tier research:
   - _Compliance:_ Intelligence extracted regarding alien fleet intentions, UFO design schematics, or hidden alien base coordinates.
   - _Resolution:_ The alien expires or remains subdued in deep stasis.
 
+### 3.3 Genetic & Psionic Augmentation (DLC Synergies)
+
+- **Biotech — Soldier Gene-Modding (_Enemy Within_):**
+  - Dissecting alien corpses at the autopsy table produces unique alien genepacks.
+  - Using a Gene Assembler, players can graft alien traits into their colonists:
+    - _Mimetic Skin:_ Camouflage cloaking when stationary behind low cover.
+    - _Hyper-Reactive Muscle:_ Drastically boosts movement speed and tactical dodge chance.
+    - _Secondary Heart:_ Prevents bleeding out from fatal torso injuries, granting a triage stabilization window.
+- **Royalty — Psi-Lab Training & Psionic Warfare:**
+  - Studying live Sectoid Commanders and Ethereals unlocks an exclusive X-COM Psycast tree (_Mind Panic, Mind Control, Psionic Shield_).
+  - Introduces the **Psi-Lab facility**: allows colonists to undergo rigorous mental conditioning, unlocking and elevating psylink levels without Imperial titles or anima tree meditation.
+
 ---
 
 ## 4. Reverse-Engineering & Manufacturing
