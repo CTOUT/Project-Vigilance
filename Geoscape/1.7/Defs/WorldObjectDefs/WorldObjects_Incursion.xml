@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <WorldObjectDef>
+    <defName>Vigilance_Incursion</defName>
+    <label>approaching incursion</label>
+    <description>An approaching force traversing the planetary surface.</description>
+    <worldObjectClass>ProjectVigilance.Geoscape.World.WorldObject_Incursion</worldObjectClass>
+    <texture>UI/Commands/Attack</texture>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>UI/Commands/Attack</expandingIconTexture>
+    <expandingIconPriority>50</expandingIconPriority>
+    <saved>true</saved>
+  </WorldObjectDef>
+</Defs>
