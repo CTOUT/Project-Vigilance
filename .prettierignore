@@ -3,5 +3,3 @@ package-lock.json
 bin
 obj
 dist
-*.dll
-*.pdb

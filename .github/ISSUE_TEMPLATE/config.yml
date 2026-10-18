@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/CTOUT/Project-Vigilance/discussions
+    about: Ask questions, discuss playtesting strategy, and share ideas.
+  - name: Security Vulnerability
+    url: https://github.com/CTOUT/Project-Vigilance/security/advisories/new
+    about: Please report security vulnerabilities privately via a GitHub Security Advisory.

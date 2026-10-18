@@ -156,6 +156,8 @@ public static class IncursionOriginResolver
         return false;
     }
 
+    public const float MaxCoordinationWindowHours = 36f;
+
     public static bool TryResolveMultipleOrigins(
         IncidentParms parms,
         PlanetTile destinationTile,
@@ -170,6 +172,9 @@ public static class IncursionOriginResolver
             return false;
         }
 
+        // 1. Gather all reachable settlements belonging to this faction
+        var viableSettlements = new List<(PlanetTile Tile, List<PlanetTile> Path, float Distance, float TravelHours)>();
+
         if (parms.faction != null && Find.WorldObjects?.Settlements != null)
         {
             var factionSettlements = Find.WorldObjects.Settlements
@@ -181,23 +186,167 @@ public static class IncursionOriginResolver
             {
                 if (TryBuildPath(settlement.Tile, destinationTile, out var foundPath))
                 {
-                    results.Add((settlement.Tile, foundPath, speed));
-                    if (results.Count >= count)
+                    float dist = Find.WorldGrid.ApproxDistanceInTiles(settlement.Tile, destinationTile);
+                    float travelHours = (foundPath.Count / speed) * 24f;
+                    viableSettlements.Add((settlement.Tile, foundPath, dist, travelHours));
+
+                    if (viableSettlements.Count >= 6)
                     {
-                        return true;
+                        break;
                     }
                 }
             }
         }
 
-        // If not enough settlement origins found, fallback to single origin
-        if (results.Count == 0 && TryResolveOrigin(parms, destinationTile, out var singleOrigin, out var singlePath, out var singleSpeed))
+        // 2. Check for multi-base coordination
+        if (viableSettlements.Count > 0)
+        {
+            var primary = viableSettlements[0];
+            results.Add((primary.Tile, primary.Path, speed));
+
+            // Select all secondary bases whose travel times fall within the coordination window (<= 36h delta)
+            var compatibleOtherBases = viableSettlements
+                .Skip(1)
+                .Where(s => Math.Abs(s.TravelHours - primary.TravelHours) <= MaxCoordinationWindowHours)
+                .OrderBy(s => Math.Abs(s.TravelHours - primary.TravelHours))
+                .ToList();
+
+            foreach (var sec in compatibleOtherBases)
+            {
+                if (results.Count >= count)
+                {
+                    break;
+                }
+                results.Add((sec.Tile, sec.Path, speed));
+            }
+
+            // If we still need more vectors (e.g. only 1 or 2 bases available),
+            // generate tactical flanking columns originating from the primary base!
+            var existingPaths = results.Select(r => r.Path).ToList();
+            float[] flankSampleFractions = { 0.30f, 0.60f, 0.45f };
+
+            int flankIdx = 0;
+            while (results.Count < count && flankIdx < flankSampleFractions.Length)
+            {
+                if (TryGenerateFlankingPath(primary.Tile, destinationTile, primary.Path, existingPaths, flankSampleFractions[flankIdx], out var flankPath))
+                {
+                    results.Add((primary.Tile, flankPath, speed));
+                    existingPaths.Add(flankPath);
+                }
+                flankIdx++;
+            }
+
+            // Fallback: staggered columns along primary route
+            while (results.Count < count)
+            {
+                results.Add((primary.Tile, new List<PlanetTile>(primary.Path), speed));
+            }
+
+            return results.Count >= 2;
+        }
+
+        // 3. Fallback: Search for wilderness staging tile if no faction settlements exist
+        if (TryResolveOrigin(parms, destinationTile, out var singleOrigin, out var singlePath, out var singleSpeed))
         {
             results.Add((singleOrigin, singlePath, singleSpeed));
+            var fallbackPaths = new List<List<PlanetTile>> { singlePath };
+
+            float[] flankSampleFractions = { 0.30f, 0.60f, 0.45f };
+            int fIdx = 0;
+            while (results.Count < count && fIdx < flankSampleFractions.Length)
+            {
+                if (TryGenerateFlankingPath(singleOrigin, destinationTile, singlePath, fallbackPaths, flankSampleFractions[fIdx], out var flankPath))
+                {
+                    results.Add((singleOrigin, flankPath, singleSpeed));
+                    fallbackPaths.Add(flankPath);
+                }
+                fIdx++;
+            }
+
+            while (results.Count < count)
+            {
+                results.Add((singleOrigin, new List<PlanetTile>(singlePath), singleSpeed));
+            }
+
+            return results.Count >= 2;
+        }
+
+        return false;
+    }
+
+    private static bool TryGenerateFlankingPath(
+        PlanetTile start,
+        PlanetTile dest,
+        List<PlanetTile> directPath,
+        List<List<PlanetTile>> existingPaths,
+        float sampleFraction,
+        out List<PlanetTile> flankingPath)
+    {
+        flankingPath = new List<PlanetTile>();
+        if (directPath == null || directPath.Count < 6 || !start.Valid || !dest.Valid)
+        {
+            return false;
+        }
+
+        var excludeSet = new HashSet<PlanetTile>();
+        foreach (var p in existingPaths)
+        {
+            // Exclude intermediate corridor tiles to encourage distinct flanking routes
+            for (int i = 1; i < p.Count - 1; i++)
+            {
+                excludeSet.Add(p[i]);
+            }
+        }
+
+        var worldGrid = Find.WorldGrid;
+        if (worldGrid == null)
+        {
+            return false;
+        }
+
+        int targetIdx = Math.Clamp((int)(directPath.Count * sampleFraction), 2, directPath.Count - 2);
+        PlanetTile sampleTile = directPath[targetIdx];
+
+        // Search for a passable tile 4 to 10 tiles away from sampleTile that is not in any existing route
+        PlanetTile flankTile = PlanetTile.Invalid;
+        sampleTile.Layer.Filler.FloodFill(
+            sampleTile,
+            t =>
+            {
+                if (!t.Valid || t.Layer != sampleTile.Layer) return false;
+                Tile tileData = worldGrid[t];
+                return tileData != null && !tileData.WaterCovered && tileData.PrimaryBiome != null && !tileData.PrimaryBiome.impassable;
+            },
+            (t, dist) =>
+            {
+                if (flankTile.Valid) return;
+                if (dist >= 4 && dist <= 10 && !excludeSet.Contains(t))
+                {
+                    flankTile = t;
+                }
+            },
+            150,
+            null);
+
+        if (!flankTile.Valid)
+        {
+            return false;
+        }
+
+        // Build path: start -> flankTile -> dest
+        if (TryBuildPath(start, flankTile, out var leg1) && TryBuildPath(flankTile, dest, out var leg2))
+        {
+            var combined = new List<PlanetTile>(leg1);
+            if (leg2.Count > 1)
+            {
+                // Skip the duplicate flankTile
+                combined.AddRange(leg2.Skip(1));
+            }
+            flankingPath = combined;
             return true;
         }
 
-        return results.Count > 0;
+        return false;
     }
 
     public static float GetSpeedForFaction(Faction? faction)

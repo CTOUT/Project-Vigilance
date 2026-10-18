@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
-  <name>Project Vigilance - Geoscape &amp; Radar Grid</name>
+  <name>Project Vigilance - Overland Incursions</name>
   <author>Chris</author>
   <packageId>ProjectVigilance.Geoscape</packageId>
   <supportedVersions>
     <li>1.7</li>
   </supportedVersions>
-  <description>Planetary radar detection, sensor grids, early warning tracking, and physical incursion origins for RimWorld 1.7 (Waylith Engine). Fully standalone framework.</description>
+  <description>Replaces instantaneous map-edge teleportation with physical overland transit across the global planetary grid for raids, caravans, and visitors. Features dynamic multi-vector staging, realistic transit ETAs, and interactive world map tracking. Fully standalone framework with zero tech prerequisites.</description>
   <modDependencies>
     <li>
       <packageId>brrainz.harmony</packageId>

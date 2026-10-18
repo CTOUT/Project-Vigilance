@@ -1,7 +1,8 @@
 cff-version: 1.2.0
-title: "Project Vigilance - RimWorld X-COM Suite"
+title: "Repository Template"
 message: "If you use this software, please cite it as below."
 type: software
 authors:
-  - family-names: "CTOUT"
+  - family-names: "Maintainer"
+    given-names: "Repository"
 license: MIT

@@ -6,6 +6,7 @@
     <description>An approaching force traversing the planetary surface.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.World.WorldObject_Incursion</worldObjectClass>
     <texture>UI/Commands/Attack</texture>
+    <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
     <expandingIconTexture>UI/Commands/Attack</expandingIconTexture>
     <expandingIconPriority>50</expandingIconPriority>
@@ -18,6 +19,7 @@
     <description>A group of travellers traversing the planetary surface toward your settlement.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.World.WorldObject_Incursion</worldObjectClass>
     <texture>World/WorldObjects/Caravan</texture>
+    <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
     <expandingIconTexture>World/WorldObjects/Expanding/Caravan</expandingIconTexture>
     <expandingIconPriority>50</expandingIconPriority>

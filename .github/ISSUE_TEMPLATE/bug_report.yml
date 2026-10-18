@@ -1,0 +1,80 @@
+name: Bug Report
+description: Report a defect or unexpected behaviour in Project Vigilance
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please provide as much context as possible so we can diagnose and resolve it promptly.
+
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected Module / Component
+      description: Which part of Project Vigilance is affected?
+      options:
+        - "Overland Incursions (World Transit & Routing)"
+        - "Multi-Vector Staging & Wave Spawns"
+        - "World Map Rendering & Iconology"
+        - "Mod Settings & Configuration"
+        - "Save / Load (Scribe State Serialization)"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Bug
+      description: A clear and concise explanation of what happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Start a new game / load an existing save.
+        2. Wait for a raid or trigger via debug actions.
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behaviour
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment & Modlist
+      description: Game version, active DLCs, and any relevant companion mods.
+      placeholder: |
+        RimWorld Version: 1.7 (Waylith Engine)
+        DLCs Active: Royalty / Ideology / Biotech / Anomaly / Odyssey
+        Harmony Version:
+        Key Mods:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Log / Stacktrace
+      description: Paste relevant errors from Player.log or the in-game debug console.
+      render: shell
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-Submission Checklist
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate.
+          required: true
+        - label: I am using the latest build/release of the mod.
+          required: true

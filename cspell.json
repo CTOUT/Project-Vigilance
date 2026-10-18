@@ -13,7 +13,6 @@
     "biomatter",
     "brrainz",
     "BRUTAL",
-    "Brutal",
     "Carapace",
     "cataphract",
     "Centipedes",
@@ -91,7 +90,6 @@
     "stims",
     "Submersible",
     "Submersibles",
-    "supersoldiers",
     "Supersoldiers",
     "Telemetry",
     "Tentaculats",
@@ -119,8 +117,6 @@
     "XCOM",
     "Xenobiology",
     "xenotypes",
-    "Xenotypes",
-    "zombification",
-    "Zombification"
+    "zombification"
   ]
 }

@@ -1,3 +1,4 @@
+using HarmonyLib;
 using RimWorld;
 using Verse;
 
@@ -22,6 +23,26 @@ public static class IncursionArrivalManager
             return false;
         }
 
+        // Validate that destination map is still active (player has not abandoned or destroyed the settlement)
+        Map? targetMap = Current.Game.FindMap(incursion.DestinationTile);
+        if (targetMap == null || !Find.Maps.Contains(targetMap))
+        {
+            string fName = incursion.Faction?.Name ?? "enemy forces";
+            bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
+            Log.Message($"[Project Vigilance] Incursion arrived at destination tile {incursion.Tile}, but the target settlement was abandoned. Aborting incident execution.");
+
+            string msg = isHostile
+                ? $"The raid from {fName} arrived at the abandoned settlement at tile {incursion.Tile}, found no defenders or structures of value, and dispersed."
+                : $"The travellers from {fName} arrived at the abandoned settlement at tile {incursion.Tile}, found no one there, and returned home.";
+
+            Messages.Message(msg, MessageTypeDefOf.NeutralEvent, false);
+            incursion.Destroy();
+            return false;
+        }
+
+        // Re-bind target to current active map
+        incursion.IncidentParms.target = targetMap;
+
         isExecutingArrival = true;
         bool success = false;
 
@@ -29,6 +50,14 @@ public static class IncursionArrivalManager
         {
             Log.Message($"[Project Vigilance] Incursion arrived at destination tile {incursion.Tile}. Executing incident: {incursion.IncidentDef.defName}.");
             success = incursion.IncidentDef.Worker.TryExecute(incursion.IncidentParms);
+
+            if (success && GeoscapeMod.Settings.resetThreatCooldownOnArrival &&
+                incursion.IncidentDef.category == IncidentCategoryDefOf.ThreatBig &&
+                targetMap.storyState != null)
+            {
+                Traverse.Create(targetMap.storyState).Field("lastThreatBigTick").SetValue(Find.TickManager.TicksGame);
+                Log.Message($"[Project Vigilance] Reset Storyteller LastThreatBigTick to current game tick ({Find.TickManager.TicksGame}) upon incursion arrival.");
+            }
         }
         catch (System.Exception ex)
         {

@@ -25,6 +25,7 @@
 - [ ] Implement semi-transparent radar coverage overlay rendering on the world map.
 - [x] **Physical Incursion Engine (Milestone 1A):** Intercept walk-in raids (`RaidEnemy`), resolve origin bases/wilderness staging, and simulate real-time overland transit on the `WorldGrid`.
 - [x] **Physical Incursion Engine (Milestone 1B):** Expand incursion routing to friendly caravans (`TraderCaravanArrival`) and roaming visitor/traveller groups.
+- [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
 - [ ] **Early Warning Dispatcher:** Generate advance warning alerts and reveal telemetry based on radar tier.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
 
@@ -58,7 +59,7 @@
 
 - [ ] Build Council of Planetary Factions funding and monthly evaluation ledger.
 - [ ] Implement regional panic tracking per territory.
-- [ ] Implement Alien Strategic AI (mission generation: Scout, Harvest, Infiltration, Terror).
+- [ ] Implement Alien Strategic AI (mission generation: Scout, Harvest, Infiltration, Terror, and coordinated multi-base planetary offensives).
 - [ ] Create global Invasion Doom Clock and Dark Events counter-operations.
 - [ ] Implement faction defection / alien pact mechanics.
 

@@ -1,7 +1,10 @@
+using System;
+using System.Linq;
 using HarmonyLib;
 using ProjectVigilance.Geoscape.World;
 using RimWorld;
 using RimWorld.Planet;
+using UnityEngine;
 using Verse;
 
 namespace ProjectVigilance.Geoscape.Patches;
@@ -58,36 +61,83 @@ public static class IncidentWorker_RaidEnemy_Patch
         bool isMultiGroup = parms.raidArrivalMode == PawnsArrivalModeDefOf.EdgeWalkInGroups ||
                             parms.raidArrivalMode == PawnsArrivalModeDefOf.EdgeWalkInDistributedGroups;
 
-        if (isMultiGroup && IncursionOriginResolver.TryResolveMultipleOrigins(parms, destinationTile, 2, out var multiOrigins) && multiOrigins.Count >= 2)
+        if (isMultiGroup)
         {
-            var incursionDef = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_Incursion");
-            if (incursionDef == null)
+            // Determine desired vector count dynamically based on raid points:
+            // < 800 pts: 2 vectors (tactical pincer)
+            // 800 - 2000 pts: 2 to 3 vectors
+            // > 2000 pts: 2 to 4 vectors
+            int desiredVectors = parms.points switch
             {
-                return true;
-            }
+                < 800f => 2,
+                < 2000f => Rand.RangeInclusive(2, 3),
+                _ => Rand.RangeInclusive(2, 4)
+            };
 
-            string fName = parms.faction?.Name ?? "Unknown Hostile";
-            float splitPoints = parms.points / multiOrigins.Count;
-
-            for (int i = 0; i < multiOrigins.Count; i++)
+            if (IncursionOriginResolver.TryResolveMultipleOrigins(parms, destinationTile, desiredVectors, out var multiOrigins) && multiOrigins.Count >= 2)
             {
-                var route = multiOrigins[i];
-                var groupParms = parms.ShallowCopy();
-                groupParms.points = splitPoints;
-                groupParms.raidArrivalMode = PawnsArrivalModeDefOf.EdgeWalkIn;
+                var incursionDef = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_Incursion");
+                if (incursionDef == null)
+                {
+                    return true;
+                }
+
+                string fName = parms.faction?.Name ?? "Unknown Hostile";
+                float splitPoints = parms.points / multiOrigins.Count;
+
+                // Calculate max transit ETA across routes to coordinate synchronized arrival
+                float maxETA = multiOrigins.Max(r => (r.Path.Count / r.Speed) * 24f);
+
+                for (int i = 0; i < multiOrigins.Count; i++)
+                {
+                    var route = multiOrigins[i];
+                    var groupParms = parms.ShallowCopy();
+                    groupParms.points = splitPoints;
+                    groupParms.raidArrivalMode = PawnsArrivalModeDefOf.EdgeWalkIn;
+
+                    float travelHours = (route.Path.Count / route.Speed) * 24f;
+                    float deltaHours = maxETA - travelHours;
+                    int departureDelayTicks = 0;
+
+                    // Synchronize arrival times: closer bases mobilize at base so forces converge simultaneously
+                    if (GeoscapeMod.Settings.synchronizeMultiVectorRaids)
+                    {
+                        int duplicateCount = multiOrigins.Take(i).Count(r => r.Origin == route.Origin);
+                        float flankStaggerHours = duplicateCount > 0 ? Rand.Range(1.2f, 2.2f) * duplicateCount : 0f;
+
+                        if (deltaHours > 0.1f && deltaHours <= IncursionOriginResolver.MaxCoordinationWindowHours)
+                        {
+                            // Add slight variance (+/- 1.0 hour) plus progressive wave stagger for co-located columns
+                            float jitter = Rand.Range(-1.0f, 1.0f);
+                            float scheduledDelayHours = Mathf.Max(0f, deltaHours + jitter + flankStaggerHours);
+                            departureDelayTicks = (int)(scheduledDelayHours * 2500f);
+                        }
+                        else if (duplicateCount > 0)
+                        {
+                            departureDelayTicks = (int)(flankStaggerHours * 2500f);
+                        }
+                    }
 
                 var inc = (WorldObject_Incursion)WorldObjectMaker.MakeWorldObject(incursionDef);
-                inc.SetupIncursion(__instance.def, groupParms, route.Origin, destinationTile, route.Path, route.Speed);
+                inc.SetupIncursion(__instance.def, groupParms, route.Origin, destinationTile, route.Path, route.Speed, departureDelayTicks);
                 Find.WorldObjects.Add(inc);
 
                 int hCount = route.Path.Count;
-                float eta = (hCount / route.Speed) * 24f;
-                Log.Message($"[Project Vigilance] Intercepted multi-vector raid from {fName} (Vector {i + 1}/{multiOrigins.Count}). Spawned incursion at tile {route.Origin} heading to tile {destinationTile} ({hCount} hexes, ETA: ~{eta:F1} hours).");
+                if (departureDelayTicks > 0)
+                {
+                    float delayHours = departureDelayTicks / 2500f;
+                    Log.Message($"[Project Vigilance] Intercepted multi-vector raid from {fName} (Vector {i + 1}/{multiOrigins.Count}). Mobilizing at tile {route.Origin} for {delayHours:F1}h before march to tile {destinationTile} ({hCount} hexes, Net ETA: ~{(travelHours + delayHours):F1}h).");
+                }
+                else
+                {
+                    Log.Message($"[Project Vigilance] Intercepted multi-vector raid from {fName} (Vector {i + 1}/{multiOrigins.Count}). Marching immediately from tile {route.Origin} to tile {destinationTile} ({hCount} hexes, ETA: ~{travelHours:F1}h).");
+                }
             }
 
             __result = true;
             return false;
         }
+    }
 
         // 6. Standard single-vector incursion (weighted settlement origin)
         if (!IncursionOriginResolver.TryResolveOrigin(parms, destinationTile, out var originTile, out var path, out var speed))

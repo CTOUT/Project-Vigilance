@@ -1,0 +1,56 @@
+name: Feature Request
+description: Propose a new feature, mechanic, or balance adjustment
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea or feedback? Check the [TODO roadmap](../blob/main/TODO.md) first to see if it is already scheduled.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: What area does this proposal target?
+      options:
+        - "Overland Incursions & Travel Mechanics"
+        - "Tactical World Map & Visuals"
+        - "Multi-Base Strategic AI"
+        - "Radar & Early Warning Grid"
+        - "Interception & Air Defence"
+        - "Alien Containment & Biology"
+        - "Campaign Geopolitics & Panic"
+        - "Mod Compatibility & Integration"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Gameplay Gap
+      description: What challenge, friction, or gap in gameplay does this address?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution / Mechanic
+      description: Explain in detail how this should work in game.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or Nuances
+      description: Are there alternative approaches or configuration options to consider?
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-Submission Checklist
+      options:
+        - label: I have reviewed TODO.md and existing issues/discussions.
+          required: true
