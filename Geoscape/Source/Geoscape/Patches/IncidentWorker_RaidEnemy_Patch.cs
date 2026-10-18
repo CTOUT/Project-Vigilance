@@ -24,7 +24,27 @@ public static class IncidentWorker_RaidEnemy_Patch
             return true;
         }
 
-        // 3. Drop pod raids bypass overland transit in this milestone
+        // 3. If faction, strategy, or arrival mode are not yet resolved (e.g. from debug actions), resolve them now
+        if (parms.faction == null)
+        {
+            bool resolvedFaction = Traverse.Create(__instance).Method("TryResolveRaidFaction", parms).GetValue<bool>();
+            if (!resolvedFaction)
+            {
+                return true;
+            }
+        }
+
+        if (parms.raidStrategy == null)
+        {
+            __instance.ResolveRaidStrategy(parms, PawnGroupKindDefOf.Combat);
+        }
+
+        if (parms.raidArrivalMode == null)
+        {
+            __instance.ResolveRaidArriveMode(parms);
+        }
+
+        // 4. Drop pod raids bypass overland transit in this milestone
         if (parms.raidArrivalMode == PawnsArrivalModeDefOf.CenterDrop ||
             parms.raidArrivalMode == PawnsArrivalModeDefOf.EdgeDrop ||
             parms.raidArrivalMode == PawnsArrivalModeDefOf.RandomDrop)
