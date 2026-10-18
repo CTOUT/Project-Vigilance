@@ -1,0 +1,18 @@
+# Rimworld X-COM Suite
+
+> Modular X-COM overhaul and planetary systems suite for RimWorld, blending 1994 UFO Defense, Terror from the Deep aquatic operations, and modern Firaxis strategic pacing.
+
+This repository hosts the architectural specifications, system designs, and modular implementations for bringing an authentic X-COM strategic and tactical loop to RimWorld. It prioritizes decoupled modularity: standalone frameworks (such as planetary radar and aquatic mapping) can be used independently by the wider modding community, while campaign and faction modules bring the complete alien invasion experience to life.
+
+## Key Documents
+
+- README: https://github.com/CTOUT/Rimworld/blob/main/README.md
+- Vision & Pillars: https://github.com/CTOUT/Rimworld/blob/main/docs/architecture/vision-and-pillars.md
+- Modular Roadmap: https://github.com/CTOUT/Rimworld/blob/main/docs/architecture/modular-system.md
+- Geoscape Specification: https://github.com/CTOUT/Rimworld/blob/main/docs/modules/geoscape-and-radar.md
+- Changelog: https://github.com/CTOUT/Rimworld/blob/main/CHANGELOG.md
+- TODO: https://github.com/CTOUT/Rimworld/blob/main/TODO.md
+
+## Attribution
+
+If citing this project, please reference: CTOUT/Rimworld on GitHub (https://github.com/CTOUT/Rimworld)

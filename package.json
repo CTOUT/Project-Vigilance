@@ -1,0 +1,14 @@
+{
+  "name": "rimworld-xcom-suite",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Modular X-COM conversion and planetary systems suite for RimWorld",
+  "scripts": {
+    "spellcheck": "cspell \"**/*.md\" \"**/*.json\" \"**/*.yml\" \"**/*.cff\"",
+    "format": "prettier --write \"**/*.{md,json,yml,yaml,cff}\""
+  },
+  "devDependencies": {
+    "cspell": "^10.3.6",
+    "prettier": "^3.9.10"
+  }
+}

@@ -1,0 +1,35 @@
+# Build and output directories
+bin/
+obj/
+dist/
+Build/
+Output/
+
+# IDE and Editor artefacts
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# RimWorld mod assemblies & local game assemblies
+Assemblies/*.pdb
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node tooling
+node_modules/
+npm-debug.log*
+*.log
+
+# Temp & scratch files
+*.tmp
+*.bak
+*.swp
