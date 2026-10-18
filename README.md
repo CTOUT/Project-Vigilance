@@ -1,4 +1,4 @@
-# Rimworld X-COM Suite
+# Project Vigilance: RimWorld X-COM Suite
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![RimWorld Version](https://img.shields.io/badge/RimWorld-1.5%2B-brightgreen.svg)](https://rimworldgame.com/)
