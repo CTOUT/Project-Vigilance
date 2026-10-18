@@ -89,47 +89,53 @@ public static class IncursionOriginResolver
     {
         stagingTile = PlanetTile.Invalid;
         var worldGrid = Find.WorldGrid;
-        if (worldGrid == null)
+        var floodFiller = center.Layer.Filler;
+        if (worldGrid == null || floodFiller == null || !center.Valid)
         {
             return false;
         }
 
-        // Search in rings from 15 to 30 hexes away
         var candidates = new List<PlanetTile>();
-        int tilesCount = worldGrid.TilesCount;
+        var allConnectedLand = new List<PlanetTile>();
 
-        // Sample up to 100 random tiles in the target distance band
-        for (int i = 0; i < 150; i++)
-        {
-            int randomTileId = Rand.Range(0, tilesCount);
-            var candidateTile = (PlanetTile)randomTileId;
-
-            if (!candidateTile.Valid || candidateTile.Layer != center.Layer)
+        floodFiller.FloodFill(
+            center,
+            tile =>
             {
-                continue;
-            }
-
-            Tile tile = worldGrid[candidateTile];
-            if (tile == null || tile.WaterCovered || tile.PrimaryBiome == null || tile.PrimaryBiome.impassable)
-            {
-                continue;
-            }
-
-            float dist = worldGrid.ApproxDistanceInTiles(candidateTile, center);
-            if (dist >= 15f && dist <= 30f)
-            {
-                candidates.Add(candidateTile);
-                if (candidates.Count >= 5)
+                if (!tile.Valid || tile.Layer != center.Layer)
                 {
-                    break;
+                    return false;
                 }
-            }
-        }
+                Tile t = worldGrid[tile];
+                return t != null && !t.WaterCovered && t.PrimaryBiome != null && !t.PrimaryBiome.impassable;
+            },
+            (tile, dist) =>
+            {
+                if (tile != center)
+                {
+                    allConnectedLand.Add(tile);
+                    if (dist >= 12 && dist <= 35)
+                    {
+                        candidates.Add(tile);
+                    }
+                }
+            },
+            500,
+            null);
 
         if (candidates.Count > 0)
         {
             stagingTile = candidates.RandomElement();
             return true;
+        }
+
+        // On smaller islands where max overland distance is < 12 hexes, pick the furthest connected tile (beachhead)
+        if (allConnectedLand.Count > 0)
+        {
+            stagingTile = allConnectedLand
+                .OrderByDescending(t => worldGrid.ApproxDistanceInTiles(t, center))
+                .FirstOrDefault();
+            return stagingTile.Valid;
         }
 
         return false;
