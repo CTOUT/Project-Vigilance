@@ -16,16 +16,17 @@ For the detailed technical specification, see [docs/modules/geoscape-and-radar.m
 
 ```
 Geoscape/
-├── 1.5/
-│   ├── Assemblies/           # Compiled C# binaries
+├── 1.7/
+│   ├── Assemblies/           # Compiled .NET 10 (net10.0) C# binaries
 │   ├── Defs/                 # XML Defs (Buildings, Comps, Research)
 │   └── Textures/             # UI blips, radar overlays, building art
 ├── About/
-│   ├── About.xml             # RimWorld mod metadata
+│   ├── About.xml             # RimWorld 1.7 mod metadata
 │   └── Preview.png           # Workshop preview image
-└── Source/                   # C# Visual Studio / dotnet solution
+└── Source/                   # C# .NET 10 solution (targeting Waylith)
     ├── Geoscape.sln
     └── Geoscape/
+        ├── Geoscape.csproj   # TargetFramework: net10.0
         ├── Comps/
         ├── World/
         ├── Detection/

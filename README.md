@@ -1,9 +1,11 @@
 # Project Vigilance: RimWorld X-COM Suite
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![RimWorld Version](https://img.shields.io/badge/RimWorld-1.5%2B-brightgreen.svg)](https://rimworldgame.com/)
+[![RimWorld Version](<https://img.shields.io/badge/RimWorld-1.7%20(Waylith)-brightgreen.svg>)](https://rimworldgame.com/)
+[![Runtime](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/)
+[![Engine](https://img.shields.io/badge/Engine-Waylith%20%2F%20BRUTAL-red.svg)](https://github.com/ahwootech/BRUTAL)
 
-A modular total systems overhaul bringing the strategic depth and tactical tension of the **X-COM** universe into **RimWorld**.
+A modular total systems overhaul bringing the strategic depth and tactical tension of the **X-COM** universe into **RimWorld** (targeting **RimWorld 1.7 - Waylith** on the **BRUTAL** framework).
 
 Rather than simply adding alien races and high-tier weapons, this project introduces the core macro systems of the franchise: **planetary radar networks**, **UFO tracking and air interception**, **oceanic operations (Terror from the Deep)**, **live alien containment**, and **global panic management**.
 

@@ -13,3 +13,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Master architectural vision incorporating 1994 X-COM: UFO Defense, Terror from the Deep (TftD) aquatic mechanics, and modern Firaxis pacing elements.
 - Modular decomposition roadmap dividing the suite into standalone and dependent layers.
 - Detailed Geoscape & Radar technical specification (Module 1).
+- Upgraded architectural target to RimWorld 1.7 (Waylith) and `.NET 10` (`net10.0`), leveraging the BRUTAL framework for zero-allocation planetary geometry and high TPS performance.

@@ -80,3 +80,19 @@ In vanilla RimWorld, oceans make up 30–50% of the planetary surface, yet they 
 
 - RimWorld already excels at base building, power management, workshops, and hospital wings.
 - The suite introduces the **X-COM Facilities Layer**: Radar domes, containment cells, research laboratories, manufacturing workshops for alien alloys, and launch pads.
+
+---
+
+## 4. Engine Architecture: RimWorld 1.7 (Waylith) & BRUTAL
+
+### 4.1 Moving Beyond Legacy Unity
+
+Starting in **RimWorld 1.7**, Ludeon Studios transitioned the game from the Unity engine to their in-house **Waylith Engine**, built upon the open-source **BRUTAL** framework by RocketWerkz.
+
+This fundamental architectural shift moves modding away from legacy `.NET Framework 4.7.2` / Mono and targets modern **`.NET 10` (`net10.0`)**.
+
+### 4.2 Impact on Project Vigilance
+
+1. **Zero-Allocation Planetary Geometry:** Planetary radar detection requires continuous spatial distance and raycasting queries across 100,000+ `WorldGrid` hex tiles. Under legacy Unity, large-scale world objects generated heavy GC allocation overhead. Leveraging modern C# features (`Span<T>`, `ref struct`, SIMD) alongside BRUTAL's low-level memory primitives allows sensory sweeps to run with near-zero GC allocations.
+2. **2x to 4x Engine TPS Gains:** Waylith delivers 2x to 4x throughput improvements in tick-heavy operations, giving Project Vigilance ample performance headroom for complex background simulations (multiple active UFO flight vectors, oceanic sonar sweeps, and planetary panic calculations).
+3. **Native Rendering & Vulkan Foundations:** Map overlays and radar bubbles are rendered against modern graphics APIs rather than legacy Unity immediate-mode GUI or legacy shader passes.

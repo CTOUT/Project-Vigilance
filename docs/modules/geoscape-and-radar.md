@@ -41,7 +41,7 @@ RimWorld's world map can feature up to 100,000+ hex tiles depending on coverage 
 **Optimisation Strategy:**
 
 1. **Tick Intervals:** Detection checks do not run on `Tick()`. They run on `TickRare()` (every 250 ticks / ~4.1 seconds) or a custom 500-tick pulse cycle.
-2. **Spatial Indexing:** Active radar installations register their tile locations into a spatial hash table (`Dictionary<int, List<RadarInstallation>>`).
+2. **Spatial Indexing & Modern .NET 10:** Active radar installations register their tile locations into a spatial hash table. On RimWorld 1.7 (Waylith), distance queries take advantage of `.NET 10` zero-allocation primitives (`ReadOnlySpan<int>`, SIMD distance vectors, and value-type buffers) to evaluate tiles without GC churn.
 3. **Spherical Distance Queries:** Use RimWorld's native `WorldGrid.ApproxDistanceInTiles(tileA, tileB)` or precomputed spherical distance lookups rather than recalculating 3D vector distances from scratch.
 
 ### 3.2 Detection Probability Formula
@@ -85,29 +85,34 @@ Moving craft on the world map are represented as custom subclasses of `WorldObje
 ## 5. C# Class Architecture
 
 ```
-Rimworld.Geoscape/
-├── Source/
-│   ├── Comps/
-│   │   ├── CompProperties_Radar.cs
-│   │   ├── CompRadar.cs
-│   │   └── WorldObjectComp_RadarCoverage.cs
-│   ├── World/
-│   │   ├── WorldObject_MovingCraft.cs
-│   │   ├── WorldObject_UFO.cs
-│   │   ├── WorldObject_USO.cs
-│   │   └── WorldManager_SensoryGrid.cs
-│   ├── Detection/
-│   │   ├── DetectionMatrix.cs
-│   │   └── RadarPulseHandler.cs
-│   ├── Rendering/
-│   │   ├── WorldOverlay_RadarCoverage.cs
-│   │   └── WorldObjectRenderer_CraftBlip.cs
-│   └── Defs/
-│       ├── RadarFacilityDef.cs
-│       └── CraftSizeDef.cs
-└── Defs/
-    ├── ThingDefs_Buildings/
-    │   └── Buildings_Radar.xml
-    └── WorldObjectDefs/
-        └── WorldObjects_Craft.xml
+Project-Vigilance/Geoscape/
+├── 1.7/
+│   ├── Assemblies/           # Compiled net10.0 C# binaries
+│   ├── Defs/                 # XML Defs (Buildings, Comps, Research)
+│   └── Textures/             # UI blips, radar overlays, building art
+├── About/
+│   ├── About.xml             # RimWorld 1.7 mod metadata
+│   └── Preview.png           # Workshop preview image
+└── Source/                   # C# .NET 10 solution (targeting Waylith)
+    ├── Geoscape.sln
+    └── Geoscape/
+        ├── Geoscape.csproj   # TargetFramework: net10.0
+        ├── Comps/
+        │   ├── CompProperties_Radar.cs
+        │   ├── CompRadar.cs
+        │   └── WorldObjectComp_RadarCoverage.cs
+        ├── World/
+        │   ├── WorldObject_MovingCraft.cs
+        │   ├── WorldObject_UFO.cs
+        │   ├── WorldObject_USO.cs
+        │   └── WorldManager_SensoryGrid.cs
+        ├── Detection/
+        │   ├── DetectionMatrix.cs
+        │   └── RadarPulseHandler.cs
+        ├── Rendering/
+        │   ├── WorldOverlay_RadarCoverage.cs
+        │   └── WorldObjectRenderer_CraftBlip.cs
+        └── Defs/
+            ├── RadarFacilityDef.cs
+            └── CraftSizeDef.cs
 ```
