@@ -28,7 +28,7 @@ public class WorldObject_Incursion : WorldObject
     public float TileProgress => tileProgress;
     public float SpeedTilesPerDay => speedTilesPerDay;
 
-    public override Color ExpandingIconColor => Faction?.Color ?? Color.red;
+    public override Color ExpandingIconColor => Faction?.Color ?? (Faction?.HostileTo(Faction.OfPlayer) ?? true ? Color.red : Color.white);
 
     public void SetupIncursion(
         IncidentDef def,
@@ -136,9 +136,9 @@ public class WorldObject_Incursion : WorldObject
         float remainingDays = remainingTiles / Math.Max(0.1f, speedTilesPerDay);
         float remainingHours = remainingDays * 24f;
 
-        string factionName = Faction?.Name ?? "Unknown Hostile";
-        string raidType = incidentDef?.label ?? "Incursion";
+        string factionName = Faction?.Name ?? "Unknown";
+        string label = incidentDef?.label ?? def.label ?? "Approaching Force";
 
-        return $"{raidType.CapitalizeFirst()} ({factionName})\nETA: ~{remainingHours:F1} hours ({remainingTiles} hexes remaining)";
+        return $"{label.CapitalizeFirst()} ({factionName})\nETA: ~{remainingHours:F1} hours ({remainingTiles} hexes remaining)";
     }
 }

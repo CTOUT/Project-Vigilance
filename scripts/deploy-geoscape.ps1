@@ -30,7 +30,24 @@ if (-not (Test-Path $solutionFile)) {
     throw "Solution file not found at: $solutionFile"
 }
 
-# 2. Build .NET 10 binary
+# 2. Handle active DLL locks if RimWorld is open
+$targetDll = Join-Path $geoscapeDir '1.7\Assemblies\Geoscape.dll'
+$oldDll = Join-Path $geoscapeDir '1.7\Assemblies\Geoscape.dll.old'
+if (Test-Path $oldDll) {
+    Remove-Item $oldDll -Force -ErrorAction SilentlyContinue
+}
+if (Test-Path $targetDll) {
+    try {
+        $fileStream = [System.IO.File]::Open($targetDll, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+        $fileStream.Close()
+        $fileStream.Dispose()
+    } catch {
+        Write-Host "--> Active file lock detected on Geoscape.dll (RimWorld running). Rotating locked assembly..." -ForegroundColor Yellow
+        Move-Item -Path $targetDll -Destination $oldDll -Force
+    }
+}
+
+# 3. Build .NET 10 binary
 Write-Host "--> Compiling Geoscape.slnx targeting .NET 10..." -ForegroundColor Yellow
 & dotnet build $solutionFile --configuration Release
 if ($LASTEXITCODE -ne 0) {

@@ -11,4 +11,16 @@
     <expandingIconPriority>50</expandingIconPriority>
     <saved>true</saved>
   </WorldObjectDef>
+
+  <WorldObjectDef>
+    <defName>Vigilance_Caravan</defName>
+    <label>approaching caravan</label>
+    <description>A group of travellers traversing the planetary surface toward your settlement.</description>
+    <worldObjectClass>ProjectVigilance.Geoscape.World.WorldObject_Incursion</worldObjectClass>
+    <texture>World/WorldObjects/Caravan</texture>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/Caravan</expandingIconTexture>
+    <expandingIconPriority>50</expandingIconPriority>
+    <saved>true</saved>
+  </WorldObjectDef>
 </Defs>

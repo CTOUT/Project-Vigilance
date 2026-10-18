@@ -24,7 +24,7 @@
 - [ ] Build Oceanic Sonar detection layer for water hexes.
 - [ ] Implement semi-transparent radar coverage overlay rendering on the world map.
 - [x] **Physical Incursion Engine (Milestone 1A):** Intercept walk-in raids (`RaidEnemy`), resolve origin bases/wilderness staging, and simulate real-time overland transit on the `WorldGrid`.
-- [ ] **Physical Incursion Engine (Milestone 1B):** Expand incursion routing to friendly caravans (`TraderCaravanArrival`) and roaming visitor/traveller groups.
+- [x] **Physical Incursion Engine (Milestone 1B):** Expand incursion routing to friendly caravans (`TraderCaravanArrival`) and roaming visitor/traveller groups.
 - [ ] **Early Warning Dispatcher:** Generate advance warning alerts and reveal telemetry based on radar tier.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
 
