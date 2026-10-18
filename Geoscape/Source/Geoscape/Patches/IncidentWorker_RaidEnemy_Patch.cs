@@ -53,13 +53,49 @@ public static class IncidentWorker_RaidEnemy_Patch
         }
 
         PlanetTile destinationTile = map.Tile;
+
+        // 5. Check if multi-group arrival is requested (pincer attack across multiple vectors)
+        bool isMultiGroup = parms.raidArrivalMode == PawnsArrivalModeDefOf.EdgeWalkInGroups ||
+                            parms.raidArrivalMode == PawnsArrivalModeDefOf.EdgeWalkInDistributedGroups;
+
+        if (isMultiGroup && IncursionOriginResolver.TryResolveMultipleOrigins(parms, destinationTile, 2, out var multiOrigins) && multiOrigins.Count >= 2)
+        {
+            var incursionDef = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_Incursion");
+            if (incursionDef == null)
+            {
+                return true;
+            }
+
+            string fName = parms.faction?.Name ?? "Unknown Hostile";
+            float splitPoints = parms.points / multiOrigins.Count;
+
+            for (int i = 0; i < multiOrigins.Count; i++)
+            {
+                var route = multiOrigins[i];
+                var groupParms = parms.ShallowCopy();
+                groupParms.points = splitPoints;
+                groupParms.raidArrivalMode = PawnsArrivalModeDefOf.EdgeWalkIn;
+
+                var inc = (WorldObject_Incursion)WorldObjectMaker.MakeWorldObject(incursionDef);
+                inc.SetupIncursion(__instance.def, groupParms, route.Origin, destinationTile, route.Path, route.Speed);
+                Find.WorldObjects.Add(inc);
+
+                int hCount = route.Path.Count;
+                float eta = (hCount / route.Speed) * 24f;
+                Log.Message($"[Project Vigilance] Intercepted multi-vector raid from {fName} (Vector {i + 1}/{multiOrigins.Count}). Spawned incursion at tile {route.Origin} heading to tile {destinationTile} ({hCount} hexes, ETA: ~{eta:F1} hours).");
+            }
+
+            __result = true;
+            return false;
+        }
+
+        // 6. Standard single-vector incursion (weighted settlement origin)
         if (!IncursionOriginResolver.TryResolveOrigin(parms, destinationTile, out var originTile, out var path, out var speed))
         {
             // Graceful fallback to vanilla execution if route cannot be resolved
             return true;
         }
 
-        // 4. Retrieve WorldObjectDef and spawn incursion entity
         var def = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_Incursion");
         if (def == null)
         {

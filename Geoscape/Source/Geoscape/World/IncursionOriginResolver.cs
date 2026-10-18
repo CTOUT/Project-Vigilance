@@ -25,7 +25,7 @@ public static class IncursionOriginResolver
             return false;
         }
 
-        // 1. Try finding a settlement belonging to the faction
+        // 1. Try finding settlements belonging to the faction (weighted by distance)
         if (parms.faction != null && Find.WorldObjects?.Settlements != null)
         {
             var factionSettlements = Find.WorldObjects.Settlements
@@ -33,14 +33,29 @@ public static class IncursionOriginResolver
                 .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(s.Tile, destinationTile))
                 .ToList();
 
+            var reachableSettlements = new List<(PlanetTile Tile, List<PlanetTile> Path, float Distance)>();
+
             foreach (var settlement in factionSettlements)
             {
                 if (TryBuildPath(settlement.Tile, destinationTile, out var foundPath))
                 {
-                    originTile = settlement.Tile;
-                    path = foundPath;
-                    return true;
+                    float dist = Find.WorldGrid.ApproxDistanceInTiles(settlement.Tile, destinationTile);
+                    reachableSettlements.Add((settlement.Tile, foundPath, dist));
+
+                    if (reachableSettlements.Count >= 4)
+                    {
+                        break;
+                    }
                 }
+            }
+
+            if (reachableSettlements.Count > 0)
+            {
+                // Weighted selection: Closer bases have higher probability, but regional bases can also strike!
+                var chosen = reachableSettlements.RandomElementByWeight(s => 100f / Math.Max(5f, s.Distance));
+                originTile = chosen.Tile;
+                path = chosen.Path;
+                return true;
             }
         }
 
@@ -139,6 +154,50 @@ public static class IncursionOriginResolver
         }
 
         return false;
+    }
+
+    public static bool TryResolveMultipleOrigins(
+        IncidentParms parms,
+        PlanetTile destinationTile,
+        int count,
+        out List<(PlanetTile Origin, List<PlanetTile> Path, float Speed)> results)
+    {
+        results = new List<(PlanetTile Origin, List<PlanetTile> Path, float Speed)>();
+        float speed = GetSpeedForFaction(parms.faction);
+
+        if (!destinationTile.Valid)
+        {
+            return false;
+        }
+
+        if (parms.faction != null && Find.WorldObjects?.Settlements != null)
+        {
+            var factionSettlements = Find.WorldObjects.Settlements
+                .Where(s => s.Faction == parms.faction && s.Tile.Valid && s.Tile.Layer == destinationTile.Layer)
+                .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(s.Tile, destinationTile))
+                .ToList();
+
+            foreach (var settlement in factionSettlements)
+            {
+                if (TryBuildPath(settlement.Tile, destinationTile, out var foundPath))
+                {
+                    results.Add((settlement.Tile, foundPath, speed));
+                    if (results.Count >= count)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // If not enough settlement origins found, fallback to single origin
+        if (results.Count == 0 && TryResolveOrigin(parms, destinationTile, out var singleOrigin, out var singlePath, out var singleSpeed))
+        {
+            results.Add((singleOrigin, singlePath, singleSpeed));
+            return true;
+        }
+
+        return results.Count > 0;
     }
 
     public static float GetSpeedForFaction(Faction? faction)

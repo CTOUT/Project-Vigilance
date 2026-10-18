@@ -38,6 +38,22 @@ public static class DebugActionsVigilance
         IncidentDefOf.RaidEnemy.Worker.TryExecute(parms);
     }
 
+    [DebugAction("Project Vigilance", "Spawn Multi-Vector Raid (1500 pts)", allowedGameStates = AllowedGameStates.PlayingOnMap)]
+    private static void SpawnMultiVectorRaid1500()
+    {
+        Map map = Find.CurrentMap;
+        if (map == null)
+        {
+            Messages.Message("No active player map found.", MessageTypeDefOf.RejectInput, false);
+            return;
+        }
+
+        IncidentParms parms = StorytellerUtility.DefaultParmsNow(IncidentCategoryDefOf.ThreatBig, map);
+        parms.points = 1500f;
+        parms.raidArrivalMode = PawnsArrivalModeDefOf.EdgeWalkInGroups;
+        IncidentDefOf.RaidEnemy.Worker.TryExecute(parms);
+    }
+
     [DebugAction("Project Vigilance", "Spawn Trade Caravan", allowedGameStates = AllowedGameStates.PlayingOnMap)]
     private static void SpawnTradeCaravan()
     {
