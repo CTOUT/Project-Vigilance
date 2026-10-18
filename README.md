@@ -11,6 +11,35 @@ Rather than simply adding alien races and high-tier weapons, this project introd
 
 ---
 
+## 🚀 Active Playtest: Project Vigilance - Overland Incursions (v0.1.0)
+
+The first standalone module of the suite—**Overland Incursions**—is implemented and ready for community playtesting in the [`Geoscape/`](Geoscape/) directory!
+
+### What Does It Do?
+
+In vanilla RimWorld, raids and trade caravans instantaneously materialise at the boundary of your map out of thin air. **Overland Incursions** overhauls this completely:
+
+- **Physical WorldGrid Transit:** When a storyteller incident fires (e.g. `RaidEnemy` or `TraderCaravanArrival`), the party spawns at a physical origin point on the planet (a nearby enemy base or wilderness staging tile) and physically marches across the world map to your colony.
+- **Realistic ETAs & Tactical Timing:** March speeds are computed dynamically using world pathfinding, distance, and terrain biome costs. Raids can take anywhere from 12 hours to several days to arrive.
+- **Tactical World Map Rendering:**
+  - Distinct **IFF Colours:** Hostile forces are marked in alert crimson red, while friendly and neutral trade caravans are rendered in cool cyan.
+  - Directional quad alignment pointing naturally toward planetary North.
+  - Caravan marching silhouette underlay combined with an upright, prominent faction crest overlay.
+- **Interactive Inspection:** Click on approaching world incursions to view real-time telemetry: originating faction, remaining distance, estimated time of arrival (ETA), and combat threat points.
+- **Zero Tech Prerequisites:** Completely era-agnostic and standalone. Can be dropped into any tribal, medieval, or industrial playthrough with zero alien content.
+- **Configurable Settings:** In-game options to synchronise storyteller threat timers upon arrival and adjust transit speeds.
+
+### How to Install for Testing
+
+1. Ensure **RimWorld 1.7 (Waylith)** and **Harmony** are installed.
+2. Download or clone this repository.
+3. Copy the [`Geoscape/`](Geoscape/) folder into your RimWorld `Mods/` directory (e.g. `RimWorld/Mods/ProjectVigilance-OverlandIncursions`).
+4. Activate **Harmony** first, followed by **Project Vigilance - Overland Incursions** in your mod manager.
+
+💬 **Join the Testing Discussion:** Have feedback, balance notes, or ideas? Join our [GitHub Community Discussions](https://github.com/CTOUT/Project-Vigilance/discussions) or report issues via [GitHub Issues](https://github.com/CTOUT/Project-Vigilance/issues).
+
+---
+
 ## The Three Core Pillars
 
 1. **1994 UFO Defense / Enemy Unknown:** Planetary Geoscape simulation, radar coverage networks, alien mission intent (Scout, Harvest, Infiltration, Terror, Base Construction), multi-base outposts, and air interception.

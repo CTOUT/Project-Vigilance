@@ -1,8 +1,8 @@
 cff-version: 1.2.0
-title: "Repository Template"
+title: "Project Vigilance: Strategic Planetary Overhaul & Overland Incursions"
 message: "If you use this software, please cite it as below."
 type: software
 authors:
-  - family-names: "Maintainer"
-    given-names: "Repository"
+  - family-names: "CTOUT"
+    given-names: "Chris"
 license: MIT

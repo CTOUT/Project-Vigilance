@@ -5,17 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-10-18
 
 ### Added
 
-- Initial repository structure, boilerplate, and project standardization.
-- Master architectural vision incorporating 1994 X-COM: UFO Defense, Terror from the Deep (TftD) aquatic mechanics, and modern Firaxis pacing elements.
-- Modular decomposition roadmap dividing the suite into standalone and dependent layers.
-- Detailed Geoscape & Radar technical specification (Module 1).
-- Upgraded architectural target to RimWorld 1.7 (Waylith) and `.NET 10` (`net10.0`), leveraging the BRUTAL framework for zero-allocation planetary geometry and high TPS performance.
-- Formalised Standalone vs Dependent modular architecture, establishing zero-thematic-leakage rules and contract-driven APIs for framework modules (Geoscape, Interception, Containment, Aquatics).
-- Specified the Physical Incursion System in Geoscape to track non-player raids, visitors, travellers, creep-joiners, and caravans with real-world origin points on the WorldGrid.
-- Added Item-Triggered Research Discovery ("Fog of Research") requiring physical field salvage, medical autopsies, or live interrogations to reveal tech tree projects.
-- Integrated Odyssey DLC (1.6) gravships, player shuttles, and orbital layer travel for high-tier craft and space missions.
-- Authored full DLC Integration Architecture mapping Royalty psionics/Psi-Labs, Ideology EXALT cults/precepts, Biotech alien xenotypes/gene-modding, Anomaly containment/Chryssalids, and Odyssey orbital space.
+- **Physical Incursion Engine:** Replaced instantaneous map-edge pawn materialisation with real-time planetary transit across the `WorldGrid` for walk-in enemy raids (`IncidentWorker_RaidEnemy`) and friendly trade caravans (`IncidentWorker_TraderCaravanArrival`).
+- **Dynamic Origin Resolution:** Added `IncursionOriginResolver` to locate nearest faction settlements or establish procedural wilderness staging sites based on terrain accessibility.
+- **Realistic Transit Simulation:** Implemented `IncursionMovementHandler` computing tile-by-tile pathing, biome travel costs, and live ETAs (hours to days depending on terrain).
+- **Tactical Map Rendering:** Added composite dual-layer world rendering in `WorldObject_Incursion`:
+  - Quad alignment fixed to point naturally toward planetary North at all camera zoom levels.
+  - Distinct IFF colouring: Alert Crimson Red for hostile raids and Cool Cyan for friendly/neutral caravans.
+  - Caravan marching silhouette underlay combined with an upright, prominent faction crest overlay.
+- **Interactive Incursion Telemetry:** Added custom world inspect strings displaying originating faction, remaining distance, live ETA, and combat threat rating.
+- **Storyteller & Cooldown Integration:** Added `IncursionArrivalManager` to trigger incidents upon physical hex arrival, with configurable options to reset `lastThreatBigTick` to prevent storyteller threat stacking.
+- **Save/Load State Resilience:** Built full Scribe serialization (`Scribe_Values`, `Scribe_References`, `Scribe_Deep`) so ongoing incursions persist across game save cycles.
+- **In-Game Settings Dialogue:** Added `GeoscapeMod` and `GeoscapeSettings` allowing players to configure threat cooldown resets and transit speed multipliers.
+- **Architectural Specifications & Master Vision:** Comprehensive technical documentation for Geoscape & Radar, Interception, Containment & Biology, Invasion Campaign, Aquatic Operations (TftD), and DLC integrations.

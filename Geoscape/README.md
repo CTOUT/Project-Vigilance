@@ -1,34 +1,66 @@
-# Module 1: Geoscape & Radar Grid
+# Project Vigilance: Overland Incursions (Geoscape Framework)
 
-This directory hosts the C# source code, XML Defs, and mod package for **Module 1: Geoscape & Radar Grid**.
+This directory hosts the C# source code, XML Defs, and compiled mod package for **Project Vigilance: Overland Incursions** (Package ID: `ProjectVigilance.Geoscape`).
 
-## System Scope
+This is a **standalone, zero-dependency framework mod** designed for RimWorld 1.7 (Waylith) and `.NET 10`. It replaces instantaneous map-edge teleportation with physical overland transit across the global planetary grid.
 
-- Planetary sensory framework (`WorldObjectComp_Radar`).
-- Sensory blind spots and planetary fog of war on the `WorldGrid`.
-- Radar detection probability algorithms and scan pulse scheduler (`TickRare`).
-- Support for moving world craft (`WorldObject_FlyingCraft`, `WorldObject_UFO`, `WorldObject_USO`).
-- Sonar coverage for oceanic and coastal operations (Terror from the Deep integration).
+---
 
-For the detailed technical specification, see [docs/modules/geoscape-and-radar.md](../docs/modules/geoscape-and-radar.md).
+## Current Features (v0.1.0 Playtest)
 
-## Planned Directory Layout
+- **Physical Incursion Engine:** Intercepts walk-in raids (`IncidentWorker_RaidEnemy`) and trade caravans (`IncidentWorker_TraderCaravanArrival`), spawning physical world entities that march across the planet.
+- **Dynamic Origin Resolution:** Automatically resolves genuine origin settlements or wilderness staging sites based on faction territory and terrain accessibility.
+- **Real-Time WorldGrid Pathing:** Calculates terrain-based transit speeds and realistic ETAs (hours to days depending on biomes, roads, and mountains).
+- **Tactical World Map Rendering:**
+  - **IFF Identification:** Hostile raids are rendered in alert crimson red; friendly and neutral traders in cool cyan.
+  - **Dual-Layer Marker:** Features a marching caravan silhouette underlay and an upright, high-contrast faction crest overlay.
+  - **Dynamic Quad Alignment:** Rotated naturally to align with planetary North at any camera zoom.
+- **Interactive Telemetry:** Click approaching incursions to inspect their originating faction, remaining distance, estimated arrival time, and threat points.
+- **Save/Load Resilient:** Fully serialised via `IExposable` (`Scribe_Values`, `Scribe_References`, `Scribe_Deep`) so ongoing incursions persist across saves.
+- **Configurable Mod Settings:** In-game options menu to toggle storyteller cooldown resets upon incursion arrival and adjust overland speed multipliers.
+
+---
+
+## Directory Layout
 
 ```
 Geoscape/
 ├── 1.7/
-│   ├── Assemblies/           # Compiled .NET 10 (net10.0) C# binaries
-│   ├── Defs/                 # XML Defs (Buildings, Comps, Research)
-│   └── Textures/             # UI blips, radar overlays, building art
+│   ├── Assemblies/           # Compiled .NET 10 (net10.0) C# binaries (Geoscape.dll)
+│   ├── Defs/                 # XML WorldObjectDefs and ThingDefs
+│   └── Textures/             # Tactical UI markers and icons
 ├── About/
 │   ├── About.xml             # RimWorld 1.7 mod metadata
-│   └── Preview.png           # Workshop preview image
+│   └── Preview.png           # Workshop & mod-manager preview graphic
 └── Source/                   # C# .NET 10 solution (targeting Waylith)
-    ├── Geoscape.sln
+    ├── Geoscape.slnx         # Modern Visual Studio solution
     └── Geoscape/
         ├── Geoscape.csproj   # TargetFramework: net10.0
-        ├── Comps/
-        ├── World/
-        ├── Detection/
-        └── Rendering/
+        ├── Patches/          # Harmony patches (RaidEnemy, TraderCaravan)
+        ├── Settings/         # In-game ModSettings & UI dialogue
+        ├── UI/               # Telemetry and inspect pane string builders
+        └── World/            # WorldObject_Incursion, pathing, and arrival management
 ```
+
+---
+
+## Local Build & Deployment
+
+### Prerequisites
+
+- .NET 10 SDK (`dotnet --version`)
+- RimWorld 1.7 (Waylith engine)
+
+### Building
+
+```powershell
+npm run build:geoscape
+```
+
+### Deploying to RimWorld Mods Directory
+
+```powershell
+npm run deploy:geoscape
+```
+
+For the long-term technical specification of the sensory grid and radar domes, see [docs/modules/geoscape-and-radar.md](../docs/modules/geoscape-and-radar.md).
