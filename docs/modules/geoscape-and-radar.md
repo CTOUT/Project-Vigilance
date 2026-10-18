@@ -203,3 +203,20 @@ If the player's colony or destination is located on an isolated island or enclos
    - Neolithic or landlocked factions stage from a concealed mountain camp or wilderness tile in the same enclosed valley.
 4. **Zero-Failure Safe-Guard (Idempotent Fallback):**
    - If path resolution fails completely, the system safely bypasses incursion transit and executes the vanilla incident instantly, ensuring the Storyteller loop never deadlocks.
+
+### 6.5 Abandoned Site Incursion Behaviour & Overland Track Pursuit
+
+In vanilla RimWorld, when a settlement or temporary camp is abandoned while a hostile force is en route, the incident abruptly terminates upon arrival and the raiding party simply disappears. In Project Vigilance, incursions maintain persistent physical agency upon arriving at an abandoned site:
+
+1. **Physical Track Detection:**
+   - When an incursion reaches an abandoned tile, raiders actively search the vacant camp.
+   - The engine checks recent caravan departure records from that tile. If the evacuation departed **overland** on foot or with pack animals, raiders roll a tactical tracking chance based on time elapsed since departure and biome weather.
+   - **Odyssey / Flight Exclusion:** Evacuations conducted via high-tech shuttles, drop-pods, or Odyssey gravships leave no ground trail, preventing pursuers from acquiring tracks.
+2. **Search Delay & Hot Pursuit:**
+   - If the tracking check succeeds, the incursion enters a search state at the abandoned camp for a short delay (e.g. 2–6 in-game hours) before locking onto the fleeing caravan's trajectory.
+   - Raiders reroute into an active pursuit on the `WorldGrid`, tracking the caravan toward its destination or ambushing it on the road.
+3. **Fallback March & Opportunistic Retargeting:**
+   - If no tracks are found or the trail goes cold:
+     - **Return March:** Raiders reverse course toward their home settlement or march to the nearest friendly outpost.
+     - **Opportunistic Retargeting:** Incursions can dynamically redirect their assault toward an adjacent player outpost, listening post, or allied settlement within range.
+     - **Occupation Camp:** In remote wilderness, raiders may convert the abandoned player camp into an enemy outpost or bandit staging base.
