@@ -174,3 +174,32 @@ When an incident triggers, the system intercepts the event and calculates an app
    - Because raiders physically exist as world entities during transit, the player can scramble **Interceptors** or deploy a **Skyranger Strike Team** to ambush and neutralise the raiding force on the world map before they ever reach the home base.
 4. **Standalone Framework Value:**
    - This storyteller overhaul is entirely generic and modular. Players who want realistic military logistics, scouting, and early warning in vanilla RimWorld can use this module without any X-COM alien themes.
+
+### 6.3 Dynamic Travel Encounters & Sight Horizons
+
+In vanilla RimWorld, travelling encounters (meeting traders or being ambushed on the road) occur as sudden, non-spatial dice rolls. The Geoscape framework overhauls this through a **Hybrid Horizon Model**:
+
+1. **Inter-Settlement Roaming Groups:**
+   - Major trade caravans, pilgrim bands, and patrol groups physically spawn and journey along planetary roads between NPC settlements.
+2. **Caravan Sight Horizon (2–3 Hex Scouting Radius):**
+   - A player caravan possesses a natural visual horizon revealing moving entities within a 2–3 hex radius.
+   - When another group enters line of sight, they are rendered on the globe:
+     - _"Friendly Bulk Goods Trader (Blue Moon Cove) spotted 2 hexes north-east."_
+3. **Tactical Agency & Risk-Reward:**
+   - **Opportunistic Barter:** Players can divert their route to intercept traders and purchase emergency medicine or high-tech components.
+   - **Hazard Avoidance:** Spotting a large hostile warband ahead allows caravans to divert into mountain terrain or take cover.
+   - **Highway Banditry:** Raider or pirate ideoligions can actively hunt down and ambush wealthy merchant caravans.
+   - **Dangerous Encounters:** Not all roaming groups are benevolent. Travellers may turn out to be disguised bandits, disease carriers, or desperate refugees demanding food and silver under threat of violence.
+
+### 6.4 Inaccessible Routing Strategy (Islands & Impassable Mountains)
+
+If the player's colony or destination is located on an isolated island or enclosed by impassable mountain tiles, standard ground pathfinding (`WorldPathFinder`) will report an unreachable destination. The engine applies a tiered resolution strategy:
+
+1. **Sub-Orbital / Airborne Incursion (Industrial+ Factions):**
+   - Factions with advanced technology convert the raid into an aerial contact (`WorldObject_AirIncursion`), flying directly over oceans and mountain peaks.
+2. **Amphibious / Coastal Embarkation (Island Settlements):**
+   - Forces march to the nearest coastal hex, board maritime craft, and traverse ocean tiles.
+3. **Local Wilderness Staging (Enclosed Valleys & Tribals):**
+   - Neolithic or landlocked factions stage from a concealed mountain camp or wilderness tile in the same enclosed valley.
+4. **Zero-Failure Safe-Guard (Idempotent Fallback):**
+   - If path resolution fails completely, the system safely bypasses incursion transit and executes the vanilla incident instantly, ensuring the Storyteller loop never deadlocks.
