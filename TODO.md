@@ -1,21 +1,7 @@
 # Implementation Roadmap & TODO
 
-## Phase 1: Architecture & Foundation (Current)
+## Active Roadmap: Phase 2 — Geoscape & Radar Grid (Standalone Framework)
 
-- [x] Initialise git repository and enforce repository standards.
-- [x] Define three-pillar architectural vision (1994 UFO Defense, Terror from the Deep, Modern Firaxis).
-- [x] Establish decoupled modular system design and dependency matrix.
-- [x] Author technical specifications for Module 1 (Geoscape & Radar).
-- [x] Author technical specifications for Module 2 (Interception & Deployment).
-- [x] Author technical specifications for Module 3 (Containment & Biology).
-- [x] Author technical specifications for Module 4 (Campaign & Panic).
-- [x] Document aquatic operations and Terror from the Deep integration.
-
----
-
-## Phase 2: Module 1 — Geoscape & Radar Grid (Standalone Framework)
-
-- [x] Create `Geoscape/` C# project (`Geoscape.csproj`) targeting RimWorld 1.7 (Waylith) and `.NET 10` (`net10.0`).
 - [ ] Implement `CompProperties_Radar` and `CompRadar` building components.
 - [ ] Implement `WorldObjectComp_Radar` for settlements and forward listening posts.
 - [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) for efficient spatial distance checks.
@@ -23,8 +9,6 @@
 - [ ] Implement sensory blind spots and planetary fog of war masking on the `WorldGrid`.
 - [ ] Build Oceanic Sonar detection layer for water hexes.
 - [ ] Implement semi-transparent radar coverage overlay rendering on the world map.
-- [x] **Physical Incursion Engine (Milestone 1A):** Intercept walk-in raids (`RaidEnemy`), resolve origin bases/wilderness staging, and simulate real-time overland transit on the `WorldGrid`.
-- [x] **Physical Incursion Engine (Milestone 1B):** Expand incursion routing to friendly caravans (`TraderCaravanArrival`) and roaming visitor/traveller groups.
 - [ ] **Field Interception & Forward Ambush:** Allow player caravans (and rapid-response transports) to intercept approaching incursions on the global hex grid, generating an encounter map where raiders can be engaged, ambushed, or routed before reaching the colony.
 - [ ] **Retreat, Pursuit & Kidnap Recovery:** When raiders flee, rout, or kidnap colonists, simulate their physical retreat across the world map back to their home settlement. Enables hot-pursuit rescue operations to recover captured colonists before they reach enemy strongholds.
 - [ ] **Abandoned Camp Fallback & Overland Track Pursuit:** When raiders or incursions arrive at an abandoned colony or vacated camp, replace instant disbanding with intelligent tactical behaviour:
@@ -78,3 +62,31 @@
 - [ ] Create weapon sets: Laser, Plasma, Sonic, and Harpoon/Gauss.
 - [ ] Create armour sets: Kevlar, Carapace, Titan, and Diving/Aquatic suits.
 - [ ] Integrate sound effects and visual FX faithful to the franchise.
+
+---
+
+## Completed Milestones
+
+<details>
+<summary><b>v0.1.0 — Architecture & Overland Incursions (Shipped 2026-10-18)</b></summary>
+
+### Phase 1: Architecture & Foundation
+
+- [x] Initialise git repository and enforce repository standards.
+- [x] Define three-pillar architectural vision (1994 UFO Defense, Terror from the Deep, Modern Firaxis).
+- [x] Establish decoupled modular system design and dependency matrix.
+- [x] Author technical specifications for Module 1 (Geoscape & Radar).
+- [x] Author technical specifications for Module 2 (Interception & Deployment).
+- [x] Author technical specifications for Module 3 (Containment & Biology).
+- [x] Author technical specifications for Module 4 (Campaign & Panic).
+- [x] Document aquatic operations and Terror from the Deep integration.
+
+### Phase 2: Module 1 (Shipped Components)
+
+- [x] Create `Geoscape/` C# project (`Geoscape.csproj`) targeting RimWorld 1.7 (Waylith) and `.NET 10` (`net10.0`).
+- [x] **Physical Incursion Engine (Milestone 1A):** Intercept walk-in raids (`RaidEnemy`), resolve origin bases/wilderness staging, and simulate real-time overland transit on the `WorldGrid`.
+- [x] **Physical Incursion Engine (Milestone 1B):** Expand incursion routing to friendly caravans (`TraderCaravanArrival`) and roaming visitor/traveller groups.
+
+See [CHANGELOG.md](CHANGELOG.md#010---2026-10-18) for full release notes.
+
+</details>

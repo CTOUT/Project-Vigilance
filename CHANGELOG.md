@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Comprehensive Community FAQ ([`docs/faq.md`](docs/faq.md)) addressing modded faction compatibility (Vanilla Factions Expanded, Medieval Overhaul), tactical combat overhauls (Combat Extended, CAI 5000), Rim War architectural comparisons, and 1.6 backport evaluations.
+- Steam Workshop Collection badges and cross-links across project documentation.
+
+### Changed
+
+- Scoped CI spellcheck workflow (`.github/workflows/spellcheck.yml`) and `cspell.json` to target documentation and prevent false positives on C# engine symbols and scripts.
+
 ## [0.1.0] - 2026-10-18
 
 ### Added
