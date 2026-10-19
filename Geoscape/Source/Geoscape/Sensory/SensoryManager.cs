@@ -22,6 +22,7 @@ public class SensoryManager : WorldComponent
     private readonly HashSet<IDetectableTarget> activeTargets = new();
     private readonly Dictionary<PlanetTile, int> stationaryExploredRadius = new();
     private readonly Dictionary<int, PlanetTile> lastCaravanTiles = new();
+    private readonly List<ISensorProvider> activeSensorsCache = new();
 
     private byte[]? exploredBytes;
 
@@ -73,9 +74,9 @@ public class SensoryManager : WorldComponent
         }
     }
 
-    public List<ISensorProvider> GetActiveSensors()
+    public IReadOnlyList<ISensorProvider> GetActiveSensors()
     {
-        List<ISensorProvider> sensors = new();
+        activeSensorsCache.Clear();
 
         // 1. Natural Colony Scout Horizons (Settlements with active maps)
         if (Find.Maps != null)
@@ -92,7 +93,7 @@ public class SensoryManager : WorldComponent
                     }
                     if (sensor.IsSensorActive)
                     {
-                        sensors.Add(sensor);
+                        activeSensorsCache.Add(sensor);
                     }
                 }
             }
@@ -113,7 +114,7 @@ public class SensoryManager : WorldComponent
                     }
                     if (sensor.IsSensorActive)
                     {
-                        sensors.Add(sensor);
+                        activeSensorsCache.Add(sensor);
                     }
                 }
             }
@@ -124,11 +125,11 @@ public class SensoryManager : WorldComponent
         {
             if (customSensors[i].IsSensorActive)
             {
-                sensors.Add(customSensors[i]);
+                activeSensorsCache.Add(customSensors[i]);
             }
         }
 
-        return sensors;
+        return activeSensorsCache;
     }
 
     public void PerformSensorySweep()
@@ -172,7 +173,7 @@ public class SensoryManager : WorldComponent
             return;
         }
 
-        List<ISensorProvider> activeSensors = GetActiveSensors();
+        IReadOnlyList<ISensorProvider> activeSensors = GetActiveSensors();
 
         // If in Classic Haze of War, mark all tiles covered by active sensors as permanently explored
         if (mode == VisibilityMode.ClassicHazeOfWar)
@@ -278,7 +279,7 @@ public class SensoryManager : WorldComponent
             return false;
         }
 
-        List<ISensorProvider> sensors = GetActiveSensors();
+        IReadOnlyList<ISensorProvider> sensors = GetActiveSensors();
         for (int i = 0; i < sensors.Count; i++)
         {
             ISensorProvider sensor = sensors[i];
@@ -326,23 +327,20 @@ public class SensoryManager : WorldComponent
         }
 
         int intRadius = Mathf.CeilToInt(radiusInTiles);
-        List<PlanetTile> tiles = new();
         centerTile.Layer.Filler.FloodFill(
             centerTile,
             t => Find.WorldGrid.ApproxDistanceInTiles(centerTile, t) <= radiusInTiles,
-            t => tiles.Add(t),
-            maxTilesToProcess: (intRadius * intRadius * 4));
-
-        for (int i = 0; i < tiles.Count; i++)
-        {
-            int tileId = tiles[i].tileId;
-            int byteIndex = tileId >> 3;
-            int bitIndex = tileId & 7;
-            if (byteIndex < exploredBytes.Length)
+            t =>
             {
-                exploredBytes[byteIndex] |= (byte)(1 << bitIndex);
-            }
-        }
+                int tileId = t.tileId;
+                int byteIndex = tileId >> 3;
+                int bitIndex = tileId & 7;
+                if (byteIndex < exploredBytes.Length)
+                {
+                    exploredBytes[byteIndex] |= (byte)(1 << bitIndex);
+                }
+            },
+            maxTilesToProcess: (intRadius * intRadius * 4));
     }
 
     private void EnsureExploredArray()

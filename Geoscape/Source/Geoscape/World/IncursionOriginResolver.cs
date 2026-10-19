@@ -26,37 +26,14 @@ public static class IncursionOriginResolver
         }
 
         // 1. Try finding settlements belonging to the faction (weighted by distance)
-        if (parms.faction != null && Find.WorldObjects?.Settlements != null)
+        var viableSettlements = GetViableFactionSettlements(parms.faction, destinationTile, speed, 4);
+        if (viableSettlements.Count > 0)
         {
-            var factionSettlements = Find.WorldObjects.Settlements
-                .Where(s => s.Faction == parms.faction && s.Tile.Valid && s.Tile.Layer == destinationTile.Layer)
-                .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(s.Tile, destinationTile))
-                .ToList();
-
-            var reachableSettlements = new List<(PlanetTile Tile, List<PlanetTile> Path, float Distance)>();
-
-            foreach (var settlement in factionSettlements)
-            {
-                if (TryBuildPath(settlement.Tile, destinationTile, out var foundPath))
-                {
-                    float dist = Find.WorldGrid.ApproxDistanceInTiles(settlement.Tile, destinationTile);
-                    reachableSettlements.Add((settlement.Tile, foundPath, dist));
-
-                    if (reachableSettlements.Count >= 4)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            if (reachableSettlements.Count > 0)
-            {
-                // Weighted selection: Closer bases have higher probability, but regional bases can also strike!
-                var chosen = reachableSettlements.RandomElementByWeight(s => 100f / Math.Max(5f, s.Distance));
-                originTile = chosen.Tile;
-                path = chosen.Path;
-                return true;
-            }
+            // Weighted selection: Closer bases have higher probability, but regional bases can also strike!
+            var chosen = viableSettlements.RandomElementByWeight(s => 100f / Math.Max(5f, s.Distance));
+            originTile = chosen.Tile;
+            path = chosen.Path;
+            return true;
         }
 
         // 2. Fallback: Search for a passable wilderness tile ~15 to 30 hexes away
@@ -98,6 +75,40 @@ public static class IncursionOriginResolver
         }
 
         return false;
+    }
+
+    private static List<(PlanetTile Tile, List<PlanetTile> Path, float Distance, float TravelHours)> GetViableFactionSettlements(
+        Faction? faction,
+        PlanetTile destinationTile,
+        float speedTilesPerDay,
+        int maxSettlements)
+    {
+        var result = new List<(PlanetTile Tile, List<PlanetTile> Path, float Distance, float TravelHours)>();
+        if (faction == null || Find.WorldObjects?.Settlements == null || !destinationTile.Valid)
+        {
+            return result;
+        }
+
+        var factionSettlements = Find.WorldObjects.Settlements
+            .Where(s => s.Faction == faction && s.Tile.Valid && s.Tile.Layer == destinationTile.Layer)
+            .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(s.Tile, destinationTile));
+
+        foreach (var settlement in factionSettlements)
+        {
+            if (TryBuildPath(settlement.Tile, destinationTile, out var foundPath))
+            {
+                float dist = Find.WorldGrid.ApproxDistanceInTiles(settlement.Tile, destinationTile);
+                float travelHours = (foundPath.Count / Math.Max(0.1f, speedTilesPerDay)) * 24f;
+                result.Add((settlement.Tile, foundPath, dist, travelHours));
+
+                if (result.Count >= maxSettlements)
+                {
+                    break;
+                }
+            }
+        }
+
+        return result;
     }
 
     private static bool TryFindWildernessStagingTile(PlanetTile center, out PlanetTile stagingTile)
@@ -173,30 +184,7 @@ public static class IncursionOriginResolver
         }
 
         // 1. Gather all reachable settlements belonging to this faction
-        var viableSettlements = new List<(PlanetTile Tile, List<PlanetTile> Path, float Distance, float TravelHours)>();
-
-        if (parms.faction != null && Find.WorldObjects?.Settlements != null)
-        {
-            var factionSettlements = Find.WorldObjects.Settlements
-                .Where(s => s.Faction == parms.faction && s.Tile.Valid && s.Tile.Layer == destinationTile.Layer)
-                .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(s.Tile, destinationTile))
-                .ToList();
-
-            foreach (var settlement in factionSettlements)
-            {
-                if (TryBuildPath(settlement.Tile, destinationTile, out var foundPath))
-                {
-                    float dist = Find.WorldGrid.ApproxDistanceInTiles(settlement.Tile, destinationTile);
-                    float travelHours = (foundPath.Count / speed) * 24f;
-                    viableSettlements.Add((settlement.Tile, foundPath, dist, travelHours));
-
-                    if (viableSettlements.Count >= 6)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
+        var viableSettlements = GetViableFactionSettlements(parms.faction, destinationTile, speed, 6);
 
         // 2. Check for multi-base coordination
         if (viableSettlements.Count > 0)

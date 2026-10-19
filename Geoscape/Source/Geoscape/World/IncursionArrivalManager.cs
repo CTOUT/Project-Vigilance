@@ -55,8 +55,12 @@ public static class IncursionArrivalManager
                 incursion.IncidentDef.category == IncidentCategoryDefOf.ThreatBig &&
                 targetMap.storyState != null)
             {
-                Traverse.Create(targetMap.storyState).Field("lastThreatBigTick").SetValue(Find.TickManager.TicksGame);
-                Log.Message($"[Project Vigilance] Reset Storyteller LastThreatBigTick to current game tick ({Find.TickManager.TicksGame}) upon incursion arrival.");
+                var lastThreatField = Traverse.Create(targetMap.storyState).Field("lastThreatBigTick");
+                if (lastThreatField.FieldExists())
+                {
+                    lastThreatField.SetValue(Find.TickManager.TicksGame);
+                    Log.Message($"[Project Vigilance] Reset Storyteller LastThreatBigTick to current game tick ({Find.TickManager.TicksGame}) upon incursion arrival.");
+                }
             }
         }
         catch (System.Exception ex)
