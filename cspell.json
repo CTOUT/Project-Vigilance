@@ -2,7 +2,21 @@
   "version": "0.2",
   "language": "en-GB",
   "useGitignore": true,
-  "ignorePaths": ["node_modules", "package-lock.json", ".git"],
+  "ignorePaths": [
+    "node_modules",
+    "package-lock.json",
+    ".git",
+    "dist/**",
+    "Geoscape/Source/**",
+    "scripts/**",
+    "**/*.cs",
+    "**/*.ps1",
+    "**/*.slnx",
+    "**/*.csproj",
+    "**/*.xml",
+    "**/*.png",
+    "**/*.jpg"
+  ],
   "words": [
     "Anomaly",
     "Aquatoid",
