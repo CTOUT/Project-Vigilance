@@ -138,3 +138,15 @@ With planetary grids featuring 100,000+ tiles, background simulation must never 
 1. **KISS (Keep It Simple, Stupid):** Choose the simplest, most declarative solution that solves the problem. Avoid over-engineered abstractions, excessive generic wrappers, or unnecessary state machines.
 2. **DRY (Don't Repeat Yourself):** Centralise shared spatial math, routing algorithms, and detection logic into unified managers (`IncursionOriginResolver`, `SensoryManager`) rather than duplicating checks across individual incident workers.
 3. **Version-Controlled Declarative Scripts:** All build, test, and deployment procedures are automated as declarative, idempotent PowerShell 7+ scripts.
+
+---
+
+## 6. Authoritative Universe & Game Design References
+
+To maintain authentic immersion, mechanics fidelity, and narrative tone consistent with the source material, the project references the following authoritative archives:
+
+- **[UFOpaedia](https://www.ufopaedia.org/):** The definitive encyclopedia and mechanics archive covering both classic MicroProse titles (_UFO: Enemy Unknown / UFO Defense_, _Terror from the Deep_, _Apocalypse_) and modern Firaxis titles (_Enemy Unknown_, _Enemy Within_, _XCOM 2_, _Long War_). Used for cross-referencing:
+  - Planetary Geoscape tracking designations (`UFO-1`, `UFO-2`) and continuous craft lifespan persistence.
+  - Radar detection equations, blind-spot simulations, and Hyperwave telemetry progression.
+  - Incursion operational profiles (Scout, Harvester, Terror, Infiltration, Retaliation).
+  - Interception mechanics, craft dogfight engagement math, and forward crash-site recovery.

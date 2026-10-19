@@ -22,14 +22,35 @@ public class SensoryManager : WorldComponent
     private readonly HashSet<IDetectableTarget> activeTargets = new();
     private readonly Dictionary<PlanetTile, int> stationaryExploredRadius = new();
     private readonly Dictionary<int, PlanetTile> lastCaravanTiles = new();
+    private readonly Dictionary<int, (PlanetTile tile, float radius)> lastActiveSensorStates = new();
     private readonly List<ISensorProvider> activeSensorsCache = new();
 
     private byte[]? exploredBytes;
+    private int nextContactTrackingId = 1;
 
     public static SensoryManager? Instance => Find.World?.GetComponent<SensoryManager>();
 
     public SensoryManager(RimWorld.Planet.World world) : base(world)
     {
+        ExternalFogCompatibility.Initialize();
+    }
+
+    public override void FinalizeInit(bool fromLoad)
+    {
+        base.FinalizeInit(fromLoad);
+        ExternalFogCompatibility.Initialize();
+
+        // Eagerly initialize explored bitset and execute sensory sweep
+        // so player colonies and caravans are revealed before the globe renders.
+        featureCenterTileCache.Clear();
+        EnsureExploredArray();
+        PerformSensorySweep();
+
+        if (Find.WorldGrid?.Surface != null)
+        {
+            Patches.PlanetLayer_InitializeLayer_Patch.EnsureHazeLayerAttached(Find.WorldGrid.Surface);
+            WorldDrawLayer_HazeOfWar.Instance?.RegenerateNow();
+        }
     }
 
     public override void WorldComponentTick()
@@ -56,6 +77,15 @@ public class SensoryManager : WorldComponent
         {
             activeTargets.Remove(target);
         }
+    }
+
+    /// <summary>
+    /// Allocates a monotonic sequential tracking ID (e.g. Contact-1, Contact-2)
+    /// representing an X-COM style persistent target designation that remains for the incursion's lifetime.
+    /// </summary>
+    public int AllocateContactTrackingId()
+    {
+        return nextContactTrackingId++;
     }
 
     public void RegisterSensor(ISensorProvider sensor)
@@ -179,6 +209,13 @@ public class SensoryManager : WorldComponent
         if (mode == VisibilityMode.ClassicHazeOfWar)
         {
             EnsureExploredArray();
+            bool sensorsChanged = false;
+
+            if (activeSensors.Count != lastActiveSensorStates.Count)
+            {
+                sensorsChanged = true;
+            }
+
             for (int i = 0; i < activeSensors.Count; i++)
             {
                 ISensorProvider sensor = activeSensors[i];
@@ -187,14 +224,26 @@ public class SensoryManager : WorldComponent
                     continue;
                 }
 
+                int sensorId = sensor.Source?.ID ?? i;
+                float currentRadius = sensor.DetectionRadiusInTiles;
+                PlanetTile currentTile = sensor.SensorTile;
+
+                if (!lastActiveSensorStates.TryGetValue(sensorId, out var prevState) ||
+                    prevState.tile != currentTile ||
+                    Mathf.Abs(prevState.radius - currentRadius) > 0.05f)
+                {
+                    sensorsChanged = true;
+                }
+
                 if (sensor.IsStationary)
                 {
                     // Stationary sensors (colonies, radar towers) only flood-fill once unless radius expanded
-                    int intRadius = Mathf.CeilToInt(sensor.DetectionRadiusInTiles);
-                    if (!stationaryExploredRadius.TryGetValue(sensor.SensorTile, out int prevRadius) || prevRadius < intRadius)
+                    int intRadius = Mathf.CeilToInt(currentRadius);
+                    if (!stationaryExploredRadius.TryGetValue(currentTile, out int prevRadius) || prevRadius < intRadius)
                     {
-                        stationaryExploredRadius[sensor.SensorTile] = intRadius;
-                        MarkSurroundingTilesExplored(sensor.SensorTile, sensor.DetectionRadiusInTiles);
+                        stationaryExploredRadius[currentTile] = intRadius;
+                        MarkSurroundingTilesExplored(currentTile, currentRadius);
+                        sensorsChanged = true;
                     }
                 }
                 else
@@ -206,14 +255,31 @@ public class SensoryManager : WorldComponent
                         if (!lastCaravanTiles.TryGetValue(id, out PlanetTile lastTile) || lastTile != caravan.Tile)
                         {
                             lastCaravanTiles[id] = caravan.Tile;
-                            MarkSurroundingTilesExplored(caravan.Tile, sensor.DetectionRadiusInTiles);
+                            MarkSurroundingTilesExplored(caravan.Tile, currentRadius);
+                            sensorsChanged = true;
                         }
                     }
                     else
                     {
-                        MarkSurroundingTilesExplored(sensor.SensorTile, sensor.DetectionRadiusInTiles);
+                        MarkSurroundingTilesExplored(sensor.SensorTile, currentRadius);
+                        sensorsChanged = true;
                     }
                 }
+            }
+
+            if (sensorsChanged)
+            {
+                lastActiveSensorStates.Clear();
+                for (int i = 0; i < activeSensors.Count; i++)
+                {
+                    ISensorProvider s = activeSensors[i];
+                    if (s.SensorTile.Valid)
+                    {
+                        int id = s.Source?.ID ?? i;
+                        lastActiveSensorStates[id] = (s.SensorTile, s.DetectionRadiusInTiles);
+                    }
+                }
+                WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
             }
         }
 
@@ -302,9 +368,24 @@ public class SensoryManager : WorldComponent
             return true;
         }
 
-        if (!tile.Valid || exploredBytes == null)
+        if (!tile.Valid)
         {
             return true;
+        }
+
+        // Soft compatibility: respect external community fog mods (such as D4egon's World Fog of War)
+        if (ExternalFogCompatibility.IsExternalFogModActive && ExternalFogCompatibility.IsTileRevealedByExternalMod(tile.tileId))
+        {
+            return true;
+        }
+
+        if (exploredBytes == null)
+        {
+            EnsureExploredArray();
+            if (exploredBytes == null)
+            {
+                return false;
+            }
         }
 
         int tileId = tile.tileId;
@@ -313,10 +394,97 @@ public class SensoryManager : WorldComponent
 
         if (byteIndex >= exploredBytes.Length)
         {
-            return true;
+            return false;
         }
 
         return (exploredBytes[byteIndex] & (1 << bitIndex)) != 0;
+    }
+
+    public bool IsTileIdExplored(int tileId)
+    {
+        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        {
+            return true;
+        }
+
+        if (ExternalFogCompatibility.IsExternalFogModActive && ExternalFogCompatibility.IsTileRevealedByExternalMod(tileId))
+        {
+            return true;
+        }
+
+        if (exploredBytes == null)
+        {
+            EnsureExploredArray();
+            if (exploredBytes == null)
+            {
+                return false;
+            }
+        }
+
+        int byteIndex = tileId >> 3;
+        int bitIndex = tileId & 7;
+
+        if (byteIndex >= exploredBytes.Length)
+        {
+            return false;
+        }
+
+        return (exploredBytes[byteIndex] & (1 << bitIndex)) != 0;
+    }
+
+    private readonly Dictionary<int, int> featureCenterTileCache = new();
+
+    public int GetFeatureCenterTile(WorldFeature feature)
+    {
+        if (feature == null) return -1;
+        if (featureCenterTileCache.TryGetValue(feature.uniqueID, out int cached))
+        {
+            return cached;
+        }
+
+        int closestTile = -1;
+        float minSqrDist = float.MaxValue;
+        Vector3 targetPos = feature.drawCenter;
+
+        foreach (int tileId in feature.Tiles)
+        {
+            Vector3 center = Find.WorldGrid.GetTileCenter(tileId);
+            float sqrDist = (center - targetPos).sqrMagnitude;
+            if (sqrDist < minSqrDist)
+            {
+                minSqrDist = sqrDist;
+                closestTile = tileId;
+            }
+        }
+
+        featureCenterTileCache[feature.uniqueID] = closestTile;
+        return closestTile;
+    }
+
+    public bool IsFeatureExplored(WorldFeature feature)
+    {
+        if (feature == null)
+        {
+            return true;
+        }
+
+        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        {
+            return true;
+        }
+
+        if (exploredBytes == null)
+        {
+            return false;
+        }
+
+        int centerTile = GetFeatureCenterTile(feature);
+        if (centerTile >= 0)
+        {
+            return IsTileIdExplored(centerTile);
+        }
+
+        return false;
     }
 
     private void MarkSurroundingTilesExplored(PlanetTile centerTile, float radiusInTiles)
@@ -326,6 +494,7 @@ public class SensoryManager : WorldComponent
             return;
         }
 
+        bool externalModActive = ExternalFogCompatibility.IsExternalFogModActive;
         int intRadius = Mathf.CeilToInt(radiusInTiles);
         centerTile.Layer.Filler.FloodFill(
             centerTile,
@@ -339,8 +508,40 @@ public class SensoryManager : WorldComponent
                 {
                     exploredBytes[byteIndex] |= (byte)(1 << bitIndex);
                 }
+
+                if (externalModActive)
+                {
+                    ExternalFogCompatibility.NotifyExternalModTileRevealed(tileId);
+                }
             },
             maxTilesToProcess: (intRadius * intRadius * 4));
+
+        WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
+        if (Find.WorldGrid?.Surface != null)
+        {
+            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
+            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
+        }
+    }
+
+    /// <summary>
+    /// Triggered when scout or radar detection radii are adjusted in Mod Settings,
+    /// immediately dirtying and regenerating the fog of war overlay to reflect the new visual range.
+    /// </summary>
+    public void Notify_SensorRadiusChanged()
+    {
+        stationaryExploredRadius.Clear();
+        lastCaravanTiles.Clear();
+        lastActiveSensorStates.Clear();
+        PerformSensorySweep();
+        WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
+        if (Find.WorldGrid?.Surface != null)
+        {
+            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
+            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
+        }
     }
 
     private void EnsureExploredArray()
@@ -355,6 +556,8 @@ public class SensoryManager : WorldComponent
     public override void ExposeData()
     {
         base.ExposeData();
+
+        Scribe_Values.Look(ref nextContactTrackingId, "nextContactTrackingId", 1);
 
         if (Scribe.mode == LoadSaveMode.Saving && exploredBytes != null)
         {

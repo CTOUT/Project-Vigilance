@@ -28,8 +28,27 @@ public static class NeutralGroupInterceptHelper
             bool resolved = Traverse.Create(__instance).Method("TryResolveParms", parms).GetValue<bool>();
             if (!resolved || parms.faction == null)
             {
-                return true;
+                // Fall back to picking a candidate non-hostile faction directly if TryResolveParms failed on empty map
+                if (__instance is IncidentWorker_NeutralGroup neutralWorker)
+                {
+                    parms.faction = Find.FactionManager.AllFactions.FirstOrDefault(f => neutralWorker.FactionCanBeGroupSource(f, parms, false));
+                }
+
+                if (parms.faction == null)
+                {
+                    return true;
+                }
             }
+        }
+
+        if (parms.points <= 0f)
+        {
+            parms.points = StorytellerUtility.DefaultThreatPointsNow(map);
+        }
+
+        if (parms.traderKind == null && __instance is IncidentWorker_TraderCaravanArrival && parms.faction?.def?.caravanTraderKinds != null)
+        {
+            parms.traderKind = parms.faction.def.caravanTraderKinds.RandomElementWithFallback();
         }
 
         PlanetTile destinationTile = map.Tile;
@@ -56,7 +75,7 @@ public static class NeutralGroupInterceptHelper
 
         int hexCount = path.Count;
         float etaHours = (hexCount / speed) * 24f;
-        string factionName = parms.faction.Name;
+        string factionName = parms.faction?.Name ?? "Unknown Faction";
         string incidentLabel = __instance.def?.label ?? "neutral group";
 
         Log.Message($"[Project Vigilance] Intercepted {incidentLabel} from {factionName}. Spawned caravan at tile {originTile} heading to tile {destinationTile} ({hexCount} hexes, ETA: ~{etaHours:F1} hours).");

@@ -13,13 +13,13 @@ Rather than simply adding alien races and high-tier weapons, this project introd
 
 ---
 
-## 🚀 Active Playtest: Project Vigilance - Overland Incursions (v0.1.0)
+## 🚀 Active Playtest: Project Vigilance - Overland Incursions (v0.2.0)
 
 [![Steam Workshop](https://img.shields.io/badge/Subscribe_on-Steam_Workshop-1b2838?style=for-the-badge&logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)
 [![Steam Collection](https://img.shields.io/badge/View_Official-Collection-1b2838?style=for-the-badge&logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)
-[![GitHub Release](https://img.shields.io/badge/Direct_Download-GitHub_Release-238636?style=for-the-badge&logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.1.0)
+[![GitHub Release](https://img.shields.io/badge/Direct_Download-GitHub_Release-238636?style=for-the-badge&logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.2.0)
 
-The first standalone module of the suite—**Overland Incursions**—is implemented and ready for community playtesting! Subscribe directly on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226), view the full [Steam Collection](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427), or grab the [v0.1.0 Release](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.1.0).
+The first standalone module of the suite—**Overland Incursions**—is implemented and ready for community playtesting! Subscribe directly on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226), view the full [Steam Collection](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427), or grab the [v0.2.0 Release](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.2.0).
 
 ### What Does It Do?
 

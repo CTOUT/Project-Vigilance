@@ -4,13 +4,13 @@ This directory hosts the C# source code, XML Defs, and compiled mod package for 
 
 [![Steam Workshop](https://img.shields.io/badge/Steam_Workshop-3822378226-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)
 [![Steam Collection](https://img.shields.io/badge/Steam_Collection-Project_Vigilance-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)
-[![GitHub Release](https://img.shields.io/badge/Release-v0.1.0-238636?logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.1.0)
+[![GitHub Release](https://img.shields.io/badge/Release-v0.2.0-238636?logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.2.0)
 
 This is a **standalone, zero-dependency framework mod** designed for RimWorld 1.7 (Waylith) and `.NET 10`. It replaces instantaneous map-edge teleportation with physical overland transit across the global planetary grid.
 
 ---
 
-## Current Features (v0.1.0 Playtest)
+## Current Features (v0.2.0 Playtest)
 
 - **Physical Incursion Engine:** Intercepts walk-in raids (`IncidentWorker_RaidEnemy`) and trade caravans (`IncidentWorker_TraderCaravanArrival`), spawning physical world entities that march across the planet.
 - **Dynamic Origin Resolution:** Automatically resolves genuine origin settlements or wilderness staging sites based on faction territory and terrain accessibility.

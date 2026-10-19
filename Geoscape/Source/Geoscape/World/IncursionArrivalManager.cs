@@ -1,5 +1,6 @@
 using HarmonyLib;
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 using ProjectVigilance.Geoscape.Sensory;
 
@@ -41,9 +42,10 @@ public static class IncursionArrivalManager
             string msg;
             if (isIdentified)
             {
+                string groupDesc = incursion.GetIdentifiedGroupLabel();
                 msg = isHostile
-                    ? $"The raid from {fName} arrived at the abandoned settlement, found no defenders or structures of value, and dispersed."
-                    : $"The travellers from {fName} arrived at the abandoned settlement, found no one there, and returned home.";
+                    ? $"The {groupDesc} from {fName} arrived at the abandoned settlement, found no defenders or structures of value, and dispersed."
+                    : $"The {groupDesc} from {fName} arrived at the abandoned settlement, found no one there, and returned home.";
             }
             else
             {
@@ -51,6 +53,36 @@ public static class IncursionArrivalManager
             }
 
             Messages.Message(msg, MessageTypeDefOf.NeutralEvent, false);
+            incursion.Destroy();
+            return false;
+        }
+
+        // Validate whether any conscious colonists are present on the active destination map
+        bool hasConsciousColonists = false;
+        var mapPawns = targetMap.mapPawns?.FreeColonistsSpawned;
+        if (mapPawns != null)
+        {
+            for (int i = 0; i < mapPawns.Count; i++)
+            {
+                Pawn p = mapPawns[i];
+                if (!p.Dead && !p.Downed)
+                {
+                    hasConsciousColonists = true;
+                    break;
+                }
+            }
+        }
+
+        // Friendly visitors and trade caravans arriving at an empty (evacuated) settlement
+        // cannot visit or trade with an empty colony. Politely notify the player and return home.
+        if (!hasConsciousColonists && incursion.GroupKind != IncursionGroupKind.HostileWarband)
+        {
+            string settlementName = targetMap.Parent?.LabelCap ?? "the settlement";
+            string groupDesc = incursion.GetIdentifiedGroupLabel();
+            string fName = incursion.Faction?.Name ?? "peaceful travellers";
+            string emptyMsg = $"The {groupDesc} from {fName} arrived at {settlementName}, found no colonists present, and returned home.";
+            Log.Message($"[Project Vigilance] {emptyMsg}");
+            Messages.Message(emptyMsg, new GlobalTargetInfo(incursion.DestinationTile), MessageTypeDefOf.NeutralEvent, historical: true);
             incursion.Destroy();
             return false;
         }
@@ -76,6 +108,17 @@ public static class IncursionArrivalManager
                     lastThreatField.SetValue(Find.TickManager.TicksGame);
                     Log.Message($"[Project Vigilance] Reset Storyteller LastThreatBigTick to current game tick ({Find.TickManager.TicksGame}) upon incursion arrival.");
                 }
+            }
+            else if (!success)
+            {
+                string settlementName = targetMap.Parent?.LabelCap ?? "the settlement";
+                string groupDesc = incursion.GetIdentifiedGroupLabel();
+                string fName = incursion.Faction?.Name ?? "approaching force";
+                string failMsg = incursion.GroupKind == IncursionGroupKind.HostileWarband
+                    ? $"The {groupDesc} from {fName} arrived at {settlementName}, but could not find a path to attack and dispersed."
+                    : $"The {groupDesc} from {fName} arrived at {settlementName}, but departed without incident.";
+                Log.Warning($"[Project Vigilance] Incursion arrival incident {incursion.IncidentDef.defName} did not execute successfully. Notifying player.");
+                Messages.Message(failMsg, new GlobalTargetInfo(incursion.DestinationTile), MessageTypeDefOf.NeutralEvent, historical: true);
             }
         }
         catch (System.Exception ex)

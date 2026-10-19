@@ -34,4 +34,4 @@ npm-debug.log*
 *.tmp
 *.bak
 *.swp
-*.old
+*.old*

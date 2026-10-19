@@ -9,7 +9,7 @@
     or manual RimWorld mod installation.
 
 .PARAMETER Version
-    The release version tag (defaults to '0.1.0').
+    The release version tag (defaults to '0.2.0').
 
 .PARAMETER OutputDir
     The output directory where staging and zip packages will be generated.
@@ -18,7 +18,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Version = '0.1.0',
+    [string]$Version = '0.2.0',
     [string]$OutputDir = 'dist'
 )
 
@@ -90,8 +90,10 @@ if (Test-Path $publishedFileId) {
 $staging17 = Join-Path $stagingPath '1.7'
 $stagingAssemblies = Join-Path $staging17 'Assemblies'
 $stagingDefs = Join-Path $staging17 'Defs'
+$stagingPatches = Join-Path $staging17 'Patches'
 New-Item -ItemType Directory -Path $stagingAssemblies -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingDefs -Force | Out-Null
+New-Item -ItemType Directory -Path $stagingPatches -Force | Out-Null
 
 Copy-Item (Join-Path $geoscapeDir '1.7\Assemblies\Geoscape.dll') -Destination (Join-Path $stagingAssemblies 'Geoscape.dll') -Force
 $pdbPath = Join-Path $geoscapeDir '1.7\Assemblies\Geoscape.pdb'
@@ -102,6 +104,11 @@ if (Test-Path $pdbPath) {
 $sourceDefs = Join-Path $geoscapeDir '1.7\Defs'
 if (Test-Path $sourceDefs) {
     Copy-Item -Path "$sourceDefs\*" -Destination $stagingDefs -Recurse -Force
+}
+
+$sourcePatches = Join-Path $geoscapeDir '1.7\Patches'
+if (Test-Path $sourcePatches) {
+    Copy-Item -Path "$sourcePatches\*" -Destination $stagingPatches -Recurse -Force
 }
 
 # 7. Copy License and Mod README

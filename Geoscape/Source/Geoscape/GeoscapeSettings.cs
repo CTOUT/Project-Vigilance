@@ -15,6 +15,8 @@ public class GeoscapeSettings : ModSettings
     public float colonyScoutRadius = 5.0f;
     public float caravanScoutRadius = 3.0f;
     public bool enableEarlyWarningLetters = true;
+    public bool enableNighttimeSensoryReduction = true;
+    public bool incursionsRestAtNight = true;
 
     public override void ExposeData()
     {
@@ -28,6 +30,8 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
         Scribe_Values.Look(ref caravanScoutRadius, "caravanScoutRadius", 3.0f);
         Scribe_Values.Look(ref enableEarlyWarningLetters, "enableEarlyWarningLetters", true);
+        Scribe_Values.Look(ref enableNighttimeSensoryReduction, "enableNighttimeSensoryReduction", true);
+        Scribe_Values.Look(ref incursionsRestAtNight, "incursionsRestAtNight", true);
     }
 
     public void DoWindowContents(Rect inRect)
@@ -42,17 +46,29 @@ public class GeoscapeSettings : ModSettings
 
         if (listing.RadioButton("Planetary Surveillance (X-COM Style — Default)", visibilityMode == VisibilityMode.PlanetarySurveillance, tooltip: "Continents and static bases are known. Moving hostile incursions are hidden unless within active scout or radar range."))
         {
-            visibilityMode = VisibilityMode.PlanetarySurveillance;
+            if (visibilityMode != VisibilityMode.PlanetarySurveillance)
+            {
+                visibilityMode = VisibilityMode.PlanetarySurveillance;
+                OnVisibilityModeChanged();
+            }
         }
 
         if (listing.RadioButton("Classic Haze of War (3-Tier RTS)", visibilityMode == VisibilityMode.ClassicHazeOfWar, tooltip: "Unexplored tiles are dark, unmonitored explored tiles show a translucent grey haze, and active sensors reveal live movement."))
         {
-            visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            if (visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            {
+                visibilityMode = VisibilityMode.ClassicHazeOfWar;
+                OnVisibilityModeChanged();
+            }
         }
 
         if (listing.RadioButton("Omniscient (Spectator / Living Map)", visibilityMode == VisibilityMode.Omniscient, tooltip: "No fog of war. All worldwide movement is visible at all times across the globe without scout or radar requirements."))
         {
-            visibilityMode = VisibilityMode.Omniscient;
+            if (visibilityMode != VisibilityMode.Omniscient)
+            {
+                visibilityMode = VisibilityMode.Omniscient;
+                OnVisibilityModeChanged();
+            }
         }
 
         listing.Gap();
@@ -60,15 +76,35 @@ public class GeoscapeSettings : ModSettings
         if (visibilityMode != VisibilityMode.Omniscient)
         {
             listing.Label($"Colony Scout Horizon: {colonyScoutRadius:F1} hexes (Natural settlement vision)");
-            colonyScoutRadius = listing.Slider(colonyScoutRadius, 1f, 15f);
+            float newColonyRadius = listing.Slider(colonyScoutRadius, 1f, 15f);
+            if (Mathf.Abs(newColonyRadius - colonyScoutRadius) > 0.05f)
+            {
+                colonyScoutRadius = newColonyRadius;
+                SensoryManager.Instance?.Notify_SensorRadiusChanged();
+            }
 
             listing.Label($"Caravan Scout Lookout: {caravanScoutRadius:F1} hexes (Moving caravan vision)");
-            caravanScoutRadius = listing.Slider(caravanScoutRadius, 1f, 10f);
+            float newCaravanRadius = listing.Slider(caravanScoutRadius, 1f, 10f);
+            if (Mathf.Abs(newCaravanRadius - caravanScoutRadius) > 0.05f)
+            {
+                caravanScoutRadius = newCaravanRadius;
+                SensoryManager.Instance?.Notify_SensorRadiusChanged();
+            }
 
             listing.CheckboxLabeled(
                 "Dispatch Early Warning notifications on contact detection",
                 ref enableEarlyWarningLetters,
                 "Send a letter when lookouts or sensors first detect an approaching incursion on the planetary map.");
+
+            bool prevNightReduction = enableNighttimeSensoryReduction;
+            listing.CheckboxLabeled(
+                "Nighttime visual lookout reduction",
+                ref enableNighttimeSensoryReduction,
+                "Naked-eye lookouts suffer a 50% visual range reduction at night, collapsing to 1 hex if all conscious colonists are asleep.");
+            if (prevNightReduction != enableNighttimeSensoryReduction)
+            {
+                SensoryManager.Instance?.Notify_SensorRadiusChanged();
+            }
 
             listing.Gap();
         }
@@ -82,6 +118,13 @@ public class GeoscapeSettings : ModSettings
             "Synchronize multi-vector raid departures",
             ref synchronizeMultiVectorRaids,
             "When hostile factions launch multi-group raids from separate bases, closer settlements mobilize at base so forces converge simultaneously.");
+
+        listing.Gap();
+
+        listing.CheckboxLabeled(
+            "Biological incursions rest at night",
+            ref incursionsRestAtNight,
+            "Hostile warbands and neutral caravans from biological factions halt and camp between 22:00 and 06:00 solar time. Mechanoids and anomaly entities march relentlessly 24/7.");
 
         listing.Gap();
 
@@ -105,5 +148,15 @@ public class GeoscapeSettings : ModSettings
             "When enabled, the Storyteller threat cooldown begins only when the raid arrives on the colony map rather than upon planetary departure. Warning: may leave extended peaceful intervals between events.");
 
         listing.End();
+    }
+
+    private void OnVisibilityModeChanged()
+    {
+        WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
+        if (Find.WorldGrid?.Surface != null)
+        {
+            Find.WorldGrid.Surface.SetAllLayersDirty();
+        }
+        Find.WorldFeatures?.UpdateFeatures();
     }
 }

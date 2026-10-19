@@ -8,6 +8,11 @@ namespace ProjectVigilance.Geoscape.Sensory;
 public interface ISensorProvider
 {
     /// <summary>
+    /// The backing world object providing this sensor (e.g. Colony settlement, Caravan, or Radar facility), if any.
+    /// </summary>
+    WorldObject? Source { get; }
+
+    /// <summary>
     /// Display label of the sensor installation or scouting unit.
     /// </summary>
     string SensorLabel { get; }
@@ -37,6 +42,12 @@ public interface ISensorProvider
     /// Used by sensory caching to skip redundant tile flood-filling.
     /// </summary>
     bool IsStationary { get; }
+
+    /// <summary>
+    /// Indicates whether this sensor represents an electronic, radar, or satellite system
+    /// rather than biological lookouts, watchtowers, or field scouts.
+    /// </summary>
+    bool IsTechnological => false;
 
     /// <summary>
     /// Evaluates whether this sensor can detect the specified target.

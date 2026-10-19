@@ -143,26 +143,26 @@ public static class IncidentWorker_RaidEnemy_Patch
                         }
                     }
 
-                var inc = (WorldObject_Incursion)WorldObjectMaker.MakeWorldObject(incursionDef);
-                inc.SetupIncursion(__instance.def, groupParms, route.Origin, destinationTile, route.Path, route.Speed, departureDelayTicks);
-                Find.WorldObjects.Add(inc);
+                    var inc = (WorldObject_Incursion)WorldObjectMaker.MakeWorldObject(incursionDef);
+                    inc.SetupIncursion(__instance.def, groupParms, route.Origin, destinationTile, route.Path, route.Speed, departureDelayTicks);
+                    Find.WorldObjects.Add(inc);
 
-                int hCount = route.Path.Count;
-                if (departureDelayTicks > 0)
-                {
-                    float delayHours = departureDelayTicks / 2500f;
-                    Log.Message($"[Project Vigilance] Intercepted multi-vector raid from {fName} (Vector {i + 1}/{multiOrigins.Count}). Mobilizing at tile {route.Origin} for {delayHours:F1}h before march to tile {destinationTile} ({hCount} hexes, Net ETA: ~{(travelHours + delayHours):F1}h).");
+                    int hCount = route.Path.Count;
+                    if (departureDelayTicks > 0)
+                    {
+                        float delayHours = departureDelayTicks / 2500f;
+                        Log.Message($"[Project Vigilance] Intercepted multi-vector raid from {fName} (Vector {i + 1}/{multiOrigins.Count}). Mobilizing at tile {route.Origin} for {delayHours:F1}h before march to tile {destinationTile} ({hCount} hexes, Net ETA: ~{(travelHours + delayHours):F1}h).");
+                    }
+                    else
+                    {
+                        Log.Message($"[Project Vigilance] Intercepted multi-vector raid from {fName} (Vector {i + 1}/{multiOrigins.Count}). Marching immediately from tile {route.Origin} to tile {destinationTile} ({hCount} hexes, ETA: ~{travelHours:F1}h).");
+                    }
                 }
-                else
-                {
-                    Log.Message($"[Project Vigilance] Intercepted multi-vector raid from {fName} (Vector {i + 1}/{multiOrigins.Count}). Marching immediately from tile {route.Origin} to tile {destinationTile} ({hCount} hexes, ETA: ~{travelHours:F1}h).");
-                }
+
+                __result = true;
+                return false;
             }
-
-            __result = true;
-            return false;
         }
-    }
 
         // 6. Standard single-vector incursion (weighted settlement origin)
         if (!IncursionOriginResolver.TryResolveOrigin(parms, destinationTile, out var originTile, out var path, out var speed))

@@ -2,8 +2,8 @@
 <Defs>
   <WorldObjectDef>
     <defName>Vigilance_Incursion</defName>
-    <label>approaching incursion</label>
-    <description>An approaching force traversing the planetary surface.</description>
+    <label>approaching group</label>
+    <description>An approaching group traversing the planetary surface.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.World.WorldObject_Incursion</worldObjectClass>
     <texture>UI/Commands/Attack</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
@@ -15,8 +15,8 @@
 
   <WorldObjectDef>
     <defName>Vigilance_Caravan</defName>
-    <label>approaching caravan</label>
-    <description>A group of travellers traversing the planetary surface toward your settlement.</description>
+    <label>approaching group</label>
+    <description>An approaching group traversing the planetary surface.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.World.WorldObject_Incursion</worldObjectClass>
     <texture>World/WorldObjects/Caravan</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
