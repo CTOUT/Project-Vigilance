@@ -19,6 +19,9 @@ public class SensoryManager : WorldComponent
     private readonly List<ISensorProvider> customSensors = new();
     private readonly Dictionary<int, ScoutHorizonSensor> colonySensors = new();
     private readonly Dictionary<int, ScoutHorizonSensor> caravanSensors = new();
+    private readonly HashSet<IDetectableTarget> activeTargets = new();
+    private readonly Dictionary<PlanetTile, int> stationaryExploredRadius = new();
+    private readonly Dictionary<int, PlanetTile> lastCaravanTiles = new();
 
     private byte[]? exploredBytes;
 
@@ -35,6 +38,22 @@ public class SensoryManager : WorldComponent
         if (Find.TickManager.TicksGame % SweepIntervalTicks == 0)
         {
             PerformSensorySweep();
+        }
+    }
+
+    public void RegisterTarget(IDetectableTarget target)
+    {
+        if (target != null)
+        {
+            activeTargets.Add(target);
+        }
+    }
+
+    public void DeregisterTarget(IDetectableTarget target)
+    {
+        if (target != null)
+        {
+            activeTargets.Remove(target);
         }
     }
 
@@ -116,19 +135,40 @@ public class SensoryManager : WorldComponent
     {
         VisibilityMode mode = GeoscapeMod.Settings.visibilityMode;
 
+        // Clean up stale targets or populate if empty
+        activeTargets.RemoveWhere(t => t is WorldObject wo && (wo.Destroyed || !wo.Spawned));
+        if (activeTargets.Count == 0 && Find.WorldObjects?.AllWorldObjects != null)
+        {
+            foreach (WorldObject wo in Find.WorldObjects.AllWorldObjects)
+            {
+                if (wo is IDetectableTarget target && !wo.Destroyed && wo.Spawned)
+                {
+                    activeTargets.Add(target);
+                }
+            }
+        }
+
         // Omniscient Mode: bypass all fog and radar requirements
         if (mode == VisibilityMode.Omniscient)
         {
-            if (Find.WorldObjects?.AllWorldObjects != null)
+            if (activeTargets.Count > 0)
             {
-                foreach (WorldObject obj in Find.WorldObjects.AllWorldObjects)
+                foreach (IDetectableTarget target in activeTargets)
                 {
-                    if (obj is IDetectableTarget target && target.CurrentIntelligenceTier != IntelligenceTier.Analysed)
+                    if (target.CurrentIntelligenceTier != IntelligenceTier.Analysed)
                     {
                         target.CurrentIntelligenceTier = IntelligenceTier.Analysed;
                     }
+                    target.UpdateSampledPosition();
                 }
             }
+            return;
+        }
+
+        // Peacetime Early Exit: If there are zero active targets and mode is Planetary Surveillance,
+        // there is no fog to reveal and no targets to track. Exit immediately on tick 1!
+        if (activeTargets.Count == 0 && mode == VisibilityMode.PlanetarySurveillance)
+        {
             return;
         }
 
@@ -138,52 +178,90 @@ public class SensoryManager : WorldComponent
         if (mode == VisibilityMode.ClassicHazeOfWar)
         {
             EnsureExploredArray();
-            foreach (var sensor in activeSensors)
+            for (int i = 0; i < activeSensors.Count; i++)
             {
-                MarkSurroundingTilesExplored(sensor.SensorTile, sensor.DetectionRadiusInTiles);
+                ISensorProvider sensor = activeSensors[i];
+                if (!sensor.SensorTile.Valid)
+                {
+                    continue;
+                }
+
+                if (sensor.IsStationary)
+                {
+                    // Stationary sensors (colonies, radar towers) only flood-fill once unless radius expanded
+                    int intRadius = Mathf.CeilToInt(sensor.DetectionRadiusInTiles);
+                    if (!stationaryExploredRadius.TryGetValue(sensor.SensorTile, out int prevRadius) || prevRadius < intRadius)
+                    {
+                        stationaryExploredRadius[sensor.SensorTile] = intRadius;
+                        MarkSurroundingTilesExplored(sensor.SensorTile, sensor.DetectionRadiusInTiles);
+                    }
+                }
+                else
+                {
+                    // Mobile sensors (caravans) only flood-fill when moving to a new tile
+                    if (sensor is ScoutHorizonSensor scout && scout.Source is Caravan caravan)
+                    {
+                        int id = caravan.ID;
+                        if (!lastCaravanTiles.TryGetValue(id, out PlanetTile lastTile) || lastTile != caravan.Tile)
+                        {
+                            lastCaravanTiles[id] = caravan.Tile;
+                            MarkSurroundingTilesExplored(caravan.Tile, sensor.DetectionRadiusInTiles);
+                        }
+                    }
+                    else
+                    {
+                        MarkSurroundingTilesExplored(sensor.SensorTile, sensor.DetectionRadiusInTiles);
+                    }
+                }
             }
         }
 
-        // Evaluate all detectable targets against active sensors
-        if (Find.WorldObjects?.AllWorldObjects != null)
+        // Peacetime Early Exit for Classic Haze of War: If all sensors updated and no targets exist, exit!
+        if (activeTargets.Count == 0)
         {
-            foreach (WorldObject obj in Find.WorldObjects.AllWorldObjects)
+            return;
+        }
+
+        // Evaluate all detectable targets against active sensors
+        foreach (IDetectableTarget target in activeTargets)
+        {
+            IntelligenceTier bestTier = IntelligenceTier.Undetected;
+            ISensorProvider? bestSensor = null;
+
+            for (int i = 0; i < activeSensors.Count; i++)
             {
-                if (obj is IDetectableTarget target)
+                ISensorProvider sensor = activeSensors[i];
+                if (sensor.CanDetect(target))
                 {
-                    IntelligenceTier bestTier = IntelligenceTier.Undetected;
-                    ISensorProvider? bestSensor = null;
+                    float dist = Find.WorldGrid.ApproxDistanceInTiles(sensor.SensorTile, target.CurrentTile);
+                    // Close range (within 45% of detection radius): Full sensor tier (e.g. Classified)
+                    // Outer range: Generic blip (Contact)
+                    IntelligenceTier tier = (dist <= sensor.DetectionRadiusInTiles * 0.45f)
+                        ? sensor.MaxIntelligenceTier
+                        : (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact ? IntelligenceTier.Contact : IntelligenceTier.Suspected);
 
-                    for (int i = 0; i < activeSensors.Count; i++)
+                    if (tier > bestTier)
                     {
-                        ISensorProvider sensor = activeSensors[i];
-                        if (sensor.CanDetect(target))
-                        {
-                            float dist = Find.WorldGrid.ApproxDistanceInTiles(sensor.SensorTile, target.CurrentTile);
-                            // Close range (within 40% of detection radius): Full sensor tier (e.g. Classified)
-                            // Outer range: Generic blip (Contact)
-                            IntelligenceTier tier = (dist <= sensor.DetectionRadiusInTiles * 0.45f)
-                                ? sensor.MaxIntelligenceTier
-                                : (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact ? IntelligenceTier.Contact : IntelligenceTier.Suspected);
-
-                            if (tier > bestTier)
-                            {
-                                bestTier = tier;
-                                bestSensor = sensor;
-                            }
-                        }
-                    }
-
-                    if (bestTier > target.CurrentIntelligenceTier)
-                    {
-                        target.OnDetected(bestSensor!, bestTier);
-                    }
-                    else if (bestTier == IntelligenceTier.Undetected && target.CurrentIntelligenceTier != IntelligenceTier.Undetected)
-                    {
-                        // Target has moved into a blind spot / unmonitored sector
-                        target.CurrentIntelligenceTier = IntelligenceTier.Undetected;
+                        bestTier = tier;
+                        bestSensor = sensor;
                     }
                 }
+            }
+
+            if (bestTier > target.CurrentIntelligenceTier)
+            {
+                target.OnDetected(bestSensor!, bestTier);
+            }
+            else if (bestTier == IntelligenceTier.Undetected && target.CurrentIntelligenceTier != IntelligenceTier.Undetected)
+            {
+                // Target has moved into a blind spot / unmonitored sector
+                target.CurrentIntelligenceTier = IntelligenceTier.Undetected;
+            }
+
+            // Discrete radar/sonar jump update on every pulse sweep for detected contacts
+            if (bestTier >= IntelligenceTier.Contact)
+            {
+                target.UpdateSampledPosition();
             }
         }
     }

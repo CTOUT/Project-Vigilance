@@ -44,4 +44,9 @@ public interface IDetectableTarget
     /// Callback invoked when a sensor detects this entity at a new or upgraded intelligence tier.
     /// </summary>
     void OnDetected(ISensorProvider sensor, IntelligenceTier newTier);
+
+    /// <summary>
+    /// Refreshes the discrete sampled draw position on periodic radar/sonar sweeps.
+    /// </summary>
+    void UpdateSampledPosition();
 }

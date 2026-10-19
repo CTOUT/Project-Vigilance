@@ -19,6 +19,10 @@ public class ScoutHorizonSensor : ISensorProvider
         this.isColony = isColony;
     }
 
+    public WorldObject Source => parentObject;
+    public bool IsColony => isColony;
+    public bool IsStationary => isColony;
+
     public string SensorLabel => isColony
         ? $"{parentObject.LabelCap} Lookouts"
         : $"{parentObject.LabelCap} Scouts";

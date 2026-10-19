@@ -33,6 +33,12 @@ public interface ISensorProvider
     bool IsSensorActive { get; }
 
     /// <summary>
+    /// Whether this sensor is fixed in place (e.g. colony, listening post) or mobile (e.g. caravan, aerial scout).
+    /// Used by sensory caching to skip redundant tile flood-filling.
+    /// </summary>
+    bool IsStationary { get; }
+
+    /// <summary>
     /// Evaluates whether this sensor can detect the specified target.
     /// </summary>
     bool CanDetect(IDetectableTarget target);

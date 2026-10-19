@@ -25,6 +25,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
     private bool isIdentified = true;
     private IntelligenceTier intelligenceTier = IntelligenceTier.Undetected;
     private bool hasDispatchedAlert = false;
+    private Vector3 lastSampledDrawPos = Vector3.zero;
 
     public IncidentDef? IncidentDef => incidentDef;
     public IncidentParms? IncidentParms => incidentParms;
@@ -45,13 +46,18 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
     // IDetectableTarget Implementation
     public string TargetLabel => LabelCap;
     public PlanetTile CurrentTile => Tile;
-    public Vector3 CurrentDrawPos => DrawPos;
+    public Vector3 CurrentDrawPos => TrueDrawPos;
     public Faction? TargetFaction => Faction;
     public bool IsHostileToPlayer => Faction?.HostileTo(Faction.OfPlayer) ?? true;
     public IntelligenceTier CurrentIntelligenceTier
     {
         get => intelligenceTier;
         set => intelligenceTier = value;
+    }
+
+    public void UpdateSampledPosition()
+    {
+        lastSampledDrawPos = TrueDrawPos;
     }
 
     private static Texture2D? cachedCaravanExpandingIcon;
@@ -125,7 +131,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
 
     public override void Draw()
     {
-        if (Tile.LayerDef.isSpace)
+        if (!WorldRendererUtility.WorldRendered || Tile.LayerDef.isSpace)
         {
             return;
         }
@@ -240,9 +246,27 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
             ? IntelligenceTier.Analysed
             : IntelligenceTier.Undetected;
         hasDispatchedAlert = false;
+        lastSampledDrawPos = TrueDrawPos;
 
-        // Perform immediate sensory sweep in case incursion spawned inside active sensor range
+        // Register target with SensoryManager and trigger immediate detection sweep
+        SensoryManager.Instance?.RegisterTarget(this);
         SensoryManager.Instance?.PerformSensorySweep();
+    }
+
+    public override void SpawnSetup()
+    {
+        base.SpawnSetup();
+        if (lastSampledDrawPos == Vector3.zero)
+        {
+            lastSampledDrawPos = TrueDrawPos;
+        }
+        SensoryManager.Instance?.RegisterTarget(this);
+    }
+
+    public override void PostRemove()
+    {
+        SensoryManager.Instance?.DeregisterTarget(this);
+        base.PostRemove();
     }
 
     public void OnDetected(ISensorProvider sensor, IntelligenceTier newTier)
@@ -253,6 +277,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
         {
             isIdentified = true;
         }
+
+        UpdateSampledPosition();
 
         if (!hasDispatchedAlert && GeoscapeMod.Settings.enableEarlyWarningLetters && IsHostileToPlayer)
         {
@@ -316,6 +342,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
         Scribe_Values.Look(ref isIdentified, "isIdentified", true);
         Scribe_Values.Look(ref intelligenceTier, "intelligenceTier", IntelligenceTier.Undetected);
         Scribe_Values.Look(ref hasDispatchedAlert, "hasDispatchedAlert", false);
+        Scribe_Values.Look(ref lastSampledDrawPos, "lastSampledDrawPos", Vector3.zero);
 
         int originId = originTile.tileId;
         Scribe_Values.Look(ref originId, "originTileId", 0);
@@ -387,7 +414,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
         }
     }
 
-    public override Vector3 DrawPos
+    public Vector3 TrueDrawPos
     {
         get
         {
@@ -413,6 +440,23 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
             Vector3 nextCenter = Find.WorldGrid.GetTileCenter(nextTile);
 
             return Vector3.Slerp(curCenter, nextCenter, Mathf.Clamp01(tileProgress));
+        }
+    }
+
+    public override Vector3 DrawPos
+    {
+        get
+        {
+            // In Contact Tier, position updates discretely on 250-tick sweeps rather than 60 FPS continuous Slerp
+            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+            {
+                if (lastSampledDrawPos != Vector3.zero)
+                {
+                    return lastSampledDrawPos;
+                }
+            }
+
+            return TrueDrawPos;
         }
     }
 
@@ -463,18 +507,20 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
 
     private void DrawPathOverlay()
     {
-        if (pathTiles == null || pathTiles.Count < 2)
+        if (!WorldRendererUtility.WorldRendered || pathTiles == null || pathTiles.Count < 2)
         {
             return;
         }
+
+        List<PlanetTile> tiles = pathTiles;
 
         // In Contact tier, do not reveal the entire projected planetary path to the player
         if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
         {
             Vector3 curDrawPos = DrawPos + DrawPos.normalized * 0.08f;
-            if (currentPathIndex < pathTiles.Count)
+            if (currentPathIndex < tiles.Count)
             {
-                Vector3 pCur = GetElevatedTileCenter(pathTiles[currentPathIndex]);
+                Vector3 pCur = GetElevatedTileCenter(tiles[currentPathIndex]);
                 if ((curDrawPos - pCur).sqrMagnitude > 0.001f)
                 {
                     GenDraw.DrawWorldLineBetween(pCur, curDrawPos, FriendlyPastLineMat, 1.0f);
@@ -490,10 +536,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
         // If mobilizing at origin base, draw the full planned path as active
         if (departureDelayTicks > 0)
         {
-            for (int i = 0; i < pathTiles.Count - 1; i++)
+            for (int i = 0; i < tiles.Count - 1; i++)
             {
-                Vector3 pA = GetElevatedTileCenter(pathTiles[i]);
-                Vector3 pB = GetElevatedTileCenter(pathTiles[i + 1]);
+                Vector3 pA = GetElevatedTileCenter(tiles[i]);
+                Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
                 GenDraw.DrawWorldLineBetween(pA, pB, activeMat, 1.2f);
             }
             return;
@@ -502,36 +548,36 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
         // 1. Draw traversed past path (from origin up to currentPathIndex)
         for (int i = 0; i < currentPathIndex; i++)
         {
-            Vector3 pA = GetElevatedTileCenter(pathTiles[i]);
-            Vector3 pB = GetElevatedTileCenter(pathTiles[i + 1]);
+            Vector3 pA = GetElevatedTileCenter(tiles[i]);
+            Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
             GenDraw.DrawWorldLineBetween(pA, pB, pastMat, 1.0f);
         }
 
         // 2. Draw current leg connecting to smooth DrawPos
         Vector3 curDrawPos2 = DrawPos + DrawPos.normalized * 0.08f;
 
-        if (currentPathIndex < pathTiles.Count)
+        if (currentPathIndex < tiles.Count)
         {
-            Vector3 pCur = GetElevatedTileCenter(pathTiles[currentPathIndex]);
+            Vector3 pCur = GetElevatedTileCenter(tiles[currentPathIndex]);
             if ((curDrawPos2 - pCur).sqrMagnitude > 0.001f)
             {
                 GenDraw.DrawWorldLineBetween(pCur, curDrawPos2, pastMat, 1.0f);
             }
         }
 
-        if (currentPathIndex + 1 < pathTiles.Count)
+        if (currentPathIndex + 1 < tiles.Count)
         {
-            Vector3 pNext = GetElevatedTileCenter(pathTiles[currentPathIndex + 1]);
+            Vector3 pNext = GetElevatedTileCenter(tiles[currentPathIndex + 1]);
             if ((pNext - curDrawPos2).sqrMagnitude > 0.001f)
             {
                 GenDraw.DrawWorldLineBetween(curDrawPos2, pNext, activeMat, 1.2f);
             }
 
             // 3. Draw remaining upcoming path from next tile to destination
-            for (int i = currentPathIndex + 1; i < pathTiles.Count - 1; i++)
+            for (int i = currentPathIndex + 1; i < tiles.Count - 1; i++)
             {
-                Vector3 pA = GetElevatedTileCenter(pathTiles[i]);
-                Vector3 pB = GetElevatedTileCenter(pathTiles[i + 1]);
+                Vector3 pA = GetElevatedTileCenter(tiles[i]);
+                Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
                 GenDraw.DrawWorldLineBetween(pA, pB, activeMat, 1.2f);
             }
         }

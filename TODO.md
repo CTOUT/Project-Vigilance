@@ -18,8 +18,8 @@
   - _Tier 3 (Classified):_ Faction identity and broad warband type identified.
   - _Tier 4 (Analysed):_ Full telemetry (exact pawn count, weaponry, target colony, live ETA).
 - [x] **Early Warning Notifications:** Dispatches letters (`ThreatSmall` / `ThreatBig`) when hostile forces first cross into detection range.
-- [ ] **Sampled Radar Jumps vs. Optical Continuous Smoothing:** Discrete 250-tick sweep position updates for radar/contact blips vs smooth 60 FPS Slerp for direct optical sight.
-- [ ] **Off-World Render Gating & Peacetime Early-Exit:** Zero TPS impact while managing colonies, instant bypass when no incursions are active, and stationary sensor caching.
+- [x] **Sampled Radar Jumps vs. Optical Continuous Smoothing:** Discrete 250-tick sweep position updates for radar/contact blips vs smooth 60 FPS Slerp for direct optical sight.
+- [x] **Off-World Render Gating & Peacetime Early-Exit:** Zero TPS impact while managing colonies, instant bypass when no incursions are active, and stationary sensor caching.
 - [ ] **`WorldLayer_HazeOfWar`:** Render native mesh overlay displaying the translucent grey haze over unmonitored sectors in Classic Haze mode.
 - [ ] **Soft Compatibility with Community Mods:** Detect external fog mods (such as D4egon's _World Fog of War_ `#3765828104`) via soft reflection to respect their revealed tiles without hard dependencies on Vanilla Expanded Framework (VEF).
 
