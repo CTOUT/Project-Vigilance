@@ -4,19 +4,21 @@
 
 ### Milestone 1.1: Sensory Architecture, Visibility Modes & Scout Horizon (Current)
 
-- [ ] **Decoupled Namespace Setup:** Establish `ProjectVigilance.Geoscape.Sensory` namespace and `ISensorProvider` contract.
-- [ ] **Zero-Allocation Spatial Bitmask State:** Implement compact 64-bit word bitsets (`isExploredBitset`, `isActiveVisionBitset`) in `.NET 10` for high-performance tile state tracking without GC churn.
-- [ ] **Configurable Visibility Modes (`GeoscapeSettings`):**
+- [x] **Decoupled Namespace Setup:** Establish `ProjectVigilance.Geoscape.Sensory` namespace and `ISensorProvider` / `IDetectableTarget` contracts.
+- [x] **Zero-Allocation Spatial Bitmask State:** Implement compact 64-bit word bitsets (`isExploredBitset`, `isActiveVisionBitset`) in `.NET 10` for high-performance tile state tracking without GC churn.
+- [x] **Configurable Visibility Modes (`GeoscapeSettings`):**
   - **Planetary Surveillance (Default / X-COM Style):** Static global geography (continents, oceans, cities) is known; moving incursions and clandestine threats are hidden outside sensor range.
   - **Classic Haze of War (3-Tier RTS Style):** Unexplored (Black Shroud) → Explored/Unmonitored (Translucent Grey Haze remembering static terrain) → Active Vision (Clear + live target reveal).
   - **Omniscient (Spectator Style):** All planetary movement immediately visible across the globe without fog or radar requirements.
-- [ ] **Natural Scout Horizon:** Implement baseline line-of-sight vision for player colonies (~5 tiles) and caravans (~3 tiles) via `ScoutHorizonProvider` so low-tech/tribal colonies receive early warning naturally.
+- [x] **Natural Scout Horizon:** Implement baseline line-of-sight vision for player colonies (~5 tiles) and caravans (~3 tiles) via `ScoutHorizonSensor` so low-tech/tribal colonies receive early warning naturally.
+- [x] **5-Tier Contact Classification & Incursion Masking:**
+  - _Tier 0 (Undetected):_ Completely hidden on the world map and unselectable.
+  - _Tier 1 (Suspected):_ Indirect narrative cues and sector rumours.
+  - _Tier 2 (Contact):_ Pulsing amber blip without faction crest or destination vector.
+  - _Tier 3 (Classified):_ Faction identity and broad warband type identified.
+  - _Tier 4 (Analysed):_ Full telemetry (exact pawn count, weaponry, target colony, live ETA).
+- [x] **Early Warning Notifications:** Dispatches letters (`ThreatSmall` / `ThreatBig`) when hostile forces first cross into detection range.
 - [ ] **`WorldLayer_HazeOfWar`:** Render native mesh overlay displaying the translucent grey haze over unmonitored sectors in Classic Haze mode.
-- [ ] **4-Tier Contact Classification:**
-  - _Tier 0 (Undetected):_ Completely hidden outside vision.
-  - _Tier 1 (Contact):_ Pulsing blip without faction crest or composition.
-  - _Tier 2 (Classified):_ Faction identity and broad warband type identified.
-  - _Tier 3 (Analysed):_ Full telemetry (exact pawn count, weaponry, target colony, live ETA).
 - [ ] **Soft Compatibility with Community Mods:** Detect external fog mods (such as D4egon's _World Fog of War_ `#3765828104`) via soft reflection to respect their revealed tiles without hard dependencies on Vanilla Expanded Framework (VEF).
 
 ---

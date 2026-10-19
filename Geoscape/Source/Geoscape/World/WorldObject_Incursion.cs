@@ -6,10 +6,12 @@ using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 
+using ProjectVigilance.Geoscape.Sensory;
+
 namespace ProjectVigilance.Geoscape.World;
 
 [StaticConstructorOnStartup]
-public class WorldObject_Incursion : WorldObject
+public class WorldObject_Incursion : WorldObject, IDetectableTarget
 {
     private IncidentDef? incidentDef;
     private IncidentParms? incidentParms;
@@ -21,6 +23,8 @@ public class WorldObject_Incursion : WorldObject
     private float speedTilesPerDay = 24f;
     private int departureDelayTicks;
     private bool isIdentified = true;
+    private IntelligenceTier intelligenceTier = IntelligenceTier.Undetected;
+    private bool hasDispatchedAlert = false;
 
     public IncidentDef? IncidentDef => incidentDef;
     public IncidentParms? IncidentParms => incidentParms;
@@ -38,6 +42,18 @@ public class WorldObject_Incursion : WorldObject
         set => isIdentified = value;
     }
 
+    // IDetectableTarget Implementation
+    public string TargetLabel => LabelCap;
+    public PlanetTile CurrentTile => Tile;
+    public Vector3 CurrentDrawPos => DrawPos;
+    public Faction? TargetFaction => Faction;
+    public bool IsHostileToPlayer => Faction?.HostileTo(Faction.OfPlayer) ?? true;
+    public IntelligenceTier CurrentIntelligenceTier
+    {
+        get => intelligenceTier;
+        set => intelligenceTier = value;
+    }
+
     private static Texture2D? cachedCaravanExpandingIcon;
     private static Texture2D CaravanExpandingIcon =>
         cachedCaravanExpandingIcon ??= ContentFinder<Texture2D>.Get("World/WorldObjects/Expanding/Caravan");
@@ -46,12 +62,29 @@ public class WorldObject_Incursion : WorldObject
     private static Texture2D CaravanWorldTexture =>
         cachedCaravanWorldTexture ??= ContentFinder<Texture2D>.Get("World/WorldObjects/Caravan");
 
+    public override bool SelectableNow =>
+        GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact;
+
+    public override string Label
+    {
+        get
+        {
+            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+            {
+                return "Unidentified Contact";
+            }
+            return base.Label;
+        }
+    }
+
     public override Texture2D ExpandingIcon
     {
         get
         {
-            // For both incursions and caravans, use the marching travellers icon so they are
-            // immediately distinguishable from static settlement bases (which use FactionIcon)
+            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
+            {
+                return BaseContent.ClearTex;
+            }
             return CaravanExpandingIcon;
         }
     }
@@ -60,6 +93,11 @@ public class WorldObject_Incursion : WorldObject
     {
         get
         {
+            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+            {
+                return new Color(1f, 0.85f, 0.25f, 0.95f); // Tactical Amber for unclassified contact
+            }
+
             bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
             if (isHostile)
             {
@@ -87,18 +125,36 @@ public class WorldObject_Incursion : WorldObject
 
     public override void Draw()
     {
-        float averageTileSize = Tile.Layer.AverageTileSize;
-        float rawTransitionPct = ExpandableWorldObjectsUtility.RawTransitionPct;
         if (Tile.LayerDef.isSpace)
         {
             return;
         }
 
+        // Hide entirely if undetected by the sensory net
+        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
+        {
+            return;
+        }
+
+        float averageTileSize = Tile.Layer.AverageTileSize;
+        float rawTransitionPct = ExpandableWorldObjectsUtility.RawTransitionPct;
         float altOffset = Rand.RangeSeeded(0f, 0.01f, ID) + def.drawAltitudeOffset;
+
         bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
-        Color statusColor = isHostile
-            ? new Color(1f, 0.25f, 0.25f, 0.95f)
-            : new Color(0.25f, 0.85f, 1f, 0.95f);
+        Color statusColor;
+
+        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+        {
+            // Amber/Gold pulsing blip for unidentified contacts
+            float pulse = 0.75f + Mathf.PingPong(Time.realtimeSinceStartup * 2.5f, 0.25f);
+            statusColor = new Color(1f, 0.85f, 0.2f, pulse);
+        }
+        else
+        {
+            statusColor = isHostile
+                ? new Color(1f, 0.25f, 0.25f, 0.95f)
+                : new Color(0.25f, 0.85f, 1f, 0.95f);
+        }
 
         // Alpha fade matching vanilla expandable objects transition
         float alpha = 1f;
@@ -107,14 +163,13 @@ public class WorldObject_Incursion : WorldObject
             alpha = Mathf.Clamp01(1f - rawTransitionPct);
         }
 
-        // 1. Base Layer: Caravan / marching force silhouette tinted in Red (hostile) or Cyan (friendly)
+        // 1. Base Layer: Caravan / marching force silhouette
         Material baseMat = MaterialPool.MatFrom(
             CaravanWorldTexture,
             ShaderDatabase.WorldOverlayTransparentLit,
             new Color(statusColor.r, statusColor.g, statusColor.b, statusColor.a * alpha),
             WorldMaterials.DynamicObjectRenderQueue);
 
-        // In RimWorld's DrawQuadTangentialToPlanet, rotationAngle = -90f aligns quad local Z (top) with planet North
         WorldRendererUtility.DrawQuadTangentialToPlanet(
             DrawPos,
             0.85f * averageTileSize,
@@ -125,8 +180,9 @@ public class WorldObject_Incursion : WorldObject
             false,
             null);
 
-        // 2. Overlay Layer: Faction Emblem centered atop the caravan silhouette (when identified and setting enabled)
-        if (isIdentified && Faction?.def?.FactionIcon != null && GeoscapeMod.Settings.showFactionEmblems)
+        // 2. Overlay Layer: Faction Emblem (ONLY when Classified or Analysed)
+        bool canShowEmblem = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Classified;
+        if (canShowEmblem && isIdentified && Faction?.def?.FactionIcon != null && GeoscapeMod.Settings.showFactionEmblems)
         {
             Color factionTint = Faction.Color;
             Material emblemMat = MaterialPool.MatFrom(
@@ -179,6 +235,66 @@ public class WorldObject_Incursion : WorldObject
         {
             Tile = origin;
         }
+
+        intelligenceTier = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient)
+            ? IntelligenceTier.Analysed
+            : IntelligenceTier.Undetected;
+        hasDispatchedAlert = false;
+
+        // Perform immediate sensory sweep in case incursion spawned inside active sensor range
+        SensoryManager.Instance?.PerformSensorySweep();
+    }
+
+    public void OnDetected(ISensorProvider sensor, IntelligenceTier newTier)
+    {
+        intelligenceTier = newTier;
+
+        if (newTier >= IntelligenceTier.Classified)
+        {
+            isIdentified = true;
+        }
+
+        if (!hasDispatchedAlert && GeoscapeMod.Settings.enableEarlyWarningLetters && IsHostileToPlayer)
+        {
+            if (newTier >= IntelligenceTier.Contact)
+            {
+                hasDispatchedAlert = true;
+                DispatchEarlyWarningLetter(sensor, newTier);
+            }
+        }
+    }
+
+    private void DispatchEarlyWarningLetter(ISensorProvider sensor, IntelligenceTier tier)
+    {
+        Map? targetMap = Current.Game.FindMap(destinationTile);
+        string targetName = targetMap?.Parent?.LabelCap ?? "Colony territory";
+
+        float actualRemainingTiles = Math.Max(0f, (pathTiles.Count - currentPathIndex) - tileProgress);
+        float remainingHours = (actualRemainingTiles / Math.Max(0.1f, speedTilesPerDay)) * 24f;
+
+        if (tier == IntelligenceTier.Contact)
+        {
+            string title = "Early Warning: Unidentified Contact";
+            string text = $"Lookouts from {sensor.SensorLabel} have detected an unidentified force advancing towards {targetName}.\n\n" +
+                          $"Heading: Towards {targetName}\n" +
+                          $"Estimated Speed: ~{speedTilesPerDay:F0} hexes/day\n" +
+                          $"Sensor: {sensor.SensorLabel}\n\n" +
+                          "Telemetry is currently insufficient to determine faction alignment or troop strength. Prepare colony defenses or scramble scouts to investigate.";
+
+            Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatSmall, new GlobalTargetInfo(this));
+        }
+        else if (tier >= IntelligenceTier.Classified)
+        {
+            string factionStr = Faction?.Name ?? "Hostile Faction";
+            string title = $"Early Warning: {factionStr} Incursion";
+            string text = $"Sensors from {sensor.SensorLabel} have confirmed an approaching hostile warband from {factionStr} marching towards {targetName}.\n\n" +
+                          $"Target: {targetName}\n" +
+                          $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
+                          $"Sensor: {sensor.SensorLabel}\n\n" +
+                          "Prepare your colony for tactical engagement, or deploy an interception caravan to confront them in the field.";
+
+            Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, new GlobalTargetInfo(this));
+        }
     }
 
     public override void ExposeData()
@@ -198,6 +314,8 @@ public class WorldObject_Incursion : WorldObject
         Scribe_Values.Look(ref tileProgress, "tileProgress", 0f);
         Scribe_Values.Look(ref departureDelayTicks, "departureDelayTicks", 0);
         Scribe_Values.Look(ref isIdentified, "isIdentified", true);
+        Scribe_Values.Look(ref intelligenceTier, "intelligenceTier", IntelligenceTier.Undetected);
+        Scribe_Values.Look(ref hasDispatchedAlert, "hasDispatchedAlert", false);
 
         int originId = originTile.tileId;
         Scribe_Values.Look(ref originId, "originTileId", 0);
@@ -350,6 +468,21 @@ public class WorldObject_Incursion : WorldObject
             return;
         }
 
+        // In Contact tier, do not reveal the entire projected planetary path to the player
+        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
+        {
+            Vector3 curDrawPos = DrawPos + DrawPos.normalized * 0.08f;
+            if (currentPathIndex < pathTiles.Count)
+            {
+                Vector3 pCur = GetElevatedTileCenter(pathTiles[currentPathIndex]);
+                if ((curDrawPos - pCur).sqrMagnitude > 0.001f)
+                {
+                    GenDraw.DrawWorldLineBetween(pCur, curDrawPos, FriendlyPastLineMat, 1.0f);
+                }
+            }
+            return;
+        }
+
         bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
         Material activeMat = isHostile ? HostileLineMat : FriendlyLineMat;
         Material pastMat = isHostile ? HostilePastLineMat : FriendlyPastLineMat;
@@ -375,23 +508,23 @@ public class WorldObject_Incursion : WorldObject
         }
 
         // 2. Draw current leg connecting to smooth DrawPos
-        Vector3 curDrawPos = DrawPos + DrawPos.normalized * 0.08f;
+        Vector3 curDrawPos2 = DrawPos + DrawPos.normalized * 0.08f;
 
         if (currentPathIndex < pathTiles.Count)
         {
             Vector3 pCur = GetElevatedTileCenter(pathTiles[currentPathIndex]);
-            if ((curDrawPos - pCur).sqrMagnitude > 0.001f)
+            if ((curDrawPos2 - pCur).sqrMagnitude > 0.001f)
             {
-                GenDraw.DrawWorldLineBetween(pCur, curDrawPos, pastMat, 1.0f);
+                GenDraw.DrawWorldLineBetween(pCur, curDrawPos2, pastMat, 1.0f);
             }
         }
 
         if (currentPathIndex + 1 < pathTiles.Count)
         {
             Vector3 pNext = GetElevatedTileCenter(pathTiles[currentPathIndex + 1]);
-            if ((pNext - curDrawPos).sqrMagnitude > 0.001f)
+            if ((pNext - curDrawPos2).sqrMagnitude > 0.001f)
             {
-                GenDraw.DrawWorldLineBetween(curDrawPos, pNext, activeMat, 1.2f);
+                GenDraw.DrawWorldLineBetween(curDrawPos2, pNext, activeMat, 1.2f);
             }
 
             // 3. Draw remaining upcoming path from next tile to destination
@@ -406,9 +539,19 @@ public class WorldObject_Incursion : WorldObject
 
     public override string GetInspectString()
     {
+        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
+        {
+            return string.Empty;
+        }
+
         float actualRemainingTiles = Math.Max(0f, (pathTiles.Count - currentPathIndex) - tileProgress);
         float remainingDays = actualRemainingTiles / Math.Max(0.1f, speedTilesPerDay);
         float remainingHours = remainingDays * 24f;
+
+        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+        {
+            return $"Unidentified Contact\nStatus: Tracking in progress\nSpeed: ~{speedTilesPerDay:F0} hexes/day\nTelemetry: Insufficient sensor data to classify faction";
+        }
 
         string factionName = isIdentified ? (Faction?.Name ?? "Unknown") : "Unidentified Faction";
         string label = isIdentified
