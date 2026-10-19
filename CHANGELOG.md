@@ -11,8 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Comprehensive Community FAQ ([`docs/faq.md`](docs/faq.md)) addressing modded faction compatibility (Vanilla Factions Expanded, Medieval Overhaul), tactical combat overhauls (Combat Extended, CAI 5000), Rim War architectural comparisons, and 1.6 backport evaluations.
 - Steam Workshop Collection badges and cross-links across project documentation.
-- Architectural specifications for 3-tier visibility modes (Planetary Surveillance, Classic Haze of War, Omniscient) and 4-tier contact intelligence progression in [`docs/modules/geoscape-and-radar.md`](docs/modules/geoscape-and-radar.md).
+- Architectural specifications for 3-tier visibility modes (Planetary Surveillance, Classic Haze of War, Omniscient) and 5-tier contact intelligence progression in [`docs/modules/geoscape-and-radar.md`](docs/modules/geoscape-and-radar.md).
 - Decoupled internal namespace design rules (`World`, `Sensory`, `Tactical`) in [`docs/architecture/modular-system.md`](docs/architecture/modular-system.md) to guarantee clean future standalone extraction.
+- Dynamic sensory tracking fidelity distinction: discrete 250-tick sweep jumps for radar/sonar blips vs smooth 60 FPS spherical interpolation (`Vector3.Slerp`) for direct optical vision in [`docs/modules/geoscape-and-radar.md`](docs/modules/geoscape-and-radar.md).
+- Planetary simulation lifecycle optimisations: complete off-world render skipping (`WorldRendererUtility.WorldRenderedNow == false`), peacetime sweep early-exit when zero incursions are active, stationary sensor caching, and Omniscient bypass.
+- Baseline Scout Horizon lookout system providing line-of-sight early warning for colonies (~5 hexes) and caravans (~3 hexes).
+- Early Warning Letter dispatching (`LetterDefOf.ThreatSmall` / `ThreatBig`) upon hostile sensor contact.
 
 ### Changed
 

@@ -49,16 +49,17 @@ Recognising that player preferences range from authentic military surveillance t
    - Zero fog of war or haze. All worldwide incursion movements, faction emblems, and arrival ETAs are immediately visible across the globe without technology requirements.
    - Ideal for players who enjoy observing the planetary simulation without managing radar grids.
 
-### 2.4 4-Tier Contact Classification & Intelligence Progression
+### 2.4 5-Tier Contact Classification & Intelligence Progression
 
-Information on the Geoscape is treated as a strategic resource. Detected entities progress through four intelligence tiers based on the sensing facility's technological tier:
+Information on the Geoscape is treated as a strategic resource. Detected entities progress through five intelligence tiers based on the sensing facility's technological tier:
 
 | Intelligence Tier      | Visual Representation         | Telemetry Provided                                                                                    | Detection Source                                                                        |
 | :--------------------- | :---------------------------- | :---------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
 | **Tier 0: Undetected** | _Invisible_                   | None. The entity moves across the planetary hex grid silently.                                        | Outside all sensory cones and scout horizons.                                           |
-| **Tier 1: Contact**    | Generic pulsing marker / blip | Presence, rough heading, coarse speed. Faction emblem and headcount are hidden.                       | Colony Scout Horizon (~5 tiles), roaming caravans (~3 tiles), or small radar perimeter. |
-| **Tier 2: Classified** | Faction emblem + category     | Attacking faction identified, broad classification (e.g. _Pirate Warband_, _Mechanoid Strike Fleet_). | Mid-range Radar array, forward listening post, or line-of-sight within 2 hexes.         |
-| **Tier 3: Analysed**   | Full tactical telemetry       | Exact pawn headcount, siege weaponry breakdown, target colony destination, and live arrival ETA.      | Hyper-wave decoder, high-tech intelligence centre, or direct visual reconnaissance.     |
+| **Tier 1: Suspected**  | _Narrative Cue / Ripple_      | Rumoured presence or acoustic anomaly. Exact location remains unconfirmed.                            | Scout rumours, forward outpost radio chatter, or regional acoustic cues.                |
+| **Tier 2: Contact**    | Generic pulsing marker / blip | Presence, rough heading, coarse speed. Faction emblem and headcount are hidden. Updates discretely.   | Colony Scout Horizon (~5 tiles), roaming caravans (~3 tiles), or small radar perimeter. |
+| **Tier 3: Classified** | Faction emblem + category     | Attacking faction identified, broad classification (e.g. _Pirate Warband_, _Mechanoid Strike Fleet_). | Mid-range Radar array, forward listening post, or line-of-sight within 2 hexes.         |
+| **Tier 4: Analysed**   | Full tactical telemetry       | Exact pawn headcount, siege weaponry breakdown, target colony destination, and live arrival ETA.      | Hyper-wave decoder, high-tech intelligence centre, or direct optical reconnaissance.    |
 
 ### 2.5 Zero-Allocation Spatial Bitmask Architecture & Soft Integration
 
@@ -100,6 +101,32 @@ Where:
   - _Low / Medium:_ 1.0 (standard tracking profile).
   - _High / Stratospheric:_ 1.3 (easily tracked at extreme line-of-sight).
   - _Sub-surface (USO):_ 0.0 for conventional radar; detected only by Oceanic Sonar Arrays.
+
+### 3.3 Sampled Radar Tracking vs. Continuous Optical Smoothing
+
+To capture authentic military sensor behaviour, entity movement on the Geoscape dynamically adapts its interpolation fidelity based on the detection source:
+
+1. **Direct Optical Vision (Lookouts, Binoculars, Analysed Tier):**
+   - When human lookouts or scout caravans maintain direct continuous line-of-sight, entities glide across the terrain in a silky-smooth 60 FPS spherical interpolation (`Vector3.Slerp`).
+2. **Discrete Radar & Sonar Sweeps (Contact Tier / Long-Range Blips):**
+   - Real-world military radar (PPI displays) and naval sonar do not provide continuous analog motion; screens update in discrete steps each time the physical antenna beam passes over the target (every 2–5 seconds).
+   - In Contact Tier, moving entities update their position strictly on the 250-tick pulse sweep (`TickRare`), holding stationary between sweeps and "blinking" to their newly swept hex. This produces a tense, authentic military tracking room aesthetic.
+
+### 3.4 Off-World Render Gating & Peacetime Performance Optimisations
+
+To ensure that planetary simulation never impacts colony map ticks-per-second (TPS), the sensory engine enforces strict lifecycle boundaries:
+
+1. **Complete Off-World Render Halting:**
+   - RimWorld's engine automatically skips the entire world rendering pipeline when the player is managing their local colony (`WorldRendererUtility.WorldRenderedNow == false`).
+   - `WorldObject.Draw()`, `DrawPathOverlay()`, `WorldDrawLayer.Render()`, and mesh shader passes consume zero CPU/GPU cycles while the colony map is active.
+2. **Background Pulse Purpose (Early Warning):**
+   - The lightweight 250-tick sensory sweep runs in the background solely to evaluate whether approaching threats have crossed into lookout or radar horizons, triggering **Early Warning Letters** to the player on their colony screen.
+3. **Peacetime Early Exit:**
+   - If there are zero active detectable targets on the planet (the default state during 85–90% of peacetime gameplay), the sensory sweep immediately exits on tick 1 without executing distance lookups.
+4. **Stationary Sensor Caching:**
+   - In _Classic Haze of War_, stationary installations (colonies, radar dishes, listening posts) only calculate their revealed tile radius once upon construction or game load. Only mobile units (caravans) update their explored footprint as they march across the grid.
+5. **Omniscient Bypass:**
+   - When set to _Omniscient_, all bitmask tracking, tile flood-filling, and mesh generation are completely disabled.
 
 ---
 
