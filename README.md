@@ -84,6 +84,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 - **[Module 3 Specification: Alien Containment & Biology](docs/modules/containment-and-biology.md)**
 - **[Module 4 Specification: The Invasion Campaign & Panic](docs/modules/campaign-and-panic.md)**
 - **[Aquatic Operations & Terror from the Deep Integration](docs/modules/aquatic-operations.md)**
+- **[Frequently Asked Questions (FAQ)](docs/faq.md)**
 - **[Implementation Roadmap & TODO](TODO.md)**
 - **[Changelog](CHANGELOG.md)**
 

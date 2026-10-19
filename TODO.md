@@ -33,6 +33,7 @@
 - [ ] **Dynamic Inter-Faction Encounters:** Enable roaming NPC incursions and trade caravans to interact when their routes cross—simulating background skirmishes between warring factions, ambush aftermath sites, and trade rendezvous.
 - [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
 - [ ] **Early Warning Dispatcher:** Generate advance warning alerts and reveal telemetry based on radar tier.
+- [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
 
 ---

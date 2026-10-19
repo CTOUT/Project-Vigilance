@@ -67,4 +67,5 @@ npm run build:geoscape
 npm run deploy:geoscape
 ```
 
+For answers to common compatibility and design questions, see the [Frequently Asked Questions (FAQ)](../docs/faq.md).
 For the long-term technical specification of the sensory grid and radar domes, see [docs/modules/geoscape-and-radar.md](../docs/modules/geoscape-and-radar.md).
