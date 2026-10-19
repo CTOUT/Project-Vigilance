@@ -3,6 +3,7 @@
 This directory hosts the C# source code, XML Defs, and compiled mod package for **Project Vigilance: Overland Incursions** (Package ID: `ProjectVigilance.Geoscape`).
 
 [![Steam Workshop](https://img.shields.io/badge/Steam_Workshop-3822378226-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)
+[![Steam Collection](https://img.shields.io/badge/Steam_Collection-Project_Vigilance-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)
 [![GitHub Release](https://img.shields.io/badge/Release-v0.1.0-238636?logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.1.0)
 
 This is a **standalone, zero-dependency framework mod** designed for RimWorld 1.7 (Waylith) and `.NET 10`. It replaces instantaneous map-edge teleportation with physical overland transit across the global planetary grid.
