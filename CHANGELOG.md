@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dynamic sensory tracking fidelity distinction: discrete 250-tick sweep jumps for radar/sonar blips vs smooth 60 FPS spherical interpolation (`Vector3.Slerp`) for direct optical vision in [`docs/modules/geoscape-and-radar.md`](docs/modules/geoscape-and-radar.md).
 - Planetary simulation lifecycle optimisations: complete off-world render skipping (`WorldRendererUtility.WorldRenderedNow == false`), peacetime sweep early-exit when zero incursions are active, stationary sensor caching, and Omniscient bypass.
 - Baseline Scout Horizon lookout system providing line-of-sight early warning for colonies (~5 hexes) and caravans (~3 hexes).
-- Early Warning Letter dispatching (`LetterDefOf.ThreatSmall` / `ThreatBig`) upon hostile sensor contact.
+- Two-Stage Early Warning Escalation: Removed internal faction cheat so all incoming forces (hostile raids, trade caravans, visitors) generate an **Unidentified Contact** alert (`ThreatSmall`) and amber blip at the outer 5-hex perimeter, escalating to a **Classified Confirmation** (`ThreatBig` for raids, `PositiveEvent` for friendly caravans) once within close visual range (~2.2 hexes) or field reconnaissance.
 
 ### Changed
 

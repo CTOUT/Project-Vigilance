@@ -109,3 +109,32 @@ Project Vigilance is engineered to dynamically hook into RimWorld's modern expan
   - Maps alien holding pods directly to Anomaly's containment platforms, inheriting psychic suppression and study knowledge loops.
 - **Dynamic Fallback:**
   - If expansions are absent, the suite falls back to its standalone C# implementations (`ThingComp_Containment` and sub-orbital drop mechanics).
+
+---
+
+## 5. Engineering Principles: Security, Performance, DRY & KISS
+
+The project is governed by strict engineering standards to ensure high reliability, maintainability, and zero impact on player gameplay performance:
+
+### 5.1 Security by Design (Foundational)
+
+Security and state resilience are core architectural requirements, not afterthoughts:
+
+1. **Principle of Least Privilege:** Enforce the tightest possible visibility scope across all classes, methods, and fields (`private`, `internal`, `readonly`). Never expose mutable internal collections (`IReadOnlyList<T>` over `List<T>`).
+2. **Defensive Boundary Validation:** Enforce strict null-safety (`#nullable enable`), validate bounds on all collection lookups, and ensure external inputs or modded incident parameters are sanitized before execution.
+3. **Serialization & Save Game Isolation:** Rigorously guard Scribe save/load cycles (`ExposeData()`). Cleanse stale or orphaned cross-references (e.g. destroyed maps, despawned pawns) immediately upon loading to eliminate save corruption and reference leaks.
+4. **Minimally Invasive Harmony Patching:** Restrict patches to declarative prefixes/postfixes with clean fallbacks. Avoid complex byte-level transpilers where standard architectural hooks or interfaces suffice.
+
+### 5.2 Performance Efficiencies & Zero-Allocation Hot Paths
+
+With planetary grids featuring 100,000+ tiles, background simulation must never compromise game frame rates (FPS) or ticks per second (TPS):
+
+1. **Zero Heap Allocations on Hot Paths:** The `Tick()` and `Draw()` loops must produce zero garbage collection pressure. Leverage `.NET 10` value types (`PlanetTile`), `ReadOnlySpan<T>`, and spatial bitmasks (`ulong[]`).
+2. **Render & Off-World Gating:** Cease all world rendering logic immediately when the player is managing local colonies (`WorldRendererUtility.WorldRendered == false`).
+3. **Peacetime Early-Exits & Caching:** Heavy sensory checks run strictly on `TickRare()` (250 ticks / ~4.1 seconds). If zero incursions are active, sweeps exit on tick 1. Stationary sensor radii are flood-filled once and cached until upgraded.
+
+### 5.3 Consistency, KISS & DRY
+
+1. **KISS (Keep It Simple, Stupid):** Choose the simplest, most declarative solution that solves the problem. Avoid over-engineered abstractions, excessive generic wrappers, or unnecessary state machines.
+2. **DRY (Don't Repeat Yourself):** Centralise shared spatial math, routing algorithms, and detection logic into unified managers (`IncursionOriginResolver`, `SensoryManager`) rather than duplicating checks across individual incident workers.
+3. **Version-Controlled Declarative Scripts:** All build, test, and deployment procedures are automated as declarative, idempotent PowerShell 7+ scripts.

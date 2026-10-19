@@ -17,9 +17,13 @@
   - _Tier 2 (Contact):_ Pulsing amber blip without faction crest or destination vector.
   - _Tier 3 (Classified):_ Faction identity and broad warband type identified.
   - _Tier 4 (Analysed):_ Full telemetry (exact pawn count, weaponry, target colony, live ETA).
-- [x] **Early Warning Notifications:** Dispatches letters (`ThreatSmall` / `ThreatBig`) when hostile forces first cross into detection range.
+- [x] **Two-Stage Early Warning Escalation (Fog-of-War Parity):** Removed faction cheat. All approaching entities (hostile warbands, trade caravans, visitor groups) trigger an **Unidentified Contact** alert (`ThreatSmall`) at the outer 5-hex perimeter with an amber pulsing blip. Escalates to **Classified Confirmation** (`ThreatBig` for raids, `PositiveEvent` for friendly caravans) upon reaching close visual range (~2.2 hexes) or field scout interception.
 - [x] **Sampled Radar Jumps vs. Optical Continuous Smoothing:** Discrete 250-tick sweep position updates for radar/contact blips vs smooth 60 FPS Slerp for direct optical sight.
 - [x] **Off-World Render Gating & Peacetime Early-Exit:** Zero TPS impact while managing colonies, instant bypass when no incursions are active, and stationary sensor caching.
+- [ ] **Tactical Ingress Diversification & Anti-Funnel Pathing:**
+  - **Approach Waypoint Offsets:** Eliminate highway magnetism by generating randomized flanking waypoints (~4–8 hexes outside colony) so raids from the same direction don't always funnel down the identical highway corridor.
+  - **Faction Movement Doctrines:** Differentiate path preferences—civilian traders use highways, tribals favour wilderness cover to avoid lookouts, and mechanoids march in uncompromising geodesic lines.
+  - **Multi-Vector Compass Pincers:** Enforce separate approach quadrants for multi-column assaults so they surround the colony in coordinated pincer strikes rather than arriving in a conga line.
 - [ ] **`WorldLayer_HazeOfWar`:** Render native mesh overlay displaying the translucent grey haze over unmonitored sectors in Classic Haze mode.
 - [ ] **Soft Compatibility with Community Mods:** Detect external fog mods (such as D4egon's _World Fog of War_ `#3765828104`) via soft reflection to respect their revealed tiles without hard dependencies on Vanilla Expanded Framework (VEF).
 

@@ -22,9 +22,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
     private float tileProgress;
     private float speedTilesPerDay = 24f;
     private int departureDelayTicks;
-    private bool isIdentified = true;
+    private bool isIdentified = false;
     private IntelligenceTier intelligenceTier = IntelligenceTier.Undetected;
-    private bool hasDispatchedAlert = false;
+    private bool hasDispatchedContactAlert = false;
+    private bool hasDispatchedClassifiedAlert = false;
     private Vector3 lastSampledDrawPos = Vector3.zero;
 
     public IncidentDef? IncidentDef => incidentDef;
@@ -242,10 +243,12 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
             Tile = origin;
         }
 
+        isIdentified = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient);
         intelligenceTier = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient)
             ? IntelligenceTier.Analysed
             : IntelligenceTier.Undetected;
-        hasDispatchedAlert = false;
+        hasDispatchedContactAlert = false;
+        hasDispatchedClassifiedAlert = false;
         lastSampledDrawPos = TrueDrawPos;
 
         // Register target with SensoryManager and trigger immediate detection sweep
@@ -280,17 +283,43 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
 
         UpdateSampledPosition();
 
-        if (!hasDispatchedAlert && GeoscapeMod.Settings.enableEarlyWarningLetters && IsHostileToPlayer)
+        if (GeoscapeMod.Settings.enableEarlyWarningLetters)
         {
-            if (newTier >= IntelligenceTier.Contact)
+            // If immediately detected at Classified+ (e.g. adjacent spawn or high-spec sensor),
+            // bypass the vague Contact blip alert and directly issue the detailed identification alert.
+            if (newTier >= IntelligenceTier.Classified)
             {
-                hasDispatchedAlert = true;
-                DispatchEarlyWarningLetter(sensor, newTier);
+                if (!hasDispatchedClassifiedAlert)
+                {
+                    hasDispatchedContactAlert = true;
+                    hasDispatchedClassifiedAlert = true;
+                    DispatchClassifiedLetter(sensor);
+                }
+            }
+            else if (newTier >= IntelligenceTier.Contact && !hasDispatchedContactAlert)
+            {
+                hasDispatchedContactAlert = true;
+                DispatchContactLetter(sensor);
             }
         }
     }
 
-    private void DispatchEarlyWarningLetter(ISensorProvider sensor, IntelligenceTier tier)
+    private void DispatchContactLetter(ISensorProvider sensor)
+    {
+        Map? targetMap = Current.Game.FindMap(destinationTile);
+        string targetName = targetMap?.Parent?.LabelCap ?? "Colony territory";
+
+        string title = "Early Warning: Unidentified Contact";
+        string text = $"{sensor.SensorLabel} have detected an unidentified force advancing towards {targetName}.\n\n" +
+                      $"Heading: Towards {targetName}\n" +
+                      $"Estimated Speed: ~{speedTilesPerDay:F0} hexes/day\n" +
+                      $"Sensor: {sensor.SensorLabel}\n\n" +
+                      "Telemetry is currently insufficient to determine faction alignment or intentions. Prepare colony defenses or scramble scouts to investigate.";
+
+        Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatSmall, new GlobalTargetInfo(this));
+    }
+
+    private void DispatchClassifiedLetter(ISensorProvider sensor)
     {
         Map? targetMap = Current.Game.FindMap(destinationTile);
         string targetName = targetMap?.Parent?.LabelCap ?? "Colony territory";
@@ -298,28 +327,30 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
         float actualRemainingTiles = Math.Max(0f, (pathTiles.Count - currentPathIndex) - tileProgress);
         float remainingHours = (actualRemainingTiles / Math.Max(0.1f, speedTilesPerDay)) * 24f;
 
-        if (tier == IntelligenceTier.Contact)
-        {
-            string title = "Early Warning: Unidentified Contact";
-            string text = $"Lookouts from {sensor.SensorLabel} have detected an unidentified force advancing towards {targetName}.\n\n" +
-                          $"Heading: Towards {targetName}\n" +
-                          $"Estimated Speed: ~{speedTilesPerDay:F0} hexes/day\n" +
-                          $"Sensor: {sensor.SensorLabel}\n\n" +
-                          "Telemetry is currently insufficient to determine faction alignment or troop strength. Prepare colony defenses or scramble scouts to investigate.";
+        string factionStr = Faction?.Name ?? "Unknown Faction";
 
-            Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatSmall, new GlobalTargetInfo(this));
-        }
-        else if (tier >= IntelligenceTier.Classified)
+        if (IsHostileToPlayer)
         {
-            string factionStr = Faction?.Name ?? "Hostile Faction";
-            string title = $"Early Warning: {factionStr} Incursion";
-            string text = $"Sensors from {sensor.SensorLabel} have confirmed an approaching hostile warband from {factionStr} marching towards {targetName}.\n\n" +
+            string title = $"Hostile Incursion: {factionStr}";
+            string text = $"{sensor.SensorLabel} have visually confirmed that the approaching contact is a hostile warband from {factionStr} marching towards {targetName}.\n\n" +
                           $"Target: {targetName}\n" +
                           $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                           $"Sensor: {sensor.SensorLabel}\n\n" +
                           "Prepare your colony for tactical engagement, or deploy an interception caravan to confront them in the field.";
 
             Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, new GlobalTargetInfo(this));
+        }
+        else
+        {
+            string groupType = incidentDef?.label ?? "caravan";
+            string title = $"Approaching {groupType.CapitalizeFirst()}: {factionStr}";
+            string text = $"{sensor.SensorLabel} have visually confirmed that the approaching contact is a friendly {groupType} from {factionStr} heading towards {targetName}.\n\n" +
+                          $"Target: {targetName}\n" +
+                          $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
+                          $"Sensor: {sensor.SensorLabel}\n\n" +
+                          "Prepare your negotiators, silver stores, and trade goods for their arrival.";
+
+            Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.PositiveEvent, new GlobalTargetInfo(this));
         }
     }
 
@@ -341,8 +372,17 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
         Scribe_Values.Look(ref departureDelayTicks, "departureDelayTicks", 0);
         Scribe_Values.Look(ref isIdentified, "isIdentified", true);
         Scribe_Values.Look(ref intelligenceTier, "intelligenceTier", IntelligenceTier.Undetected);
-        Scribe_Values.Look(ref hasDispatchedAlert, "hasDispatchedAlert", false);
+        Scribe_Values.Look(ref hasDispatchedContactAlert, "hasDispatchedContactAlert", false);
+        Scribe_Values.Look(ref hasDispatchedClassifiedAlert, "hasDispatchedClassifiedAlert", false);
         Scribe_Values.Look(ref lastSampledDrawPos, "lastSampledDrawPos", Vector3.zero);
+
+        bool legacyAlert = false;
+        Scribe_Values.Look(ref legacyAlert, "hasDispatchedAlert", false);
+        if (legacyAlert)
+        {
+            hasDispatchedContactAlert = true;
+            hasDispatchedClassifiedAlert = true;
+        }
 
         int originId = originTile.tileId;
         Scribe_Values.Look(ref originId, "originTileId", 0);

@@ -61,6 +61,19 @@ Information on the Geoscape is treated as a strategic resource. Detected entitie
 | **Tier 3: Classified** | Faction emblem + category     | Attacking faction identified, broad classification (e.g. _Pirate Warband_, _Mechanoid Strike Fleet_). | Mid-range Radar array, forward listening post, or line-of-sight within 2 hexes.         |
 | **Tier 4: Analysed**   | Full tactical telemetry       | Exact pawn headcount, siege weaponry breakdown, target colony destination, and live arrival ETA.      | Hyper-wave decoder, high-tech intelligence centre, or direct optical reconnaissance.    |
 
+#### Two-Stage Early Warning Escalation (Fog-of-War Parity)
+
+To preserve authentic tactical uncertainty, the engine strictly forbids "faction peeking" when issuing early warnings:
+
+1. **Stage 1: Contact Tier Alert (Outer Horizon):**
+   - When any force crosses the outer detection threshold (e.g. 5 hexes for colony lookouts), an **"Early Warning: Unidentified Contact"** letter is dispatched (`LetterDefOf.ThreatSmall`).
+   - The force displays as an **amber pulsing blip** on the world map without a faction emblem or projected path line.
+   - The player does not know whether the approaching force is a hostile pirate raid, mechanoid swarm, or peaceful trade caravan.
+2. **Stage 2: Classified Tier Confirmation (Close Visual / Reconnaissance):**
+   - When the entity reaches close visual range (within 45% of lookout radius, ~2.2 hexes) or is intercepted in the field by player scout caravans, visual identification succeeds:
+     - **Hostile Force:** Escalates to an urgent **"Hostile Incursion: [Faction]"** letter (`LetterDefOf.ThreatBig`), shifting the map blip to red with full faction insignia and attack path.
+     - **Friendly Force:** Dispatches an **"Approaching Caravan: [Faction]"** letter (`LetterDefOf.PositiveEvent`), shifting the map blip to cyan with full trade route projection.
+
 ### 2.5 Zero-Allocation Spatial Bitmask Architecture & Soft Integration
 
 1. **High-Performance Spatial Bitmasks (.NET 10):**
