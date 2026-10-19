@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Comprehensive Community FAQ ([`docs/faq.md`](docs/faq.md)) addressing modded faction compatibility (Vanilla Factions Expanded, Medieval Overhaul), tactical combat overhauls (Combat Extended, CAI 5000), Rim War architectural comparisons, and 1.6 backport evaluations.
 - Steam Workshop Collection badges and cross-links across project documentation.
+- Architectural specifications for 3-tier visibility modes (Planetary Surveillance, Classic Haze of War, Omniscient) and 4-tier contact intelligence progression in [`docs/modules/geoscape-and-radar.md`](docs/modules/geoscape-and-radar.md).
+- Decoupled internal namespace design rules (`World`, `Sensory`, `Tactical`) in [`docs/architecture/modular-system.md`](docs/architecture/modular-system.md) to guarantee clean future standalone extraction.
 
 ### Changed
 

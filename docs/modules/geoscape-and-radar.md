@@ -30,6 +30,47 @@ When viewing the world map, players can toggle the **Radar Coverage Overlay**:
 - Overlapping radar coverage improves detection probability for stealthy or high-altitude craft.
 - Areas outside radar coverage represent **Sensory Blind Spots** where enemy craft can operate undetected.
 
+### 2.3 Configurable Planetary Visibility Modes
+
+Recognising that player preferences range from authentic military surveillance to immersive exploration and casual storytelling, the engine exposes three selectable visibility models:
+
+1. **Planetary Surveillance (X-COM Style — Default):**
+   - Planetary geography (landmasses, oceans, biomes, and visible faction settlements) is charted and known from orbital mapping.
+   - Dynamic tactical movement is hidden: hostile incursions, alien craft, and clandestine sites are concealed unless they fall within active Radar or Scout coverage.
+   - Ideal for industrial, spacer, and authentic X-COM playthroughs tracking the _difference_ in global activity.
+
+2. **Classic Haze of War (3-Tier RTS Style):**
+   - **Terra Incognita (Unexplored):** Shrouded in darkness until visited or scanned.
+   - **Haze of War (Explored but Unmonitored):** Rendered with a desaturated translucent slate veil. Known terrain and static bases remain visible, but active incursions and moving hostile units are completely concealed.
+   - **Active Vision:** Full daylight clarity revealing live moving entities, accompanied by subtle radar sweep rings.
+   - Ideal for low-tech, tribal, medieval, or roleplaying campaigns emphasizing planetary discovery.
+
+3. **Omniscient Mode (Living Map / Spectator):**
+   - Zero fog of war or haze. All worldwide incursion movements, faction emblems, and arrival ETAs are immediately visible across the globe without technology requirements.
+   - Ideal for players who enjoy observing the planetary simulation without managing radar grids.
+
+### 2.4 4-Tier Contact Classification & Intelligence Progression
+
+Information on the Geoscape is treated as a strategic resource. Detected entities progress through four intelligence tiers based on the sensing facility's technological tier:
+
+| Intelligence Tier      | Visual Representation         | Telemetry Provided                                                                                    | Detection Source                                                                        |
+| :--------------------- | :---------------------------- | :---------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
+| **Tier 0: Undetected** | _Invisible_                   | None. The entity moves across the planetary hex grid silently.                                        | Outside all sensory cones and scout horizons.                                           |
+| **Tier 1: Contact**    | Generic pulsing marker / blip | Presence, rough heading, coarse speed. Faction emblem and headcount are hidden.                       | Colony Scout Horizon (~5 tiles), roaming caravans (~3 tiles), or small radar perimeter. |
+| **Tier 2: Classified** | Faction emblem + category     | Attacking faction identified, broad classification (e.g. _Pirate Warband_, _Mechanoid Strike Fleet_). | Mid-range Radar array, forward listening post, or line-of-sight within 2 hexes.         |
+| **Tier 3: Analysed**   | Full tactical telemetry       | Exact pawn headcount, siege weaponry breakdown, target colony destination, and live arrival ETA.      | Hyper-wave decoder, high-tech intelligence centre, or direct visual reconnaissance.     |
+
+### 2.5 Zero-Allocation Spatial Bitmask Architecture & Soft Integration
+
+1. **High-Performance Spatial Bitmasks (.NET 10):**
+   - With planetary grids containing up to 100,000+ tiles, storing per-tile object wrappers incurs severe garbage collection stutter.
+   - The engine utilizes compact 64-bit word arrays (`ulong[]` bitsets) allocating less than ~15 KB of memory per state:
+     - `isExploredBitset`: Tracks tiles permanently uncovered by player exploration.
+     - `isActiveVisionBitset`: Recomputed during `TickRare()` (250 ticks) combining colony scout horizons, caravan line-of-sight, and active powered radar domes.
+2. **Soft Compatibility with Community Fog Mods:**
+   - Detects external world fog overhauls (such as D4egon's _World Fog of War_ `#3765828104`) via soft reflection.
+   - When detected, `SensoryManager` integrates with their visibility state without requiring a hard dependency on `Vanilla Expanded Framework` (VEF), allowing radar installations to act as natural revealers.
+
 ---
 
 ## 3. Detection Engine & Performance Design

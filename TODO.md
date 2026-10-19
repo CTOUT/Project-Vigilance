@@ -2,21 +2,50 @@
 
 ## Active Roadmap: Phase 2 — Geoscape & Radar Grid (Standalone Framework)
 
-- [ ] Implement `CompProperties_Radar` and `CompRadar` building components.
-- [ ] Implement `WorldObjectComp_Radar` for settlements and forward listening posts.
-- [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) for efficient spatial distance checks.
-- [ ] Create `WorldObject_FlyingCraft` base class for moving planetary entities.
-- [ ] Implement sensory blind spots and planetary fog of war masking on the `WorldGrid`.
-- [ ] Build Oceanic Sonar detection layer for water hexes.
-- [ ] Implement semi-transparent radar coverage overlay rendering on the world map.
+### Milestone 1.1: Sensory Architecture, Visibility Modes & Scout Horizon (Current)
+
+- [ ] **Decoupled Namespace Setup:** Establish `ProjectVigilance.Geoscape.Sensory` namespace and `ISensorProvider` contract.
+- [ ] **Zero-Allocation Spatial Bitmask State:** Implement compact 64-bit word bitsets (`isExploredBitset`, `isActiveVisionBitset`) in `.NET 10` for high-performance tile state tracking without GC churn.
+- [ ] **Configurable Visibility Modes (`GeoscapeSettings`):**
+  - **Planetary Surveillance (Default / X-COM Style):** Static global geography (continents, oceans, cities) is known; moving incursions and clandestine threats are hidden outside sensor range.
+  - **Classic Haze of War (3-Tier RTS Style):** Unexplored (Black Shroud) → Explored/Unmonitored (Translucent Grey Haze remembering static terrain) → Active Vision (Clear + live target reveal).
+  - **Omniscient (Spectator Style):** All planetary movement immediately visible across the globe without fog or radar requirements.
+- [ ] **Natural Scout Horizon:** Implement baseline line-of-sight vision for player colonies (~5 tiles) and caravans (~3 tiles) via `ScoutHorizonProvider` so low-tech/tribal colonies receive early warning naturally.
+- [ ] **`WorldLayer_HazeOfWar`:** Render native mesh overlay displaying the translucent grey haze over unmonitored sectors in Classic Haze mode.
+- [ ] **4-Tier Contact Classification:**
+  - _Tier 0 (Undetected):_ Completely hidden outside vision.
+  - _Tier 1 (Contact):_ Pulsing blip without faction crest or composition.
+  - _Tier 2 (Classified):_ Faction identity and broad warband type identified.
+  - _Tier 3 (Analysed):_ Full telemetry (exact pawn count, weaponry, target colony, live ETA).
+- [ ] **Soft Compatibility with Community Mods:** Detect external fog mods (such as D4egon's _World Fog of War_ `#3765828104`) via soft reflection to respect their revealed tiles without hard dependencies on Vanilla Expanded Framework (VEF).
+
+---
+
+### Milestone 1.2: Ground Interception & Forward Ambush
+
 - [ ] **Field Interception & Forward Ambush:** Allow player caravans (and rapid-response transports) to intercept approaching incursions on the global hex grid, generating an encounter map where raiders can be engaged, ambushed, or routed before reaching the colony.
 - [ ] **Retreat, Pursuit & Kidnap Recovery:** When raiders flee, rout, or kidnap colonists, simulate their physical retreat across the world map back to their home settlement. Enables hot-pursuit rescue operations to recover captured colonists before they reach enemy strongholds.
 - [ ] **Abandoned Camp Fallback & Overland Track Pursuit:** When raiders or incursions arrive at an abandoned colony or vacated camp, replace instant disbanding with intelligent tactical behaviour:
-  - **Ground Track Pursuit:** Evaluate recently evacuated player caravans from the tile. If the evacuation departed overland on foot or pack animals (excluding airborne shuttles or 1.6 Odyssey gravships), roll a tactical tracking chance. After a delay searching the empty camp, reroute the incursion to actively pursue the caravan to its next destination or ambush it en route.
+  - **Ground Track Pursuit:** Evaluate recently evacuated player caravans from the tile. If the evacuation departed overland on foot or pack animals, roll a tactical tracking chance. After a delay searching the empty camp, reroute the incursion to actively pursue the caravan to its next destination or ambush it en route.
   - **Tactical Fallback & Retargeting:** If no tracks are discovered or the trail goes cold, raiders choose between marching back to their home base/nearest faction outpost, establishing an occupation camp, or opportunistically redirecting their assault toward an adjacent player settlement or ally.
 - [ ] **Dynamic Inter-Faction Encounters:** Enable roaming NPC incursions and trade caravans to interact when their routes cross—simulating background skirmishes between warring factions, ambush aftermath sites, and trade rendezvous.
+
+---
+
+### Milestone 1.3: Radar Infrastructure & Advanced Early Warning
+
+- [ ] Implement `CompProperties_Radar` and `CompRadar` building components.
+- [ ] Implement `WorldObjectComp_Radar` for settlements and forward listening posts.
+- [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) for efficient spatial distance checks.
+- [ ] Implement semi-transparent radar coverage overlay rendering on the world map.
+- [ ] Build Oceanic Sonar detection layer for water hexes.
+- [ ] Early Warning Dispatcher: generate advance warning alerts and reveal telemetry based on radar tier.
+
+---
+
+### Milestone 1.4: Planetary Coordination & Version Support
+
 - [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
-- [ ] **Early Warning Dispatcher:** Generate advance warning alerts and reveal telemetry based on radar tier.
 - [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
 
@@ -87,6 +116,6 @@
 - [x] **Physical Incursion Engine (Milestone 1A):** Intercept walk-in raids (`RaidEnemy`), resolve origin bases/wilderness staging, and simulate real-time overland transit on the `WorldGrid`.
 - [x] **Physical Incursion Engine (Milestone 1B):** Expand incursion routing to friendly caravans (`TraderCaravanArrival`) and roaming visitor/traveller groups.
 
-See [CHANGELOG.md](CHANGELOG.md#010---2026-10-18) for full release notes.
-
 </details>
+
+#### See [CHANGELOG.md](CHANGELOG.md#010---2026-10-18) for full release notes

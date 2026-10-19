@@ -49,6 +49,16 @@ Each standalone module has its own independent Steam Workshop / GitHub release p
 - No shared monolithic assemblies; each module distributes its own clean `.dll`.
 - Independent settings menus allowing players to tune features without the wider suite.
 
+### Rule 4: Decoupled Internal Namespaces for Future Extraction
+
+To avoid premature package fragmentation while ensuring architectural agility, subsystems within `ProjectVigilance.Geoscape` are segregated into dedicated namespaces with contract boundaries:
+
+- `ProjectVigilance.Geoscape.World`: Core incursion movement, staging resolution, arrival handling.
+- `ProjectVigilance.Geoscape.Sensory`: Sensory radar components, spatial bitmask fog of war, scout horizons, and contact managers (bound via `ISensorProvider`).
+- `ProjectVigilance.Geoscape.Tactical`: Global hex interception, forward ambush generation, and retreat/pursuit.
+
+If community adoption warrants extracting `ProjectVigilance.SensorNet` as an independent Workshop upload, the separation requires zero core refactoring.
+
 ---
 
 ## 4. Dependency Matrix
