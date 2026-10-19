@@ -1,3 +1,4 @@
+using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -46,7 +47,50 @@ public class ScoutHorizonSensor : ISensorProvider
 
             if (isColony && parentObject is MapParent mapParent)
             {
-                return mapParent.HasMap;
+                if (!mapParent.HasMap || mapParent.Map == null)
+                {
+                    return false;
+                }
+
+                Map map = mapParent.Map;
+                // Lookouts require at least one conscious colonist present at the settlement
+                var pawns = map.mapPawns?.FreeColonistsSpawned;
+                if (pawns == null || pawns.Count == 0)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < pawns.Count; i++)
+                {
+                    Pawn p = pawns[i];
+                    if (!p.Dead && !p.Downed)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            if (!isColony && parentObject is Caravan caravan)
+            {
+                // Caravan lookouts require at least one conscious colonist/member
+                var caravanPawns = caravan.PawnsListForReading;
+                if (caravanPawns == null || caravanPawns.Count == 0)
+                {
+                    return false;
+                }
+
+                for (int i = 0; i < caravanPawns.Count; i++)
+                {
+                    Pawn p = caravanPawns[i];
+                    if (p.IsColonist && !p.Dead && !p.Downed)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
             }
 
             return true;

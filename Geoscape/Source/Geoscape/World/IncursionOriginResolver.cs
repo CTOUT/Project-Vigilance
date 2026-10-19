@@ -3,9 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
+using UnityEngine;
 using Verse;
 
 namespace ProjectVigilance.Geoscape.World;
+
+public enum FlankQuadrant
+{
+    Any,
+    Left,
+    Right,
+    Rear
+}
 
 public static class IncursionOriginResolver
 {
@@ -33,6 +42,13 @@ public static class IncursionOriginResolver
             var chosen = viableSettlements.RandomElementByWeight(s => 100f / Math.Max(5f, s.Distance));
             originTile = chosen.Tile;
             path = chosen.Path;
+
+            // Apply tactical ingress diversification if doctrine dictates flanking
+            if (TryApplyIngressFlank(parms.faction, originTile, destinationTile, path, FlankQuadrant.Any, out var diversifiedPath))
+            {
+                path = diversifiedPath;
+            }
+
             return true;
         }
 
@@ -43,6 +59,13 @@ public static class IncursionOriginResolver
             {
                 originTile = wildernessTile;
                 path = foundPath;
+
+                // Apply tactical ingress diversification if doctrine dictates flanking
+                if (TryApplyIngressFlank(parms.faction, originTile, destinationTile, path, FlankQuadrant.Any, out var diversifiedPath))
+                {
+                    path = diversifiedPath;
+                }
+
                 return true;
             }
         }
@@ -189,8 +212,15 @@ public static class IncursionOriginResolver
         // 2. Check for multi-base coordination
         if (viableSettlements.Count > 0)
         {
+            FlankQuadrant[] pincerQuadrants = { FlankQuadrant.Left, FlankQuadrant.Right, FlankQuadrant.Rear };
+
             var primary = viableSettlements[0];
-            results.Add((primary.Tile, primary.Path, speed));
+            List<PlanetTile> primaryPath = primary.Path;
+            if (TryApplyIngressFlank(parms.faction, primary.Tile, destinationTile, primaryPath, FlankQuadrant.Any, out var primaryDiversified))
+            {
+                primaryPath = primaryDiversified;
+            }
+            results.Add((primary.Tile, primaryPath, speed));
 
             // Select all secondary bases whose travel times fall within the coordination window (<= 36h delta)
             var compatibleOtherBases = viableSettlements
@@ -199,27 +229,35 @@ public static class IncursionOriginResolver
                 .OrderBy(s => Math.Abs(s.TravelHours - primary.TravelHours))
                 .ToList();
 
+            int secQuadrantIdx = 0;
             foreach (var sec in compatibleOtherBases)
             {
                 if (results.Count >= count)
                 {
                     break;
                 }
-                results.Add((sec.Tile, sec.Path, speed));
+
+                List<PlanetTile> secPath = sec.Path;
+                FlankQuadrant q = pincerQuadrants[secQuadrantIdx % pincerQuadrants.Length];
+                secQuadrantIdx++;
+
+                if (TryApplyIngressFlank(parms.faction, sec.Tile, destinationTile, secPath, q, out var secDiversified))
+                {
+                    secPath = secDiversified;
+                }
+
+                results.Add((sec.Tile, secPath, speed));
             }
 
             // If we still need more vectors (e.g. only 1 or 2 bases available),
             // generate tactical flanking columns originating from the primary base!
-            var existingPaths = results.Select(r => r.Path).ToList();
-            float[] flankSampleFractions = { 0.30f, 0.60f, 0.45f };
-
             int flankIdx = 0;
-            while (results.Count < count && flankIdx < flankSampleFractions.Length)
+            while (results.Count < count && flankIdx < pincerQuadrants.Length)
             {
-                if (TryGenerateFlankingPath(primary.Tile, destinationTile, primary.Path, existingPaths, flankSampleFractions[flankIdx], out var flankPath))
+                FlankQuadrant q = pincerQuadrants[flankIdx];
+                if (TryApplyIngressFlank(parms.faction, primary.Tile, destinationTile, primary.Path, q, out var flankPath))
                 {
                     results.Add((primary.Tile, flankPath, speed));
-                    existingPaths.Add(flankPath);
                 }
                 flankIdx++;
             }
@@ -237,16 +275,15 @@ public static class IncursionOriginResolver
         if (TryResolveOrigin(parms, destinationTile, out var singleOrigin, out var singlePath, out var singleSpeed))
         {
             results.Add((singleOrigin, singlePath, singleSpeed));
-            var fallbackPaths = new List<List<PlanetTile>> { singlePath };
 
-            float[] flankSampleFractions = { 0.30f, 0.60f, 0.45f };
+            FlankQuadrant[] pincerQuadrants = { FlankQuadrant.Left, FlankQuadrant.Right, FlankQuadrant.Rear };
             int fIdx = 0;
-            while (results.Count < count && fIdx < flankSampleFractions.Length)
+            while (results.Count < count && fIdx < pincerQuadrants.Length)
             {
-                if (TryGenerateFlankingPath(singleOrigin, destinationTile, singlePath, fallbackPaths, flankSampleFractions[fIdx], out var flankPath))
+                FlankQuadrant q = pincerQuadrants[fIdx];
+                if (TryApplyIngressFlank(parms.faction, singleOrigin, destinationTile, singlePath, q, out var flankPath))
                 {
                     results.Add((singleOrigin, flankPath, singleSpeed));
-                    fallbackPaths.Add(flankPath);
                 }
                 fIdx++;
             }
@@ -262,76 +299,168 @@ public static class IncursionOriginResolver
         return false;
     }
 
-    private static bool TryGenerateFlankingPath(
-        PlanetTile start,
-        PlanetTile dest,
-        List<PlanetTile> directPath,
-        List<List<PlanetTile>> existingPaths,
-        float sampleFraction,
-        out List<PlanetTile> flankingPath)
+    /// <summary>
+    /// Calculates faction movement doctrine probability for off-road tactical flanking.
+    /// Friendly caravans stick to highways (0%), Mechanoids march in direct lines (0%),
+    /// Pirates/Outlanders occasionally flank (50%), and Tribals prefer wilderness cover (80%).
+    /// </summary>
+    public static float GetFlankProbability(Faction? faction)
     {
-        flankingPath = new List<PlanetTile>();
-        if (directPath == null || directPath.Count < 6 || !start.Valid || !dest.Valid)
+        if (faction == null)
         {
-            return false;
+            return 0.5f;
         }
 
-        var excludeSet = new HashSet<PlanetTile>();
-        foreach (var p in existingPaths)
+        // Friendly trade caravans and neutral visitors always stick to trade roads and highways
+        if (!faction.HostileTo(Faction.OfPlayer))
         {
-            // Exclude intermediate corridor tiles to encourage distinct flanking routes
-            for (int i = 1; i < p.Count - 1; i++)
-            {
-                excludeSet.Add(p[i]);
-            }
+            return 0f;
         }
 
+        // Mechanoids march in cold, uncompromising geodesic direct lines
+        if (faction.def == FactionDefOf.Mechanoid || faction.def.defName.Contains("Mechanoid"))
+        {
+            return 0f;
+        }
+
+        // Tribal warbands prioritize wilderness cover, ridge lines, and stealth approaches
+        if (faction.def.techLevel <= TechLevel.Neolithic)
+        {
+            return 0.80f;
+        }
+
+        // Pirates, Outlanders, and mercenaries occasionally flank or bypass road checkpoints
+        return 0.50f;
+    }
+
+    /// <summary>
+    /// Finds a passable, non-water land tile ~4 to 7 tiles away from the destination at an angular offset
+    /// relative to the incoming approach vector, matching the requested tactical quadrant.
+    /// </summary>
+    public static bool TryFindFlankingWaypoint(
+        PlanetTile destination,
+        List<PlanetTile> directPath,
+        int minRadius,
+        int maxRadius,
+        FlankQuadrant quadrant,
+        out PlanetTile waypoint)
+    {
+        waypoint = PlanetTile.Invalid;
         var worldGrid = Find.WorldGrid;
-        if (worldGrid == null)
+        if (worldGrid == null || directPath == null || directPath.Count < 6 || !destination.Valid)
         {
             return false;
         }
 
-        int targetIdx = Math.Clamp((int)(directPath.Count * sampleFraction), 2, directPath.Count - 2);
-        PlanetTile sampleTile = directPath[targetIdx];
+        Vector3 destPos = worldGrid.GetTileCenter(destination);
+        int sampleIdx = Math.Max(0, directPath.Count - 6);
+        Vector3 approachPos = worldGrid.GetTileCenter(directPath[sampleIdx]);
+        Vector3 incomingDir = (approachPos - destPos).normalized;
 
-        // Search for a passable tile 4 to 10 tiles away from sampleTile that is not in any existing route
-        PlanetTile flankTile = PlanetTile.Invalid;
-        sampleTile.Layer.Filler.FloodFill(
-            sampleTile,
+        if (incomingDir == Vector3.zero)
+        {
+            return false;
+        }
+
+        Vector3 normal = destPos.normalized;
+        var candidates = new List<PlanetTile>();
+
+        destination.Layer.Filler.FloodFill(
+            destination,
             t =>
             {
-                if (!t.Valid || t.Layer != sampleTile.Layer) return false;
+                if (!t.Valid || t.Layer != destination.Layer) return false;
                 Tile tileData = worldGrid[t];
                 return tileData != null && !tileData.WaterCovered && tileData.PrimaryBiome != null && !tileData.PrimaryBiome.impassable;
             },
             (t, dist) =>
             {
-                if (flankTile.Valid) return;
-                if (dist >= 4 && dist <= 10 && !excludeSet.Contains(t))
+                if (dist >= minRadius && dist <= maxRadius)
                 {
-                    flankTile = t;
+                    Vector3 candPos = worldGrid.GetTileCenter(t);
+                    Vector3 candDir = (candPos - destPos).normalized;
+                    float angle = Vector3.Angle(incomingDir, candDir);
+
+                    // Cross product with sphere surface normal gives signed direction (positive = left, negative = right)
+                    float signedDir = Vector3.Dot(normal, Vector3.Cross(incomingDir, candDir));
+
+                    bool matchesQuadrant = quadrant switch
+                    {
+                        FlankQuadrant.Left => signedDir > 0.05f && angle >= 35f && angle <= 125f,
+                        FlankQuadrant.Right => signedDir < -0.05f && angle >= 35f && angle <= 125f,
+                        FlankQuadrant.Rear => angle >= 125f,
+                        _ => angle >= 40f && angle <= 135f
+                    };
+
+                    if (matchesQuadrant)
+                    {
+                        candidates.Add(t);
+                    }
                 }
             },
-            150,
+            maxRadius + 1,
             null);
 
-        if (!flankTile.Valid)
+        if (candidates.Count > 0)
+        {
+            waypoint = candidates.RandomElement();
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Evaluates faction tactical doctrine and, if applicable, reroutes an incursion through an off-road
+    /// approach waypoint ~4 to 7 hexes outside the destination colony to prevent predictable funnelling down roads.
+    /// </summary>
+    public static bool TryApplyIngressFlank(
+        Faction? faction,
+        PlanetTile origin,
+        PlanetTile destination,
+        List<PlanetTile> directPath,
+        FlankQuadrant quadrant,
+        out List<PlanetTile> diversifiedPath)
+    {
+        diversifiedPath = directPath;
+
+        if (!GeoscapeMod.Settings.enableTacticalIngressFlanking)
         {
             return false;
         }
 
-        // Build path: start -> flankTile -> dest
-        if (TryBuildPath(start, flankTile, out var leg1) && TryBuildPath(flankTile, dest, out var leg2))
+        if (directPath == null || directPath.Count < 8 || !origin.Valid || !destination.Valid)
         {
-            var combined = new List<PlanetTile>(leg1);
-            if (leg2.Count > 1)
+            return false;
+        }
+
+        float flankProbability = GetFlankProbability(faction);
+        if (quadrant == FlankQuadrant.Any && Rand.Value >= flankProbability)
+        {
+            return false; // Direct approach chosen by dice roll
+        }
+
+        if (TryFindFlankingWaypoint(destination, directPath, 4, 7, quadrant, out PlanetTile waypoint))
+        {
+            if (TryBuildPath(origin, waypoint, out var leg1) && TryBuildPath(waypoint, destination, out var leg2))
             {
-                // Skip the duplicate flankTile
-                combined.AddRange(leg2.Skip(1));
+                // Verify the tactical detour is reasonable (at most 60% longer than direct path)
+                if (leg1.Count + leg2.Count <= directPath.Count * 1.60f)
+                {
+                    var combined = new List<PlanetTile>(leg1.Count + leg2.Count);
+                    combined.AddRange(leg1);
+                    if (leg2.Count > 1)
+                    {
+                        for (int i = 1; i < leg2.Count; i++)
+                        {
+                            combined.Add(leg2[i]);
+                        }
+                    }
+                    diversifiedPath = combined;
+                    Log.Message($"[Project Vigilance] Tactical Ingress Diversification: Rerouted incursion ({faction?.Name ?? "Hostile"}, {quadrant}) through flanking waypoint {waypoint} ({combined.Count} hexes vs direct {directPath.Count} hexes).");
+                    return true;
+                }
             }
-            flankingPath = combined;
-            return true;
         }
 
         return false;

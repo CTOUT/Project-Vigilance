@@ -9,6 +9,7 @@ public class GeoscapeSettings : ModSettings
     public bool synchronizeMultiVectorRaids = true;
     public bool showFactionEmblems = true;
     public bool resetThreatCooldownOnArrival = false;
+    public bool enableTacticalIngressFlanking = true;
 
     public VisibilityMode visibilityMode = VisibilityMode.PlanetarySurveillance;
     public float colonyScoutRadius = 5.0f;
@@ -21,6 +22,7 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref synchronizeMultiVectorRaids, "synchronizeMultiVectorRaids", true);
         Scribe_Values.Look(ref showFactionEmblems, "showFactionEmblems", true);
         Scribe_Values.Look(ref resetThreatCooldownOnArrival, "resetThreatCooldownOnArrival", false);
+        Scribe_Values.Look(ref enableTacticalIngressFlanking, "enableTacticalIngressFlanking", true);
 
         Scribe_Values.Look(ref visibilityMode, "visibilityMode", VisibilityMode.PlanetarySurveillance);
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
@@ -80,6 +82,13 @@ public class GeoscapeSettings : ModSettings
             "Synchronize multi-vector raid departures",
             ref synchronizeMultiVectorRaids,
             "When hostile factions launch multi-group raids from separate bases, closer settlements mobilize at base so forces converge simultaneously.");
+
+        listing.Gap();
+
+        listing.CheckboxLabeled(
+            "Enable tactical ingress diversification & anti-funnelling",
+            ref enableTacticalIngressFlanking,
+            "Raiders and tribal warbands occasionally take off-road flanking routes and approach from unexpected vectors to avoid predictable highway checkpoints.");
 
         listing.Gap();
 

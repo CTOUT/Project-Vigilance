@@ -1,6 +1,7 @@
 using HarmonyLib;
 using RimWorld;
 using Verse;
+using ProjectVigilance.Geoscape.Sensory;
 
 namespace ProjectVigilance.Geoscape.World;
 
@@ -27,13 +28,27 @@ public static class IncursionArrivalManager
         Map? targetMap = Current.Game.FindMap(incursion.DestinationTile);
         if (targetMap == null || !Find.Maps.Contains(targetMap))
         {
+            var sensoryManager = Find.World?.GetComponent<SensoryManager>();
+            bool hasVisual = sensoryManager != null && sensoryManager.HasActiveVision(incursion.DestinationTile);
+            bool isIdentified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+                                incursion.CurrentIntelligenceTier >= IntelligenceTier.Classified ||
+                                hasVisual;
+
             string fName = incursion.Faction?.Name ?? "enemy forces";
             bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
             Log.Message($"[Project Vigilance] Incursion arrived at destination tile {incursion.Tile}, but the target settlement was abandoned. Aborting incident execution.");
 
-            string msg = isHostile
-                ? $"The raid from {fName} arrived at the abandoned settlement at tile {incursion.Tile}, found no defenders or structures of value, and dispersed."
-                : $"The travellers from {fName} arrived at the abandoned settlement at tile {incursion.Tile}, found no one there, and returned home.";
+            string msg;
+            if (isIdentified)
+            {
+                msg = isHostile
+                    ? $"The raid from {fName} arrived at the abandoned settlement, found no defenders or structures of value, and dispersed."
+                    : $"The travellers from {fName} arrived at the abandoned settlement, found no one there, and returned home.";
+            }
+            else
+            {
+                msg = "An unidentified force arrived at the abandoned settlement, found no defenders, and dispersed.";
+            }
 
             Messages.Message(msg, MessageTypeDefOf.NeutralEvent, false);
             incursion.Destroy();

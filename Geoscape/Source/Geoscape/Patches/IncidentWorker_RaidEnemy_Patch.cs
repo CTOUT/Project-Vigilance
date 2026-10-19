@@ -102,19 +102,44 @@ public static class IncidentWorker_RaidEnemy_Patch
                     // Synchronize arrival times: closer bases mobilize at base so forces converge simultaneously
                     if (GeoscapeMod.Settings.synchronizeMultiVectorRaids)
                     {
-                        int duplicateCount = multiOrigins.Take(i).Count(r => r.Origin == route.Origin);
-                        float flankStaggerHours = duplicateCount > 0 ? Rand.Range(1.2f, 2.2f) * duplicateCount : 0f;
-
-                        if (deltaHours > 0.1f && deltaHours <= IncursionOriginResolver.MaxCoordinationWindowHours)
+                        // Check if this column shares its final approach corridor with an earlier column
+                        bool sharesCorridor = false;
+                        for (int j = 0; j < i; j++)
                         {
-                            // Add slight variance (+/- 1.0 hour) plus progressive wave stagger for co-located columns
-                            float jitter = Rand.Range(-1.0f, 1.0f);
-                            float scheduledDelayHours = Mathf.Max(0f, deltaHours + jitter + flankStaggerHours);
+                            var prevPath = multiOrigins[j].Path;
+                            int checkCount = Math.Min(4, Math.Min(route.Path.Count, prevPath.Count));
+                            int matchCount = 0;
+                            for (int k = 1; k <= checkCount; k++)
+                            {
+                                if (route.Path[route.Path.Count - k] == prevPath[prevPath.Count - k])
+                                {
+                                    matchCount++;
+                                }
+                            }
+                            if (matchCount >= 3)
+                            {
+                                sharesCorridor = true;
+                                break;
+                            }
+                        }
+
+                        // If flanking from separate compass quadrants, converge in simultaneous pincer assault (+/- 0.35h jitter)
+                        // If sharing the same approach road corridor, stagger in waves (1.2h - 2.0h) to avoid conga-lining
+                        float corridorStagger = sharesCorridor ? Rand.Range(1.2f, 2.0f) : 0f;
+                        float pincerJitter = Rand.Range(-0.35f, 0.35f);
+
+                        if (deltaHours > 0.05f && deltaHours <= IncursionOriginResolver.MaxCoordinationWindowHours)
+                        {
+                            float scheduledDelayHours = Mathf.Max(0f, deltaHours + pincerJitter + corridorStagger);
                             departureDelayTicks = (int)(scheduledDelayHours * 2500f);
                         }
-                        else if (duplicateCount > 0)
+                        else if (sharesCorridor)
                         {
-                            departureDelayTicks = (int)(flankStaggerHours * 2500f);
+                            departureDelayTicks = (int)(corridorStagger * 2500f);
+                        }
+                        else if (pincerJitter > 0.05f)
+                        {
+                            departureDelayTicks = (int)(pincerJitter * 2500f);
                         }
                     }
 

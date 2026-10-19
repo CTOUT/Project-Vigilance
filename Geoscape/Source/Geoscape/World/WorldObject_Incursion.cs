@@ -96,13 +96,24 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
         }
     }
 
+    /// <summary>
+    /// Calculates a calm, rhythmic tactical amber pulse (breathing beacon) for unidentified contacts.
+    /// Uses real-world time with a smooth sinusoidal curve (~2.5s cycle) rather than high-frequency strobing.
+    /// </summary>
+    public static Color TacticalAmberPulseColor(float alphaMultiplier = 1f)
+    {
+        // 2.5s smooth breathing cycle (~0.4 Hz) easing between 0.55 and 0.95 alpha
+        float pulse = 0.55f + 0.40f * (0.5f + 0.5f * Mathf.Sin(Time.realtimeSinceStartup * 2.5f));
+        return new Color(1f, 0.82f, 0.20f, pulse * alphaMultiplier);
+    }
+
     public override Color ExpandingIconColor
     {
         get
         {
             if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
             {
-                return new Color(1f, 0.85f, 0.25f, 0.95f); // Tactical Amber for unclassified contact
+                return TacticalAmberPulseColor(0.95f);
             }
 
             bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
@@ -152,9 +163,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget
 
         if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
         {
-            // Amber/Gold pulsing blip for unidentified contacts
-            float pulse = 0.75f + Mathf.PingPong(Time.realtimeSinceStartup * 2.5f, 0.25f);
-            statusColor = new Color(1f, 0.85f, 0.2f, pulse);
+            // Calm tactical amber breathing blip for unidentified contacts
+            statusColor = TacticalAmberPulseColor(1f);
         }
         else
         {

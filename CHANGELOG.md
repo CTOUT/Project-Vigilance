@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Planetary simulation lifecycle optimisations: complete off-world render skipping (`WorldRendererUtility.WorldRenderedNow == false`), peacetime sweep early-exit when zero incursions are active, stationary sensor caching, and Omniscient bypass.
 - Baseline Scout Horizon lookout system providing line-of-sight early warning for colonies (~5 hexes) and caravans (~3 hexes).
 - Two-Stage Early Warning Escalation: Removed internal faction cheat so all incoming forces (hostile raids, trade caravans, visitors) generate an **Unidentified Contact** alert (`ThreatSmall`) and amber blip at the outer 5-hex perimeter, escalating to a **Classified Confirmation** (`ThreatBig` for raids, `PositiveEvent` for friendly caravans) once within close visual range (~2.2 hexes) or field reconnaissance.
+- **Tactical Ingress Diversification & Anti-Funnel Pathing:** Implemented off-road approach waypoints (~4–7 hexes outside the target colony) and spherical compass quadrants (`Left`, `Right`, `Rear`) in `IncursionOriginResolver` to eliminate highway magnetism and prevent raiders from funnelling down predictable road corridors.
+- **Faction Movement Doctrines:** Differentiated pathing doctrines across factions—friendly trade caravans stick to highways (0% flank), Mechanoids march in direct geodesic lines (0%), Outlanders/Pirates flank occasionally (50%), and Neolithic Tribal Warbands prioritise wilderness cover and flanking vectors (80%).
+- **Multi-Vector Compass Pincers:** Enforced distinct compass approach quadrants for multi-column assaults to execute coordinated pincer strikes around the settlement.
+- **Calm Tactical Amber Pulse:** Replaced high-frequency 5Hz triangle strobe with a smooth 2.5s sinusoidal breathing beacon for Unidentified Contacts across both world mesh rendering and expanding icons.
+- **Abandoned Colony & Lookout Information Security:** Enforced strict conscious colonist guards on lookouts (deserted bases and downed caravans go dark) and eliminated faction identity leakage in arrival notifications.
 
 ### Changed
 
