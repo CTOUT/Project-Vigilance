@@ -1,4 +1,5 @@
 using ProjectVigilance.Geoscape.Sensory;
+using RimWorld;
 using UnityEngine;
 using Verse;
 
@@ -13,8 +14,9 @@ public class GeoscapeSettings : ModSettings
 
     public VisibilityMode visibilityMode = VisibilityMode.PlanetarySurveillance;
     public RadarOutlineStyle radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
-    public RadarColorPalette radarColorPalette = RadarColorPalette.TacticalCyan;
-    public float radarOutlineOpacity = 0.85f;
+    public bool usePlayerFactionColor = true;
+    public Color radarCustomColor = new(0f, 0.90f, 1.0f);
+    public float radarOutlineOpacity = 0.50f;
     public float surveillanceDimming = 0.0f;
     public float colonyScoutRadius = 5.0f;
     public float caravanScoutRadius = 3.0f;
@@ -22,6 +24,18 @@ public class GeoscapeSettings : ModSettings
     public bool enableNighttimeSensoryReduction = true;
     public bool incursionsRestAtNight = true;
     public bool showIdentificationHorizon = true;
+
+    public Color EffectiveRadarColor
+    {
+        get
+        {
+            if (usePlayerFactionColor && Faction.OfPlayer != null && Faction.OfPlayer.Color != default)
+            {
+                return Faction.OfPlayer.Color;
+            }
+            return radarCustomColor;
+        }
+    }
 
     public override void ExposeData()
     {
@@ -33,8 +47,9 @@ public class GeoscapeSettings : ModSettings
 
         Scribe_Values.Look(ref visibilityMode, "visibilityMode", VisibilityMode.PlanetarySurveillance);
         Scribe_Values.Look(ref radarOutlineStyle, "radarOutlineStyle", RadarOutlineStyle.BoundaryAndGrid);
-        Scribe_Values.Look(ref radarColorPalette, "radarColorPalette", RadarColorPalette.TacticalCyan);
-        Scribe_Values.Look(ref radarOutlineOpacity, "radarOutlineOpacity", 0.85f);
+        Scribe_Values.Look(ref usePlayerFactionColor, "usePlayerFactionColor", true);
+        Scribe_Values.Look(ref radarCustomColor, "radarCustomColor", new Color(0f, 0.90f, 1.0f));
+        Scribe_Values.Look(ref radarOutlineOpacity, "radarOutlineOpacity", 0.50f);
         Scribe_Values.Look(ref showIdentificationHorizon, "showIdentificationHorizon", true);
         Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.0f);
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
@@ -149,18 +164,63 @@ public class GeoscapeSettings : ModSettings
 
             if (radarOutlineStyle != RadarOutlineStyle.None)
             {
-                listing.Label($"Radar Color Palette: {GetPaletteLabel(radarColorPalette)}");
-                Rect paletteRect = listing.GetRect(26f);
-                float btnWidth = (paletteRect.width - 20f) / 5f;
-                DrawPaletteButton(new Rect(paletteRect.x, paletteRect.y, btnWidth, 24f), RadarColorPalette.TacticalCyan, "Cyan");
-                DrawPaletteButton(new Rect(paletteRect.x + (btnWidth + 5f) * 1, paletteRect.y, btnWidth, 24f), RadarColorPalette.SurveillanceAmber, "Amber");
-                DrawPaletteButton(new Rect(paletteRect.x + (btnWidth + 5f) * 2, paletteRect.y, btnWidth, 24f), RadarColorPalette.EmeraldPhosphor, "Emerald");
-                DrawPaletteButton(new Rect(paletteRect.x + (btnWidth + 5f) * 3, paletteRect.y, btnWidth, 24f), RadarColorPalette.CrimsonAlert, "Crimson");
-                DrawPaletteButton(new Rect(paletteRect.x + (btnWidth + 5f) * 4, paletteRect.y, btnWidth, 24f), RadarColorPalette.GhostWhite, "White");
+                bool prevUseFaction = usePlayerFactionColor;
+                listing.CheckboxLabeled(
+                    "Use Player Faction Color",
+                    ref usePlayerFactionColor,
+                    "Automatically matches radar and boundary outlines to your player faction's primary banner color.");
+                if (prevUseFaction != usePlayerFactionColor)
+                {
+                    NotifyRadarVisualsChanged();
+                }
+
+                Color activeColor = EffectiveRadarColor;
+                Rect colorBarRect = listing.GetRect(28f);
+                Widgets.DrawBoxSolid(new Rect(colorBarRect.x, colorBarRect.y, 36f, 26f), activeColor);
+
+                if (usePlayerFactionColor && Faction.OfPlayer != null)
+                {
+                    Widgets.Label(
+                        new Rect(colorBarRect.x + 44f, colorBarRect.y + 3f, colorBarRect.width - 44f, 24f),
+                        $"Synced to {Faction.OfPlayer.Name} (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
+                }
+                else
+                {
+                    string hexStr = "#" + ColorUtility.ToHtmlStringRGB(radarCustomColor);
+                    string newHex = Widgets.TextField(new Rect(colorBarRect.x + 44f, colorBarRect.y, 90f, 26f), hexStr);
+                    if (newHex != hexStr && ColorUtility.TryParseHtmlString(newHex, out Color parsed))
+                    {
+                        radarCustomColor = parsed;
+                        NotifyRadarVisualsChanged();
+                    }
+
+                    float presetStart = colorBarRect.x + 144f;
+                    float presetWidth = (colorBarRect.width - 144f) / 5f;
+                    DrawPresetButton(new Rect(presetStart + presetWidth * 0, colorBarRect.y, presetWidth - 4f, 26f), new Color(0f, 0.90f, 1f), "Cyan");
+                    DrawPresetButton(new Rect(presetStart + presetWidth * 1, colorBarRect.y, presetWidth - 4f, 26f), new Color(1f, 0.76f, 0.16f), "Amber");
+                    DrawPresetButton(new Rect(presetStart + presetWidth * 2, colorBarRect.y, presetWidth - 4f, 26f), new Color(0.08f, 0.94f, 0.43f), "Emerald");
+                    DrawPresetButton(new Rect(presetStart + presetWidth * 3, colorBarRect.y, presetWidth - 4f, 26f), new Color(1f, 0.18f, 0.29f), "Crimson");
+                    DrawPresetButton(new Rect(presetStart + presetWidth * 4, colorBarRect.y, presetWidth - 4f, 26f), new Color(0.90f, 0.94f, 0.98f), "White");
+
+                    listing.Label($"Red: {Mathf.RoundToInt(radarCustomColor.r * 255f)}");
+                    float r = listing.Slider(radarCustomColor.r, 0f, 1f);
+                    listing.Label($"Green: {Mathf.RoundToInt(radarCustomColor.g * 255f)}");
+                    float g = listing.Slider(radarCustomColor.g, 0f, 1f);
+                    listing.Label($"Blue: {Mathf.RoundToInt(radarCustomColor.b * 255f)}");
+                    float b = listing.Slider(radarCustomColor.b, 0f, 1f);
+
+                    if (Mathf.Abs(r - radarCustomColor.r) > 0.005f ||
+                        Mathf.Abs(g - radarCustomColor.g) > 0.005f ||
+                        Mathf.Abs(b - radarCustomColor.b) > 0.005f)
+                    {
+                        radarCustomColor = new Color(r, g, b, 1f);
+                        NotifyRadarVisualsChanged();
+                    }
+                }
 
                 listing.Label($"Radar Outline Intensity: {radarOutlineOpacity:P0}");
-                float newOpacity = listing.Slider(radarOutlineOpacity, 0.2f, 1f);
-                if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.02f)
+                float newOpacity = listing.Slider(radarOutlineOpacity, 0f, 1f);
+                if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.005f)
                 {
                     radarOutlineOpacity = newOpacity;
                     NotifyRadarVisualsChanged();
@@ -177,9 +237,9 @@ public class GeoscapeSettings : ModSettings
                 }
             }
 
-            listing.Label($"Surveillance Background Dimming: {surveillanceDimming:P0} (Option 3 Hybrid)");
-            float newDimming = listing.Slider(surveillanceDimming, 0.0f, 0.5f);
-            if (Mathf.Abs(newDimming - surveillanceDimming) > 0.02f)
+            listing.Label($"Surveillance Background Dimming: {surveillanceDimming:P0}");
+            float newDimming = listing.Slider(surveillanceDimming, 0.0f, 1.0f);
+            if (Mathf.Abs(newDimming - surveillanceDimming) > 0.005f)
             {
                 surveillanceDimming = newDimming;
                 NotifyRadarVisualsChanged();
@@ -229,33 +289,26 @@ public class GeoscapeSettings : ModSettings
         listing.End();
     }
 
-    private void DrawPaletteButton(Rect rect, RadarColorPalette palette, string label)
+    private void DrawPresetButton(Rect rect, Color color, string label)
     {
-        bool isSelected = radarColorPalette == palette;
-        if (Widgets.ButtonText(rect, isSelected ? $"[{label}]" : label))
+        if (Widgets.ButtonText(rect, label))
         {
-            if (radarColorPalette != palette)
-            {
-                radarColorPalette = palette;
-                NotifyRadarVisualsChanged();
-            }
+            radarCustomColor = color;
+            usePlayerFactionColor = false;
+            NotifyRadarVisualsChanged();
         }
     }
-
-    private static string GetPaletteLabel(RadarColorPalette palette) => palette switch
-    {
-        RadarColorPalette.TacticalCyan => "Tactical Cyan (X-COM Holographic)",
-        RadarColorPalette.SurveillanceAmber => "Surveillance Amber (Command Center)",
-        RadarColorPalette.EmeraldPhosphor => "Emerald Phosphor (CRT Green)",
-        RadarColorPalette.CrimsonAlert => "Crimson Alert (High Threat)",
-        RadarColorPalette.GhostWhite => "Ghost White (Monochrome)",
-        _ => palette.ToString()
-    };
 
     private void NotifyRadarVisualsChanged()
     {
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         WorldDrawLayer_RadarCoverage.Instance?.RegenerateNow();
+        if (Find.WorldGrid?.Surface != null)
+        {
+            Find.WorldGrid.Surface.SetDirty<WorldDrawLayer_RadarCoverage>();
+            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_RadarCoverage>()?.SetDirty();
+            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_RadarCoverage>()?.RegenerateNow();
+        }
     }
 
     private void OnVisibilityModeChanged()

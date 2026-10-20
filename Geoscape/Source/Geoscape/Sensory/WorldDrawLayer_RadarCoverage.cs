@@ -41,7 +41,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         get
         {
             if (GeoscapeMod.Settings.radarOutlineStyle == RadarOutlineStyle.None &&
-                GeoscapeMod.Settings.surveillanceDimming < 0.01f)
+                GeoscapeMod.Settings.surveillanceDimming < 0.005f)
             {
                 return false;
             }
@@ -51,7 +51,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 return false;
             }
 
-            return Find.World != null && WorldRendererUtility.WorldRendered;
+            return base.Visible;
         }
     }
 
@@ -87,8 +87,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         bool drawGrid = GeoscapeMod.Settings.radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid;
         float dimming = GeoscapeMod.Settings.surveillanceDimming;
 
-        // 2. Optional Option 3 Hybrid / Background Surveillance Dimming
-        if (dimming > 0.01f && planetLayer != null)
+        // 2. Background Surveillance Dimming
+        if (dimming > 0.005f && planetLayer != null)
         {
             byte dimAlpha = (byte)(Mathf.Clamp01(dimming) * 255);
             Color32 dimColor = new(10, 14, 20, dimAlpha);
@@ -158,8 +158,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         // 3. Render tactical radar boundary rings, identification horizons, and honeycomb grid
         if (drawOutlines && activeTilesCache.Count > 0)
         {
-            Color32 baseColor = GetPaletteBaseColor(GeoscapeMod.Settings.radarColorPalette);
-            Color32 idColor = GetIdentificationHorizonColor(GeoscapeMod.Settings.radarColorPalette);
+            Color32 baseColor = (Color32)GeoscapeMod.Settings.EffectiveRadarColor;
+            Color32 idColor = GetIdentificationHorizonColor(GeoscapeMod.Settings.EffectiveRadarColor);
 
             byte alphaPerimeter = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity) * 255);
             Color32 perimeterColor = baseColor;
@@ -338,17 +338,23 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         };
     }
 
-    private static Color32 GetIdentificationHorizonColor(RadarColorPalette palette)
+    private static Color32 GetIdentificationHorizonColor(Color baseColor)
     {
-        return palette switch
+        Color.RGBToHSV(baseColor, out float h, out float s, out float v);
+        float newHue;
+        if (h >= 0.22f && h <= 0.78f)
         {
-            RadarColorPalette.TacticalCyan => new Color32(255, 205, 50, 255),      // Golden Telemetry Amber
-            RadarColorPalette.SurveillanceAmber => new Color32(0, 230, 255, 255), // Tactical Cyan
-            RadarColorPalette.EmeraldPhosphor => new Color32(255, 195, 45, 255),   // Amber Orange
-            RadarColorPalette.CrimsonAlert => new Color32(255, 225, 75, 255),      // High-Visibility Warning Yellow
-            RadarColorPalette.GhostWhite => new Color32(0, 230, 255, 255),        // Ice Cyan
-            _ => new Color32(255, 205, 50, 255)
-        };
+            // Cool color base (cyan, emerald, blue, purple): shift to golden telemetry amber
+            newHue = 0.12f;
+        }
+        else
+        {
+            // Warm or neutral base (amber, red, pink, white): shift to electric tactical cyan
+            newHue = 0.52f;
+        }
+
+        Color idColor = Color.HSVToRGB(newHue, Mathf.Max(0.75f, s), Mathf.Max(0.90f, v));
+        return (Color32)idColor;
     }
 
     private LayerSubMesh GetOrCreateSubMesh(int neededVerts, ref int subMeshIndex)
