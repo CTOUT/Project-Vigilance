@@ -21,6 +21,7 @@ public class GeoscapeSettings : ModSettings
     public bool enableEarlyWarningLetters = true;
     public bool enableNighttimeSensoryReduction = true;
     public bool incursionsRestAtNight = true;
+    public bool showIdentificationHorizon = true;
 
     public override void ExposeData()
     {
@@ -34,6 +35,7 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref radarOutlineStyle, "radarOutlineStyle", RadarOutlineStyle.BoundaryAndGrid);
         Scribe_Values.Look(ref radarColorPalette, "radarColorPalette", RadarColorPalette.TacticalCyan);
         Scribe_Values.Look(ref radarOutlineOpacity, "radarOutlineOpacity", 0.85f);
+        Scribe_Values.Look(ref showIdentificationHorizon, "showIdentificationHorizon", true);
         Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.0f);
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
         Scribe_Values.Look(ref caravanScoutRadius, "caravanScoutRadius", 3.0f);
@@ -161,6 +163,16 @@ public class GeoscapeSettings : ModSettings
                 if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.02f)
                 {
                     radarOutlineOpacity = newOpacity;
+                    NotifyRadarVisualsChanged();
+                }
+
+                bool prevShowId = showIdentificationHorizon;
+                listing.CheckboxLabeled(
+                    "Show Identification Horizon (45% optical range)",
+                    ref showIdentificationHorizon,
+                    "Renders a concentric tactical horizon ring at 45% radar radius marking the transition where unknown contact blips ('Spotted') are optically classified into full faction, weapon, and raid intelligence ('Identified').");
+                if (prevShowId != showIdentificationHorizon)
+                {
                     NotifyRadarVisualsChanged();
                 }
             }

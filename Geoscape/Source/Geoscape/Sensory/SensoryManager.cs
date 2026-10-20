@@ -361,10 +361,17 @@ public class SensoryManager : WorldComponent
     /// <summary>
     /// Populates the provided set with all planet tiles currently enveloped by active sensors (colonies, caravans, radar stations).
     /// Used by WorldDrawLayer_RadarCoverage to render tactical perimeter boundaries and holographic honeycomb grids.
+    /// Optionally outputs tiles within optical identification range (45% detection radius) and closest distance to perimeter.
     /// </summary>
-    public void PopulateActiveVisionTiles(HashSet<PlanetTile> outTiles)
+    public void PopulateActiveVisionTiles(
+        HashSet<PlanetTile> outTiles,
+        HashSet<PlanetTile>? outIdentifiedTiles = null,
+        Dictionary<PlanetTile, float>? outTileDistancesFromPerimeter = null)
     {
         outTiles.Clear();
+        outIdentifiedTiles?.Clear();
+        outTileDistancesFromPerimeter?.Clear();
+
         IReadOnlyList<ISensorProvider> sensors = GetActiveSensors();
         for (int i = 0; i < sensors.Count; i++)
         {
@@ -376,6 +383,7 @@ public class SensoryManager : WorldComponent
 
             PlanetTile centerTile = sensor.SensorTile;
             float radius = sensor.DetectionRadiusInTiles;
+            float identifiedRadius = radius * 0.45f;
             int intRadius = Mathf.CeilToInt(radius);
 
             int maxTiles = Mathf.Max(128, intRadius * intRadius * 6);
@@ -385,6 +393,26 @@ public class SensoryManager : WorldComponent
                 t =>
                 {
                     outTiles.Add(t);
+                    float dist = Find.WorldGrid.ApproxDistanceInTiles(centerTile, t);
+                    if (outIdentifiedTiles != null && dist <= identifiedRadius)
+                    {
+                        outIdentifiedTiles.Add(t);
+                    }
+                    if (outTileDistancesFromPerimeter != null)
+                    {
+                        float hexesFromPerim = Mathf.Max(0f, radius - dist);
+                        if (outTileDistancesFromPerimeter.TryGetValue(t, out float curMin))
+                        {
+                            if (hexesFromPerim < curMin)
+                            {
+                                outTileDistancesFromPerimeter[t] = hexesFromPerim;
+                            }
+                        }
+                        else
+                        {
+                            outTileDistancesFromPerimeter[t] = hexesFromPerim;
+                        }
+                    }
                 },
                 maxTilesToProcess: maxTiles);
         }

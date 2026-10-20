@@ -18,9 +18,12 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private const int MaxVertsPerMeshSafe = 38000;
     private const float RadarAltitudeOffset = 0.040f;          // Above surface terrain (0.00), roads (0.015), and settlements (0.030)
     private const float PerimeterHalfWidth = 0.045f;           // Crisp glowing boundary ribbon width
+    private const float IdentificationHalfWidth = 0.030f;      // Distinct optical classification horizon ring width
     private const float InteriorHalfWidth = 0.016f;            // Fine holographic honeycomb grid line width
 
     private readonly HashSet<PlanetTile> activeTilesCache = new(256);
+    private readonly HashSet<PlanetTile> identifiedTilesCache = new(64);
+    private readonly Dictionary<PlanetTile, float> tileDistancesCache = new(256);
     private readonly Dictionary<EdgeKey, EdgeInfo> edgesCache = new(1024);
     private readonly List<int> tmpIndices = new(8);
     private readonly List<Vector3> tmpVerts = new(8);
@@ -73,9 +76,11 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             yield break;
         }
 
-        // 1. Gather all tiles currently within active sensor range
+        // 1. Gather all tiles currently within active sensor range and optical identification range
         activeTilesCache.Clear();
-        sensory.PopulateActiveVisionTiles(activeTilesCache);
+        identifiedTilesCache.Clear();
+        tileDistancesCache.Clear();
+        sensory.PopulateActiveVisionTiles(activeTilesCache, identifiedTilesCache, tileDistancesCache);
 
         int subMeshIndex = 0;
         bool drawOutlines = GeoscapeMod.Settings.radarOutlineStyle != RadarOutlineStyle.None;
@@ -150,23 +155,26 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             }
         }
 
-        // 3. Render tactical radar boundary rings and honeycomb grid
+        // 3. Render tactical radar boundary rings, identification horizons, and honeycomb grid
         if (drawOutlines && activeTilesCache.Count > 0)
         {
             Color32 baseColor = GetPaletteBaseColor(GeoscapeMod.Settings.radarColorPalette);
-            byte alphaPerimeter = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity) * 255);
-            byte alphaInterior = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity * 0.32f) * 255);
+            Color32 idColor = GetIdentificationHorizonColor(GeoscapeMod.Settings.radarColorPalette);
 
+            byte alphaPerimeter = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity) * 255);
             Color32 perimeterColor = baseColor;
             perimeterColor.a = alphaPerimeter;
 
-            Color32 interiorColor = baseColor;
-            interiorColor.a = alphaInterior;
+            Color32 idRingColor = idColor;
+            idRingColor.a = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity * 0.90f) * 255);
 
             // Extract all topological edges across active sensor tiles
             edgesCache.Clear();
             foreach (PlanetTile tile in activeTilesCache)
             {
+                bool isIdentified = identifiedTilesCache.Contains(tile);
+                tileDistancesCache.TryGetValue(tile, out float hexesFromPerim);
+
                 tmpIndices.Clear();
                 tmpVerts.Clear();
                 Find.WorldGrid.GetTileVerticesIndices(tile, tmpIndices);
@@ -182,6 +190,9 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                     if (edgesCache.TryGetValue(key, out EdgeInfo info))
                     {
                         info.Count++;
+                        if (isIdentified) info.HasIdentifiedTile = true;
+                        if (!isIdentified) info.HasUnidentifiedTile = true;
+                        info.HexesFromPerimeterSum += hexesFromPerim;
                         edgesCache[key] = info;
                     }
                     else
@@ -190,25 +201,71 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                         {
                             V0 = tmpVerts[i],
                             V1 = tmpVerts[(i + 1) % count],
-                            Count = 1
+                            Count = 1,
+                            HasIdentifiedTile = isIdentified,
+                            HasUnidentifiedTile = !isIdentified,
+                            HexesFromPerimeterSum = hexesFromPerim
                         };
                     }
                 }
             }
 
-            // Generate ribbon quads for perimeter boundaries and interior honeycomb lines
+            // Generate ribbon quads for perimeter boundaries, identification horizons, and interior honeycomb lines
             foreach (KeyValuePair<EdgeKey, EdgeInfo> kvp in edgesCache)
             {
                 EdgeInfo info = kvp.Value;
-                bool isPerimeter = info.Count == 1;
+                bool isOuterPerimeter = info.Count == 1;
+                bool isIdentificationHorizon = GeoscapeMod.Settings.showIdentificationHorizon &&
+                                               info.Count == 2 &&
+                                               info.HasIdentifiedTile &&
+                                               info.HasUnidentifiedTile;
 
-                if (!isPerimeter && !drawGrid)
+                if (!isOuterPerimeter && !isIdentificationHorizon && !drawGrid)
                 {
                     continue;
                 }
 
-                float halfWidth = isPerimeter ? PerimeterHalfWidth : InteriorHalfWidth;
-                Color32 color = isPerimeter ? perimeterColor : interiorColor;
+                float halfWidth;
+                Color32 color;
+
+                if (isOuterPerimeter)
+                {
+                    halfWidth = PerimeterHalfWidth;
+                    color = perimeterColor;
+                }
+                else if (isIdentificationHorizon)
+                {
+                    halfWidth = IdentificationHalfWidth;
+                    color = idRingColor;
+                }
+                else
+                {
+                    halfWidth = InteriorHalfWidth;
+                    float hexesFromPerimeter = info.HexesFromPerimeterSum * 0.5f;
+
+                    // Opacity gradient: Bright at outermost hex, gradually reducing to fixed opacity at 3-4 hexes from perimeter
+                    const float maxFactor = 0.52f;
+                    const float minFactor = 0.12f;
+
+                    float factor;
+                    if (hexesFromPerimeter <= 1.0f)
+                    {
+                        factor = maxFactor;
+                    }
+                    else if (hexesFromPerimeter < 3.5f)
+                    {
+                        float t = (hexesFromPerimeter - 1.0f) / 2.5f;
+                        factor = Mathf.Lerp(maxFactor, minFactor, t);
+                    }
+                    else
+                    {
+                        factor = minFactor;
+                    }
+
+                    byte interiorAlpha = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity * factor) * 255);
+                    color = baseColor;
+                    color.a = interiorAlpha;
+                }
 
                 Vector3 v0 = info.V0;
                 Vector3 v1 = info.V1;
@@ -281,6 +338,19 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         };
     }
 
+    private static Color32 GetIdentificationHorizonColor(RadarColorPalette palette)
+    {
+        return palette switch
+        {
+            RadarColorPalette.TacticalCyan => new Color32(255, 205, 50, 255),      // Golden Telemetry Amber
+            RadarColorPalette.SurveillanceAmber => new Color32(0, 230, 255, 255), // Tactical Cyan
+            RadarColorPalette.EmeraldPhosphor => new Color32(255, 195, 45, 255),   // Amber Orange
+            RadarColorPalette.CrimsonAlert => new Color32(255, 225, 75, 255),      // High-Visibility Warning Yellow
+            RadarColorPalette.GhostWhite => new Color32(0, 230, 255, 255),        // Ice Cyan
+            _ => new Color32(255, 205, 50, 255)
+        };
+    }
+
     private LayerSubMesh GetOrCreateSubMesh(int neededVerts, ref int subMeshIndex)
     {
         while (subMeshIndex < subMeshes.Count)
@@ -327,6 +397,9 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         public Vector3 V0;
         public Vector3 V1;
         public int Count;
+        public bool HasIdentifiedTile;
+        public bool HasUnidentifiedTile;
+        public float HexesFromPerimeterSum;
     }
 }
 
