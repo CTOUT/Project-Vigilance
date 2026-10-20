@@ -18,6 +18,54 @@ public enum FlankQuadrant
 
 public static class IncursionOriginResolver
 {
+    public static bool TryResolveRetreatRoute(
+        PlanetTile startTile,
+        Faction faction,
+        out PlanetTile destinationTile,
+        out List<PlanetTile> path,
+        out float speed)
+    {
+        destinationTile = PlanetTile.Invalid;
+        path = new List<PlanetTile>();
+        speed = GetSpeedForFaction(faction);
+
+        if (!startTile.Valid)
+        {
+            return false;
+        }
+
+        // 1. Try finding nearest reachable faction settlement
+        if (faction != null && Find.WorldObjects?.Settlements != null)
+        {
+            var factionSettlements = Find.WorldObjects.Settlements
+                .Where(s => s.Faction == faction && s.Tile.Valid && s.Tile.Layer == startTile.Layer)
+                .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(startTile, s.Tile));
+
+            foreach (var settlement in factionSettlements)
+            {
+                if (TryBuildPath(startTile, settlement.Tile, out var retreatPath))
+                {
+                    destinationTile = settlement.Tile;
+                    path = retreatPath;
+                    return true;
+                }
+            }
+        }
+
+        // 2. Fallback: Search for a passable wilderness tile ~15 to 35 hexes away
+        if (TryFindWildernessStagingTile(startTile, out var stagingTile))
+        {
+            if (TryBuildPath(startTile, stagingTile, out var wildPath))
+            {
+                destinationTile = stagingTile;
+                path = wildPath;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static bool TryResolveOrigin(
         IncidentParms parms,
         PlanetTile destinationTile,

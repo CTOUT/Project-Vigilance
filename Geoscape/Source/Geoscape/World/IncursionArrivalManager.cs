@@ -18,6 +18,48 @@ public static class IncursionArrivalManager
 
     public static bool ExecuteArrival(WorldObject_Incursion incursion)
     {
+        if (incursion.IsTurningBack)
+        {
+            string groupDesc = incursion.GetIdentifiedGroupLabel();
+            string fName = incursion.Faction?.Name ?? "peaceful travellers";
+            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) returned home safely after being warned away.");
+            Messages.Message($"The {groupDesc} from {fName} returned to their home territory safely.", new GlobalTargetInfo(incursion.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
+            incursion.Destroy();
+            return true;
+        }
+
+        if (incursion.IsRetreating)
+        {
+            string fName = incursion.Faction?.Name ?? "enemy forces";
+            if (incursion.KidnappedColonists != null && incursion.KidnappedColonists.Count > 0)
+            {
+                Pawn? kidnapper = incursion.RetreatingPawns?.FirstOrDefault();
+                foreach (var captive in incursion.KidnappedColonists)
+                {
+                    if (captive != null && !captive.Dead)
+                    {
+                        incursion.Faction?.kidnapped?.Kidnap(captive, kidnapper);
+                    }
+                }
+
+                string captivesList = string.Join(", ", incursion.KidnappedColonists.Where(c => !c.Dead).Select(c => c.LabelShort));
+                Find.LetterStack.ReceiveLetter(
+                    "Colonists Incarcerated: " + incursion.LabelCap,
+                    $"Forces from {fName} have safely reached their stronghold with captured colonist(s): {captivesList}.\n\n" +
+                    $"The prisoners are now incarcerated inside {fName}'s fortress. A future rescue operation or ransom demand will be required to liberate them.",
+                    LetterDefOf.NegativeEvent,
+                    new GlobalTargetInfo(incursion.Tile)
+                );
+            }
+            else
+            {
+                Log.Message($"[Project Vigilance] Retreating incursion {incursion.TrackingId} ({incursion.Label}) from {fName} returned to their stronghold safely.");
+            }
+
+            incursion.Destroy();
+            return true;
+        }
+
         if (incursion.IncidentDef == null || incursion.IncidentParms == null)
         {
             Log.Error("[Project Vigilance] Cannot execute incursion arrival: IncidentDef or IncidentParms is null.");
