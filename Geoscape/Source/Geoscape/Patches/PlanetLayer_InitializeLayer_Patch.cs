@@ -15,8 +15,14 @@ public static class PlanetLayer_InitializeLayer_Patch
     {
         if (__instance?.Def?.defName == "Surface")
         {
-            EnsureHazeLayerAttached(__instance);
+            EnsureLayersAttached(__instance);
         }
+    }
+
+    public static void EnsureLayersAttached(PlanetLayer layer)
+    {
+        EnsureHazeLayerAttached(layer);
+        EnsureRadarLayerAttached(layer);
     }
 
     public static void EnsureHazeLayerAttached(PlanetLayer layer)
@@ -37,5 +43,25 @@ public static class PlanetLayer_InitializeLayer_Patch
         WorldDrawLayer_HazeOfWar hazeLayer = new();
         hazeLayer.Initialize(layer);
         layer.WorldDrawLayers.Add(hazeLayer);
+    }
+
+    public static void EnsureRadarLayerAttached(PlanetLayer layer)
+    {
+        if (layer?.WorldDrawLayers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < layer.WorldDrawLayers.Count; i++)
+        {
+            if (layer.WorldDrawLayers[i] is WorldDrawLayer_RadarCoverage)
+            {
+                return;
+            }
+        }
+
+        WorldDrawLayer_RadarCoverage radarLayer = new();
+        radarLayer.Initialize(layer);
+        layer.WorldDrawLayers.Add(radarLayer);
     }
 }

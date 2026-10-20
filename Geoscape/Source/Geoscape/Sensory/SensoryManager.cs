@@ -48,8 +48,9 @@ public class SensoryManager : WorldComponent
 
         if (Find.WorldGrid?.Surface != null)
         {
-            Patches.PlanetLayer_InitializeLayer_Patch.EnsureHazeLayerAttached(Find.WorldGrid.Surface);
+            Patches.PlanetLayer_InitializeLayer_Patch.EnsureLayersAttached(Find.WorldGrid.Surface);
             WorldDrawLayer_HazeOfWar.Instance?.RegenerateNow();
+            WorldDrawLayer_RadarCoverage.Instance?.RegenerateNow();
         }
     }
 
@@ -196,45 +197,36 @@ public class SensoryManager : WorldComponent
             return;
         }
 
-        // Peacetime Early Exit: If there are zero active targets and mode is Planetary Surveillance,
-        // there is no fog to reveal and no targets to track. Exit immediately on tick 1!
-        if (activeTargets.Count == 0 && mode == VisibilityMode.PlanetarySurveillance)
+        IReadOnlyList<ISensorProvider> activeSensors = GetActiveSensors();
+        bool sensorsChanged = false;
+
+        if (activeSensors.Count != lastActiveSensorStates.Count)
         {
-            return;
+            sensorsChanged = true;
         }
 
-        IReadOnlyList<ISensorProvider> activeSensors = GetActiveSensors();
-
-        // If in Classic Haze of War, mark all tiles covered by active sensors as permanently explored
-        if (mode == VisibilityMode.ClassicHazeOfWar)
+        for (int i = 0; i < activeSensors.Count; i++)
         {
-            EnsureExploredArray();
-            bool sensorsChanged = false;
+            ISensorProvider sensor = activeSensors[i];
+            if (!sensor.SensorTile.Valid)
+            {
+                continue;
+            }
 
-            if (activeSensors.Count != lastActiveSensorStates.Count)
+            int sensorId = sensor.Source?.ID ?? i;
+            float currentRadius = sensor.DetectionRadiusInTiles;
+            PlanetTile currentTile = sensor.SensorTile;
+
+            if (!lastActiveSensorStates.TryGetValue(sensorId, out var prevState) ||
+                prevState.tile != currentTile ||
+                Mathf.Abs(prevState.radius - currentRadius) > 0.05f)
             {
                 sensorsChanged = true;
             }
 
-            for (int i = 0; i < activeSensors.Count; i++)
+            if (mode == VisibilityMode.ClassicHazeOfWar)
             {
-                ISensorProvider sensor = activeSensors[i];
-                if (!sensor.SensorTile.Valid)
-                {
-                    continue;
-                }
-
-                int sensorId = sensor.Source?.ID ?? i;
-                float currentRadius = sensor.DetectionRadiusInTiles;
-                PlanetTile currentTile = sensor.SensorTile;
-
-                if (!lastActiveSensorStates.TryGetValue(sensorId, out var prevState) ||
-                    prevState.tile != currentTile ||
-                    Mathf.Abs(prevState.radius - currentRadius) > 0.05f)
-                {
-                    sensorsChanged = true;
-                }
-
+                EnsureExploredArray();
                 if (sensor.IsStationary)
                 {
                     // Stationary sensors (colonies, radar towers) only flood-fill once unless radius expanded
@@ -266,24 +258,29 @@ public class SensoryManager : WorldComponent
                     }
                 }
             }
-
-            if (sensorsChanged)
-            {
-                lastActiveSensorStates.Clear();
-                for (int i = 0; i < activeSensors.Count; i++)
-                {
-                    ISensorProvider s = activeSensors[i];
-                    if (s.SensorTile.Valid)
-                    {
-                        int id = s.Source?.ID ?? i;
-                        lastActiveSensorStates[id] = (s.SensorTile, s.DetectionRadiusInTiles);
-                    }
-                }
-                WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
-            }
         }
 
-        // Peacetime Early Exit for Classic Haze of War: If all sensors updated and no targets exist, exit!
+        if (sensorsChanged)
+        {
+            lastActiveSensorStates.Clear();
+            for (int i = 0; i < activeSensors.Count; i++)
+            {
+                ISensorProvider s = activeSensors[i];
+                if (s.SensorTile.Valid)
+                {
+                    int id = s.Source?.ID ?? i;
+                    lastActiveSensorStates[id] = (s.SensorTile, s.DetectionRadiusInTiles);
+                }
+            }
+
+            if (mode == VisibilityMode.ClassicHazeOfWar)
+            {
+                WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
+            }
+            WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
+        }
+
+        // Peacetime Early Exit: If all sensors updated and no targets exist, exit!
         if (activeTargets.Count == 0)
         {
             return;
@@ -359,6 +356,34 @@ public class SensoryManager : WorldComponent
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Populates the provided set with all planet tiles currently enveloped by active sensors (colonies, caravans, radar stations).
+    /// Used by WorldDrawLayer_RadarCoverage to render tactical perimeter boundaries and holographic honeycomb grids.
+    /// </summary>
+    public void PopulateActiveVisionTiles(HashSet<PlanetTile> outTiles)
+    {
+        outTiles.Clear();
+        IReadOnlyList<ISensorProvider> sensors = GetActiveSensors();
+        for (int i = 0; i < sensors.Count; i++)
+        {
+            ISensorProvider sensor = sensors[i];
+            if (!sensor.SensorTile.Valid)
+            {
+                continue;
+            }
+
+            PlanetTile centerTile = sensor.SensorTile;
+            float radius = sensor.DetectionRadiusInTiles;
+            int intRadius = Mathf.CeilToInt(radius);
+
+            centerTile.Layer.Filler.FloodFill(
+                centerTile,
+                t => Find.WorldGrid.ApproxDistanceInTiles(centerTile, t) <= radius,
+                t => outTiles.Add(t),
+                maxTilesToProcess: (intRadius * intRadius * 4));
+        }
     }
 
     public bool IsExplored(PlanetTile tile)
@@ -536,6 +561,7 @@ public class SensoryManager : WorldComponent
         lastActiveSensorStates.Clear();
         PerformSensorySweep();
         WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
+        WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         if (Find.WorldGrid?.Surface != null)
         {
             Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();

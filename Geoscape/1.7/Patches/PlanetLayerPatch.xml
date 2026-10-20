@@ -4,6 +4,7 @@
     <xpath>Defs/PlanetLayerDef[defName="Surface"]/worldDrawLayers</xpath>
     <value>
       <li>ProjectVigilance.Geoscape.Sensory.WorldDrawLayer_HazeOfWar</li>
+      <li>ProjectVigilance.Geoscape.Sensory.WorldDrawLayer_RadarCoverage</li>
     </value>
   </Operation>
 </Patch>

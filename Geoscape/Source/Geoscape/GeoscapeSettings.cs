@@ -12,6 +12,10 @@ public class GeoscapeSettings : ModSettings
     public bool enableTacticalIngressFlanking = true;
 
     public VisibilityMode visibilityMode = VisibilityMode.PlanetarySurveillance;
+    public RadarOutlineStyle radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
+    public RadarColorPalette radarColorPalette = RadarColorPalette.TacticalCyan;
+    public float radarOutlineOpacity = 0.85f;
+    public float surveillanceDimming = 0.0f;
     public float colonyScoutRadius = 5.0f;
     public float caravanScoutRadius = 3.0f;
     public bool enableEarlyWarningLetters = true;
@@ -27,6 +31,10 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref enableTacticalIngressFlanking, "enableTacticalIngressFlanking", true);
 
         Scribe_Values.Look(ref visibilityMode, "visibilityMode", VisibilityMode.PlanetarySurveillance);
+        Scribe_Values.Look(ref radarOutlineStyle, "radarOutlineStyle", RadarOutlineStyle.BoundaryAndGrid);
+        Scribe_Values.Look(ref radarColorPalette, "radarColorPalette", RadarColorPalette.TacticalCyan);
+        Scribe_Values.Look(ref radarOutlineOpacity, "radarOutlineOpacity", 0.85f);
+        Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.0f);
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
         Scribe_Values.Look(ref caravanScoutRadius, "caravanScoutRadius", 3.0f);
         Scribe_Values.Look(ref enableEarlyWarningLetters, "enableEarlyWarningLetters", true);
@@ -107,6 +115,65 @@ public class GeoscapeSettings : ModSettings
             }
 
             listing.Gap();
+
+            listing.Label("Tactical Radar Overlay & Range Outlines (X-COM Style):");
+
+            if (listing.RadioButton("Boundary Ring & Honeycomb Grid (Preview Style)", radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid, tooltip: "Renders glowing perimeter boundary rings and an interior hexagonal holographic grid over active sensor envelopes."))
+            {
+                if (radarOutlineStyle != RadarOutlineStyle.BoundaryAndGrid)
+                {
+                    radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (listing.RadioButton("Boundary Ring Only (Clean Perimeter)", radarOutlineStyle == RadarOutlineStyle.BoundaryOnly, tooltip: "Renders only the outer glowing perimeter boundary ring around active radar coverage."))
+            {
+                if (radarOutlineStyle != RadarOutlineStyle.BoundaryOnly)
+                {
+                    radarOutlineStyle = RadarOutlineStyle.BoundaryOnly;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (listing.RadioButton("None (Undecorated Globe)", radarOutlineStyle == RadarOutlineStyle.None, tooltip: "Hides radar range outlines entirely."))
+            {
+                if (radarOutlineStyle != RadarOutlineStyle.None)
+                {
+                    radarOutlineStyle = RadarOutlineStyle.None;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (radarOutlineStyle != RadarOutlineStyle.None)
+            {
+                listing.Label($"Radar Color Palette: {GetPaletteLabel(radarColorPalette)}");
+                Rect paletteRect = listing.GetRect(26f);
+                float btnWidth = (paletteRect.width - 20f) / 5f;
+                DrawPaletteButton(new Rect(paletteRect.x, paletteRect.y, btnWidth, 24f), RadarColorPalette.TacticalCyan, "Cyan");
+                DrawPaletteButton(new Rect(paletteRect.x + (btnWidth + 5f) * 1, paletteRect.y, btnWidth, 24f), RadarColorPalette.SurveillanceAmber, "Amber");
+                DrawPaletteButton(new Rect(paletteRect.x + (btnWidth + 5f) * 2, paletteRect.y, btnWidth, 24f), RadarColorPalette.EmeraldPhosphor, "Emerald");
+                DrawPaletteButton(new Rect(paletteRect.x + (btnWidth + 5f) * 3, paletteRect.y, btnWidth, 24f), RadarColorPalette.CrimsonAlert, "Crimson");
+                DrawPaletteButton(new Rect(paletteRect.x + (btnWidth + 5f) * 4, paletteRect.y, btnWidth, 24f), RadarColorPalette.GhostWhite, "White");
+
+                listing.Label($"Radar Outline Intensity: {radarOutlineOpacity:P0}");
+                float newOpacity = listing.Slider(radarOutlineOpacity, 0.2f, 1f);
+                if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.02f)
+                {
+                    radarOutlineOpacity = newOpacity;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            listing.Label($"Surveillance Background Dimming: {surveillanceDimming:P0} (Option 3 Hybrid)");
+            float newDimming = listing.Slider(surveillanceDimming, 0.0f, 0.5f);
+            if (Mathf.Abs(newDimming - surveillanceDimming) > 0.02f)
+            {
+                surveillanceDimming = newDimming;
+                NotifyRadarVisualsChanged();
+            }
+
+            listing.Gap();
         }
 
         Text.Font = GameFont.Medium;
@@ -150,9 +217,39 @@ public class GeoscapeSettings : ModSettings
         listing.End();
     }
 
+    private void DrawPaletteButton(Rect rect, RadarColorPalette palette, string label)
+    {
+        bool isSelected = radarColorPalette == palette;
+        if (Widgets.ButtonText(rect, isSelected ? $"[{label}]" : label))
+        {
+            if (radarColorPalette != palette)
+            {
+                radarColorPalette = palette;
+                NotifyRadarVisualsChanged();
+            }
+        }
+    }
+
+    private static string GetPaletteLabel(RadarColorPalette palette) => palette switch
+    {
+        RadarColorPalette.TacticalCyan => "Tactical Cyan (X-COM Holographic)",
+        RadarColorPalette.SurveillanceAmber => "Surveillance Amber (Command Center)",
+        RadarColorPalette.EmeraldPhosphor => "Emerald Phosphor (CRT Green)",
+        RadarColorPalette.CrimsonAlert => "Crimson Alert (High Threat)",
+        RadarColorPalette.GhostWhite => "Ghost White (Monochrome)",
+        _ => palette.ToString()
+    };
+
+    private void NotifyRadarVisualsChanged()
+    {
+        WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
+        WorldDrawLayer_RadarCoverage.Instance?.RegenerateNow();
+    }
+
     private void OnVisibilityModeChanged()
     {
         WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
+        WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         if (Find.WorldGrid?.Surface != null)
         {
             Find.WorldGrid.Surface.SetAllLayersDirty();
