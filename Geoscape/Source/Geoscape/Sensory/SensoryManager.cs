@@ -378,11 +378,15 @@ public class SensoryManager : WorldComponent
             float radius = sensor.DetectionRadiusInTiles;
             int intRadius = Mathf.CeilToInt(radius);
 
+            int maxTiles = Mathf.Max(128, intRadius * intRadius * 6);
             centerTile.Layer.Filler.FloodFill(
                 centerTile,
                 t => Find.WorldGrid.ApproxDistanceInTiles(centerTile, t) <= radius,
-                t => outTiles.Add(t),
-                maxTilesToProcess: (intRadius * intRadius * 4));
+                t =>
+                {
+                    outTiles.Add(t);
+                },
+                maxTilesToProcess: maxTiles);
         }
     }
 

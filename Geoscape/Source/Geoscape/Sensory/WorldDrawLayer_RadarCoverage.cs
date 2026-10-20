@@ -17,8 +17,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 {
     private const int MaxVertsPerMeshSafe = 38000;
     private const float RadarAltitudeOffset = 0.040f;          // Above surface terrain (0.00), roads (0.015), and settlements (0.030)
-    private const float PerimeterHalfWidth = 0.09f;            // Vibrant boundary ribbon width
-    private const float InteriorHalfWidth = 0.032f;            // Subtle honeycomb grid line width
+    private const float PerimeterHalfWidth = 0.045f;           // Crisp glowing boundary ribbon width
+    private const float InteriorHalfWidth = 0.016f;            // Fine holographic honeycomb grid line width
 
     private readonly HashSet<PlanetTile> activeTilesCache = new(256);
     private readonly Dictionary<EdgeKey, EdgeInfo> edgesCache = new(1024);
