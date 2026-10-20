@@ -29,7 +29,57 @@ public class IncursionRetreatManager : WorldComponent
         }
     }
 
+    public class IncarcerationRecord : IExposable
+    {
+        public Pawn? captive;
+        public PlanetTile settlementTile;
+        public Faction? faction;
+        public int captureGameTick;
+
+        public void ExposeData()
+        {
+            Scribe_References.Look(ref captive, "captive");
+            int tileId = settlementTile.tileId;
+            Scribe_Values.Look(ref tileId, "settlementTileId", 0);
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                settlementTile = (PlanetTile)tileId;
+            }
+            Scribe_References.Look(ref faction, "faction");
+            Scribe_Values.Look(ref captureGameTick, "captureGameTick", 0);
+        }
+    }
+
     private List<RetreatBatch> activeBatches = new();
+    private List<IncarcerationRecord> incarceratedColonists = new();
+
+    public static void RecordSettlementIncarceration(Pawn captive, PlanetTile settlementTile, Faction? faction)
+    {
+        if (Instance == null || captive == null) return;
+        Instance.incarceratedColonists.Add(new IncarcerationRecord
+        {
+            captive = captive,
+            settlementTile = settlementTile,
+            faction = faction,
+            captureGameTick = Find.TickManager.TicksGame
+        });
+        Log.Message($"[Project Vigilance] Colonist {captive.LabelShort} registered as incarcerated at settlement tile {settlementTile}.");
+    }
+
+    public static List<Pawn> GetIncarceratedColonistsAt(PlanetTile tile)
+    {
+        if (Instance == null) return new List<Pawn>();
+        return Instance.incarceratedColonists
+            .Where(r => r.settlementTile == tile && r.captive != null && !r.captive.Dead)
+            .Select(r => r.captive!)
+            .ToList();
+    }
+
+    public static void RemoveIncarceratedColonistsAt(PlanetTile tile)
+    {
+        if (Instance == null) return;
+        Instance.incarceratedColonists.RemoveAll(r => r.settlementTile == tile);
+    }
 
     public IncursionRetreatManager(RimWorld.Planet.World world) : base(world)
     {
@@ -192,9 +242,11 @@ public class IncursionRetreatManager : WorldComponent
     {
         base.ExposeData();
         Scribe_Collections.Look(ref activeBatches, "activeBatches", LookMode.Deep);
+        Scribe_Collections.Look(ref incarceratedColonists, "incarceratedColonists", LookMode.Deep);
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
             activeBatches ??= new List<RetreatBatch>();
+            incarceratedColonists ??= new List<IncarcerationRecord>();
             Instance = this;
         }
     }

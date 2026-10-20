@@ -47,7 +47,7 @@
   - **Ground Track Pursuit:** Evaluate recently evacuated player caravans from the tile. If the evacuation departed overland on foot or pack animals, roll a tactical tracking chance. After a delay searching the empty camp, reroute the incursion to actively pursue the caravan to its next destination or ambush it en route.
   - **Tactical Fallback & Retargeting:** If no tracks are discovered or the trail goes cold, raiders choose between marching back to their home base/nearest faction outpost, establishing an occupation camp, or opportunistically redirecting their assault toward an adjacent player settlement or ally.
 - [ ] **Dynamic Inter-Faction Encounters:** Enable roaming NPC incursions and trade caravans to interact when their routes cross—simulating background skirmishes between warring factions, ambush aftermath sites, and trade rendezvous.
-- [ ] **Physical Settlement Incarceration (Future Follow-up):** If retreating raiders reach their home settlement unintercepted, associate the kidnapped colonists with that specific enemy settlement tile, allowing players to mount direct rescue assaults against that stronghold to liberate their people.
+- [x] **Physical Settlement Incarceration & Base Assault Rescue:** When retreating kidnappers reach their stronghold unintercepted, captive colonists are registered as incarcerated at that specific settlement tile (`IncursionRetreatManager.RecordSettlementIncarceration`). When the player mounts an assault on that enemy stronghold (`SettlementUtility.Attack`), the captured colonist is spawned inside the fortress as a prisoner, enabling direct base-liberation missions.
 
 ---
 

@@ -39,14 +39,19 @@ public static class IncursionArrivalManager
                     if (captive != null && !captive.Dead)
                     {
                         incursion.Faction?.kidnapped?.Kidnap(captive, kidnapper);
+                        IncursionRetreatManager.RecordSettlementIncarceration(captive, incursion.DestinationTile, incursion.Faction);
                     }
                 }
+
+                Settlement? homeSettlement = Find.WorldObjects?.Settlements?.FirstOrDefault(s => s.Tile == incursion.DestinationTile && s.Faction == incursion.Faction);
+                string strongholdName = homeSettlement?.LabelCap ?? (incursion.DestinationTile.Valid ? $"stronghold at tile {incursion.DestinationTile}" : "their stronghold");
 
                 string captivesList = string.Join(", ", incursion.KidnappedColonists.Where(c => !c.Dead).Select(c => c.LabelShort));
                 Find.LetterStack.ReceiveLetter(
                     "Colonists Incarcerated: " + incursion.LabelCap,
-                    $"Forces from {fName} have safely reached their stronghold with captured colonist(s): {captivesList}.\n\n" +
-                    $"The prisoners are now incarcerated inside {fName}'s fortress. A future rescue operation or ransom demand will be required to liberate them.",
+                    $"Forces from {fName} have safely reached {strongholdName} with captured colonist(s): {captivesList}.\n\n" +
+                    $"The prisoners are now incarcerated inside {strongholdName}.\n\n" +
+                    $"You can liberate them by mounting a direct base assault on {strongholdName}, or await future ransom communications.",
                     LetterDefOf.NegativeEvent,
                     new GlobalTargetInfo(incursion.Tile)
                 );

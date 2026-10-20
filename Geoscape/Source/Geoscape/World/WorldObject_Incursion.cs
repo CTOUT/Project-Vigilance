@@ -1369,6 +1369,18 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     if (p.needs.food != null)
                     {
                         p.needs.food.CurLevel -= 0.0005f * (interval / 250f);
+
+                        // Caravan Eating Simulation: Consume carried provisions when hungry
+                        if (p.needs.food.CurLevelPercentage < 0.35f && p.inventory?.innerContainer != null)
+                        {
+                            Thing? edible = p.inventory.innerContainer.FirstOrDefault(t => t.def.IsNutritionGivingIngestible);
+                            if (edible != null)
+                            {
+                                float nut = edible.def.ingestible?.CachedNutrition ?? 0.5f;
+                                p.needs.food.CurLevel += nut;
+                                edible.SplitOff(1).Destroy();
+                            }
+                        }
                     }
                 }
             }
@@ -1400,9 +1412,33 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     {
                         Messages.Message($"Captured colonist {captive.LabelShort} has died of their wounds while in enemy hands.", new GlobalTargetInfo(Tile), MessageTypeDefOf.NegativeEvent);
                     }
-                    else if (doctor != null && captive.health != null && captive.health.HasHediffsNeedingTend())
+                    else
                     {
-                        TendUtility.DoTend(doctor, captive, carriedMed);
+                        if (doctor != null && captive.health != null && captive.health.HasHediffsNeedingTend())
+                        {
+                            TendUtility.DoTend(doctor, captive, carriedMed);
+                        }
+
+                        if (captive.needs?.food != null)
+                        {
+                            captive.needs.food.CurLevel -= 0.0005f * (interval / 250f);
+
+                            // Captors feed prisoners from carried provisions
+                            if (captive.needs.food.CurLevelPercentage < 0.3f)
+                            {
+                                foreach (var captor in retreatingPawns)
+                                {
+                                    Thing? food = captor.inventory?.innerContainer?.FirstOrDefault(t => t.def.IsNutritionGivingIngestible);
+                                    if (food != null)
+                                    {
+                                        float nut = food.def.ingestible?.CachedNutrition ?? 0.5f;
+                                        captive.needs.food.CurLevel += nut;
+                                        food.SplitOff(1).Destroy();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
