@@ -53,12 +53,16 @@
 
 ### Milestone 1.3: Radar Infrastructure & Advanced Early Warning
 
+- [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
 - [ ] Implement `CompProperties_Radar` and `CompRadar` building components.
 - [ ] Implement `WorldObjectComp_Radar` for settlements and forward listening posts.
 - [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) for efficient spatial distance checks.
-- [ ] Implement semi-transparent radar coverage overlay rendering on the world map.
 - [ ] Build Oceanic Sonar detection layer for water hexes.
 - [ ] Early Warning Dispatcher: generate advance warning alerts and reveal telemetry based on radar tier.
+- [ ] **Concealed Dynamic Sites & Reconnaissance in the Haze:**
+  - **Haze Concealment for Dynamic Camps:** When storyteller/quests spawn work sites, hunting camps, bandit outposts, or pirate forward staging bases in unmonitored sectors (Haze), suppress instant global announcement letters and map markers until an active player sensor or scout caravan enters visual range.
+  - **Breadcrumb Rumours & Traveller Intelligence:** Visiting trade caravans, friendly guests, or allied patrols arriving at player settlements can share intelligence on unmapped sites they encountered en route (_"We passed a hostile logging camp about 5 hexes north-west"_), creating narrative reconnaissance leads and map reveals.
+  - **Forward Staging Ground Detection:** Hostile raid preparations can establish temporary forward staging camps in the Haze that can be pre-emptively raided or dispersed before the main assault launches.
 
 ---
 
