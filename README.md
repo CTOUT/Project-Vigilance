@@ -52,6 +52,11 @@ In vanilla RimWorld, raids and trade caravans instantaneously materialise at the
 2. **1995 Terror from the Deep:** Turning RimWorld's vast, non-traversable oceans (30–50% of the map) into an active operations theatre with Unidentified Submersible Objects (USOs), coastal sonar arrays, seabed recoveries, and diving operations.
 3. **Modern Firaxis XCOM:** Strategic pacing via global invasion counters ("Avatar-style" doom clocks), Alien Dark Events, and tactical mission urgency with strict extraction timers.
 
+### Core Design Practice: "You Don't Know What You Don't Know"
+
+> _"To know, you need to find out — investigate, identify, research, explore."_  
+> Information is never given for free. Threat detection, enemy force composition, technology trees, and planetary operations are cloaked in fog. You must actively dispatch scouts, capture specimens, and build radar networks to uncover the truth.
+
 For an in-depth breakdown of the design philosophy, see [docs/architecture/vision-and-pillars.md](docs/architecture/vision-and-pillars.md).
 
 ---

@@ -35,3 +35,12 @@ npm-debug.log*
 *.bak
 *.swp
 *.old*
+
+# Local AI / Copilot subscriptions & external resources
+.github/.copilot-subscriptions.json
+.github/agents/
+.github/instructions/
+.github/skills/
+.github/hooks/
+.github/plugin/
+.github/workflows/*.md

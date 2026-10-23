@@ -81,6 +81,39 @@ In vanilla RimWorld, oceans make up 30–50% of the planetary surface, yet they 
 - RimWorld already excels at base building, power management, workshops, and hospital wings.
 - The suite introduces the **X-COM Facilities Layer**: Radar domes, containment cells, research laboratories, manufacturing workshops for alien alloys, and launch pads.
 
+### Core Design Practice: "You Don't Know What You Don't Know"
+
+A central design practice governing all systems across Project Vigilance is:
+
+> **"You don't know what you don't know."**  
+> _To know, you need to find out — investigate, identify, research, explore._
+
+#### 1. The Epistemic Philosophy
+
+In vanilla RimWorld and standard strategy gaming conventions, the interface often grants players passive, omniscient intelligence. When a raid or incident triggers, the player instantly receives an explicit letter stating the exact enemy faction, threat point budget, raid delivery method, pawn roster, armour sets, and weaponry.
+
+Project Vigilance rejects passive omniscience. Information is treated as an active, high-value strategic commodity that must be earned through deliberate player initiative, technological investment, and field reconnaissance. The universe begins in darkness and uncertainty; what lies beyond your immediate sensory perimeter is completely unknown until you take deliberate action to discover it.
+
+#### 2. Practical Application Across Systems
+
+- **Threat Detection & Early Warning:**  
+  Approaching threats do not announce their presence or intentions. Beyond your immediate visual horizon, an inbound raid or hostile warband exists only as a cold, unconfirmed contact or acoustic anomaly. Without lookout posts, orbital radar domes, or scout patrols, you do not even know a threat is on the march.
+
+- **Threat Identification & Force Makeup:**  
+  Detecting a contact is only the first step. A radar blip or distant dust cloud tells you something is moving, but leaves its composition shrouded in fog:
+  - _Is it a trading party, desperate travellers, or a heavily armed death squad?_
+  - _Are they carrying EMP grenades, sniper rifles, or doomsday rocket launchers?_  
+    To answer these questions, you must actively investigate: dispatch scout patrols, intercept the column with a light reconnaissance team, or advance your tracking telemetry to optical/classified tiers.
+
+- **Research & Reverse Engineering:**  
+  Technological breakthroughs cannot be discovered in a vacuum by having pawns write on a theoretical chalkboard. You cannot understand alien biology, reverse-engineer anti-gravity craft, or decode hyperwave transmissions until you physically venture into the field to acquire the evidence:
+  - Downing craft and securing crash sites.
+  - Capturing live enemy specimens in containment cells for interrogation.
+  - Conducting autopsies and harvesting exotic material artifacts.
+
+- **World Exploration & Strategic Surveillance:**  
+  Unmonitored planetary sectors on the Geoscape hide active enemy operations, secret staging bases, sub-surface ocean anomalies, and terror cells. The world does not passively update its state for your convenience. To discover what hostile forces are plotting across the globe, you must actively explore, establish remote forward listening posts, survey regional biomes, and deploy reconnaissance craft.
+
 ---
 
 ## 4. Engine Architecture: RimWorld 1.7 (Waylith) & BRUTAL

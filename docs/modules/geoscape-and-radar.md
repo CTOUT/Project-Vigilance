@@ -51,7 +51,7 @@ Recognising that player preferences range from authentic military surveillance t
 
 ### 2.4 5-Tier Contact Classification & Intelligence Progression
 
-Information on the Geoscape is treated as a strategic resource. Detected entities progress through five intelligence tiers based on the sensing facility's technological tier:
+Guided by our core design practice—_"You don't know what you don't know: to know, you need to find out (investigate, identify, research, explore)"_—information on the Geoscape is treated as an active strategic resource. Detected entities progress through five intelligence tiers based on the sensing facility's technological tier and reconnaissance proximity:
 
 | Intelligence Tier      | Visual Representation         | Telemetry Provided                                                                                    | Detection Source                                                                        |
 | :--------------------- | :---------------------------- | :---------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------- |
