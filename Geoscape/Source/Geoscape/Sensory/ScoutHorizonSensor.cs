@@ -24,15 +24,19 @@ public class ScoutHorizonSensor : ISensorProvider
 
     public WorldObject Source => parentObject;
     public bool IsColony => isColony;
-    public bool IsStationary => isColony;
+    public bool IsStationary => isColony || parentObject is MapParent;
 
     public string SensorLabel
     {
         get
         {
-            if (isColony)
+            if (parentObject is MapParent mapParent && mapParent.HasMap && mapParent.Map != null)
             {
-                if (GeoscapeMod.Settings.enableNighttimeSensoryReduction && parentObject is MapParent mapParent && mapParent.HasMap && mapParent.Map != null)
+                string targetType = isColony ? "Lookouts" : "Camp Lookouts";
+                string nightType = isColony ? "Night Watch" : "Camp Night Watch";
+                string sleepingType = isColony ? "Sleeping Lookouts" : "Sleeping Camp Watch";
+
+                if (GeoscapeMod.Settings.enableNighttimeSensoryReduction)
                 {
                     if (GenCelestial.CurCelestialSunGlow(mapParent.Map) < 0.35f)
                     {
@@ -41,19 +45,19 @@ public class ScoutHorizonSensor : ISensorProvider
                         if (!anyAwake)
                         {
                             return SensoryNarrativeUtility.IsLowTech
-                                ? $"{parentObject.LabelCap} (Sleeping Lookouts)"
+                                ? $"{parentObject.LabelCap} ({sleepingType})"
                                 : $"{parentObject.LabelCap} (Unattended Watch)";
                         }
 
                         return SensoryNarrativeUtility.IsLowTech
-                            ? $"{parentObject.LabelCap} Night Watchers"
-                            : $"{parentObject.LabelCap} Night Watch";
+                            ? $"{parentObject.LabelCap} {nightType}"
+                            : $"{parentObject.LabelCap} {nightType}";
                     }
                 }
 
                 return SensoryNarrativeUtility.IsLowTech
                     ? $"{parentObject.LabelCap} Watchers"
-                    : $"{parentObject.LabelCap} Lookouts";
+                    : $"{parentObject.LabelCap} {targetType}";
             }
 
             if (parentObject is Caravan caravan && caravan.NightResting)
@@ -82,8 +86,8 @@ public class ScoutHorizonSensor : ISensorProvider
                 return baseRadius;
             }
 
-            // 1. Colony Settlement lookouts
-            if (isColony && parentObject is MapParent mapParent && mapParent.HasMap && mapParent.Map != null)
+            // 1. Colony Settlement & Camp lookouts
+            if (parentObject is MapParent mapParent && mapParent.HasMap && mapParent.Map != null)
             {
                 Map map = mapParent.Map;
                 float sunGlow = GenCelestial.CurCelestialSunGlow(map);
@@ -151,7 +155,7 @@ public class ScoutHorizonSensor : ISensorProvider
                 return false;
             }
 
-            if (isColony && parentObject is MapParent mapParent)
+            if (parentObject is MapParent mapParent)
             {
                 if (!mapParent.HasMap || mapParent.Map == null)
                 {
@@ -159,7 +163,7 @@ public class ScoutHorizonSensor : ISensorProvider
                 }
 
                 Map map = mapParent.Map;
-                // Lookouts require at least one conscious colonist present at the settlement
+                // Lookouts require at least one conscious colonist present at the settlement or camp
                 var pawns = map.mapPawns?.FreeColonistsSpawned;
                 if (pawns == null || pawns.Count == 0)
                 {

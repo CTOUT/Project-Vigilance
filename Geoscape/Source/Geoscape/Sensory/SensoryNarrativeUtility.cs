@@ -18,9 +18,9 @@ public static class SensoryNarrativeUtility
     {
         get
         {
-            if (Faction.OfPlayer?.def != null)
+            if (Current.ProgramState == ProgramState.Playing && Faction.OfPlayerSilentFail?.def != null)
             {
-                return Faction.OfPlayer.def.techLevel <= TechLevel.Medieval;
+                return Faction.OfPlayerSilentFail.def.techLevel <= TechLevel.Medieval;
             }
             return false;
         }

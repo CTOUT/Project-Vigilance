@@ -18,8 +18,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private const int MaxVertsPerMeshSafe = 38000;
     private const float RadarAltitudeOffset = 0.040f;          // Above surface terrain (0.00), roads (0.015), and settlements (0.030)
     private const float PerimeterHalfWidth = 0.045f;           // Crisp glowing boundary ribbon width
-    private const float IdentificationHalfWidth = 0.030f;      // Distinct optical classification horizon ring width
-    private const float InteriorHalfWidth = 0.016f;            // Fine holographic honeycomb grid line width
+    private const float IdentificationHalfWidth = 0.038f;      // Distinct bold optical classification horizon ring width
+    private const float InteriorHalfWidth = 0.016f;            // Baseline holographic honeycomb grid line width
 
     private readonly HashSet<PlanetTile> activeTilesCache = new(256);
     private readonly HashSet<PlanetTile> identifiedTilesCache = new(64);
@@ -27,6 +27,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private readonly Dictionary<EdgeKey, EdgeInfo> edgesCache = new(1024);
     private readonly List<int> tmpIndices = new(8);
     private readonly List<Vector3> tmpVerts = new(8);
+    private readonly List<PlanetTile> tmpNeighbors = new(8);
     private readonly List<Vector3> tmpDimmingVerts = new(8);
 
     public static WorldDrawLayer_RadarCoverage? Instance { get; private set; }
@@ -35,6 +36,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     {
         Instance = this;
     }
+
+    public override bool VisibleWhenLayerNotSelected => true;
 
     public override bool Visible
     {
@@ -51,7 +54,34 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 return false;
             }
 
-            return base.Visible;
+            return planetLayer != null && planetLayer.Visible;
+        }
+    }
+
+    public static void NotifyVisualsChanged()
+    {
+        if (Current.ProgramState != ProgramState.Playing || Find.World == null)
+        {
+            return;
+        }
+
+        if (Instance != null)
+        {
+            Instance.SetDirty();
+            Instance.RegenerateNow();
+        }
+
+        if (Find.WorldGrid?.Surface?.WorldDrawLayers != null)
+        {
+            var layers = Find.WorldGrid.Surface.WorldDrawLayers;
+            for (int i = 0; i < layers.Count; i++)
+            {
+                if (layers[i] is WorldDrawLayer_RadarCoverage radarLayer)
+                {
+                    radarLayer.SetDirty();
+                    radarLayer.RegenerateNow();
+                }
+            }
         }
     }
 
@@ -63,7 +93,13 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             subMeshes[s].Clear(MeshParts.All);
         }
 
-        if (planetLayer == null || !Visible)
+        WorldGrid? grid = Find.WorldGrid;
+        if (planetLayer == null)
+        {
+            planetLayer = grid?.Surface;
+        }
+
+        if (planetLayer == null || grid == null || !Visible)
         {
             FinalizeMesh(MeshParts.All);
             yield break;
@@ -103,14 +139,14 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 }
 
                 tmpDimmingVerts.Clear();
-                Find.WorldGrid.GetTileVertices(tile, tmpDimmingVerts);
+                grid.GetTileVertices(tile, tmpDimmingVerts);
                 int vertCount = tmpDimmingVerts.Count;
                 if (vertCount < 3)
                 {
                     continue;
                 }
 
-                Vector3 center = Find.WorldGrid.GetTileCenter(tile);
+                Vector3 center = grid.GetTileCenter(tile);
                 center += center.normalized * (RadarAltitudeOffset * 0.5f);
 
                 for (int v = 0; v < vertCount; v++)
@@ -166,7 +202,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             perimeterColor.a = alphaPerimeter;
 
             Color32 idRingColor = idColor;
-            idRingColor.a = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity * 0.90f) * 255);
+            idRingColor.a = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity * 0.95f) * 255);
 
             // Extract all topological edges across active sensor tiles
             edgesCache.Clear();
@@ -175,21 +211,22 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 bool isIdentified = identifiedTilesCache.Contains(tile);
                 tileDistancesCache.TryGetValue(tile, out float hexesFromPerim);
 
-                tmpIndices.Clear();
                 tmpVerts.Clear();
-                Find.WorldGrid.GetTileVerticesIndices(tile, tmpIndices);
-                Find.WorldGrid.GetTileVertices(tile, tmpVerts);
+                tmpNeighbors.Clear();
+                grid.GetTileVertices(tile, tmpVerts);
+                grid.GetTileNeighbors(tile, tmpNeighbors);
 
-                int count = tmpIndices.Count;
-                for (int i = 0; i < count; i++)
+                int vertCount = tmpVerts.Count;
+                int neighborCount = tmpNeighbors.Count;
+
+                for (int n = 0; n < neighborCount; n++)
                 {
-                    int idxA = tmpIndices[i];
-                    int idxB = tmpIndices[(i + 1) % count];
-                    EdgeKey key = new(idxA, idxB);
+                    PlanetTile neighbor = tmpNeighbors[n];
+                    EdgeKey key = new(tile.tileId, neighbor.tileId);
 
                     if (edgesCache.TryGetValue(key, out EdgeInfo info))
                     {
-                        info.Count++;
+                        info.Count = 2;
                         if (isIdentified) info.HasIdentifiedTile = true;
                         if (!isIdentified) info.HasUnidentifiedTile = true;
                         info.HexesFromPerimeterSum += hexesFromPerim;
@@ -197,10 +234,27 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                     }
                     else
                     {
+                        Vector3 neighborCenter = grid.GetTileCenter(neighbor);
+                        float bestSqrDist = float.MaxValue;
+                        int bestIdx = 0;
+
+                        for (int v = 0; v < vertCount; v++)
+                        {
+                            Vector3 vA = tmpVerts[v];
+                            Vector3 vB = tmpVerts[(v + 1) % vertCount];
+                            Vector3 mid = (vA + vB) * 0.5f;
+                            float sqrDist = (mid - neighborCenter).sqrMagnitude;
+                            if (sqrDist < bestSqrDist)
+                            {
+                                bestSqrDist = sqrDist;
+                                bestIdx = v;
+                            }
+                        }
+
                         edgesCache[key] = new EdgeInfo
                         {
-                            V0 = tmpVerts[i],
-                            V1 = tmpVerts[(i + 1) % count],
+                            V0 = tmpVerts[bestIdx],
+                            V1 = tmpVerts[(bestIdx + 1) % vertCount],
                             Count = 1,
                             HasIdentifiedTile = isIdentified,
                             HasUnidentifiedTile = !isIdentified,
@@ -240,26 +294,29 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 }
                 else
                 {
-                    halfWidth = InteriorHalfWidth;
                     float hexesFromPerimeter = info.HexesFromPerimeterSum * 0.5f;
 
-                    // Opacity gradient: Bright at outermost hex, gradually reducing to fixed opacity at 3-4 hexes from perimeter
-                    const float maxFactor = 0.52f;
-                    const float minFactor = 0.12f;
-
+                    // Opacity gradient & width falloff: Bright & wide at outermost hex, gradually reducing to dim baseline at center
                     float factor;
-                    if (hexesFromPerimeter <= 1.0f)
+                    if (hexesFromPerimeter <= 0.6f)
                     {
-                        factor = maxFactor;
+                        factor = 0.80f;
+                        halfWidth = 0.024f;
                     }
-                    else if (hexesFromPerimeter < 3.5f)
+                    else if (hexesFromPerimeter <= 1.6f)
                     {
-                        float t = (hexesFromPerimeter - 1.0f) / 2.5f;
-                        factor = Mathf.Lerp(maxFactor, minFactor, t);
+                        factor = 0.52f;
+                        halfWidth = 0.020f;
+                    }
+                    else if (hexesFromPerimeter <= 2.6f)
+                    {
+                        factor = 0.32f;
+                        halfWidth = 0.016f;
                     }
                     else
                     {
-                        factor = minFactor;
+                        factor = 0.15f;
+                        halfWidth = 0.012f;
                     }
 
                     byte interiorAlpha = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity * factor) * 255);
@@ -342,18 +399,18 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     {
         Color.RGBToHSV(baseColor, out float h, out float s, out float v);
         float newHue;
-        if (h >= 0.22f && h <= 0.78f)
+        if (h >= 0.20f && h <= 0.80f)
         {
             // Cool color base (cyan, emerald, blue, purple): shift to golden telemetry amber
-            newHue = 0.12f;
+            newHue = 0.11f; // ~40 degrees, bright gold/amber
         }
         else
         {
             // Warm or neutral base (amber, red, pink, white): shift to electric tactical cyan
-            newHue = 0.52f;
+            newHue = 0.52f; // ~187 degrees, electric tactical cyan
         }
 
-        Color idColor = Color.HSVToRGB(newHue, Mathf.Max(0.75f, s), Mathf.Max(0.90f, v));
+        Color idColor = Color.HSVToRGB(newHue, 0.95f, 1.0f);
         return (Color32)idColor;
     }
 

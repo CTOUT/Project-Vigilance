@@ -46,23 +46,63 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private Vector3 lastSampledDrawPos = Vector3.zero;
     private int trackingId;
     private bool isTurningBack = false;
+    private bool hasBeenWarnedAway = false;
+    private HashSet<int> metCaravanIds = new();
+    private Dictionary<int, int> caravanCooldowns = new();
     private bool isRetreating = false;
     private List<Pawn>? retreatingPawns;
     private List<Pawn>? kidnappedColonists;
+    private List<Pawn>? committedPawns;
     private ThingOwner<Thing>? tradeStock;
 
     public IncidentDef? IncidentDef => incidentDef;
     public IncidentParms? IncidentParms => incidentParms;
     public PlanetTile OriginTile => originTile;
-    public PlanetTile DestinationTile => destinationTile;
+    public PlanetTile DestinationTile { get => destinationTile; set => destinationTile = value; }
     public IReadOnlyList<PlanetTile> PathTiles => pathTiles;
     public int CurrentPathIndex => currentPathIndex;
     public float TileProgress => tileProgress;
     public float SpeedTilesPerDay => speedTilesPerDay;
     public int DepartureDelayTicks => departureDelayTicks;
     public bool IsMobilizing => departureDelayTicks > 0;
-    public int TrackingId => trackingId;
+    public int TrackingId { get => trackingId; set => trackingId = value; }
     public bool IsTurningBack => isTurningBack;
+    public bool HasBeenWarnedAway => hasBeenWarnedAway;
+    public void MarkWarnedAway() => hasBeenWarnedAway = true;
+    public bool HasMetCaravan(int caravanId) => metCaravanIds.Contains(caravanId);
+    public void MarkCaravanMet(int caravanId) => metCaravanIds.Add(caravanId);
+    public void ResetCaravanMet(int caravanId) => metCaravanIds.Remove(caravanId);
+    public bool IsCaravanOnCooldown(int caravanId)
+    {
+        return caravanCooldowns != null &&
+               caravanCooldowns.TryGetValue(caravanId, out int expiry) &&
+               Find.TickManager.TicksGame < expiry;
+    }
+    public void SetCaravanCooldown(int caravanId, int expiryTick)
+    {
+        caravanCooldowns ??= new Dictionary<int, int>();
+        caravanCooldowns[caravanId] = expiryTick;
+    }
+    public bool IsEngagedInTacticalMap { get => isEngagedInTacticalMap; set => isEngagedInTacticalMap = value; }
+
+    public void AdvancePathTile()
+    {
+        if (pathTiles != null && pathTiles.Count > 0)
+        {
+            if (currentPathIndex < pathTiles.Count - 1)
+            {
+                currentPathIndex++;
+                Tile = pathTiles[currentPathIndex];
+                tileProgress = 0f;
+            }
+            else
+            {
+                IncursionArrivalManager.ExecuteArrival(this);
+            }
+        }
+    }
+
+    private bool isEngagedInTacticalMap = false;
     public bool IsRetreating
     {
         get => isRetreating;
@@ -70,6 +110,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     }
     public List<Pawn>? RetreatingPawns => retreatingPawns;
     public List<Pawn>? KidnappedColonists => kidnappedColonists;
+    public List<Pawn>? CommittedPawns => committedPawns;
     public ThingOwner<Thing>? TradeStock => tradeStock;
 
     public void SetRetreatingPawns(List<Pawn> pawns)
@@ -80,6 +121,41 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public void SetKidnappedColonists(List<Pawn> pawns)
     {
         kidnappedColonists = pawns;
+    }
+
+    public void SetCommittedPawns(List<Pawn>? pawns)
+    {
+        committedPawns = pawns != null
+            ? pawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList()
+            : null;
+    }
+
+    public void AddKidnappedColonist(Pawn captive)
+    {
+        if (captive == null) return;
+        kidnappedColonists ??= new List<Pawn>();
+        if (!kidnappedColonists.Contains(captive))
+        {
+            kidnappedColonists.Add(captive);
+        }
+    }
+
+    public void SetRetreatRoute(PlanetTile destination, List<PlanetTile> retreatPath, float speed = 0f)
+    {
+        isTurningBack = false;
+        isRetreating = true;
+        destinationTile = destination;
+        pathTiles = retreatPath != null ? new List<PlanetTile>(retreatPath) : new List<PlanetTile>();
+        currentPathIndex = 0;
+        tileProgress = 0f;
+        if (speed > 0f)
+        {
+            speedTilesPerDay = speed;
+        }
+        if (pathTiles.Count > 0)
+        {
+            Tile = pathTiles[0];
+        }
     }
 
     public bool IsRestingAtNight
@@ -119,8 +195,16 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public bool IsIdentified
     {
-        get => isIdentified;
-        set => isIdentified = value;
+        get => GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+               (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
+        set
+        {
+            isIdentified = value;
+            if (value && intelligenceTier < IntelligenceTier.Classified)
+            {
+                intelligenceTier = IntelligenceTier.Classified;
+            }
+        }
     }
 
     // IDetectableTarget Implementation
@@ -181,6 +265,20 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             yield break;
         }
 
+        bool isClassified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+                            (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
+
+        if (!isClassified)
+        {
+            // Unidentified contact: do not leak whether they are hostile or trade!
+            string label = $"Investigate {LabelCap}";
+            yield return new FloatMenuOption(label, () =>
+            {
+                caravan.pather.StartPath(Tile, new CaravanArrivalAction_InterceptIncursion(this), true);
+            });
+            yield break;
+        }
+
         bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
         if (isHostile)
         {
@@ -201,7 +299,15 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 });
             }
 
-            if (!isTurningBack)
+            if (hasBeenWarnedAway || isTurningBack)
+            {
+                yield return new FloatMenuOption($"Warn away {LabelCap} (Already retreating)", null);
+            }
+            else if (!HasImminentThreatNearby())
+            {
+                yield return new FloatMenuOption($"Warn away {LabelCap} (No imminent threat nearby)", null);
+            }
+            else
             {
                 string warnLabel = $"Warn away / Turn back {LabelCap}";
                 yield return new FloatMenuOption(warnLabel, () =>
@@ -212,18 +318,57 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
     }
 
+    public bool HasImminentThreatNearby()
+    {
+        PlanetTile dest = destinationTile.Valid ? destinationTile : Tile;
+
+        // 1. Check if the destination map has active hostile threats
+        Map? destMap = Current.Game?.FindMap(dest);
+        if (destMap != null && GenHostility.AnyHostileActiveThreatToPlayer(destMap, countDormantPawnsAsHostile: false, canBeFogged: true))
+        {
+            return true;
+        }
+
+        // 2. Check if any hostile incursion is within 4 tiles of our current tile or our destination tile
+        List<WorldObject>? allWorldObjects = Find.WorldObjects?.AllWorldObjects;
+        if (allWorldObjects != null)
+        {
+            for (int i = 0; i < allWorldObjects.Count; i++)
+            {
+                if (allWorldObjects[i] is WorldObject_Incursion other && other != this && other.Spawned)
+                {
+                    bool otherHostile = other.Faction?.HostileTo(Faction) ?? other.Faction?.HostileTo(Faction.OfPlayer) ?? true;
+                    if (otherHostile)
+                    {
+                        float distCurrent = Find.WorldGrid.ApproxDistanceInTiles(Tile, other.Tile);
+                        float distDest = Find.WorldGrid.ApproxDistanceInTiles(dest, other.Tile);
+                        if (distCurrent <= 4f || distDest <= 4f)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
     public override string LabelShort => Label;
 
     public override string Label
     {
         get
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && !isIdentified)
+            bool isClassified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+                                (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
+
+            if (!isClassified)
             {
                 return SensoryNarrativeUtility.GetContactLabel(trackingId: trackingId);
             }
 
-            if (isIdentified && (incidentDef != null || Faction != null))
+            if (incidentDef != null || Faction != null)
             {
                 string idTag = trackingId > 0
                     ? (SensoryNarrativeUtility.IsLowTech ? $" [#{trackingId}]" : $" [Contact-{trackingId}]")
@@ -380,7 +525,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         get
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
             {
                 return TacticalAmberPulseColor(0.95f);
             }
@@ -399,6 +544,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         get
         {
+            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
+            {
+                return MaterialPool.MatFrom(CaravanWorldTexture, ShaderDatabase.WorldOverlayTransparentLit, TacticalAmberPulseColor(0.95f), WorldMaterials.DynamicObjectRenderQueue);
+            }
+
             bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
             Color incursionColor = isHostile
                 ? new Color(1f, 0.25f, 0.25f, 0.95f)
@@ -430,7 +580,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
         Color statusColor;
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
         {
             // Calm tactical amber breathing blip for unidentified contacts
             statusColor = TacticalAmberPulseColor(1f);
@@ -564,6 +714,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         {
             isIdentified = true;
         }
+        else
+        {
+            isIdentified = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient);
+        }
 
         UpdateSampledPosition();
 
@@ -588,6 +742,39 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
     }
 
+    private void SendIncursionLetter(TaggedString title, TaggedString text, LetterDef def, Map? destinationMap, string targetName)
+    {
+        LetterDef choiceDef;
+        if (def == LetterDefOf.ThreatBig || def == LetterDefOf.ThreatSmall)
+        {
+            choiceDef = PV_LetterDefOf.PV_TacticalEncounter_Threat ?? LetterDefOf.ThreatBig;
+        }
+        else if (def == LetterDefOf.PositiveEvent)
+        {
+            choiceDef = PV_LetterDefOf.PV_TacticalEncounter_Positive ?? LetterDefOf.PositiveEvent;
+        }
+        else
+        {
+            choiceDef = PV_LetterDefOf.PV_TacticalEncounter_Neutral ?? LetterDefOf.NeutralEvent;
+        }
+
+        var letter = (ChoiceLetter_TacticalEncounter)LetterMaker.MakeLetter(choiceDef);
+        letter.label = title;
+        letter.text = text;
+        letter.targetWorldObject = this;
+        letter.targetTile = Tile;
+        letter.worldButtonLabel = "Go to Contact (Geoscape)";
+        letter.lookTargets = new GlobalTargetInfo(this);
+
+        if (destinationMap != null && destinationMap.Index >= 0)
+        {
+            letter.battleMap = destinationMap;
+            letter.battleButtonLabel = $"Go inside {targetName} (Defenses)";
+        }
+
+        Find.LetterStack.ReceiveLetter(letter);
+    }
+
     private void DispatchContactLetter(ISensorProvider sensor)
     {
         Map? targetMap = Current.Game.FindMap(destinationTile);
@@ -596,7 +783,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         string title = SensoryNarrativeUtility.GetContactLetterTitle(sensor, trackingId);
         string text = SensoryNarrativeUtility.GetContactLetterBody(sensor, targetName, speedTilesPerDay, trackingId);
 
-        Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatSmall, new GlobalTargetInfo(this));
+        SendIncursionLetter(title, text, LetterDefOf.ThreatSmall, targetMap, targetName);
     }
 
     private void DispatchClassifiedLetter(ISensorProvider sensor)
@@ -628,7 +815,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   $"{closingAdvice}";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.ThreatBig, targetMap, targetName);
                     break;
                 }
 
@@ -642,7 +829,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   "They are bringing goods and silver to trade. Prepare your negotiators, silver stores, and trade stockpiles for their arrival.";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.PositiveEvent, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.PositiveEvent, targetMap, targetName);
                     break;
                 }
 
@@ -655,7 +842,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   "They are visiting to socialise and relax. They are not a merchant caravan, though individual visitors may carry personal items to barter. Ensure your colony has a hospitable social space and spare guest accommodations.";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.NeutralEvent, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
                     break;
                 }
 
@@ -668,7 +855,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   "They are simply passing through your territory and do not intend to visit, stay, or trade.";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.NeutralEvent, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
                     break;
                 }
 
@@ -681,7 +868,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   "They seek offerings of gold or enslaved prisoners in exchange for royal favour and honour.";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.PositiveEvent, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.PositiveEvent, targetMap, targetName);
                     break;
                 }
 
@@ -694,7 +881,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   "They are travelling to venerate sacred relics or holy sites at your settlement.";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.NeutralEvent, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
                     break;
                 }
 
@@ -708,7 +895,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   $"{beggarsDetail}";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.NeutralEvent, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
                     break;
                 }
 
@@ -721,7 +908,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   "They are armed and ready to assist against planetary threats.";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.PositiveEvent, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.PositiveEvent, targetMap, targetName);
                     break;
                 }
 
@@ -735,7 +922,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                                   $"{attrLine}\n\n" +
                                   "They are approaching peacefully without hostile intent.";
 
-                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.NeutralEvent, new GlobalTargetInfo(this));
+                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
                     break;
                 }
         }
@@ -757,16 +944,78 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         Scribe_Values.Look(ref currentPathIndex, "currentPathIndex", 0);
         Scribe_Values.Look(ref tileProgress, "tileProgress", 0f);
         Scribe_Values.Look(ref departureDelayTicks, "departureDelayTicks", 0);
-        Scribe_Values.Look(ref isIdentified, "isIdentified", true);
+        Scribe_Values.Look(ref isIdentified, "isIdentified", false);
         Scribe_Values.Look(ref intelligenceTier, "intelligenceTier", IntelligenceTier.Undetected);
         Scribe_Values.Look(ref hasDispatchedContactAlert, "hasDispatchedContactAlert", false);
         Scribe_Values.Look(ref hasDispatchedClassifiedAlert, "hasDispatchedClassifiedAlert", false);
         Scribe_Values.Look(ref lastSampledDrawPos, "lastSampledDrawPos", Vector3.zero);
         Scribe_Values.Look(ref trackingId, "trackingId", 0);
         Scribe_Values.Look(ref isTurningBack, "isTurningBack", false);
+        Scribe_Values.Look(ref hasBeenWarnedAway, "hasBeenWarnedAway", false);
+        Scribe_Collections.Look(ref metCaravanIds, "metCaravanIds", LookMode.Value);
+        if (metCaravanIds == null)
+        {
+            metCaravanIds = new HashSet<int>();
+        }
+        Scribe_Collections.Look(ref caravanCooldowns, "caravanCooldowns", LookMode.Value, LookMode.Value);
+        if (caravanCooldowns == null)
+        {
+            caravanCooldowns = new Dictionary<int, int>();
+        }
         Scribe_Values.Look(ref isRetreating, "isRetreating", false);
-        Scribe_Collections.Look(ref retreatingPawns, "retreatingPawns", LookMode.Deep);
-        Scribe_Collections.Look(ref kidnappedColonists, "kidnappedColonists", LookMode.Deep);
+        Scribe_Values.Look(ref isEngagedInTacticalMap, "isEngagedInTacticalMap", false);
+
+        if (Scribe.mode == LoadSaveMode.Saving)
+        {
+            if (retreatingPawns != null)
+            {
+                for (int i = 0; i < retreatingPawns.Count; i++)
+                {
+                    Pawn p = retreatingPawns[i];
+                    if (p != null && !p.Destroyed && !p.Spawned && !Find.WorldPawns.Contains(p))
+                    {
+                        Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
+                    }
+                }
+            }
+            if (kidnappedColonists != null)
+            {
+                for (int i = 0; i < kidnappedColonists.Count; i++)
+                {
+                    Pawn p = kidnappedColonists[i];
+                    if (p != null && !p.Destroyed && !p.Spawned && !Find.WorldPawns.Contains(p))
+                    {
+                        Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
+                    }
+                }
+            }
+            if (committedPawns != null)
+            {
+                for (int i = 0; i < committedPawns.Count; i++)
+                {
+                    Pawn p = committedPawns[i];
+                    if (p != null && !p.Destroyed && !p.Spawned && !Find.WorldPawns.Contains(p))
+                    {
+                        Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
+                    }
+                }
+            }
+        }
+
+        Scribe_Collections.Look(ref retreatingPawns, "retreatingPawns", LookMode.Reference);
+        Scribe_Collections.Look(ref kidnappedColonists, "kidnappedColonists", LookMode.Reference);
+        Scribe_Collections.Look(ref committedPawns, "committedPawns", LookMode.Reference);
+
+        if (Scribe.mode == LoadSaveMode.PostLoadInit)
+        {
+            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
+            {
+                isIdentified = false;
+            }
+            committedPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
+            retreatingPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
+            kidnappedColonists?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
+        }
         Scribe_Deep.Look(ref tradeStock, "tradeStock", this);
 
         bool legacyAlert = false;
@@ -822,6 +1071,34 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             }
         }
 
+        if (isEngagedInTacticalMap)
+        {
+            // Watchdog: verify that an active tactical map actually exists for this incursion
+            bool hasActiveTacticalMap = false;
+            if (Find.Maps != null)
+            {
+                for (int m = 0; m < Find.Maps.Count; m++)
+                {
+                    var comp = Find.Maps[m].GetComponent<MapComponent_OverlandAmbush>();
+                    if (comp != null && comp.HasTrackedIncursion(this))
+                    {
+                        hasActiveTacticalMap = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hasActiveTacticalMap)
+            {
+                Log.Message($"[Project Vigilance] Incursion {TrackingId} ({LabelCap}) detected orphaned tactical map engagement flag. Self-healing and clearing engagement state.");
+                isEngagedInTacticalMap = false;
+            }
+            else
+            {
+                return;
+            }
+        }
+
         if (pathTiles == null || pathTiles.Count == 0)
         {
             IncursionArrivalManager.ExecuteArrival(this);
@@ -835,10 +1112,17 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             return;
         }
 
-        // Overland Physiological Simulation: retreating raiders and kidnapped colonists
-        if (isRetreating && retreatingPawns != null && Find.TickManager.TicksGame % 250 == 0)
+        // Overland Physiological Simulation: retreating raiders and committed combatants
+        if (Find.TickManager.TicksGame % 250 == 0)
         {
-            TickRetreatingPawnsPhysiology(250);
+            if (isRetreating && retreatingPawns != null)
+            {
+                TickRetreatingPawnsPhysiology(250);
+            }
+            if (committedPawns != null && !isEngagedInTacticalMap)
+            {
+                TickCommittedPawnsPhysiology(250);
+            }
         }
 
         // Nighttime Rest: Biological mortal forces halt and camp at night
@@ -871,13 +1155,23 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public void ReverseCourse(string? reason = null)
     {
-        isTurningBack = true;
+        if (!isRetreating)
+        {
+            isTurningBack = true;
+        }
         if (pathTiles != null && pathTiles.Count > 0)
         {
             List<PlanetTile> newPath = new();
             for (int i = currentPathIndex; i >= 0; i--)
             {
                 newPath.Add(pathTiles[i]);
+            }
+            if (newPath.Count <= 1 && Tile != originTile && originTile.Valid)
+            {
+                if (IncursionOriginResolver.TryBuildPath(Tile, originTile, out var directReturnPath))
+                {
+                    newPath = directReturnPath;
+                }
             }
             pathTiles = newPath;
             currentPathIndex = 0;
@@ -894,12 +1188,77 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             return;
         }
 
+        bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
+
+        // 1. Check for collision with an active player Camp or Settlement or Battlefield on this tile
+        if (true)
+        {
+            Map? tileMap = Current.Game?.FindMap(Tile);
+            MapParent? mapParent = Find.WorldObjects?.MapParentAt(Tile);
+
+            if (tileMap != null && !tileMap.IsPocketMap && tileMap.mapPawns != null && tileMap.mapPawns.AnyFreeColonistSpawned)
+            {
+                var ambushComp = tileMap.GetComponent<MapComponent_OverlandAmbush>();
+                bool alreadyEngaged = this.IsEngagedInTacticalMap || (ambushComp != null && ambushComp.HasTrackedIncursion(this));
+
+                if (!alreadyEngaged)
+                {
+                    if (tileMap.IsPlayerHome)
+                    {
+                        if (isHostile && !isRetreating)
+                        {
+                            IncursionInterceptionUtility.ExecuteCampOrSettlementAssault(tileMap, this);
+                            return;
+                        }
+                        else if (!isHostile)
+                        {
+                            int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
+                            if (!metCaravanIds.Contains(mapId))
+                            {
+                                metCaravanIds.Add(mapId);
+                                IncursionInterceptionUtility.ExecuteFriendlyCampOrSettlementVisit(tileMap, this);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Temporary camp or CaravansBattlefield: Transit across the battlescape!
+                        int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
+                        if (!metCaravanIds.Contains(mapId))
+                        {
+                            metCaravanIds.Add(mapId);
+                            IncursionInterceptionUtility.ExecuteBattlescapeTransit(tileMap, this);
+                            return;
+                        }
+                    }
+                }
+            }
+            else if (mapParent is Settlement settlement && settlement.Faction == Faction.OfPlayer)
+            {
+                if (isHostile && !isRetreating)
+                {
+                    destinationTile = Tile;
+                    IncursionArrivalManager.ExecuteArrival(this);
+                    return;
+                }
+            }
+        }
+
+        // 2. Check for player caravans on the world map
         var worldCaravans = Find.WorldObjects?.Caravans;
         if (worldCaravans == null || worldCaravans.Count == 0)
         {
             return;
         }
 
+        // Clean up any caravans no longer on this tile that are not on active cooldown
+        metCaravanIds.RemoveWhere(id =>
+        {
+            var cv = worldCaravans.FirstOrDefault(c => c.ID == id);
+            return cv == null || cv.Tile != Tile;
+        });
+
+        // 2a. Dynamic pursuit tracking: caravans with intercept actions targeted at this incursion
         for (int i = 0; i < worldCaravans.Count; i++)
         {
             Caravan c = worldCaravans[i];
@@ -913,7 +1272,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 // Reached same tile -> execute interception immediately
                 if (c.Tile == Tile)
                 {
-                    IncursionInterceptionUtility.ExecuteInterception(c, this);
+                    IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
                     return;
                 }
 
@@ -932,12 +1291,41 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     }
                 }
             }
-            else if (c.Tile == Tile)
-            {
-                // Direct collision with a player caravan occupying this tile
-                IncursionInterceptionUtility.ExecuteInterception(c, this);
-                return;
-            }
+        }
+
+        // 2b. Direct tile collision: caravans occupying this hex
+        if (isRetreating && Tile == originTile)
+        {
+            return;
+        }
+
+        var caravansOnTile = worldCaravans
+            .Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == Tile &&
+                        !(c.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion intercept && intercept.TargetIncursion == this))
+            .ToList();
+
+        if (caravansOnTile.Count == 0)
+        {
+            return;
+        }
+
+        // Filter out caravans that have already met or are on encounter cooldown
+        var eligibleCaravans = caravansOnTile
+            .Where(c => !metCaravanIds.Contains(c.ID) && !IsCaravanOnCooldown(c.ID))
+            .ToList();
+
+        if (eligibleCaravans.Count == 0)
+        {
+            return;
+        }
+
+        if (!isHostile)
+        {
+            IncursionInterceptionUtility.ExecuteFriendlyInterception(eligibleCaravans, this);
+        }
+        else
+        {
+            IncursionInterceptionUtility.ExecuteHostileInterception(eligibleCaravans, this, isAmbush: true);
         }
     }
 
@@ -1122,15 +1510,41 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             return string.Empty;
         }
 
+        bool isClassified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+                            (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
+
         string idTag = trackingId > 0
             ? (SensoryNarrativeUtility.IsLowTech ? $" [#{trackingId}]" : $" [Contact-{trackingId}]")
             : string.Empty;
-        string factionName = isIdentified
+        string factionName = isClassified
             ? (Faction?.Name ?? "Unknown")
             : (SensoryNarrativeUtility.IsLowTech ? "Unknown Faction" : "Unidentified Faction");
-        string label = isIdentified
+        string label = isClassified
             ? $"{GetIdentifiedGroupLabel()}{idTag}"
             : SensoryNarrativeUtility.GetContactLabel(trackingId: trackingId);
+
+        if (isEngagedInTacticalMap)
+        {
+            int combatantCount = committedPawns?.Count(p => p != null && !p.Dead && !p.Destroyed) ?? 0;
+            string countStr = combatantCount > 0 ? $" ({combatantCount} combatants)" : string.Empty;
+            if (!isClassified)
+            {
+                return $"{label.CapitalizeFirst()}\nStatus: Engaged in active combat{countStr}\nLocation: Hex {Tile}";
+            }
+            return $"{label.CapitalizeFirst()} ({factionName})\nStatus: Engaged in active combat{countStr}\nLocation: Hex {Tile}";
+        }
+
+        if (isRetreating)
+        {
+            int survivorCount = retreatingPawns?.Count(p => p != null && !p.Dead && !p.Destroyed) ?? committedPawns?.Count(p => p != null && !p.Dead && !p.Destroyed) ?? 0;
+            int captiveCount = kidnappedColonists?.Count ?? 0;
+            string captiveStr = captiveCount > 0 ? $"\nCaptives: {captiveCount} abducted colonist(s)" : string.Empty;
+            if (!isClassified)
+            {
+                return $"{label.CapitalizeFirst()}\nStatus: Retreating ({survivorCount} survivors){captiveStr}\nSpeed: ~{speedTilesPerDay:F0} hexes/day";
+            }
+            return $"{label.CapitalizeFirst()} ({factionName})\nStatus: Retreating ({survivorCount} survivors){captiveStr}\nDestination: Tile {destinationTile}";
+        }
 
         bool isMechanoid = Faction != null && (Faction.def == FactionDefOf.Mechanoid || Faction.def.defName.Contains("Mechanoid"));
         float effectiveSpeed = (GeoscapeMod.Settings.incursionsRestAtNight && !isMechanoid)
@@ -1145,6 +1559,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             float delayHours = departureDelayTicks / 2500f;
             int totalTiles = Math.Max(0, pathTiles.Count);
             float transitHours = (totalTiles / Math.Max(0.1f, effectiveSpeed)) * 24f;
+            if (!isClassified)
+            {
+                return $"{label.CapitalizeFirst()}\nMobilizing (Departing in ~{delayHours:F1} hours)\nEst. Transit: ~{transitHours:F1} hours ({totalTiles} hexes)";
+            }
             return $"{label.CapitalizeFirst()} ({factionName})\nMobilizing at base (Departing in ~{delayHours:F1} hours)\nEst. Transit: ~{transitHours:F1} hours ({totalTiles} hexes)";
         }
 
@@ -1153,7 +1571,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             float restHoursLeft = CaravanNightRestUtility.LeftRestTicksAt(Tile) / 2500f;
             remainingHours += restHoursLeft;
 
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+            if (!isClassified)
             {
                 if (SensoryNarrativeUtility.IsLowTech)
                 {
@@ -1167,7 +1585,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             return $"{label.CapitalizeFirst()} ({factionName})\nCamped for the night (Resuming march at dawn, ~{restHoursLeft:F1}h)\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+        if (!isClassified)
         {
             if (SensoryNarrativeUtility.IsLowTech)
             {
@@ -1189,7 +1607,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public override string GetDescription()
     {
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+        bool isClassified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+                            (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
+
+        if (!isClassified)
         {
             return SensoryNarrativeUtility.GetContactDescription();
         }
@@ -1222,9 +1643,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     // ITrader & IThingHolder Implementations (Roadside Persistent Trading)
     // =========================================================================
 
-    public TraderKindDef? TraderKind => incidentParms?.traderKind ?? Faction?.def?.caravanTraderKinds?.FirstOrDefault();
+    public TraderKindDef? TraderKind => GroupKind == IncursionGroupKind.TradeCaravan
+        ? (incidentParms?.traderKind ?? Faction?.def?.caravanTraderKinds?.FirstOrDefault())
+        : null;
 
-    public IEnumerable<Thing> Goods => GetOrCreateTradeStock();
+    public IEnumerable<Thing> Goods => GroupKind == IncursionGroupKind.TradeCaravan ? GetOrCreateTradeStock() : Enumerable.Empty<Thing>();
 
     public int RandomPriceFactorSeed => ID;
 
@@ -1273,7 +1696,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         if (tradeStock == null)
         {
             tradeStock = new ThingOwner<Thing>(this);
-            if (TraderKind != null)
+            if (GroupKind == IncursionGroupKind.TradeCaravan && TraderKind != null)
             {
                 ThingSetMakerParams parms = default;
                 parms.traderDef = TraderKind;
@@ -1300,14 +1723,39 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     // Overland Physiological Simulation (Retreating Raiders & Captives)
     // =========================================================================
 
+    private void TickCommittedPawnsPhysiology(int interval)
+    {
+        if (committedPawns != null && committedPawns.Count > 0)
+        {
+            SimulatePawnsPhysiology(committedPawns, interval, "Incursion combatant");
+        }
+    }
+
     private void TickRetreatingPawnsPhysiology(int interval)
     {
-        if (retreatingPawns == null || retreatingPawns.Count == 0)
+        if (retreatingPawns != null && retreatingPawns.Count > 0)
         {
-            return;
+            SimulatePawnsPhysiology(retreatingPawns, interval, "Retreating raider");
         }
 
-        bool restingNow = IsRestingAtNight;
+        if (retreatingPawns == null || retreatingPawns.Count == 0)
+        {
+            if (kidnappedColonists != null && kidnappedColonists.Count > 0)
+            {
+                string captivesList = string.Join(", ", kidnappedColonists.Select(c => c.LabelShort));
+                LetterDef posDef = PV_LetterDefOf.PV_TacticalEncounter_Positive ?? LetterDefOf.PositiveEvent;
+                var letter = (ChoiceLetter_TacticalEncounter)LetterMaker.MakeLetter(posDef);
+                letter.label = "Captors Succumbed: " + LabelCap;
+                letter.text = $"All captors holding {captivesList} have died of their wounds on the overland trail!\n\n" +
+                              $"{captivesList} remains stranded at tile {Tile}. A rescue caravan can now be dispatched to recover them safely.";
+                letter.targetWorldObject = this;
+                letter.targetTile = Tile;
+                letter.worldButtonLabel = "Go to cell (Geoscape)";
+                letter.lookTargets = new GlobalTargetInfo(Tile);
+                Find.LetterStack.ReceiveLetter(letter);
+            }
+            return;
+        }
 
         Pawn? doctor = retreatingPawns
             .Where(p => !p.Dead && !p.Downed && p.health?.capacities?.CanBeAwake == true)
@@ -1324,64 +1772,6 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 {
                     carriedMed = med;
                     break;
-                }
-            }
-        }
-
-        for (int i = retreatingPawns.Count - 1; i >= 0; i--)
-        {
-            Pawn p = retreatingPawns[i];
-            if (p == null)
-            {
-                retreatingPawns.RemoveAt(i);
-                continue;
-            }
-
-            if (!p.Dead)
-            {
-                try
-                {
-                    p.health?.HealthTickInterval(interval);
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"[Project Vigilance] Error ticking health for retreating pawn {p.LabelShort}: {ex.Message}");
-                }
-
-                if (p.Dead)
-                {
-                    Log.Message($"[Project Vigilance] Retreating raider {p.LabelShort} succumbed to wounds on the march.");
-                    retreatingPawns.RemoveAt(i);
-                    continue;
-                }
-
-                if (doctor != null && p.health != null && p.health.HasHediffsNeedingTend())
-                {
-                    TendUtility.DoTend(doctor, p, carriedMed);
-                }
-
-                if (p.needs != null)
-                {
-                    if (restingNow && p.needs.rest != null)
-                    {
-                        p.needs.rest.CurLevel += 0.002f * (interval / 250f);
-                    }
-                    if (p.needs.food != null)
-                    {
-                        p.needs.food.CurLevel -= 0.0005f * (interval / 250f);
-
-                        // Caravan Eating Simulation: Consume carried provisions when hungry
-                        if (p.needs.food.CurLevelPercentage < 0.35f && p.inventory?.innerContainer != null)
-                        {
-                            Thing? edible = p.inventory.innerContainer.FirstOrDefault(t => t.def.IsNutritionGivingIngestible);
-                            if (edible != null)
-                            {
-                                float nut = edible.def.ingestible?.CachedNutrition ?? 0.5f;
-                                p.needs.food.CurLevel += nut;
-                                edible.SplitOff(1).Destroy();
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -1447,13 +1837,100 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         if (retreatingPawns.Count == 0 && kidnappedColonists != null && kidnappedColonists.Count > 0)
         {
             string captivesList = string.Join(", ", kidnappedColonists.Select(c => c.LabelShort));
-            Find.LetterStack.ReceiveLetter(
-                "Captors Succumbed: " + LabelCap,
-                $"All captors holding {captivesList} have died of their wounds on the overland trail!\n\n" +
-                $"{captivesList} remains stranded at tile {Tile}. A rescue caravan can now be dispatched to recover them safely.",
-                LetterDefOf.PositiveEvent,
-                new GlobalTargetInfo(Tile)
-            );
+            LetterDef posDef = PV_LetterDefOf.PV_TacticalEncounter_Positive ?? LetterDefOf.PositiveEvent;
+            var letter = (ChoiceLetter_TacticalEncounter)LetterMaker.MakeLetter(posDef);
+            letter.label = "Captors Succumbed: " + LabelCap;
+            letter.text = $"All captors holding {captivesList} have died of their wounds on the overland trail!\n\n" +
+                          $"{captivesList} remains stranded at tile {Tile}. A rescue caravan can now be dispatched to recover them safely.";
+            letter.targetWorldObject = this;
+            letter.targetTile = Tile;
+            letter.worldButtonLabel = "Go to cell (Geoscape)";
+            letter.lookTargets = new GlobalTargetInfo(Tile);
+            Find.LetterStack.ReceiveLetter(letter);
+        }
+    }
+
+    private void SimulatePawnsPhysiology(List<Pawn> pawns, int interval, string pawnLabel)
+    {
+        if (pawns == null || pawns.Count == 0) return;
+
+        bool restingNow = IsRestingAtNight;
+
+        Pawn? doctor = pawns
+            .Where(p => !p.Dead && !p.Downed && p.health?.capacities?.CanBeAwake == true)
+            .OrderByDescending(p => p.skills?.GetSkill(SkillDefOf.Medicine)?.Level ?? 0)
+            .FirstOrDefault();
+
+        Medicine? carriedMed = null;
+        foreach (var p in pawns)
+        {
+            if (p.inventory?.innerContainer != null)
+            {
+                var med = p.inventory.innerContainer.FirstOrDefault(t => t is Medicine) as Medicine;
+                if (med != null)
+                {
+                    carriedMed = med;
+                    break;
+                }
+            }
+        }
+
+        for (int i = pawns.Count - 1; i >= 0; i--)
+        {
+            Pawn p = pawns[i];
+            if (p == null)
+            {
+                pawns.RemoveAt(i);
+                continue;
+            }
+
+            if (!p.Dead)
+            {
+                try
+                {
+                    p.health?.HealthTickInterval(interval);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"[Project Vigilance] Error ticking health for {pawnLabel} {p.LabelShort}: {ex.Message}");
+                }
+
+                if (p.Dead)
+                {
+                    Log.Message($"[Project Vigilance] {pawnLabel} {p.LabelShort} succumbed to wounds on the march.");
+                    pawns.RemoveAt(i);
+                    continue;
+                }
+
+                if (doctor != null && p.health != null && p.health.HasHediffsNeedingTend())
+                {
+                    TendUtility.DoTend(doctor, p, carriedMed);
+                }
+
+                if (p.needs != null)
+                {
+                    if (restingNow && p.needs.rest != null)
+                    {
+                        p.needs.rest.CurLevel += 0.002f * (interval / 250f);
+                    }
+                    if (p.needs.food != null)
+                    {
+                        p.needs.food.CurLevel -= 0.0005f * (interval / 250f);
+
+                        // Caravan Eating Simulation: Consume carried provisions when hungry
+                        if (p.needs.food.CurLevelPercentage < 0.35f && p.inventory?.innerContainer != null)
+                        {
+                            Thing? edible = p.inventory.innerContainer.FirstOrDefault(t => t.def.IsNutritionGivingIngestible);
+                            if (edible != null)
+                            {
+                                float nut = edible.def.ingestible?.CachedNutrition ?? 0.5f;
+                                p.needs.food.CurLevel += nut;
+                                edible.SplitOff(1).Destroy();
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

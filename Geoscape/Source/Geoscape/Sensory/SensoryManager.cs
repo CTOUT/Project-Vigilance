@@ -5,6 +5,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Geoscape.World;
 
 namespace ProjectVigilance.Geoscape.Sensory;
 
@@ -109,17 +110,18 @@ public class SensoryManager : WorldComponent
     {
         activeSensorsCache.Clear();
 
-        // 1. Natural Colony Scout Horizons (Settlements with active maps)
+        // 1. Natural Colony & Camp Scout Horizons (Settlements, Camps, and Outposts with active maps)
         if (Find.Maps != null)
         {
             foreach (Map map in Find.Maps)
             {
-                if (map.IsPlayerHome && map.Parent != null && map.Parent.Tile.Valid)
+                if (map.Parent != null && map.Parent.Tile.Valid &&
+                    (map.IsPlayerHome || (map.Parent.Faction == Faction.OfPlayer) || (map.mapPawns != null && map.mapPawns.AnyFreeColonistSpawned)))
                 {
                     int parentId = map.Parent.ID;
                     if (!colonySensors.TryGetValue(parentId, out var sensor))
                     {
-                        sensor = new ScoutHorizonSensor(map.Parent, isColony: true);
+                        sensor = new ScoutHorizonSensor(map.Parent, isColony: map.IsPlayerHome);
                         colonySensors[parentId] = sensor;
                     }
                     if (sensor.IsSensorActive)
@@ -312,6 +314,26 @@ public class SensoryManager : WorldComponent
                 }
             }
 
+            // Special persistence: Retreating forces carrying captured player colonists remain actively tracked via colonist distress beacons
+            if (target is WorldObject_Incursion inc && inc.IsRetreating)
+            {
+                if (inc.KidnappedColonists != null && inc.KidnappedColonists.Count > 0)
+                {
+                    if (bestTier < IntelligenceTier.Classified)
+                    {
+                        bestTier = IntelligenceTier.Classified;
+                    }
+                }
+                else
+                {
+                    // Fleeing raiders retain a contact blip on the geoscape for pursuit
+                    if (bestTier < IntelligenceTier.Contact)
+                    {
+                        bestTier = IntelligenceTier.Contact;
+                    }
+                }
+            }
+
             if (bestTier > target.CurrentIntelligenceTier)
             {
                 target.OnDetected(bestSensor!, bestTier);
@@ -361,7 +383,7 @@ public class SensoryManager : WorldComponent
     /// <summary>
     /// Populates the provided set with all planet tiles currently enveloped by active sensors (colonies, caravans, radar stations).
     /// Used by WorldDrawLayer_RadarCoverage to render tactical perimeter boundaries and holographic honeycomb grids.
-    /// Optionally outputs tiles within optical identification range (45% detection radius) and closest distance to perimeter.
+    /// Outputs tiles within optical identification range (45% detection radius) and closest distance to perimeter using exact topological rings.
     /// </summary>
     public void PopulateActiveVisionTiles(
         HashSet<PlanetTile> outTiles,
@@ -376,31 +398,30 @@ public class SensoryManager : WorldComponent
         for (int i = 0; i < sensors.Count; i++)
         {
             ISensorProvider sensor = sensors[i];
-            if (!sensor.SensorTile.Valid)
+            if (!sensor.SensorTile.Valid || sensor.SensorTile.Layer == null)
             {
                 continue;
             }
 
             PlanetTile centerTile = sensor.SensorTile;
             float radius = sensor.DetectionRadiusInTiles;
-            float identifiedRadius = radius * 0.45f;
-            int intRadius = Mathf.CeilToInt(radius);
+            int radiusSteps = Mathf.Max(1, Mathf.RoundToInt(radius));
+            int idRadiusSteps = Mathf.Max(1, Mathf.RoundToInt(radius * 0.45f));
+            int maxTiles = Mathf.Max(128, (radiusSteps + 1) * (radiusSteps + 1) * 6);
 
-            int maxTiles = Mathf.Max(128, intRadius * intRadius * 6);
             centerTile.Layer.Filler.FloodFill(
                 centerTile,
                 t => Find.WorldGrid.ApproxDistanceInTiles(centerTile, t) <= radius,
-                t =>
+                (t, step) =>
                 {
                     outTiles.Add(t);
-                    float dist = Find.WorldGrid.ApproxDistanceInTiles(centerTile, t);
-                    if (outIdentifiedTiles != null && dist <= identifiedRadius)
+                    if (outIdentifiedTiles != null && step <= idRadiusSteps)
                     {
                         outIdentifiedTiles.Add(t);
                     }
                     if (outTileDistancesFromPerimeter != null)
                     {
-                        float hexesFromPerim = Mathf.Max(0f, radius - dist);
+                        float hexesFromPerim = Mathf.Max(0f, radius - step);
                         if (outTileDistancesFromPerimeter.TryGetValue(t, out float curMin))
                         {
                             if (hexesFromPerim < curMin)

@@ -12,13 +12,19 @@ namespace ProjectVigilance.Geoscape.Patches;
 /// When a player caravan assaults an enemy settlement, spawns any colonists who were previously
 /// kidnapped and incarcerated at this specific settlement stronghold, enabling direct rescue operations.
 /// </summary>
-[HarmonyPatch(typeof(SettlementUtility), nameof(SettlementUtility.Attack))]
+[HarmonyPatch(typeof(SettlementUtility), "AttackNow")]
 public static class SettlementUtility_Attack_Patch
 {
     [HarmonyPostfix]
     public static void Postfix(Caravan caravan, Settlement settlement)
     {
-        if (settlement?.Map == null)
+        if (settlement == null)
+        {
+            return;
+        }
+
+        Map? map = settlement.Map ?? Current.Game?.FindMap(settlement.Tile);
+        if (map == null)
         {
             return;
         }
@@ -29,7 +35,6 @@ public static class SettlementUtility_Attack_Patch
             return;
         }
 
-        Map map = settlement.Map;
         IntVec3 baseCenter = map.Center;
 
         foreach (Pawn captive in captives)

@@ -91,7 +91,7 @@ public static class WorldObject_Visibility_Patch
     // ---------------------------------------------------------
     // 3. Planetary Landmarks (Hexagons & Icons)
     // ---------------------------------------------------------
-    [HarmonyPatch(typeof(WorldDrawLayer_Landmarks), "DrawStandard")]
+    [HarmonyPatch(typeof(WorldDrawLayer_Landmarks), "DrawStandard", typeof(Landmark), typeof(PlanetTile))]
     public static class Landmarks_DrawStandard_Patch
     {
         public static bool Prefix(PlanetTile tile)
@@ -126,13 +126,8 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            for (int i = __result.Count - 1; i >= 0; i--)
-            {
-                if (!sensory.IsExplored(__result[i]))
-                {
-                    __result.RemoveAt(i);
-                }
-            }
+            // Return a filtered copy rather than mutating vanilla's cachedLandmarksToShow static list in-place
+            __result = __result.Where(t => sensory.IsExplored(t)).ToList();
         }
     }
 

@@ -24,7 +24,7 @@ public class IncursionRetreatManager : WorldComponent
             Scribe_References.Look(ref map, "map");
             Scribe_References.Look(ref faction, "faction");
             Scribe_Collections.Look(ref fleeingPawns, "fleeingPawns", LookMode.Reference);
-            Scribe_Collections.Look(ref kidnappedColonists, "kidnappedColonists", LookMode.Deep);
+            Scribe_Collections.Look(ref kidnappedColonists, "kidnappedColonists", LookMode.Reference);
             Scribe_Values.Look(ref timeoutTick, "timeoutTick", 0);
         }
     }
@@ -92,37 +92,71 @@ public class IncursionRetreatManager : WorldComponent
         Instance = this;
     }
 
-    public static void RegisterFleeingPawn(Pawn pawn, Pawn? captive)
+    public static void RegisterFleeingPawn(Pawn pawn, Map map, Pawn? captive)
     {
-        if (Instance == null || pawn == null || pawn.Map == null || pawn.Faction == null)
+        if (Instance == null || pawn == null || map == null || pawn.Faction == null)
         {
             return;
         }
 
-        Instance.RegisterPawnInternal(pawn, captive);
+        Instance.RegisterPawnInternal(pawn, map, captive);
     }
 
-    private void RegisterPawnInternal(Pawn pawn, Pawn? captive)
+    private void RegisterPawnInternal(Pawn pawn, Map map, Pawn? captive)
     {
-        Map map = pawn.Map;
         Faction faction = pawn.Faction;
 
         RetreatBatch? batch = activeBatches.FirstOrDefault(b => b.map == map && b.faction == faction);
 
         if (batch == null)
         {
+            // Check if a retreating incursion from this map and faction is already active on the geoscape nearby
+            WorldObject_Incursion? existingIncursion = Find.WorldObjects?.AllWorldObjects
+                .OfType<WorldObject_Incursion>()
+                .FirstOrDefault(inc => inc.Spawned && inc.IsRetreating && inc.Faction == faction && inc.OriginTile == map.Tile && inc.CurrentPathIndex <= 1);
+
+            if (existingIncursion != null)
+            {
+                var fleeingList = existingIncursion.RetreatingPawns ?? new List<Pawn>();
+                if (!fleeingList.Contains(pawn))
+                {
+                    fleeingList.Add(pawn);
+                    existingIncursion.SetRetreatingPawns(fleeingList);
+                }
+
+                if (captive != null)
+                {
+                    var captivesList = existingIncursion.KidnappedColonists ?? new List<Pawn>();
+                    if (!captivesList.Contains(captive))
+                    {
+                        captivesList.Add(captive);
+                        existingIncursion.SetKidnappedColonists(captivesList);
+                        if (faction.kidnapped != null && faction.kidnapped.KidnappedPawnsListForReading.Contains(captive))
+                        {
+                            faction.kidnapped.RemoveKidnappedPawn(captive);
+                        }
+                        Messages.Message($"Fleeing {pawn.LabelShort} carrying captive {captive.LabelShort} has joined retreating {existingIncursion.LabelCap}.", existingIncursion, MessageTypeDefOf.NegativeEvent);
+                    }
+                }
+                else
+                {
+                    Messages.Message($"Fleeing {pawn.LabelShort} has joined retreating {existingIncursion.LabelCap}.", existingIncursion, MessageTypeDefOf.NeutralEvent);
+                }
+                return;
+            }
+
             batch = new RetreatBatch
             {
                 map = map,
                 faction = faction,
-                timeoutTick = Find.TickManager.TicksGame + 600 // 10 seconds departure window
+                timeoutTick = Find.TickManager.TicksGame + 1500 // 25 seconds departure window
             };
             activeBatches.Add(batch);
         }
         else
         {
             // Extend timeout as more pawns exit
-            batch.timeoutTick = Find.TickManager.TicksGame + 450;
+            batch.timeoutTick = Find.TickManager.TicksGame + 900;
         }
 
         if (!batch.fleeingPawns.Contains(pawn))
@@ -133,7 +167,10 @@ public class IncursionRetreatManager : WorldComponent
         if (captive != null && !batch.kidnappedColonists.Contains(captive))
         {
             batch.kidnappedColonists.Add(captive);
-            faction.kidnapped?.RemoveKidnappedPawn(captive);
+            if (faction.kidnapped != null && faction.kidnapped.KidnappedPawnsListForReading.Contains(captive))
+            {
+                faction.kidnapped.RemoveKidnappedPawn(captive);
+            }
             Log.Message($"[Project Vigilance] Colonist {captive.LabelShort} abducted by fleeing {pawn.LabelShort} from {faction.Name}. Intercepted vanilla instant kidnap for physical retreat.");
         }
     }
@@ -205,6 +242,14 @@ public class IncursionRetreatManager : WorldComponent
         {
             incursion.SetKidnappedColonists(new List<Pawn>(batch.kidnappedColonists));
         }
+
+        // Retreating raiders departing the player's colony are immediately identified and tracked
+        if (SensoryManager.Instance != null && incursion.TrackingId <= 0)
+        {
+            incursion.TrackingId = SensoryManager.Instance.AllocateContactTrackingId();
+        }
+        incursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
+        incursion.IsIdentified = true;
 
         Find.WorldObjects.Add(incursion);
 

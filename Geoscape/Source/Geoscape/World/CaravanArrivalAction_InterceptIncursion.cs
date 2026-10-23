@@ -20,12 +20,16 @@ public class CaravanArrivalAction_InterceptIncursion : CaravanArrivalAction
     }
 
     public override string Label => targetIncursion != null
-        ? $"Intercept {targetIncursion.LabelCap}"
-        : "Intercept";
+        ? (targetIncursion.IsIdentified
+            ? (targetIncursion.IsHostileToPlayer ? $"Intercept {targetIncursion.LabelCap}" : $"Approach {targetIncursion.LabelCap}")
+            : $"Investigate {targetIncursion.LabelCap}")
+        : "Investigate";
 
     public override string ReportString => targetIncursion != null
-        ? $"intercepting {targetIncursion.Label}"
-        : "intercepting";
+        ? (targetIncursion.IsIdentified
+            ? (targetIncursion.IsHostileToPlayer ? $"intercepting {targetIncursion.Label}" : $"approaching {targetIncursion.Label}")
+            : $"investigating {targetIncursion.Label}")
+        : "investigating";
 
     public override FloatMenuAcceptanceReport StillValid(Caravan caravan, PlanetTile destinationTile)
     {
@@ -44,7 +48,13 @@ public class CaravanArrivalAction_InterceptIncursion : CaravanArrivalAction
             return;
         }
 
-        IncursionInterceptionUtility.ExecuteInterception(caravan, targetIncursion);
+        if (caravan.Tile != targetIncursion.Tile)
+        {
+            Messages.Message($"{caravan.LabelCap} arrived at the last known position of {targetIncursion.LabelCap}, but the contact has moved on.", caravan, MessageTypeDefOf.NeutralEvent);
+            return;
+        }
+
+        IncursionInterceptionUtility.ExecuteInterception(caravan, targetIncursion, isAmbush: false);
     }
 
     public override void ExposeData()

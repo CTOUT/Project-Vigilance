@@ -9,6 +9,7 @@ namespace ProjectVigilance.Geoscape.World;
 public static class IncursionArrivalManager
 {
     private static bool isExecutingArrival;
+    private static WorldObject_Incursion? currentExecutingIncursion;
 
     public static bool IsExecutingArrival
     {
@@ -16,18 +17,10 @@ public static class IncursionArrivalManager
         set => isExecutingArrival = value;
     }
 
+    public static WorldObject_Incursion? CurrentExecutingIncursion => currentExecutingIncursion;
+
     public static bool ExecuteArrival(WorldObject_Incursion incursion)
     {
-        if (incursion.IsTurningBack)
-        {
-            string groupDesc = incursion.GetIdentifiedGroupLabel();
-            string fName = incursion.Faction?.Name ?? "peaceful travellers";
-            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) returned home safely after being warned away.");
-            Messages.Message($"The {groupDesc} from {fName} returned to their home territory safely.", new GlobalTargetInfo(incursion.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
-            incursion.Destroy();
-            return true;
-        }
-
         if (incursion.IsRetreating)
         {
             string fName = incursion.Faction?.Name ?? "enemy forces";
@@ -38,7 +31,10 @@ public static class IncursionArrivalManager
                 {
                     if (captive != null && !captive.Dead)
                     {
-                        incursion.Faction?.kidnapped?.Kidnap(captive, kidnapper);
+                        if (incursion.Faction?.kidnapped != null && !incursion.Faction.kidnapped.KidnappedPawnsListForReading.Contains(captive))
+                        {
+                            incursion.Faction.kidnapped.Kidnap(captive, kidnapper);
+                        }
                         IncursionRetreatManager.RecordSettlementIncarceration(captive, incursion.DestinationTile, incursion.Faction);
                     }
                 }
@@ -61,6 +57,16 @@ public static class IncursionArrivalManager
                 Log.Message($"[Project Vigilance] Retreating incursion {incursion.TrackingId} ({incursion.Label}) from {fName} returned to their stronghold safely.");
             }
 
+            incursion.Destroy();
+            return true;
+        }
+
+        if (incursion.IsTurningBack)
+        {
+            string groupDesc = incursion.GetIdentifiedGroupLabel();
+            string fName = incursion.Faction?.Name ?? "peaceful travellers";
+            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) returned home safely after being warned away.");
+            Messages.Message($"The {groupDesc} from {fName} returned to their home territory safely.", new GlobalTargetInfo(incursion.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
             incursion.Destroy();
             return true;
         }
@@ -138,6 +144,7 @@ public static class IncursionArrivalManager
         incursion.IncidentParms.target = targetMap;
 
         isExecutingArrival = true;
+        currentExecutingIncursion = incursion;
         bool success = false;
 
         try
@@ -167,6 +174,38 @@ public static class IncursionArrivalManager
                 Log.Warning($"[Project Vigilance] Incursion arrival incident {incursion.IncidentDef.defName} did not execute successfully. Notifying player.");
                 Messages.Message(failMsg, new GlobalTargetInfo(incursion.DestinationTile), MessageTypeDefOf.NeutralEvent, historical: true);
             }
+
+            if (success && incursion.GroupKind == IncursionGroupKind.HostileWarband)
+            {
+                // Spawn any carried kidnapped colonists on the map near the attackers only if attackers spawned
+                if (incursion.KidnappedColonists != null && incursion.KidnappedColonists.Count > 0)
+                {
+                    if (incursion.CommittedPawns is { Count: > 0 } && incursion.CommittedPawns[0].Spawned)
+                    {
+                        IntVec3 centerCell = incursion.CommittedPawns[0].Position;
+                        foreach (var captive in incursion.KidnappedColonists)
+                        {
+                            if (captive != null && !captive.Spawned)
+                            {
+                                CellFinder.TryFindRandomCellNear(centerCell, targetMap, 5, c => c.Walkable(targetMap) && !c.Fogged(targetMap), out IntVec3 cCell);
+                                GenSpawn.Spawn(captive, cCell.IsValid ? cCell : centerCell, targetMap, Rot4.Random);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Log.Warning($"[Project Vigilance] Incursion {incursion.TrackingId} arrived at settlement with {incursion.KidnappedColonists.Count} captive(s), but raiders were not spawned. Captives remain safely in overland captivity.");
+                    }
+                }
+
+                // Ensure engaged state is set
+                if (!incursion.IsEngagedInTacticalMap && incursion.CommittedPawns is { Count: > 0 })
+                {
+                    incursion.IsEngagedInTacticalMap = true;
+                    var ambushComp = targetMap.GetComponent<MapComponent_OverlandAmbush>();
+                    ambushComp?.RegisterIncursion(incursion, incursion.CommittedPawns);
+                }
+            }
         }
         catch (System.Exception ex)
         {
@@ -175,7 +214,11 @@ public static class IncursionArrivalManager
         finally
         {
             isExecutingArrival = false;
-            incursion.Destroy();
+            currentExecutingIncursion = null;
+            if (incursion.Spawned && !incursion.IsEngagedInTacticalMap)
+            {
+                incursion.Destroy();
+            }
         }
 
         return success;

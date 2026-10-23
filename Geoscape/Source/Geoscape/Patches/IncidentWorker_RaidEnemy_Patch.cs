@@ -47,10 +47,8 @@ public static class IncidentWorker_RaidEnemy_Patch
             __instance.ResolveRaidArriveMode(parms);
         }
 
-        // 4. Drop pod raids bypass overland transit in this milestone
-        if (parms.raidArrivalMode == PawnsArrivalModeDefOf.CenterDrop ||
-            parms.raidArrivalMode == PawnsArrivalModeDefOf.EdgeDrop ||
-            parms.raidArrivalMode == PawnsArrivalModeDefOf.RandomDrop)
+        // 4. Drop pod and non-walk-in raids bypass overland transit in this milestone
+        if (parms.raidArrivalMode != null && !parms.raidArrivalMode.walkIn)
         {
             return true;
         }

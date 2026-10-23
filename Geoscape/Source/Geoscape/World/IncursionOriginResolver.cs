@@ -121,7 +121,7 @@ public static class IncursionOriginResolver
         return false;
     }
 
-    private static bool TryBuildPath(PlanetTile start, PlanetTile dest, out List<PlanetTile> resultPath)
+    public static bool TryBuildPath(PlanetTile start, PlanetTile dest, out List<PlanetTile> resultPath)
     {
         resultPath = new List<PlanetTile>();
 
