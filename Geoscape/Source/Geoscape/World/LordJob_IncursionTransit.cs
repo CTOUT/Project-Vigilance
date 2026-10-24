@@ -109,12 +109,6 @@ public class Trigger_IncursionThreatDetection : Trigger
 
         var ambush = map.GetComponent<MapComponent_OverlandAmbush>();
 
-        // Ongoing firefight active on map
-        if (ambush != null && ambush.AmbushSprung)
-        {
-            return true;
-        }
-
         // Recent gunfire / explosion within hearing distance
         if (ambush != null && ambush.LastCombatNoiseTick > 0 && (Find.TickManager.TicksGame - ambush.LastCombatNoiseTick) < 300)
         {
@@ -124,7 +118,7 @@ public class Trigger_IncursionThreatDetection : Trigger
                 for (int i = 0; i < lord.ownedPawns.Count; i++)
                 {
                     Pawn p = lord.ownedPawns[i];
-                    if (p != null && p.Spawned && !p.Dead && p.Position.InHorDistOf(noisePos, 50f))
+                    if (p != null && p.Spawned && !p.Dead && !p.Downed && p.Position.InHorDistOf(noisePos, 50f))
                     {
                         return true;
                     }
@@ -132,14 +126,14 @@ public class Trigger_IncursionThreatDetection : Trigger
             }
         }
 
-        // Visual Line of Sight and Proximity to Conscious Player Colonists
+        // Visual Line of Sight to Conscious Player Colonists within 18 cells
         var colonists = map.mapPawns?.FreeColonistsSpawned;
         if (colonists != null)
         {
             for (int i = 0; i < lord.ownedPawns.Count; i++)
             {
                 Pawn incursionPawn = lord.ownedPawns[i];
-                if (incursionPawn == null || !incursionPawn.Spawned || incursionPawn.Dead || incursionPawn.Downed)
+                if (incursionPawn == null || !incursionPawn.Spawned || incursionPawn.Dead || incursionPawn.Downed || !incursionPawn.Awake())
                 {
                     continue;
                 }
@@ -153,20 +147,9 @@ public class Trigger_IncursionThreatDetection : Trigger
                     }
 
                     float distSq = incursionPawn.Position.DistanceToSquared(col.Position);
-
-                    // Close proximity (~8 cells) detects regardless of LOS (footsteps/gear rustling)
-                    if (distSq <= 64f)
+                    if (distSq <= 324f && GenSight.LineOfSight(incursionPawn.Position, col.Position, map, skipFirstCell: true))
                     {
                         return true;
-                    }
-
-                    // Medium proximity (~26 cells) with unobstructed Line of Sight
-                    if (distSq <= 676f)
-                    {
-                        if (GenSight.LineOfSight(incursionPawn.Position, col.Position, map))
-                        {
-                            return true;
-                        }
                     }
                 }
             }

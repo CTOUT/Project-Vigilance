@@ -4,6 +4,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 using Verse.AI.Group;
 using ProjectVigilance.Geoscape.Sensory;
 
@@ -85,8 +86,17 @@ public static class IncursionInterceptionUtility
         // Setup the local tactical battle map using RimWorld's caravan incident architecture
         Map battleMap = CaravanIncidentUtility.SetupCaravanAttackMap(caravan, enemies, sendLetterIfRelatedPawns: true);
 
-        // Determine if this is an ambush in player's favor (stationary caravan waiting in ambush position)
-        bool isUnawareAmbush = isAmbush && !isNightAmbush;
+        // Immediately lock incursion to tactical engagement so world ticks do not trigger duplicate transit
+        incursion.IsEngagedInTacticalMap = true;
+        if (battleMap != null)
+        {
+            var ambushComp = battleMap.GetComponent<MapComponent_OverlandAmbush>();
+            ambushComp?.RegisterIncursion(incursion, enemies, markAmbushSprung: false);
+        }
+
+        // Hostile overland encounters (ambushes, night camp raids, and field interceptions) start concealed
+        // so enemies only engage once they detect player pawns within visual range (LOS) or hear gunfire / take damage.
+        bool isUnawareAmbush = isAmbush || isNightAmbush || incursion.GroupKind != IncursionGroupKind.TradeCaravan;
 
         if (battleMap != null && enemies.Count > 0)
         {
@@ -109,30 +119,32 @@ public static class IncursionInterceptionUtility
             {
                 if (isUnawareAmbush)
                 {
-                    // Ambush in player's favor: set colonists to hold fire initially so player can choose when to strike
-                    var caravanPawns = caravan.PawnsListForReading;
-                    for (int p = 0; p < caravanPawns.Count; p++)
+                    // Draft player colonists in place and set Hold Fire so they remain concealed until ordered or spotted
+                    var spawnedColonists = battleMap.mapPawns.FreeColonistsSpawned;
+                    IntVec3 playerCenter = battleMap.Center;
+                    if (spawnedColonists.Count > 0)
                     {
-                        if (caravanPawns[p].drafter != null)
+                        int sumX = 0, sumZ = 0;
+                        for (int p = 0; p < spawnedColonists.Count; p++)
                         {
-                            caravanPawns[p].drafter.FireAtWill = false;
+                            Pawn col = spawnedColonists[p];
+                            sumX += col.Position.x;
+                            sumZ += col.Position.z;
+                            if (col.drafter != null)
+                            {
+                                col.drafter.Drafted = true;
+                                col.drafter.FireAtWill = false;
+                            }
                         }
+                        playerCenter = new IntVec3(sumX / spawnedColonists.Count, 0, sumZ / spawnedColonists.Count);
                     }
 
-                    // Enemies are in transit marching across the map towards the opposite edge
+                    // Ensure enemy group did not spawn within immediate visual detection range of player colonists
+                    EnsureEnemyGroupSeparatedFromPlayer(battleMap, enemies, spawnedColonists, playerCenter);
+
+                    // Enemies are in transit marching across the map along a route that does not walk straight into player's spawn position
                     IntVec3 enemySpawn = enemies[0].Position;
-                    IntVec3 oppositeTarget = new IntVec3(battleMap.Size.x - enemySpawn.x, 0, battleMap.Size.z - enemySpawn.z);
-                    if (!RCellFinder.TryFindRandomPawnEntryCell(out IntVec3 exitSpot, battleMap, CellFinder.EdgeRoadChance_Friendly))
-                    {
-                        if (!CellFinder.TryFindRandomEdgeCellWith(c => c.Walkable(battleMap) && !c.Fogged(battleMap), battleMap, CellFinder.EdgeRoadChance_Friendly, out exitSpot))
-                        {
-                            CellFinder.TryFindRandomCellNear(oppositeTarget, battleMap, 15, c => c.Walkable(battleMap) && !c.Fogged(battleMap), out exitSpot);
-                        }
-                    }
-                    if (!exitSpot.IsValid)
-                    {
-                        exitSpot = oppositeTarget;
-                    }
+                    IntVec3 exitSpot = FindAmbushTransitExitSpot(battleMap, enemySpawn, playerCenter);
 
                     LordJob travelJob = new LordJob_TravelAndExit(exitSpot);
                     Lord travelLord = LordMaker.MakeNewLord(enemyFaction, travelJob, battleMap, enemies);
@@ -158,6 +170,75 @@ public static class IncursionInterceptionUtility
                     incursion.IsEngagedInTacticalMap = true;
                     var ambushComp = battleMap.GetComponent<MapComponent_OverlandAmbush>();
                     ambushComp?.InitializeActiveCombat(enemyFaction, enemies, contactName, factionName, incursion);
+                }
+            }
+        }
+
+        // Onboard any other friendly/visitor caravans present on this world tile cleanly as independent cohorts
+        if (battleMap != null)
+        {
+            // Only consider non-player visiting/allied caravans as guest cohorts (never treat player caravans as guests)
+            var otherCaravans = Find.WorldObjects?.Caravans?
+                .Where(c => c != null && c.Spawned && c.Tile == incursion.Tile && c != caravan && c.Faction != Faction.OfPlayer)
+                .ToList();
+
+            if (otherCaravans != null && otherCaravans.Count > 0)
+            {
+                var ambushComp = battleMap.GetComponent<MapComponent_OverlandAmbush>();
+                IntVec3 playerGroupCenter = battleMap.mapPawns.FreeColonistsSpawned.FirstOrDefault()?.Position ?? battleMap.Center;
+
+                for (int oc = 0; oc < otherCaravans.Count; oc++)
+                {
+                    Caravan other = otherCaravans[oc];
+                    string otherLabel = other.LabelCap;
+                    Faction otherFaction = other.Faction;
+
+                    // Snapshot pawns to transfer (ignoring any player pawns that might have been carried)
+                    var cohortPawns = other.PawnsListForReading.Where(p => p != null && p.Faction != Faction.OfPlayer).ToList();
+                    if (cohortPawns.Count == 0)
+                    {
+                        other.Destroy();
+                        continue;
+                    }
+
+                    // Remove pawns from world caravan container cleanly before spawning
+                    for (int cp = 0; cp < cohortPawns.Count; cp++)
+                    {
+                        other.RemovePawn(cohortPawns[cp]);
+                    }
+
+                    // Destroy/clean empty world caravan so CheckAnyNonWorldPawns doesn't run on it
+                    if (other.Spawned)
+                    {
+                        other.Destroy();
+                    }
+
+                    // Spawn cohort pawns separated from player group so they are not caught in crossfire
+                    List<Pawn> spawnedCohort = new();
+                    CellFinder.TryFindRandomCellNear(playerGroupCenter, battleMap, 15, c => c.Walkable(battleMap) && !c.Fogged(battleMap), out IntVec3 cohortCenter);
+                    if (!cohortCenter.IsValid) cohortCenter = playerGroupCenter;
+
+                    for (int cp = 0; cp < cohortPawns.Count; cp++)
+                    {
+                        Pawn p = cohortPawns[cp];
+                        if (p != null && !p.Spawned)
+                        {
+                            CellFinder.TryFindRandomCellNear(cohortCenter, battleMap, 6, c => c.Walkable(battleMap) && !c.Fogged(battleMap), out IntVec3 spawnSpot);
+                            GenSpawn.Spawn(p, spawnSpot.IsValid ? spawnSpot : cohortCenter, battleMap, Rot4.Random);
+                            spawnedCohort.Add(p);
+                        }
+                    }
+
+                    if (spawnedCohort.Count > 0)
+                    {
+                        // Assign independent AI Lord: defend themselves / assist in battle
+                        LordJob assistJob = new LordJob_DefendBase(otherFaction, cohortCenter, delayBeforeAssault: 0, attackWhenPlayerBecameEnemy: false);
+                        LordMaker.MakeNewLord(otherFaction, assistJob, battleMap, spawnedCohort);
+
+                        // Register cohort into overland ambush tracker
+                        ambushComp?.RegisterGuestCohort(otherLabel, otherFaction, spawnedCohort);
+                        Log.Message($"[Project Vigilance] Onboarded allied/visitor party '{otherLabel}' ({spawnedCohort.Count} pawns) into tactical encounter map as an independent cohort.");
+                    }
                 }
             }
         }
@@ -764,8 +845,15 @@ public static class IncursionInterceptionUtility
 
         Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) assaulted player map at tile {incursion.Tile}. MapIsPlayerHome={map.IsPlayerHome}");
 
-        // If it's a permanent home colony and has standard incident parameters, attempt vanilla storyteller arrival first
-        if (map.IsPlayerHome && incursion.IncidentDef != null && incursion.IncidentParms != null)
+        // If it's a permanent home colony and is a native ThreatBig raid without pre-existing tactical pawns, attempt vanilla storyteller arrival first
+        bool hasPreExistingPawns = (incursion.CommittedPawns != null && incursion.CommittedPawns.Count > 0) ||
+                                   (incursion.RetreatingPawns != null && incursion.RetreatingPawns.Count > 0);
+        if (!IncursionArrivalManager.IsExecutingArrival &&
+            map.IsPlayerHome &&
+            !hasPreExistingPawns &&
+            incursion.IncidentDef != null &&
+            incursion.IncidentDef.category == IncidentCategoryDefOf.ThreatBig &&
+            incursion.IncidentParms != null)
         {
             incursion.DestinationTile = incursion.Tile;
             incursion.IncidentParms.target = map;
@@ -1136,5 +1224,121 @@ public static class IncursionInterceptionUtility
                 exitDir = Rot4.West;
             }
         }
+    }
+
+    private static void EnsureEnemyGroupSeparatedFromPlayer(Map map, List<Pawn> enemies, List<Pawn> colonists, IntVec3 playerCenter)
+    {
+        if (enemies == null || enemies.Count == 0 || colonists == null || colonists.Count == 0)
+        {
+            return;
+        }
+
+        bool tooClose = false;
+        for (int i = 0; i < enemies.Count && !tooClose; i++)
+        {
+            Pawn e = enemies[i];
+            if (e == null || !e.Spawned) continue;
+            for (int j = 0; j < colonists.Count; j++)
+            {
+                Pawn c = colonists[j];
+                if (c != null && c.Spawned && e.Position.InHorDistOf(c.Position, 35f))
+                {
+                    tooClose = true;
+                    break;
+                }
+            }
+        }
+
+        if (!tooClose)
+        {
+            return;
+        }
+
+        if (CellFinder.TryFindRandomEdgeCellWith(
+            c => c.Walkable(map) && !c.Fogged(map) && c.DistanceTo(playerCenter) >= 65f,
+            map,
+            CellFinder.EdgeRoadChance_Hostile,
+            out IntVec3 newGroupCenter))
+        {
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                Pawn e = enemies[i];
+                if (e != null && e.Spawned)
+                {
+                    CellFinder.TryFindRandomCellNear(newGroupCenter, map, 6, c => c.Walkable(map) && !c.Fogged(map), out IntVec3 dest);
+                    e.Position = dest.IsValid ? dest : newGroupCenter;
+                    e.Notify_Teleported(endCurrentJob: true, resetTweenedPos: true);
+                }
+            }
+        }
+    }
+
+    private static IntVec3 FindAmbushTransitExitSpot(Map map, IntVec3 enemySpawn, IntVec3 playerCenter)
+    {
+        float minMarchDist = Mathf.Max(50f, map.Size.x * 0.45f);
+        TraverseParms traverseParms = TraverseParms.For(TraverseMode.NoPassClosedDoors);
+
+        bool IsValidExit(IntVec3 c, float minPlayerDist, float minPathClearance)
+        {
+            if (!c.InBounds(map) || !c.Walkable(map) || c.Fogged(map))
+            {
+                return false;
+            }
+            if (c.DistanceTo(enemySpawn) < minMarchDist)
+            {
+                return false;
+            }
+            if (c.DistanceTo(playerCenter) < minPlayerDist)
+            {
+                return false;
+            }
+            if (DistancePointToSegment(playerCenter, enemySpawn, c) < minPathClearance)
+            {
+                return false;
+            }
+            return map.reachability.CanReach(enemySpawn, c, PathEndMode.OnCell, traverseParms);
+        }
+
+        if (CellFinder.TryFindRandomEdgeCellWith(c => IsValidExit(c, 45f, 35f), map, CellFinder.EdgeRoadChance_Friendly, out IntVec3 exitSpot))
+        {
+            return exitSpot;
+        }
+
+        if (CellFinder.TryFindRandomEdgeCellWith(c => IsValidExit(c, 35f, 25f), map, CellFinder.EdgeRoadChance_Friendly, out exitSpot))
+        {
+            return exitSpot;
+        }
+
+        if (CellFinder.TryFindRandomEdgeCellWith(
+            c => c.Walkable(map) && !c.Fogged(map) && c.DistanceTo(enemySpawn) >= 40f && c.DistanceTo(playerCenter) >= 30f && map.reachability.CanReach(enemySpawn, c, PathEndMode.OnCell, traverseParms),
+            map,
+            CellFinder.EdgeRoadChance_Friendly,
+            out exitSpot))
+        {
+            return exitSpot;
+        }
+
+        if (RCellFinder.TryFindRandomPawnEntryCell(out exitSpot, map, CellFinder.EdgeRoadChance_Friendly))
+        {
+            return exitSpot;
+        }
+
+        return CellFinder.RandomEdgeCell(map);
+    }
+
+    private static float DistancePointToSegment(IntVec3 p, IntVec3 a, IntVec3 b)
+    {
+        Vector2 pv = new Vector2(p.x, p.z);
+        Vector2 av = new Vector2(a.x, a.z);
+        Vector2 bv = new Vector2(b.x, b.z);
+        Vector2 ab = bv - av;
+        float lenSq = ab.sqrMagnitude;
+        if (lenSq < 0.001f)
+        {
+            return Vector2.Distance(pv, av);
+        }
+        float t = Mathf.Clamp01(Vector2.Dot(pv - av, ab) / lenSq);
+        Vector2 proj = av + t * ab;
+        return Vector2.Distance(pv, proj);
     }
 }

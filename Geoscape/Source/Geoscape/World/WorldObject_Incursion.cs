@@ -97,7 +97,14 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             }
             else
             {
-                IncursionArrivalManager.ExecuteArrival(this);
+                if (IncursionOriginResolver.TryResolveRetreatRoute(Tile, Faction, out var destTile, out var retreatPath, out var speed))
+                {
+                    SetRetreatRoute(destTile, retreatPath, speed);
+                }
+                else
+                {
+                    ReverseCourse("departing destination sector after engagement");
+                }
             }
         }
     }
@@ -986,6 +993,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     if (p != null && !p.Destroyed && !p.Spawned && !Find.WorldPawns.Contains(p))
                     {
                         Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
+                        if (p.Faction != Faction.OfPlayer)
+                        {
+                            p.SetFaction(Faction.OfPlayer);
+                        }
                     }
                 }
             }

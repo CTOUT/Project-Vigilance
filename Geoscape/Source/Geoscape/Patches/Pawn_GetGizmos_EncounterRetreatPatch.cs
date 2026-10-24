@@ -42,9 +42,14 @@ public static class Pawn_GetGizmos_EncounterRetreatPatch
 
         bool hasActiveThreats = GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false);
 
-        // 1. If map has no active threats: offer direct "Reform Caravan"
+        // 1. If temporary encounter map has no active threats: offer direct "Reform Caravan"
         if (!hasActiveThreats)
         {
+            if (map.IsPlayerHome)
+            {
+                yield break;
+            }
+
             yield return new Command_Action
             {
                 defaultLabel = "Reform Caravan",

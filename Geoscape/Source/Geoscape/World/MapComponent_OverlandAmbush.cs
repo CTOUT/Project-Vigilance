@@ -50,6 +50,32 @@ public class IncursionEngagementRecord : IExposable
     }
 }
 
+public class GuestCohortRecord : IExposable
+{
+    public string groupLabel = "Visiting Party";
+    public Faction? faction;
+    public List<Pawn> pawns = new();
+    public bool hasDeparted;
+
+    public GuestCohortRecord() { }
+
+    public GuestCohortRecord(string label, Faction? f, IEnumerable<Pawn> cohortPawns)
+    {
+        groupLabel = label;
+        faction = f;
+        pawns = cohortPawns != null ? cohortPawns.Where(p => p != null).Distinct().ToList() : new List<Pawn>();
+        hasDeparted = false;
+    }
+
+    public void ExposeData()
+    {
+        Scribe_Values.Look(ref groupLabel, "groupLabel", "Visiting Party");
+        Scribe_References.Look(ref faction, "faction");
+        Scribe_Collections.Look(ref pawns, "pawns", LookMode.Reference);
+        Scribe_Values.Look(ref hasDeparted, "hasDeparted", false);
+    }
+}
+
 public class MapComponent_OverlandAmbush : MapComponent
 {
     private bool isActive;
@@ -64,6 +90,7 @@ public class MapComponent_OverlandAmbush : MapComponent
     private List<Pawn> escapedHostiles = new();
     private List<Pawn> capturedColonists = new();
     private List<IncursionEngagementRecord> engagements = new();
+    private List<GuestCohortRecord> guestCohorts = new();
     private int lastCombatNoiseTick = -99999;
     private IntVec3 lastCombatNoisePos = IntVec3.Invalid;
 
@@ -77,12 +104,22 @@ public class MapComponent_OverlandAmbush : MapComponent
     public bool IsActive => isActive;
     public bool AmbushSprung => ambushSprung;
     public List<IncursionEngagementRecord> Engagements => engagements;
+    public List<GuestCohortRecord> GuestCohorts => guestCohorts;
     public WorldObject_Incursion? SourceIncursion => engagements.FirstOrDefault(e => !e.isDisengaged)?.incursion ?? sourceIncursion;
     public string ContactName => contactName;
     public string FactionName => factionName;
     public List<Pawn> GetLivingEnemies() => allEnemies.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
     public List<Pawn> EscapedHostiles => escapedHostiles;
     public List<Pawn> CapturedColonists => capturedColonists;
+
+    public void RegisterGuestCohort(string label, Faction? f, IEnumerable<Pawn> cohortPawns)
+    {
+        if (cohortPawns == null) return;
+        var list = cohortPawns.Where(p => p != null).Distinct().ToList();
+        if (list.Count == 0) return;
+        guestCohorts.Add(new GuestCohortRecord(label, f, list));
+        Log.Message($"[Project Vigilance] Registered independent guest cohort '{label}' ({list.Count} pawns, Faction: {f?.Name ?? "Neutral"}) to overland map.");
+    }
 
     public bool HasTrackedIncursionFor(Pawn raider)
     {
@@ -221,7 +258,13 @@ public class MapComponent_OverlandAmbush : MapComponent
 
         if (sourceIncursion != null && sourceIncursion.Spawned)
         {
-            RegisterIncursion(sourceIncursion, enemies);
+            RegisterIncursion(sourceIncursion, enemies, markAmbushSprung: false);
+            var record = engagements.FirstOrDefault(e => e.incursion == sourceIncursion);
+            if (record != null)
+            {
+                record.isTransitOnly = true;
+                record.wasEngagedInCombat = false;
+            }
             ambushSprung = false; // Ambush not sprung yet
         }
     }
@@ -262,6 +305,12 @@ public class MapComponent_OverlandAmbush : MapComponent
                 {
                     var record = engagements[i];
                     if (record.isDisengaged || record.incursion == null || !record.incursion.Spawned)
+                    {
+                        continue;
+                    }
+
+                    // While the primary ambush remains concealed and un-sprung, let the ambush sweep below handle sourceIncursion
+                    if (isActive && !ambushSprung && record.incursion == sourceIncursion)
                     {
                         continue;
                     }
@@ -404,10 +453,13 @@ public class MapComponent_OverlandAmbush : MapComponent
 
                 // Check if all engagements have disengaged
                 bool anyActive = engagements.Any(e => !e.isDisengaged);
-                if (!anyActive && engagements.Count > 0)
+                if (!anyActive && engagements.Count > 0 && (!isActive || ambushSprung))
                 {
                     ambushSprung = false;
                     sourceIncursion = null;
+
+                    // Release and order any independent guest cohorts to depart safely off map edge
+                    DepartGuestCohorts();
 
                     bool isTacticalEncounter = map.Parent is CaravansBattlefield;
                     if (isTacticalEncounter)
@@ -420,7 +472,11 @@ public class MapComponent_OverlandAmbush : MapComponent
                     }
                 }
             }
-            return;
+
+            if (!isActive || ambushSprung)
+            {
+                return;
+            }
         }
 
         if (!isActive)
@@ -483,6 +539,12 @@ public class MapComponent_OverlandAmbush : MapComponent
             // Hostile incursion continues overland march with pawns that successfully exited
             if (sourceIncursion != null && sourceIncursion.Spawned)
             {
+                var record = engagements.FirstOrDefault(e => e.incursion == sourceIncursion);
+                if (record != null)
+                {
+                    record.isDisengaged = true;
+                }
+
                 if (livingEscaped.Count > 0)
                 {
                     sourceIncursion.SetCommittedPawns(livingEscaped);
@@ -670,6 +732,26 @@ public class MapComponent_OverlandAmbush : MapComponent
         if (sourceIncursion != null && sourceIncursion.Spawned)
         {
             sourceIncursion.IsEngagedInTacticalMap = true;
+            var record = engagements.FirstOrDefault(e => e.incursion == sourceIncursion);
+            if (record != null)
+            {
+                record.isTransitOnly = false;
+                record.wasEngagedInCombat = true;
+            }
+        }
+
+        // Re-enable FireAtWill for drafted player colonists now that concealment is broken
+        var spawnedColonists = map.mapPawns?.FreeColonistsSpawned;
+        if (spawnedColonists != null)
+        {
+            for (int i = 0; i < spawnedColonists.Count; i++)
+            {
+                Pawn col = spawnedColonists[i];
+                if (col?.drafter != null && col.drafter.Drafted)
+                {
+                    col.drafter.FireAtWill = true;
+                }
+            }
         }
 
         // Transition remaining active enemies to AssaultColony combat LordJob
@@ -723,7 +805,7 @@ public class MapComponent_OverlandAmbush : MapComponent
         ambushLetter.targetTile = map.Tile;
         ambushLetter.battleButtonLabel = "Go to Battlescape";
         ambushLetter.worldButtonLabel = "Go to cell (Geoscape)";
-        ambushLetter.lookTargets = new LookTargets(activeEnemies.Concat(map.mapPawns.FreeColonistsSpawned));
+        ambushLetter.lookTargets = new LookTargets(activeEnemies.Concat(map.mapPawns?.FreeColonistsSpawned ?? Enumerable.Empty<Pawn>()));
 
         Find.LetterStack.ReceiveLetter(ambushLetter);
         Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
@@ -852,6 +934,35 @@ public class MapComponent_OverlandAmbush : MapComponent
         }
     }
 
+    public void DepartGuestCohorts()
+    {
+        if (guestCohorts == null || guestCohorts.Count == 0) return;
+
+        for (int i = 0; i < guestCohorts.Count; i++)
+        {
+            var cohort = guestCohorts[i];
+            if (cohort.hasDeparted) continue;
+
+            var livingPawns = cohort.pawns.Where(p => p != null && p.Spawned && !p.Dead && !p.Downed).ToList();
+            if (livingPawns.Count > 0)
+            {
+                Faction cohortFaction = cohort.faction ?? livingPawns[0].Faction;
+                Lord? existingLord = livingPawns[0].GetLord();
+                if (existingLord != null)
+                {
+                    map.lordManager.RemoveLord(existingLord);
+                }
+
+                LordJob exitJob = new LordJob_ExitMapBest(LocomotionUrgency.Walk, canDig: true, canDefendSelf: true);
+                LordMaker.MakeNewLord(cohortFaction, exitJob, map, livingPawns);
+
+                Log.Message($"[Project Vigilance] Guest cohort '{cohort.groupLabel}' ordered to depart overland encounter map cleanly.");
+                Messages.Message($"{cohort.groupLabel} has gathered their survivors and is departing the area.", new GlobalTargetInfo(livingPawns[0].Position, map), MessageTypeDefOf.NeutralEvent);
+            }
+            cohort.hasDeparted = true;
+        }
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
@@ -867,6 +978,7 @@ public class MapComponent_OverlandAmbush : MapComponent
         Scribe_Collections.Look(ref escapedHostiles, "escapedHostiles", LookMode.Reference);
         Scribe_Collections.Look(ref capturedColonists, "capturedColonists", LookMode.Reference);
         Scribe_Collections.Look(ref engagements, "engagements", LookMode.Deep);
+        Scribe_Collections.Look(ref guestCohorts, "guestCohorts", LookMode.Deep);
         Scribe_Values.Look(ref lastCombatNoiseTick, "lastCombatNoiseTick", -99999);
         Scribe_Values.Look(ref lastCombatNoisePos, "lastCombatNoisePos", IntVec3.Invalid);
 
@@ -875,6 +987,10 @@ public class MapComponent_OverlandAmbush : MapComponent
             if (engagements == null)
             {
                 engagements = new List<IncursionEngagementRecord>();
+            }
+            if (guestCohorts == null)
+            {
+                guestCohorts = new List<GuestCohortRecord>();
             }
 
             // Backward compatibility migration for saves with sourceIncursion

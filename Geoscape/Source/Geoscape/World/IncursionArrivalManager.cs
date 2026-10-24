@@ -79,7 +79,7 @@ public static class IncursionArrivalManager
         }
 
         // Validate that destination map is still active (player has not abandoned or destroyed the settlement)
-        Map? targetMap = Current.Game.FindMap(incursion.DestinationTile);
+        Map? targetMap = Current.Game.FindMap(incursion.DestinationTile) ?? Current.Game.FindMap(incursion.Tile);
         if (targetMap == null || !Find.Maps.Contains(targetMap))
         {
             var sensoryManager = Find.World?.GetComponent<SensoryManager>();
@@ -126,18 +126,36 @@ public static class IncursionArrivalManager
             }
         }
 
-        // Friendly visitors and trade caravans arriving at an empty (evacuated) settlement
-        // cannot visit or trade with an empty colony. Politely notify the player and return home.
-        if (!hasConsciousColonists && incursion.GroupKind != IncursionGroupKind.HostileWarband)
+        bool isHostileToPlayer = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
+
+        // If no conscious colonists are present on the destination map (evacuated settlement),
+        // neither friendly visitors nor hostile raids with requireColonistsPresent can engage.
+        if (!hasConsciousColonists)
         {
             string settlementName = targetMap.Parent?.LabelCap ?? "the settlement";
             string groupDesc = incursion.GetIdentifiedGroupLabel();
-            string fName = incursion.Faction?.Name ?? "peaceful travellers";
-            string emptyMsg = $"The {groupDesc} from {fName} arrived at {settlementName}, found no colonists present, and returned home.";
+            string fName = incursion.Faction?.Name ?? (isHostileToPlayer ? "enemy forces" : "peaceful travellers");
+            string emptyMsg = isHostileToPlayer
+                ? $"The {groupDesc} from {fName} arrived at {settlementName}, found no defenders present, and dispersed."
+                : $"The {groupDesc} from {fName} arrived at {settlementName}, found no colonists present, and returned home.";
             Log.Message($"[Project Vigilance] {emptyMsg}");
-            Messages.Message(emptyMsg, new GlobalTargetInfo(incursion.DestinationTile), MessageTypeDefOf.NeutralEvent, historical: true);
+            Messages.Message(emptyMsg, new GlobalTargetInfo(targetMap.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
             incursion.Destroy();
             return false;
+        }
+
+        // If the incursion is now hostile to the player and either already has generated/committed pawns
+        // or was originally a non-raid incident (e.g. a Trade Caravan or Traveler Group whose faction turned hostile en route),
+        // execute a direct settlement assault instead of calling the neutral IncidentWorker (which would fail and claim they dispersed).
+        bool hasPreGeneratedPawns = (incursion.CommittedPawns != null && incursion.CommittedPawns.Count > 0) ||
+                                    (incursion.RetreatingPawns != null && incursion.RetreatingPawns.Count > 0);
+        bool isConvertedNeutralIncident = isHostileToPlayer && incursion.IncidentDef.category != IncidentCategoryDefOf.ThreatBig;
+
+        if (isHostileToPlayer && (hasPreGeneratedPawns || isConvertedNeutralIncident))
+        {
+            Log.Message($"[Project Vigilance] Hostile incursion {incursion.TrackingId} ({incursion.Label}) arrived at {targetMap.Parent?.LabelCap ?? "settlement"}. Executing direct settlement assault.");
+            IncursionInterceptionUtility.ExecuteCampOrSettlementAssault(targetMap, incursion);
+            return true;
         }
 
         // Re-bind target to current active map

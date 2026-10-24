@@ -4,6 +4,7 @@ using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+using Verse.AI.Group;
 using ProjectVigilance.Geoscape.World;
 
 namespace ProjectVigilance.Geoscape.Patches;
@@ -27,73 +28,97 @@ public static class Pawn_ExitMap_Patch
             return true;
         }
 
-        bool isTacticalEncounterMap = !map.IsPlayerHome &&
-                                      (map.Parent is CaravansBattlefield ||
-                                       map.GetComponent<MapComponent_OverlandAmbush>() != null);
+        bool isTacticalOrSettlementRetreat = map.Parent is CaravansBattlefield ||
+                                             map.GetComponent<MapComponent_OverlandAmbush>() != null ||
+                                             map.IsPlayerHome;
 
-        // Handle player colonists / animals falling back and reaching the map edge on a tactical encounter
-        if (isTacticalEncounterMap && __instance.Faction == Faction.OfPlayer && (__instance.IsColonist || __instance.RaceProps.Animal))
+        // Handle player colonists / animals / mechs falling back and reaching the map edge (when not being carried off by a kidnapper)
+        if (isTacticalOrSettlementRetreat &&
+            __instance.CarriedBy == null &&
+            __instance.Faction == Faction.OfPlayer &&
+            (__instance.IsColonist || __instance.RaceProps.Animal || __instance.IsColonyMech))
         {
             PlanetTile tile = map.Tile;
             Pawn? carriedPawn = __instance.carryTracker?.CarriedThing as Pawn;
+            if (carriedPawn != null && __instance.carryTracker?.innerContainer != null && __instance.carryTracker.innerContainer.Contains(carriedPawn))
+            {
+                __instance.carryTracker.innerContainer.Remove(carriedPawn);
+            }
 
-            // Find existing player caravan at this tile
-            Caravan? caravan = Find.WorldObjects?.Caravans?.FirstOrDefault(c => c.Tile == tile && c.Faction == Faction.OfPlayer);
+            Caravan? existingCaravan = Find.WorldObjects?.Caravans?.FirstOrDefault(c => c.Tile == tile && c.Faction == Faction.OfPlayer);
+            bool hadExistingCaravan = existingCaravan != null;
+
+            var exitingPawns = new List<Pawn> { __instance };
+            if (carriedPawn != null && carriedPawn.Faction == Faction.OfPlayer)
+            {
+                exitingPawns.Add(carriedPawn);
+            }
+
+            Caravan? caravan = IncursionTacticalRetreatUtility.AddOrFormPlayerCaravan(
+                exitingPawns,
+                tile,
+                existingCaravan,
+                wakeRemainingAnimalsOnMap: true);
 
             if (caravan != null)
             {
-                if (__instance.Spawned)
-                {
-                    __instance.DeSpawn(DestroyMode.Vanish);
-                }
-                caravan.AddPawn(__instance, addCarriedPawnToWorldPawnsIfAny: true);
-
-                if (carriedPawn != null)
-                {
-                    if (carriedPawn.Spawned)
-                    {
-                        carriedPawn.DeSpawn(DestroyMode.Vanish);
-                    }
-                    caravan.AddPawn(carriedPawn, addCarriedPawnToWorldPawnsIfAny: true);
-                }
-
                 Messages.Message(
-                    $"{__instance.LabelShort} reached the map edge and joined the overland caravan.",
-                    caravan,
-                    MessageTypeDefOf.PositiveEvent);
-            }
-            else
-            {
-                var caravanPawns = new List<Pawn> { __instance };
-                if (carriedPawn != null)
-                {
-                    caravanPawns.Add(carriedPawn);
-                }
-
-                if (__instance.Spawned)
-                {
-                    __instance.DeSpawn(DestroyMode.Vanish);
-                }
-                if (carriedPawn != null && carriedPawn.Spawned)
-                {
-                    carriedPawn.DeSpawn(DestroyMode.Vanish);
-                }
-
-                caravan = CaravanMaker.MakeCaravan(caravanPawns, Faction.OfPlayer, tile, addToWorldPawnsIfNotAlready: true);
-
-                Messages.Message(
-                    $"{__instance.LabelShort} reached the map edge and formed a retreating caravan on the Geoscape.",
+                    hadExistingCaravan
+                        ? $"{__instance.LabelShort} reached the map edge and joined the overland caravan."
+                        : $"{__instance.LabelShort} reached the map edge and formed a retreating caravan on the Geoscape.",
                     caravan,
                     MessageTypeDefOf.PositiveEvent);
             }
 
             // Check if any conscious player colonists remain on the battlefield
-            bool anyRemainingMobileColonists = map.mapPawns.AllPawns.Any(p => p != __instance && p != carriedPawn && p.Faction == Faction.OfPlayer && p.IsColonist && p.Spawned && !p.Dead && !p.Downed);
+            bool anyRemainingMobileColonists = map.mapPawns.AllPawns.Any(p =>
+                p != __instance &&
+                p != carriedPawn &&
+                p.Faction == Faction.OfPlayer &&
+                p.IsColonist &&
+                p.Spawned &&
+                !p.Dead &&
+                !p.Downed);
+
             if (!anyRemainingMobileColonists)
             {
+                // Gather any remaining player animals / mechs so pets are never left stranded when all colonists have retreated
+                var remainingNonColonists = map.mapPawns.AllPawns
+                    .Where(p => p != __instance && p != carriedPawn && p.Faction == Faction.OfPlayer && !p.IsColonist && p.Spawned && !p.Dead)
+                    .ToList();
+                if (remainingNonColonists.Count > 0)
+                {
+                    caravan = IncursionTacticalRetreatUtility.AddOrFormPlayerCaravan(remainingNonColonists, tile, caravan);
+                }
+
+                // Handle any downed player colonists remaining on the map
+                var remainingDownedColonists = map.mapPawns.AllPawns
+                    .Where(p => p != __instance && p != carriedPawn && p.Faction == Faction.OfPlayer && p.IsColonist && p.Spawned && !p.Dead && p.Downed)
+                    .ToList();
+
+                bool anyActiveHostiles = GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false);
+                if (remainingDownedColonists.Count > 0 && !anyActiveHostiles)
+                {
+                    // No active hostiles left: recover downed colonists into the caravan
+                    caravan = IncursionTacticalRetreatUtility.AddOrFormPlayerCaravan(remainingDownedColonists, tile, caravan);
+                    remainingDownedColonists.Clear();
+                }
+
                 var ambushComp = map.GetComponent<MapComponent_OverlandAmbush>();
                 if (ambushComp != null)
                 {
+                    if (remainingDownedColonists.Count > 0)
+                    {
+                        foreach (var downed in remainingDownedColonists)
+                        {
+                            if (!ambushComp.CapturedColonists.Contains(downed))
+                            {
+                                ambushComp.CapturedColonists.Add(downed);
+                            }
+                        }
+                        IncursionTacticalRetreatUtility.PassCapturedColonistsToWorld(remainingDownedColonists);
+                    }
+
                     bool hasAnyCaptives = ambushComp.CapturedColonists != null && ambushComp.CapturedColonists.Count > 0;
 
                     if (ambushComp.Engagements != null && ambushComp.Engagements.Count > 0)
@@ -103,6 +128,13 @@ public static class Pawn_ExitMap_Patch
                             if (record.incursion != null && record.incursion.Spawned)
                             {
                                 record.incursion.IsEngagedInTacticalMap = false;
+
+                                var livingHostiles = record.trackedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+                                if (livingHostiles.Count > 0)
+                                {
+                                    IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(livingHostiles);
+                                    record.incursion.SetCommittedPawns(livingHostiles);
+                                }
 
                                 bool recordHasCaptives = hasAnyCaptives ||
                                     (record.capturedColonists != null && record.capturedColonists.Count > 0) ||
@@ -120,10 +152,8 @@ public static class Pawn_ExitMap_Patch
                                         record.incursion.SetKidnappedColonists(new List<Pawn>(record.capturedColonists));
                                     }
 
-                                    var livingHostiles = record.trackedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
                                     if (livingHostiles.Count > 0)
                                     {
-                                        record.incursion.SetCommittedPawns(livingHostiles);
                                         record.incursion.SetRetreatingPawns(livingHostiles);
                                     }
 
@@ -157,6 +187,13 @@ public static class Pawn_ExitMap_Patch
                         var sourceIncursion = ambushComp.SourceIncursion;
                         sourceIncursion.IsEngagedInTacticalMap = false;
 
+                        var livingHostiles = ambushComp.GetLivingEnemies();
+                        if (livingHostiles.Count > 0)
+                        {
+                            IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(livingHostiles);
+                            sourceIncursion.SetCommittedPawns(livingHostiles);
+                        }
+
                         bool sourceHasCaptives = hasAnyCaptives ||
                             (sourceIncursion.KidnappedColonists != null && sourceIncursion.KidnappedColonists.Count > 0);
 
@@ -168,10 +205,8 @@ public static class Pawn_ExitMap_Patch
                                 sourceIncursion.SetKidnappedColonists(new List<Pawn>(ambushComp.CapturedColonists));
                             }
 
-                            var livingHostiles = ambushComp.GetLivingEnemies();
                             if (livingHostiles.Count > 0)
                             {
-                                sourceIncursion.SetCommittedPawns(livingHostiles);
                                 sourceIncursion.SetRetreatingPawns(livingHostiles);
                             }
 
@@ -200,12 +235,15 @@ public static class Pawn_ExitMap_Patch
                     }
                 }
 
-                // If no living player pawns are on the map at all, clean up the tactical map and return to Geoscape
+                // Clean up the tactical map and return to Geoscape
                 bool anyPlayerPawnsOnMap = map.mapPawns.AllPawns.Any(p => p != __instance && p != carriedPawn && p.Faction == Faction.OfPlayer && p.Spawned && !p.Dead);
                 if (!anyPlayerPawnsOnMap)
                 {
                     IncursionTacticalRetreatUtility.CleanUpEncounterMap(map);
-                    CameraJumper.TryJumpAndSelect(caravan);
+                    if (caravan != null)
+                    {
+                        CameraJumper.TryJumpAndSelect(caravan);
+                    }
                 }
             }
 
@@ -239,6 +277,16 @@ public static class Pawn_ExitMap_Patch
     {
         if (__state.map != null && __instance != null && __instance.Faction != null)
         {
+            Lord? lord = __instance.GetLord();
+            if (lord != null)
+            {
+                lord.RemovePawn(__instance);
+                if (lord.ownedPawns.Count == 0 && __state.map.lordManager != null && __state.map.lordManager.lords.Contains(lord))
+                {
+                    __state.map.lordManager.RemoveLord(lord);
+                }
+            }
+
             var ambushComp = __state.map.GetComponent<MapComponent_OverlandAmbush>();
             if (ambushComp != null && ambushComp.HasTrackedIncursionFor(__instance))
             {
