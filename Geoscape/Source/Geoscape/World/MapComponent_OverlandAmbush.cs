@@ -162,29 +162,35 @@ public class MapComponent_OverlandAmbush : MapComponent
             engagements.Add(record);
         }
 
-        if (enemies != null)
-        {
-            foreach (var p in enemies)
-            {
-                if (p != null)
-                {
-                    if (!allEnemies.Contains(p)) allEnemies.Add(p);
-                    if (!trackedEnemies.Contains(p)) trackedEnemies.Add(p);
-                }
-            }
-        }
-
+        bool isPrimaryIncursion = sourceIncursion == null || sourceIncursion == inc;
         if (sourceIncursion == null)
         {
             sourceIncursion = inc;
         }
-        if (enemyFaction == null && inc.Faction != null)
+
+        if (isPrimaryIncursion)
         {
-            enemyFaction = inc.Faction;
+            if (enemies != null)
+            {
+                foreach (var p in enemies)
+                {
+                    if (p != null)
+                    {
+                        if (!allEnemies.Contains(p)) allEnemies.Add(p);
+                        if (!trackedEnemies.Contains(p)) trackedEnemies.Add(p);
+                    }
+                }
+            }
+
+            if (enemyFaction == null && inc.Faction != null)
+            {
+                enemyFaction = inc.Faction;
+            }
+
+            contactName = inc.LabelCap;
+            factionName = inc.Faction?.Name ?? factionName;
         }
 
-        contactName = inc.LabelCap;
-        factionName = inc.Faction?.Name ?? factionName;
         if (markAmbushSprung)
         {
             ambushSprung = true;
@@ -521,11 +527,15 @@ public class MapComponent_OverlandAmbush : MapComponent
         // Downed enemies currently lying on the map
         var downedEnemies = allEnemies.Where(p => p.Spawned && p.Downed).ToList();
 
-        // Re-track any downed enemies who have recovered and stood back up
+        // Re-track any downed enemies of the primary travelLord who have recovered and stood back up (only if they have no current Lord)
         for (int i = 0; i < mobileEnemies.Count; i++)
         {
             Pawn mobile = mobileEnemies[i];
-            if (travelLord != null && !travelLord.ownedPawns.Contains(mobile) && map.lordManager.lords.Contains(travelLord))
+            if (travelLord != null &&
+                mobile.GetLord() == null &&
+                mobile.Faction == travelLord.faction &&
+                !travelLord.ownedPawns.Contains(mobile) &&
+                map.lordManager.lords.Contains(travelLord))
             {
                 travelLord.AddPawn(mobile);
             }
@@ -754,8 +764,10 @@ public class MapComponent_OverlandAmbush : MapComponent
             }
         }
 
-        // Transition remaining active enemies to AssaultColony combat LordJob
-        var activeEnemies = trackedEnemies.Where(p => !p.Dead && !p.Downed && p.Spawned).ToList();
+        // Transition remaining active enemies of the ambushed faction to AssaultColony combat LordJob
+        var activeEnemies = trackedEnemies
+            .Where(p => p != null && !p.Dead && !p.Downed && p.Spawned && (enemyFaction == null || p.Faction == enemyFaction))
+            .ToList();
         if (activeEnemies.Count > 0 && enemyFaction != null)
         {
             // Detach all active enemies from any existing lords (travelLord, trade lord, or prior combat lord)
@@ -778,13 +790,14 @@ public class MapComponent_OverlandAmbush : MapComponent
                 map.lordManager.RemoveLord(travelLord);
             }
 
+            bool canHumanlikeSteal = enemyFaction.def?.humanlikeFaction ?? activeEnemies.Any(p => p != null && p.RaceProps.Humanlike);
             LordJob combatJob = new LordJob_AssaultColony(
                 enemyFaction,
                 canKidnap: true,
                 canTimeoutOrFlee: true,
                 sappers: false,
                 useAvoidGridSmart: false,
-                canSteal: false);
+                canSteal: canHumanlikeSteal);
             LordMaker.MakeNewLord(enemyFaction, combatJob, map, activeEnemies);
         }
 
@@ -947,10 +960,17 @@ public class MapComponent_OverlandAmbush : MapComponent
             if (livingPawns.Count > 0)
             {
                 Faction cohortFaction = cohort.faction ?? livingPawns[0].Faction;
-                Lord? existingLord = livingPawns[0].GetLord();
-                if (existingLord != null)
+                for (int p = 0; p < livingPawns.Count; p++)
                 {
-                    map.lordManager.RemoveLord(existingLord);
+                    Lord? existingLord = livingPawns[p].GetLord();
+                    if (existingLord != null)
+                    {
+                        existingLord.RemovePawn(livingPawns[p]);
+                        if (existingLord.ownedPawns.Count == 0 && map.lordManager.lords.Contains(existingLord))
+                        {
+                            map.lordManager.RemoveLord(existingLord);
+                        }
+                    }
                 }
 
                 LordJob exitJob = new LordJob_ExitMapBest(LocomotionUrgency.Walk, canDig: true, canDefendSelf: true);

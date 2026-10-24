@@ -71,6 +71,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 - **[Module 2: Interception & Rapid Response (`Vigilance.Interception`)](docs/modules/interception-and-rapid-response.md)** `[STANDALONE]` — Aircraft range, fuel, air-to-air dogfights, crash-site generation, and tactical dropship evacuations.
 - **[Module 3: Alien Containment & Biology (`Vigilance.Containment`)](docs/modules/containment-and-biology.md)** `[STANDALONE]` — Stasis pods, autopsy tables, live prisoner interrogations, and reverse-engineering for any creature or faction.
 - **[Aquatic Operations & Sonar (`Vigilance.Aquatics`)](docs/modules/aquatic-operations.md)** `[STANDALONE]` — Deep ocean activation, coastal sonar arrays, seabed shipwreck recoveries, and diving gear for maritime operations.
+- **[Tactical Battlescape & Sensory (`Vigilance.Battlescape`)](docs/modules/battlescape-and-tactical-combat.md)** `[STANDALONE]` — 3-mode tactical fog of war (Obsidian Shroud, Slate Memory Haze, Active Vision), directional vision cones, acoustic/scent tracking for pawns, war animals, and mechanoids, and guerrilla pod combat AI.
 
 ### Campaign Overhaul (Dependent Modules)
 
@@ -87,6 +88,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 - **[Module 1 Specification: Geoscape & Radar Grid](docs/modules/geoscape-and-radar.md)**
 - **[Module 2 Specification: Interception & Rapid Response](docs/modules/interception-and-rapid-response.md)**
 - **[Module 3 Specification: Alien Containment & Biology](docs/modules/containment-and-biology.md)**
+- **[Tactical Battlescape, Sensory & Fog of War Specification](docs/modules/battlescape-and-tactical-combat.md)**
 - **[Module 4 Specification: The Invasion Campaign & Panic](docs/modules/campaign-and-panic.md)**
 - **[Aquatic Operations & Terror from the Deep Integration](docs/modules/aquatic-operations.md)**
 - **[Frequently Asked Questions (FAQ)](docs/faq.md)**

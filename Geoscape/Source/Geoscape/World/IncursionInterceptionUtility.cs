@@ -156,13 +156,14 @@ public static class IncursionInterceptionUtility
                 else
                 {
                     // Active Skirmish (Field Interception) or Night Camp Ambush: aggressive combat
+                    bool canHumanlikeSteal = enemyFaction.def?.humanlikeFaction ?? enemies.Any(p => p != null && p.RaceProps.Humanlike);
                     LordJob lordJob = new LordJob_AssaultColony(
                         enemyFaction,
                         canKidnap: true,
                         canTimeoutOrFlee: true,
                         sappers: false,
                         useAvoidGridSmart: false,
-                        canSteal: false);
+                        canSteal: canHumanlikeSteal);
                     LordMaker.MakeNewLord(enemyFaction, lordJob, battleMap, enemies);
                     Find.TickManager.Notify_GeneratedPotentiallyHostileMap();
 
@@ -231,6 +232,8 @@ public static class IncursionInterceptionUtility
 
                     if (spawnedCohort.Count > 0)
                     {
+                        StripExistingLords(spawnedCohort);
+
                         // Assign independent AI Lord: defend themselves / assist in battle
                         LordJob assistJob = new LordJob_DefendBase(otherFaction, cohortCenter, delayBeforeAssault: 0, attackWhenPlayerBecameEnemy: false);
                         LordMaker.MakeNewLord(otherFaction, assistJob, battleMap, spawnedCohort);
@@ -916,16 +919,18 @@ public static class IncursionInterceptionUtility
         }
 
         // Assign Assault Colony lord so enemies actively engage
+        StripExistingLords(enemies);
         Faction? enemyFaction = incursion.Faction ?? enemies[0].Faction;
         if (enemyFaction != null)
         {
+            bool canHumanlikeSteal = enemyFaction.def?.humanlikeFaction ?? enemies.Any(p => p != null && p.RaceProps.Humanlike);
             LordJob lordJob = new LordJob_AssaultColony(
                 enemyFaction,
                 canKidnap: true,
                 canTimeoutOrFlee: true,
                 sappers: false,
                 useAvoidGridSmart: false,
-                canSteal: false);
+                canSteal: canHumanlikeSteal);
             LordMaker.MakeNewLord(enemyFaction, lordJob, map, enemies);
         }
 
@@ -1143,6 +1148,7 @@ public static class IncursionInterceptionUtility
         }
 
         // 5. Create Lord and assign LordJob_IncursionTransit
+        StripExistingLords(pawns);
         bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
         Faction lordFaction = incursion.Faction ?? pawns[0].Faction;
 
@@ -1222,6 +1228,34 @@ public static class IncursionInterceptionUtility
                 // Moving West: entered from East, exiting West
                 entryDir = Rot4.East;
                 exitDir = Rot4.West;
+            }
+        }
+    }
+
+    private static void StripExistingLords(IReadOnlyList<Pawn> pawns)
+    {
+        if (pawns == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < pawns.Count; i++)
+        {
+            Pawn p = pawns[i];
+            if (p == null)
+            {
+                continue;
+            }
+
+            Lord? currentLord = p.GetLord();
+            if (currentLord != null)
+            {
+                Map? lordMap = currentLord.Map ?? p.Map;
+                currentLord.RemovePawn(p);
+                if (currentLord.ownedPawns.Count == 0 && lordMap?.lordManager != null && lordMap.lordManager.lords.Contains(currentLord))
+                {
+                    lordMap.lordManager.RemoveLord(currentLord);
+                }
             }
         }
     }

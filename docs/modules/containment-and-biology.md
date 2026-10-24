@@ -24,7 +24,7 @@ Capturing aliens alive is the primary method to unlock high-tier research:
 
 - Performed at an **Autopsy Table** using butcher/surgical bills.
 - Yields:
-  - **Corpse Research Knowledge:** Unlocks biological vulnerabilities (e.g., +"15% damage against Sectoids").
+  - **Corpse Research Knowledge:** Unlocks biological vulnerabilities (e.g., "+15% damage against Sectoids").
   - **Biological Components:** Hyper-fibres, alien nervous tissue, psionic glands.
   - **Organ Harvesting:** High-value bio-samples required for hybrid medical stims and gene therapies.
 

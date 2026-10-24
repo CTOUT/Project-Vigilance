@@ -27,13 +27,13 @@ Each DLC integration is designed as an architectural **soft-hook**:
 └─────────────────┘ └──────────────────┘ └──────────────────┘ └─────────────────┘ └─────────────────┘
 ```
 
-| Expansion          | Core RimWorld Theme         | X-COM Systems Unlocked                                                                                          | Target Module                                         |
-| :----------------- | :-------------------------- | :-------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
-| **Royalty** (1.2)  | Combat, Psionics & Nobility | Psi-Lab training, Sectoid/Ethereal psionics, Mind Shields, Imperial Council patronage & orbital fire support.   | **Module 3** (Biology) & **Module 5** (Theme)         |
-| **Ideology** (1.3) | Culture & Colony Beliefs    | EXALT infiltrator cults, Alien Sympathisers, "Human Purity" vs "Transhuman" precepts, victory rituals.          | **Module 4** (Campaign) & **Module 1** (Geoscape)     |
-| **Biotech** (1.4)  | Genetics & Progression      | Alien Xenotypes, Gene-modded supersoldiers, MEC Trooper frames, child cadet growth traits, mechanoid vanguards. | **Module 3** (Biology) & **Module 5** (Theme)         |
-| **Anomaly** (1.5)  | Horror & Containment        | Live holding platforms, Chryssalid zombification, mind-controlled colonists, invisible stalkers, flesh beasts.  | **Module 3** (Containment) & **Module 5** (Theme)     |
-| **Odyssey** (1.6)  | Gravships & Exploration     | Skyranger/Avenger gravships, orbital radar layer, Glowforest/Scarlands crash sites, orbital debris scavenging.  | **Module 2** (Interception) & **Module 1** (Geoscape) |
+| Expansion          | Core RimWorld Theme         | X-COM Systems Unlocked                                                                                          | Target Module                                                                  |
+| :----------------- | :-------------------------- | :-------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| **Royalty** (1.2)  | Combat, Psionics & Nobility | Psi-Lab training, Sectoid/Ethereal psionics, Mind Shields, Imperial Council patronage & orbital fire support.   | **Module 3** (Biology), **Battlescape** & **Module 5** (Theme)                 |
+| **Ideology** (1.3) | Culture & Colony Beliefs    | EXALT infiltrator cults, Alien Sympathisers, "Human Purity" vs "Transhuman" precepts, victory rituals.          | **Module 4** (Campaign) & **Module 1** (Geoscape)                              |
+| **Biotech** (1.4)  | Genetics & Progression      | Alien Xenotypes, Gene-modded supersoldiers, MEC Trooper frames, child cadet growth traits, mechanoid vanguards. | **Module 3** (Biology), **Battlescape** & **Module 5** (Theme)                 |
+| **Anomaly** (1.5)  | Horror & Containment        | Live holding platforms, Chryssalid zombification, mind-controlled colonists, invisible stalkers, flesh beasts.  | **Module 3** (Containment), **Battlescape** & **Module 5** (Theme)             |
+| **Odyssey** (1.6)  | Gravships & Exploration     | Skyranger/Avenger gravships, orbital radar layer, Glowforest/Scarlands crash sites, orbital debris scavenging.  | **Module 2** (Interception), **Module 1** (Geoscape) & **Battlescape** (Sites) |
 
 ---
 
@@ -52,6 +52,9 @@ In original 1994 X-COM, the late game turns heavily on psionic warfare: soldiers
   - X-COM commanders can earn Imperial recognition and royal honours by securing downed alien craft and sharing retrieved technology.
   - Grants access to Imperial permits: orbital bombardment strikes, emergency shuttle extractions, and rapid deployment of elite Imperial cataphract assault squads during dire base defence crises.
   - High-stakes VIP rescue quests: evacuating stranded Imperial nobles from crash sites surrounded by alien hunting packs.
+- **Tactical Battlescape Psionics & Combat Permits:**
+  - Psionic abilities integrate directly into Battlescape line-of-sight and fog of war: alien mind-control probes test against colonist psychic sensitivity through the haze, and Psionic Shields intercept high-velocity plasma fire.
+  - Imperial permits allow commanders to summon cataphract shock-teams directly into hot landing zones or request emergency dropship extractions from designated tactical perimeter beacons.
 
 ### 3.2 Ideology — EXALT Infiltration, Cultural Beliefs & Rituals
 
@@ -89,6 +92,9 @@ Biotech provides the exact engine frameworks needed to reproduce **XCOM: Enemy W
 - **Mechanoid Vanguard & Heavy MEC Troopers:**
   - Mechanitor frameworks are adapted to create **MEC Heavy Exoskeletons**—requiring cybernetically augmented pilots to operate massive chassis armed with kinetic strike modules and flamethrowers.
   - Players can deploy autonomous mechanoid breach squads (Scythers and Centipedes) as robotic vanguard teams into hazardous UFO wreckage to preserve human lives.
+- **Tactical Battlescape Synergy (Gene-Mods & Mechanoid Sensory Profiles):**
+  - Soldier gene-mods actively interface with Battlescape sensory cones: _Mimetic Skin_ grants active cloaking (full concealment from enemy vision cones) when occupying high cover without moving; _Hyper-Reactive Muscle_ elevates tactical dodge chance in close-quarters skirmishes.
+  - Mechanoids project distinct sensory capabilities on tactical maps: Scythers utilize 180° forward close-quarters tracking, Lancers project extreme-range narrow sniper optics (50-cell range with tunnel-vision blind flanks), and Centipedes project 360° phased-array radar penetrating foliage and smoke.
 
 ### 3.4 Anomaly — Psychological Terror, Entity Containment & Cosmic Horrors
 
@@ -101,6 +107,9 @@ The Anomaly expansion introduced native entity containment, psychological terror
   - When a Chryssalid kills a pawn or animal in melee combat, it injects an egg sac.
   - The victim immediately collapses into a shambling **Chryssalid Zombie**.
   - Upon taking critical damage or after a set turn timer, the zombie's chest bursts, spawning an infant or fully grown Chryssalid directly onto the battlefield.
+- **Battlescape Parasitism & Environmental Terror:**
+  - Chryssalid melee kills trigger real-time zombification during tactical combat, spawning hostile hatchlings directly into the crossfire.
+  - Downed UFO power core breaches emit mutagenic fog and psychic wails, collapsing colonist optical vision cones into pitch darkness and triggering psychological hallucinations.
 - **Psychological Paranoia & Sleeper Infiltration:**
   - Creepjoiner and refugee events can conceal telepathically subverted human sleeper agents who activate during crucial defensive operations.
   - Downed UFO cores emit terrifying psychic wails, inducing mass paranoia, hallucinations, and blood rain over nearby territories.
@@ -120,6 +129,10 @@ The 1.6 Odyssey expansion introduced player-piloted gravships, new biomes, and a
     - _Glowforest:_ Dense bioluminescent flora creates dynamic lighting shadows, disorienting night-vision optics and thermal sensors.
     - _Scarlands:_ Hazardous planetary scars with extreme radiation and toxic storms, requiring sealed environmental armour or diving suits.
   - Over 40 exotic Odyssey animals are integrated into alien abduction missions, terror harvests, and biological research projects.
+- **Exotic Battlescape Biomes & Environmental Warfare:**
+  - Tactical crash recoveries in Odyssey biomes alter line-of-sight and environmental warfare:
+    - In the _Glowforest_, bioluminescent flora casts dynamic lighting shadows that distort night-vision optics and create shifting visual cover.
+    - In the _Scarlands_, severe radiation and toxic dust storms heavily degrade optical sight cones, requiring sealed environmental carapace armour or diving suits.
 - **Final Assault in Deep Space:**
   - The climactic endgame raid on the Alien Mothership is staged as a full deep-space assault on an orbital dreadnought, requiring gravship transit and space-capable pressure gear.
 

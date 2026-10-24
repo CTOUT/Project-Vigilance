@@ -309,6 +309,30 @@ public class LordJob_IncursionTransit : LordJob
                 Messages.Message($"Hostile Patrol Evading: {faction?.Name ?? "Enemy forces"} detected your presence, but assessing their weakened numbers, they are hastening towards the perimeter!", new TargetInfo(lord.ownedPawns.FirstOrDefault()?.Position ?? IntVec3.Invalid, Map), MessageTypeDefOf.NeutralEvent);
             }));
             stateGraph.AddTransition(evadeTransition);
+
+            // Humanlike hostiles can break combat when sustaining casualties or to steal high-value loot
+            bool isHumanlike = faction?.def?.humanlikeFaction ?? true;
+            if (isHumanlike)
+            {
+                Transition casualtyRetreat = new Transition(assaultToil, evadingExitToil, false, true);
+                casualtyRetreat.AddTrigger(new Trigger_FractionPawnsLost(0.35f));
+                casualtyRetreat.AddPreAction(new TransitionAction_Message(
+                    "MessageRaidersGivenUpLeaving".Translate(faction?.def?.pawnsPlural.CapitalizeFirst() ?? "Raiders", faction?.Name ?? "enemy forces")));
+                stateGraph.AddTransition(casualtyRetreat);
+
+                LordToil_StealCover stealCoverToil = new LordToil_StealCover
+                {
+                    useAvoidGrid = true
+                };
+                stateGraph.AddToil(stealCoverToil);
+
+                Transition toStealCover = new Transition(assaultToil, stealCoverToil, false, true);
+                toStealCover.AddTrigger(new Trigger_HighValueThingsAround());
+                toStealCover.AddTrigger(new Trigger_TicksPassedWithoutHarm(1200));
+                toStealCover.AddPreAction(new TransitionAction_Message(
+                    "MessageRaidersStealing".Translate(faction?.def?.pawnsPlural.CapitalizeFirst() ?? "Raiders", faction?.Name ?? "enemy forces")));
+                stateGraph.AddTransition(toStealCover);
+            }
         }
         else
         {

@@ -168,34 +168,24 @@ Moving craft on the world map are represented as custom subclasses of `WorldObje
 ```
 Project-Vigilance/Geoscape/
 ├── 1.7/
-│   ├── Assemblies/           # Compiled net10.0 C# binaries
-│   ├── Defs/                 # XML Defs (Buildings, Comps, Research)
-│   └── Textures/             # UI blips, radar overlays, building art
+│   ├── Assemblies/           # Compiled net10.0 C# binaries (Geoscape.dll)
+│   └── Defs/                 # XML Defs (WorldObjects, Settings, ModExtensions)
 ├── About/
-│   ├── About.xml             # RimWorld 1.7 mod metadata
-│   └── Preview.png           # Workshop preview image
-└── Source/                   # C# .NET 10 solution (targeting Waylith)
-    ├── Geoscape.sln
+│   ├── About.xml             # RimWorld 1.7 mod metadata & dependencies
+│   └── Preview.png           # Workshop preview artwork
+└── Source/                   # C# .NET 10 solution (targeting Waylith / BRUTAL)
+    ├── Geoscape.slnx         # Modern .NET solution
     └── Geoscape/
         ├── Geoscape.csproj   # TargetFramework: net10.0
-        ├── Comps/
-        │   ├── CompProperties_Radar.cs
-        │   ├── CompRadar.cs
-        │   └── WorldObjectComp_RadarCoverage.cs
-        ├── World/
-        │   ├── WorldObject_MovingCraft.cs
-        │   ├── WorldObject_UFO.cs
-        │   ├── WorldObject_USO.cs
-        │   └── WorldManager_SensoryGrid.cs
-        ├── Detection/
-        │   ├── DetectionMatrix.cs
-        │   └── RadarPulseHandler.cs
-        ├── Rendering/
-        │   ├── WorldOverlay_RadarCoverage.cs
-        │   └── WorldObjectRenderer_CraftBlip.cs
-        └── Defs/
-            ├── RadarFacilityDef.cs
-            └── CraftSizeDef.cs
+        ├── GeoscapeMod.cs    # Mod entrypoint & Harmony initialization
+        ├── GeoscapeSettings.cs # Visibility modes, colors, and incursion tuning
+        ├── Debug/            # Tactical debug overlays & telemetry gizmos
+        ├── Patches/          # Minimally invasive Harmony hooks (World, Pawns, UI)
+        ├── Sensory/          # ISensorProvider, ScoutHorizonSensor, SensoryManager,
+        │                     # VisibilityMode, WorldDrawLayer_HazeOfWar, WorldDrawLayer_RadarCoverage
+        └── World/            # WorldObject_Incursion, IncursionArrivalManager,
+                              # IncursionInterceptionUtility, IncursionTacticalRetreatUtility,
+                              # MapComponent_OverlandAmbush, LordJob_IncursionTransit
 ```
 
 ---
@@ -301,3 +291,36 @@ In vanilla RimWorld, when a settlement or temporary camp is abandoned while a ho
      - **Return March:** Raiders reverse course toward their home settlement or march to the nearest friendly outpost.
      - **Opportunistic Retargeting:** Incursions can dynamically redirect their assault toward an adjacent player outpost, listening post, or allied settlement within range.
      - **Occupation Camp:** In remote wilderness, raiders may convert the abandoned player camp into an enemy outpost or bandit staging base.
+
+### 6.6 Night Owl & Schedule-Aware Caravan Rest
+
+In vanilla RimWorld, player caravans are governed by a hardcoded planetary rest lock (`CaravanNightRestUtility.WouldBeRestingAt`), forcing every caravan to halt and make camp between **22:00 and 06:00** local time regardless of colonist traits or timetable settings.
+
+Project Vigilance replaces this rigid lock (`Caravan_NightResting_Patch` and `CaravanNightRestUtility_LeftRestTicksAt_Patch`) with dynamic **circadian and Schedule-tab evaluation**:
+
+1. **Nocturnal / Night Owl Squads:**
+   - Colonists with the `NightOwl` trait on an untouched default schedule or an all-`Anything` timetable automatically adopt a nocturnal march cycle: they camp during daytime (**11:00–18:00** local time) and march through the night (**18:00–11:00**) without mood penalties.
+   - **Night Vision Advantage (`ScoutHorizonSensor`):** Awake Night Owls negate the 50% nighttime darkness penalty (`22:00–06:00`), maintaining **100% full scout horizon radius** throughout the night. During their **11:00–18:00** daytime rest window, an all-Night-Owl party is asleep in camp and its sight horizon collapses to `1.0` hex (`Asleep in Camp`).
+   - Caravan inspection strings dynamically compute remaining daytime rest hours (`LeftRestTicksAt`) rather than reporting `0s`.
+2. **Mixed Squad Majority Shift & 24/7 Watch Coverage:**
+   - When a caravan contains a mix of standard colonists and Night Owls, the caravan follows the **majority shift** of its conscious colonists so the party only camps once per 24-hour cycle (8 hours) rather than halting twice a day for 15 hours.
+   - On an exact 50/50 tie without explicit `Work` overrides, the caravan defaults to the standard **22:00–06:00** rest window.
+   - **24/7 Full Geoscape Visibility:** Because the opposite shift remains awake on camp watch while the majority sleeps—Daywalkers standing watch during daytime camp (`11:00–18:00`) and Night Owls standing watch with full night vision during nighttime camp (`22:00–06:00`)—a mixed party effectively maintains **100% "day" visibility (`baseRadius`) 24/7**.
+3. **Schedule-Tab Override & Force-Marching:**
+   - Explicit `Pawn_TimetableTracker` assignments in the **Schedule** tab override default circadian windows:
+     - Assigning a majority of colonists to `Sleep` at any hour instructs the caravan to make camp during those hours.
+     - Assigning colonists to `Work` (or `Recreation` / `Meditate`) during rest hours overrides automatic camping, allowing the player to **force-march** through the night (or day) at the cost of accumulating pawn exhaustion.
+
+### 6.7 Field Interception, Concealed Ambushes & Threat-Aware Tactical Retreat
+
+When a player caravan intercepts or is engaged by an overland incursion on the `WorldGrid`:
+
+1. **Unaware Transit & Concealed Ambush (`MapComponent_OverlandAmbush`):**
+   - Intercepted enemy patrols enter the map in an unalerted marching column (`LordJob_IncursionTransit`) along a trajectory separated from the player's concealed deployment zone, while player colonists start drafted with **Hold Fire** enabled.
+   - Enemies remain unaware unless a player colonist enters direct optical line-of-sight ($\le 18$ cells), opens fire within acoustic range ($\le 50$ cells), or damages a member of the column.
+   - If the player holds fire and lets the column pass to the exit edge, surviving pawns preserve their exact 1:1 health and equipment back onto the `WorldObject_Incursion`.
+2. **Humanlike Combat Break & Opportunistic Looting:**
+   - Humanlike hostile factions (Pirates, Outlanders, Tribals) retain full opportunistic stealing (`canSteal: true`) and casualty break transitions (`Trigger_FractionPawnsLost` / `LordToil_StealCover`), allowing battered raiders to grab high-value loot and flee the battlefield rather than fighting to the last pawn like mindless automatons.
+3. **Threat-Aware Tactical Retreat (`IncursionTacticalRetreatUtility`):**
+   - Ordering a **Retreat** from either a tactical encounter map or a besieged home settlement evaluates all known/visible threats (hostile raiders, mechanoids, insectoids, and active turrets) across all four map borders.
+   - Rather than blindly pathing to the geographically closest border cell—which could route fleeing colonists directly through an enemy vanguard—each retreating pawn scores candidate exit sectors using angular corridor threat proximity and verifies actual `PawnPath` exposure, selecting the safest reachable extraction route back to the Geoscape.

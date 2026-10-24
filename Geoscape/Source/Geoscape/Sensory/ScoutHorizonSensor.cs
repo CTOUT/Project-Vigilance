@@ -1,4 +1,5 @@
 using System.Linq;
+using ProjectVigilance.Geoscape.Patches;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -9,7 +10,7 @@ namespace ProjectVigilance.Geoscape.Sensory;
 /// <summary>
 /// Natural line-of-sight sensor representing lookouts at player settlements and traveling caravans.
 /// Provides baseline early warning without requiring electricity, research, or buildings.
-/// Respects day/night illumination cycles and lookout alertness (everyone sleeping).
+/// Respects day/night illumination cycles, lookout alertness (everyone sleeping), and Night Owl night vision.
 /// </summary>
 public class ScoutHorizonSensor : ISensorProvider
 {
@@ -41,12 +42,35 @@ public class ScoutHorizonSensor : ISensorProvider
                     if (GenCelestial.CurCelestialSunGlow(mapParent.Map) < 0.35f)
                     {
                         var pawns = mapParent.Map.mapPawns?.FreeColonistsSpawned;
-                        bool anyAwake = pawns != null && pawns.Any(p => !p.Dead && !p.Downed && !p.Suspended && RestUtility.Awake(p));
+                        bool anyAwake = false;
+                        bool anyAwakeNightOwl = false;
+                        if (pawns != null)
+                        {
+                            for (int i = 0; i < pawns.Count; i++)
+                            {
+                                Pawn p = pawns[i];
+                                if (!p.Dead && !p.Downed && !p.Suspended && RestUtility.Awake(p))
+                                {
+                                    anyAwake = true;
+                                    if (Caravan_NightResting_Patch.HasNightOwlTrait(p))
+                                    {
+                                        anyAwakeNightOwl = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
                         if (!anyAwake)
                         {
                             return SensoryNarrativeUtility.IsLowTech
                                 ? $"{parentObject.LabelCap} ({sleepingType})"
                                 : $"{parentObject.LabelCap} (Unattended Watch)";
+                        }
+
+                        if (anyAwakeNightOwl)
+                        {
+                            return $"{parentObject.LabelCap} ({nightType} - Night Owl)";
                         }
 
                         return SensoryNarrativeUtility.IsLowTech
@@ -60,9 +84,35 @@ public class ScoutHorizonSensor : ISensorProvider
                     : $"{parentObject.LabelCap} {targetType}";
             }
 
-            if (parentObject is Caravan caravan && caravan.NightResting)
+            if (parentObject is Caravan caravan)
             {
-                return $"{parentObject.LabelCap} (Asleep in Camp)";
+                int hour = caravan.Tile.Valid ? GenLocalDate.HourInteger(caravan.Tile) : 12;
+                Caravan_NightResting_Patch.GetCaravanAwakeWatchState(
+                    caravan,
+                    hour,
+                    out bool anyAwakeColonist,
+                    out bool anyAwakeNightOwl);
+
+                if (caravan.NightResting)
+                {
+                    if (!anyAwakeColonist)
+                    {
+                        return $"{parentObject.LabelCap} (Asleep in Camp)";
+                    }
+
+                    bool isDarkHours = caravan.Tile.Valid && CaravanNightRestUtility.RestingNowAt(caravan.Tile);
+                    if (isDarkHours && anyAwakeNightOwl)
+                    {
+                        return $"{parentObject.LabelCap} (Night Owl Camp Watch)";
+                    }
+
+                    return $"{parentObject.LabelCap} (Camp Watch)";
+                }
+
+                if (caravan.Tile.Valid && CaravanNightRestUtility.RestingNowAt(caravan.Tile) && anyAwakeNightOwl)
+                {
+                    return $"{parentObject.LabelCap} (Night Owl Scouts)";
+                }
             }
 
             return $"{parentObject.LabelCap} Scouts";
@@ -98,8 +148,9 @@ public class ScoutHorizonSensor : ISensorProvider
                     return baseRadius;
                 }
 
-                // Nighttime: check if any conscious colonist is awake
+                // Nighttime: check if any conscious colonist is awake, and whether any awake colonist is a Night Owl
                 bool anyAwake = false;
+                bool anyAwakeNightOwl = false;
                 var pawns = map.mapPawns?.FreeColonistsSpawned;
                 if (pawns != null)
                 {
@@ -109,7 +160,11 @@ public class ScoutHorizonSensor : ISensorProvider
                         if (!p.Dead && !p.Downed && !p.Suspended && RestUtility.Awake(p))
                         {
                             anyAwake = true;
-                            break;
+                            if (Caravan_NightResting_Patch.HasNightOwlTrait(p))
+                            {
+                                anyAwakeNightOwl = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -121,23 +176,51 @@ public class ScoutHorizonSensor : ISensorProvider
                     return 1.0f;
                 }
 
-                // Night watchman on duty: 50% visibility in darkness
+                if (anyAwakeNightOwl)
+                {
+                    // Awake Night Owl on watch negates the nighttime vision penalty
+                    return baseRadius;
+                }
+
+                // Standard night watchman on duty: 50% visibility in darkness
                 return Mathf.Max(1.0f, baseRadius * 0.5f);
             }
 
             // 2. Travelling Caravan lookouts
             if (!isColony && parentObject is Caravan caravan)
             {
-                if (caravan.NightResting)
+                int hour = caravan.Tile.Valid ? GenLocalDate.HourInteger(caravan.Tile) : 12;
+                Caravan_NightResting_Patch.GetCaravanAwakeWatchState(
+                    caravan,
+                    hour,
+                    out bool anyAwakeColonist,
+                    out bool anyAwakeNightOwl);
+
+                // If every conscious colonist in the caravan is asleep (e.g., all-Daywalker party at 22:00-06:00,
+                // or all-Night-Owl party resting at 11:00-18:00), vision collapses to camp perimeter (1.0f).
+                if (caravan.NightResting && !anyAwakeColonist)
                 {
-                    // Entire caravan is asleep in camp
                     return 1.0f;
                 }
 
-                if (CaravanNightRestUtility.RestingNowAt(caravan.Tile))
+                bool isDarkHours = caravan.Tile.Valid && CaravanNightRestUtility.RestingNowAt(caravan.Tile);
+                if (isDarkHours)
                 {
+                    // At night (22:00-06:00):
+                    // - If an awake Night Owl is present (either an all-Night-Owl squad marching at night
+                    //   or a Night Owl standing camp watch in a mixed squad), they maintain full baseRadius (100%).
+                    // - If only non-Night-Owl colonists are awake at night (e.g., force-marching), apply 50% darkness reduction.
+                    if (anyAwakeNightOwl)
+                    {
+                        return baseRadius;
+                    }
+
                     return Mathf.Max(1.0f, baseRadius * 0.5f);
                 }
+
+                // During daylight (06:00-22:00), any awake colonist (including Daywalkers on watch while
+                // a majority-Night-Owl caravan camps from 11:00-18:00) maintains full baseRadius (100%).
+                return baseRadius;
             }
 
             return baseRadius;

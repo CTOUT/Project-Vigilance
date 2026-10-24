@@ -36,7 +36,7 @@ Conventional radar cannot penetrate seawater. When alien craft descend into ocea
 ### 3.1 Detection Facilities
 
 - **Coastal Sonar Station:** Constructed on coastal colony tiles or coastal outposts. Emits passive and active acoustic sweeps into adjacent ocean hexes.
-- **Deep-Sea Acoustic Buoys:** Deployable deployable world objects dropped into deep ocean tiles to provide remote sensory coverage in international waters.
+- **Deep-Sea Acoustic Buoys:** Deployable world objects dropped into deep ocean tiles to provide remote sensory coverage in international waters.
 
 ### 3.2 Oceanic Detection Dynamics
 

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Night Owl & Schedule-Aware Caravan Rest (`Caravan_NightResting_Patch` & `ScoutHorizonSensor`):** Replaced vanilla RimWorld's hardcoded 22:00–06:00 player caravan rest lock with trait-aware (`NightOwl`) and `Pawn_TimetableTracker` (`Schedule` tab) rest and watch evaluation:
+  - **Nocturnal / Night Owl Squads:** Colonists with the `NightOwl` trait on untouched default or all-`Anything` schedules automatically rest during daytime (**11:00–18:00** local time) and march through the night (**18:00–11:00**). Awake Night Owls negate the 50% nighttime darkness penalty on `ScoutHorizonSensor`, granting full 100% scout visibility through the night (while collapsing to `1.0` hex during their 11:00–18:00 daytime sleep window if no Daywalkers are present).
+  - **Mixed Squad Majority Shift & 24/7 Watch:** Mixed caravans follow the majority circadian shift of conscious colonists for movement (defaulting to standard **22:00–06:00** rest on an exact 50/50 tie), while the opposite shift remains awake on camp watch—giving mixed parties uninterrupted **100% "day" visibility 24/7**.
+  - **Schedule-Tab Override & Force-Marching:** Explicit `Sleep` or `Work`/`Recreation`/`Meditate` timetable assignments override default circadian windows, allowing custom caravan sleep shifts or force-marching through rest hours.
+  - **Dynamic Rest Countdown (`CaravanNightRestUtility_LeftRestTicksAt_Patch`):** Accurately calculates remaining rest ticks when a player caravan camps outside standard 22:00–06:00 hours.
+- **Threat-Aware Tactical Retreat Pathfinding (`IncursionTacticalRetreatUtility`):** Upgraded tactical retreat so fleeing colonists evaluate known/visible threats (hostile raiders, mechanoids, insectoids, and active turrets) across all four map borders and verify actual `PawnPath` trajectory exposure instead of blindly running to the nearest border into enemy fire.
+- **Home Settlement Emergency Retreat:** Enabled retreating from besieged player settlements (`map.IsPlayerHome`) to form or join a player caravan on the Geoscape without vanishing into `WorldPawns`.
+- **Humanlike Combat Break & Looting:** Restored opportunistic looting (`canSteal: true`) and casualty retreat transitions (`Trigger_FractionPawnsLost` / `LordToil_StealCover`) for humanlike hostile factions in field encounters and ambushes.
+
+### Fixed
+
+- Fixed concealed overland ambushes immediately alerting enemy columns or routing their transit path through the player's deployment zone.
+- Fixed multi-caravan tactical encounters throwing `Tried to add pawn to lord ... already a member of lord` errors when secondary transiting incursions shared a battle map.
+- Fixed `Lord owns a free world pawn` error when despawning hostile raiders during a player settlement evacuation.
+- Fixed formerly-neutral trade caravans that turned hostile en route displaying a false "found no defenders and dispersed" message upon arriving to assault a player settlement.
+
 ## [0.2.0] - 2026-10-19
 
 ### Added
