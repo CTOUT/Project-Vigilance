@@ -18,6 +18,7 @@ Every module in the suite is strictly classified as either **Standalone** (zero 
 | **Module 2: Interception & Rapid Response** | `Vigilance.Interception` | **STANDALONE** | **None** _(Soft-dep on M1)_ | Air combat scrambles, aerial dogfights against incoming raids, rapid transport drops, and tactical extraction beacons.                           |
 | **Module 3: Alien Containment & Biology**   | `Vigilance.Containment`  | **STANDALONE** | **None**                    | Stasis pods, live prisoner interrogation, surgical autopsies, and tech reverse-engineering for _any_ mod or faction.                             |
 | **Aquatic Operations (TftD Layer)**         | `Vigilance.Aquatics`     | **STANDALONE** | **None** _(Hooks M1/M2)_    | Activates deep ocean tiles, coastal sonar arrays, seabed shipwreck recoveries, and diving gear for maritime playthroughs.                        |
+| **Tactical Battlescape & Sensory**          | `Vigilance.Battlescape`  | **STANDALONE** | **None** _(Hooks M1/M2)_    | 3-mode tactical fog of war, vision cones, acoustic/scent tracking for pawns/pets/mechs, and guerrilla pod AI.                                    |
 | **Module 4: Invasion Campaign & Panic**     | `Vigilance.Campaign`     | **DEPENDENT**  | Modules 1, 2, 3             | The geopolitical doom clock, Council funding, regional panic meters, and alien strategic invasion AI.                                            |
 | **Module 5: Alien Arsenal & Factions**      | `Vigilance.Theme.XCOM`   | **DEPENDENT**  | Module 4                    | Authentic X-Com alien races, plasma/sonic weapons, carapace/titan armours, and franchise audio/visual FX.                                        |
 
@@ -70,6 +71,7 @@ graph TD
         M2[Module 2: Interception & Rapid Response<br><b>Vigilance.Interception</b>]
         M3[Module 3: Alien Containment & Biology<br><b>Vigilance.Containment</b>]
         AQ[Aquatic Operations & Sonar<br><b>Vigilance.Aquatics</b>]
+        BS[Tactical Battlescape & Sensory<br><b>Vigilance.Battlescape</b>]
     end
 
     subgraph Campaign Layer [Dependent Overhaul Layer]
@@ -78,9 +80,12 @@ graph TD
     end
 
     M1 -.->|Optional Target Telemetry| M2
+    M1 -.->|Recon Ingress Telemetry| BS
+    M2 -.->|Drop-Zone Staging| BS
     M1 --> M4
     M2 --> M4
     M3 --> M4
+    BS --> M4
     AQ -.->|Oceanic Sonar Data| M1
     M4 --> M5
 ```
@@ -120,6 +125,19 @@ graph TD
   - Stasis holding pods and secure containment cells.
   - Interrogation bills and alien autopsy work tables.
   - Knowledge discovery trees and reverse-engineering data points (synergises with vanilla 1.5 / Anomaly study mechanics if present, but functions independently).
+
+### Tactical Battlescape & Sensory (`Rimworld-Battlescape`)
+
+- **Role:** Local map tactical fog of war, asymmetric sensory modelling, and anti-killbox combat AI.
+- **Dependencies:** None (Fully standalone; hooks into Module 1 and 2 if present).
+- **Standalone Utility:** Very High. Brings authentic 3-tier Fog of War, directional vision cones, scent/acoustic tracking, and guerrilla fireteam AI to any RimWorld combat encounter.
+- **Specification:** See [docs/modules/battlescape-and-tactical-combat.md](../modules/battlescape-and-tactical-combat.md).
+- **Core Systems:**
+  - 3-mode visibility: Classic Haze of War (3-tier FoW), Tactical Site Surveillance, and Omniscient.
+  - Multi-tier sensory architecture: Optical cones (humans), scent/acoustic proximity (pets/war beasts), multi-spectral and phased radar (mechanoids).
+  - Tactical equipment: Handheld Motion Scanners, weapon flashlights, flares, and smoke screens.
+  - Guerrilla & Pod AI: Fireteam patrol cohesion, ambushes, fatal-funnel traps, suppressive peeling retreats, and perimeter wall breaching.
+  - Zero-allocation spatial cell bitmasks on .NET 10 / Waylith engine.
 
 ### Module 4: The Invasion Campaign & Panic (`Rimworld-Campaign`)
 

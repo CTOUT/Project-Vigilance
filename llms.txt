@@ -10,6 +10,7 @@ This repository hosts the architectural specifications, system designs, and modu
 - Vision & Pillars: https://github.com/CTOUT/Project-Vigilance/blob/main/docs/architecture/vision-and-pillars.md
 - Modular Roadmap: https://github.com/CTOUT/Project-Vigilance/blob/main/docs/architecture/modular-system.md
 - Geoscape Specification: https://github.com/CTOUT/Project-Vigilance/blob/main/docs/modules/geoscape-and-radar.md
+- Battlescape Specification: https://github.com/CTOUT/Project-Vigilance/blob/main/docs/modules/battlescape-and-tactical-combat.md
 - Changelog: https://github.com/CTOUT/Project-Vigilance/blob/main/CHANGELOG.md
 - TODO: https://github.com/CTOUT/Project-Vigilance/blob/main/TODO.md
 

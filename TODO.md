@@ -90,6 +90,31 @@
 
 ---
 
+## Phase 3.5: Tactical Battlescape & Sensory (Standalone Framework)
+
+- [ ] **3-Mode Battlescape Visibility (`MapComponent_TacticalVisibility`):**
+  - **Mode 1: Classic Haze of War:** Obsidian Shroud (Tier 0) → Slate Memory Haze (Tier 1) → Live Line-of-Sight (Tier 2).
+  - **Mode 2: Tactical Site Surveillance:** Pre-charted terrain/structure footprints with masked dynamic hostiles.
+  - **Mode 3: Omniscient:** Vanilla spectator fallback.
+- [ ] **Zero-Allocation Spatial Cell Bitmasks:** Implement `ulong[] cellExploredBitset` and `ulong[] cellVisibleBitset` on `.NET 10` for maps up to 100,000 cells without GC allocations.
+- [ ] **Multi-Tier Sensory Modelling:**
+  - **Colonists & Biological Pawns:** 120° forward optical vision cone (~30 cells day, ~14 cells night, weather penalties) + 360° acoustic hearing horizon (~6–8 cells). Bionic and Archotech eye enhancements.
+  - **Pets & War Beasts:** 360° olfactory (scent) and acute acoustic detection aura (~18–22 cells) detecting lurking hostiles behind thin cover and walls.
+  - **Mechanoids:** Multi-spectral optics and phased radar arrays; night/smoke immunity; chassis-calibrated envelopes (Scyther wide-arc, Lancer 50-cell sniper tunnel vision, Centipede 360° radar).
+- [ ] **Tactical Field Equipment:**
+  - Handheld Motion Scanner with 250-tick acoustic sonar pulses emitting blips through walls.
+  - Directional rail flashlights, deployable spotlight structures, illumination flares, and smoke/chaff screens.
+- [ ] **Guerrilla & Pod AI (Anti-Killbox Doctrines):**
+  - Fireteam pod cohesion (dormant patrol states vs. localized alert without whole-map swarms).
+  - Ambush and fatal-funnel crossfire setups holding fire until optimal range.
+  - Peeling fallback and suppressive covering fire retreats linking up with rear pods.
+  - Perimeter breaching with sappers/explosives avoiding turret killboxes.
+- [ ] **Geoscape-to-Battlescape Integration:**
+  - Radar intel tier dictates insertion Fog of War state and landing zone (LZ) security.
+  - Live tactical countdown timers linked to inbound Geoscape reinforcements (mission doom clock).
+
+---
+
 ## Phase 4: Module 3 — Alien Containment & Biology (Standalone Base System)
 
 - [ ] Implement stasis pods and containment cell comps.
