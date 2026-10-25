@@ -457,6 +457,11 @@ Project Vigilance implements an overland trade caravan architecture:
 4. **Pre-Save Relationship Sanitization (`SanitizeDanglingRelations`):**
    - Procedural pawn generation often rolls non-essential background relationships (e.g. ex-lovers) for NPC pawns pointing to ephemeral world pawns that RimWorld's `WorldPawnGC` immediately discards.
    - Before saving, `WorldObject_Incursion.ExposeData` purges references to discarded or non-serialized world pawns, preventing missing cross-reference warnings (`Thing_Human... curParent=RimWorld.DirectPawnRelation`) upon loading.
+5. **Empty Settlement & Evacuation Return March (`IncursionArrivalManager.ExecuteArrival`):**
+   - When friendly visitors or trade caravans arrive at an empty settlement (e.g. all colonists away in an overland caravan) or an abandoned site, they recognize the colony is vacant.
+   - Rather than instantly despawning, they physically reverse course (`incursion.ReverseCourse`) and march back along their overland route toward their home territory.
+   - Their contact remains fully visible and selectable on the Geoscape (`Status: Returning home`), maintaining accurate speed and ETA telemetry.
+   - Upon safely returning to their home base, they disband with outcome `"ReturnedHomeSafely"`, ensuring accurate tracking in `ContactRegistry` rather than false `"Neutralized"` battle outcome logs.
 
 ### 6.9 Symmetrical Fog-of-War & Zero-Allocation In-Place Vertex Colors
 

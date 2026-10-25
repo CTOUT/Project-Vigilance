@@ -75,9 +75,10 @@ public static class IncursionArrivalManager
         {
             string groupDesc = incursion.GetIdentifiedGroupLabel();
             string fName = incursion.Faction?.Name ?? "peaceful travellers";
-            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) returned home safely after being warned away.");
+            string returnReason = incursion.HasBeenWarnedAway ? "ReturnedHomeAfterWarning" : "ReturnedHomeSafely";
+            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) returned home safely.");
             Messages.Message($"The {groupDesc} from {fName} returned to their home territory safely.", new GlobalTargetInfo(incursion.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
-            ContactRegistry.Instance?.DeregisterContact(incursion, "ReturnedHomeAfterWarning");
+            ContactRegistry.Instance?.DeregisterContact(incursion, returnReason);
             incursion.Destroy();
             return true;
         }
@@ -85,6 +86,7 @@ public static class IncursionArrivalManager
         if (incursion.IncidentDef == null || incursion.IncidentParms == null)
         {
             Log.Error("[Project Vigilance] Cannot execute incursion arrival: IncidentDef or IncidentParms is null.");
+            ContactRegistry.Instance?.DeregisterContact(incursion, "ArrivalError");
             incursion.Destroy();
             return false;
         }
@@ -103,22 +105,25 @@ public static class IncursionArrivalManager
             bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
             Log.Message($"[Project Vigilance] Incursion arrived at destination tile {incursion.Tile}, but the target settlement was abandoned. Aborting incident execution.");
 
-            string msg;
-            if (isIdentified)
+            if (!isHostile)
             {
                 string groupDesc = incursion.GetIdentifiedGroupLabel();
-                msg = isHostile
-                    ? $"The {groupDesc} from {fName} arrived at the abandoned settlement, found no defenders or structures of value, and dispersed."
-                    : $"The {groupDesc} from {fName} arrived at the abandoned settlement, found no one there, and returned home.";
+                string msg = $"The {groupDesc} from {fName} arrived at the abandoned settlement, found no one there, and turned back to return home.";
+                Messages.Message(msg, MessageTypeDefOf.NeutralEvent, false);
+                incursion.ReverseCourse("found settlement abandoned");
+                return false;
             }
             else
             {
-                msg = "An unidentified force arrived at the abandoned settlement, found no defenders, and dispersed.";
+                string groupDesc = isIdentified ? incursion.GetIdentifiedGroupLabel() : "An unidentified force";
+                string msg = isIdentified
+                    ? $"The {groupDesc} from {fName} arrived at the abandoned settlement, found no defenders or structures of value, and dispersed."
+                    : "An unidentified force arrived at the abandoned settlement, found no defenders, and dispersed.";
+                Messages.Message(msg, MessageTypeDefOf.NeutralEvent, false);
+                ContactRegistry.Instance?.DeregisterContact(incursion, "DispersedAtAbandonedSettlement");
+                incursion.Destroy();
+                return false;
             }
-
-            Messages.Message(msg, MessageTypeDefOf.NeutralEvent, false);
-            incursion.Destroy();
-            return false;
         }
 
         // Validate whether any conscious colonists are present on the active destination map
@@ -146,13 +151,24 @@ public static class IncursionArrivalManager
             string settlementName = targetMap.Parent?.LabelCap ?? "the settlement";
             string groupDesc = incursion.GetIdentifiedGroupLabel();
             string fName = incursion.Faction?.Name ?? (isHostileToPlayer ? "enemy forces" : "peaceful travellers");
-            string emptyMsg = isHostileToPlayer
-                ? $"The {groupDesc} from {fName} arrived at {settlementName}, found no defenders present, and dispersed."
-                : $"The {groupDesc} from {fName} arrived at {settlementName}, found no colonists present, and returned home.";
-            Log.Message($"[Project Vigilance] {emptyMsg}");
-            Messages.Message(emptyMsg, new GlobalTargetInfo(targetMap.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
-            incursion.Destroy();
-            return false;
+
+            if (!isHostileToPlayer)
+            {
+                string emptyMsg = $"The {groupDesc} from {fName} arrived at {settlementName}, found no colonists present, and turned back to return home.";
+                Log.Message($"[Project Vigilance] {emptyMsg}");
+                Messages.Message(emptyMsg, new GlobalTargetInfo(targetMap.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
+                incursion.ReverseCourse("found no colonists present at settlement");
+                return false;
+            }
+            else
+            {
+                string emptyMsg = $"The {groupDesc} from {fName} arrived at {settlementName}, found no defenders present, and dispersed.";
+                Log.Message($"[Project Vigilance] {emptyMsg}");
+                Messages.Message(emptyMsg, new GlobalTargetInfo(targetMap.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
+                ContactRegistry.Instance?.DeregisterContact(incursion, "DispersedNoDefenders");
+                incursion.Destroy();
+                return false;
+            }
         }
 
         // If the incursion is now hostile to the player and either already has generated/committed pawns
@@ -181,15 +197,23 @@ public static class IncursionArrivalManager
             Log.Message($"[Project Vigilance] Incursion arrived at destination tile {incursion.Tile}. Executing incident: {incursion.IncidentDef.defName}.");
             success = incursion.IncidentDef.Worker.TryExecute(incursion.IncidentParms);
 
-            if (success && GeoscapeMod.Settings.resetThreatCooldownOnArrival &&
-                incursion.IncidentDef.category == IncidentCategoryDefOf.ThreatBig &&
-                targetMap.storyState != null)
+            if (success)
             {
-                var lastThreatField = Traverse.Create(targetMap.storyState).Field("lastThreatBigTick");
-                if (lastThreatField.FieldExists())
+                string arrivalOutcome = (incursion.GroupKind == IncursionGroupKind.HostileWarband || isHostileToPlayer)
+                    ? (targetMap.IsPlayerHome ? "AssaultedColony" : "AssaultedOutpost")
+                    : (incursion.GroupKind == IncursionGroupKind.TradeCaravan ? "TradedAtColony" : "VisitedColony");
+                ContactRegistry.Instance?.DeregisterContact(incursion, arrivalOutcome);
+
+                if (GeoscapeMod.Settings.resetThreatCooldownOnArrival &&
+                    incursion.IncidentDef.category == IncidentCategoryDefOf.ThreatBig &&
+                    targetMap.storyState != null)
                 {
-                    lastThreatField.SetValue(Find.TickManager.TicksGame);
-                    Log.Message($"[Project Vigilance] Reset Storyteller LastThreatBigTick to current game tick ({Find.TickManager.TicksGame}) upon incursion arrival.");
+                    var lastThreatField = Traverse.Create(targetMap.storyState).Field("lastThreatBigTick");
+                    if (lastThreatField.FieldExists())
+                    {
+                        lastThreatField.SetValue(Find.TickManager.TicksGame);
+                        Log.Message($"[Project Vigilance] Reset Storyteller LastThreatBigTick to current game tick ({Find.TickManager.TicksGame}) upon incursion arrival.");
+                    }
                 }
             }
             else if (!success)
@@ -202,6 +226,18 @@ public static class IncursionArrivalManager
                     : $"The {groupDesc} from {fName} arrived at {settlementName}, but departed without incident.";
                 Log.Warning($"[Project Vigilance] Incursion arrival incident {incursion.IncidentDef.defName} did not execute successfully. Notifying player.");
                 Messages.Message(failMsg, new GlobalTargetInfo(incursion.DestinationTile), MessageTypeDefOf.NeutralEvent, historical: true);
+
+                if (!isHostileToPlayer)
+                {
+                    incursion.ReverseCourse("arrival incident failed to execute");
+                    return false;
+                }
+                else
+                {
+                    ContactRegistry.Instance?.DeregisterContact(incursion, "DispersedFailedPath");
+                    incursion.Destroy();
+                    return false;
+                }
             }
 
             if (success && incursion.GroupKind == IncursionGroupKind.HostileWarband)
@@ -244,7 +280,7 @@ public static class IncursionArrivalManager
         {
             isExecutingArrival = false;
             currentExecutingIncursion = null;
-            if (incursion.Spawned && !incursion.IsEngagedInTacticalMap)
+            if (incursion.Spawned && !incursion.IsEngagedInTacticalMap && !incursion.IsTurningBack && !incursion.IsRetreating)
             {
                 incursion.Destroy();
             }

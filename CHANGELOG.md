@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Empty Settlement Peaceful Incursion Return March & Accurate Outcome Logging (`IncursionArrivalManager`, `WorldObject_Incursion`):**
+  - Resolved an issue where peaceful trade caravans and visitor groups reaching an empty/evacuated settlement displayed a message stating they "returned home", but were immediately destroyed in place and logged in `ContactRegistry` as `"Neutralized"`, causing their contacts to vanish from the Geoscape.
+  - Peaceful visitors and traders finding no colonists present now physically turn back (`ReverseCourse`), remaining active on the Geoscape as visible contacts with updated inspect status (`Status: Returning home`) as they march back to their home territory.
+  - Upon reaching their home base, they safely disband with outcome `"ReturnedHomeSafely"`.
+  - Fixed false `"Neutralized"` outcome logging in `ContactRegistry` across all incursion arrival, visit, trade, and dispersal paths (properly logging `"TradedAtColony"`, `"VisitedColony"`, `"AssaultedColony"`, `"DispersedNoDefenders"`, and `"ReturnedHomeSafely"`).
+  - Fixed an `ArgumentOutOfRangeException` risk in `WorldObject_Incursion.ReverseCourse` when reversing completed destination paths.
 - **Dangling World Pawn Relation Sanitization on Save (`WorldObject_Incursion`):**
   - Resolved harmless but noisy load-time warnings: `"Could not resolve reference to object with loadID Thing_Human... curParent=RimWorld.DirectPawnRelation"` and `"Pawn [Name] has relation 'ExLover' with null pawn after loading. This means that we forgot to serialize pawns somewhere..."`.
   - Root cause: When RimWorld generates background pawns for an incursion, procedural relation generators occasionally roll non-essential relationships (e.g., ex-lovers) pointing to ephemeral world pawns that RimWorld's `WorldPawnGC` immediately discards. Because the incursion pawn is kept in `WorldPawns`, its relationship tracker saved a reference to the discarded pawn's ID, which failed to resolve upon loading before being auto-pruned by vanilla `Pawn_RelationsTracker`.

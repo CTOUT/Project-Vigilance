@@ -1486,7 +1486,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         if (pathTiles != null && pathTiles.Count > 0)
         {
             List<PlanetTile> newPath = new();
-            for (int i = currentPathIndex; i >= 0; i--)
+            int startIdx = Mathf.Clamp(currentPathIndex, 0, pathTiles.Count - 1);
+            for (int i = startIdx; i >= 0; i--)
             {
                 newPath.Add(pathTiles[i]);
             }
@@ -1497,10 +1498,39 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     newPath = directReturnPath;
                 }
             }
+            if (newPath.Count <= 1 && (!originTile.Valid || Tile == originTile))
+            {
+                if (IncursionOriginResolver.TryResolveRetreatRoute(Tile, Faction, out var destTile, out var retreatPath, out var speed))
+                {
+                    destinationTile = destTile;
+                    newPath = retreatPath;
+                    if (speed > 0f) speedTilesPerDay = speed;
+                }
+            }
+
             pathTiles = newPath;
             currentPathIndex = 0;
             tileProgress = 0f;
-            destinationTile = originTile;
+            if (newPath.Count > 0)
+            {
+                Tile = newPath[0];
+            }
+            if (!destinationTile.Valid || destinationTile == Tile)
+            {
+                destinationTile = originTile.Valid ? originTile : (newPath.Count > 0 ? newPath[newPath.Count - 1] : Tile);
+            }
+        }
+        else
+        {
+            if (IncursionOriginResolver.TryResolveRetreatRoute(Tile, Faction, out var destTile, out var retreatPath, out var speed))
+            {
+                destinationTile = destTile;
+                pathTiles = retreatPath;
+                currentPathIndex = 0;
+                tileProgress = 0f;
+                if (speed > 0f) speedTilesPerDay = speed;
+                if (pathTiles.Count > 0) Tile = pathTiles[0];
+            }
         }
         Log.Message($"[Project Vigilance] Incursion {TrackingId} ({LabelCap}) reversed course. Reason: {reason ?? "none"}. Returning to tile {destinationTile}.");
     }
@@ -2025,14 +2055,23 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         float effectiveSpeed = (GeoscapeMod.Settings.incursionsRestAtNight && !isMechanoid)
             ? speedTilesPerDay * (16f / 24f)
             : speedTilesPerDay;
-        float actualRemainingTiles = Math.Max(0f, (pathTiles.Count - currentPathIndex) - tileProgress);
+        float actualRemainingTiles = Math.Max(0f, (pathTiles != null ? (pathTiles.Count - currentPathIndex) : 0) - tileProgress);
         float remainingDays = actualRemainingTiles / Math.Max(0.1f, effectiveSpeed);
         float remainingHours = remainingDays * 24f;
+
+        if (isTurningBack)
+        {
+            if (!isClassified)
+            {
+                return $"{label.CapitalizeFirst()}\nStatus: Returning home\nSpeed: ~{speedTilesPerDay:F0} hexes/day";
+            }
+            return $"{label.CapitalizeFirst()} ({factionName})\nStatus: Returning home\nDestination: Tile {destinationTile}\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
+        }
 
         if (departureDelayTicks > 0)
         {
             float delayHours = departureDelayTicks / 2500f;
-            int totalTiles = Math.Max(0, pathTiles.Count);
+            int totalTiles = Math.Max(0, pathTiles?.Count ?? 0);
             float transitHours = (totalTiles / Math.Max(0.1f, effectiveSpeed)) * 24f;
             if (!isClassified)
             {
@@ -2493,7 +2532,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public override void Destroy()
     {
-        ContactRegistry.Instance?.Notify_ContactDestroyed(this, "Neutralized");
+        string defaultOutcome = (Faction != null && Faction.HostileTo(Faction.OfPlayer))
+            ? "Neutralized"
+            : "Disbanded";
+        ContactRegistry.Instance?.Notify_ContactDestroyed(this, defaultOutcome);
 
         if (committedPawns != null)
         {
