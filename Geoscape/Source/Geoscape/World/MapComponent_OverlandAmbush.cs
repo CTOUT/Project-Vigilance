@@ -124,8 +124,9 @@ public class MapComponent_OverlandAmbush : MapComponent
     public bool HasTrackedIncursionFor(Pawn raider)
     {
         if (raider == null) return false;
-        return engagements.Any(e => !e.isDisengaged && e.trackedPawns.Contains(raider)) ||
-               (sourceIncursion != null && allEnemies.Contains(raider));
+        return engagements.Any(e => e.trackedPawns.Contains(raider) || e.escapedPawns.Contains(raider)) ||
+               (sourceIncursion != null && allEnemies.Contains(raider)) ||
+               guestCohorts.Any(g => g.pawns.Contains(raider));
     }
 
     public bool HasTrackedIncursion(WorldObject_Incursion inc)
@@ -331,20 +332,33 @@ public class MapComponent_OverlandAmbush : MapComponent
                         continue;
                     }
 
-                    // Order any remaining unguided animals from this incursion to flee the battlefield
-                    foreach (var p in record.trackedPawns)
+                    // Handle any remaining conscious animals (e.g. pack camels or war beasts) from this incursion
+                    var remainingConsciousAnimals = record.trackedPawns
+                        .Where(p => p != null && p.Spawned && !p.Dead && !p.Downed && p.RaceProps.Animal)
+                        .ToList();
+
+                    if (remainingConsciousAnimals.Count > 0)
                     {
-                        if (p != null && p.Spawned && !p.Dead && !p.Downed && p.RaceProps.Animal)
+                        if ((record.isTransitOnly && !record.wasEngagedInCombat) || record.escapedPawns.Count > 0 || record.trackedPawns.Any(p => p != null && !p.Spawned && !p.Dead && !p.Destroyed))
                         {
-                            if (p.CurJob == null || p.CurJob.def != JobDefOf.Goto)
+                            // Human handlers/combatants exited the map: despawn and pass trailing pack/war animals to WorldPawns so they stay with their group
+                            IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(remainingConsciousAnimals);
+                        }
+                        else
+                        {
+                            // All human masters were killed/downed: order remaining animals to flee the battlefield
+                            foreach (var p in remainingConsciousAnimals)
                             {
-                                if (RCellFinder.TryFindRandomPawnEntryCell(out IntVec3 exitSpot, map, CellFinder.EdgeRoadChance_Hostile))
+                                if (p.CurJob == null || p.CurJob.def != JobDefOf.Goto)
                                 {
-                                    Job fleeJob = JobMaker.MakeJob(JobDefOf.Goto, exitSpot);
-                                    fleeJob.exitMapOnArrival = true;
-                                    p.jobs?.ClearQueuedJobs();
-                                    p.jobs?.EndCurrentJob(JobCondition.InterruptForced);
-                                    p.jobs?.TryTakeOrderedJob(fleeJob, JobTag.Misc);
+                                    if (RCellFinder.TryFindRandomPawnEntryCell(out IntVec3 exitSpot, map, CellFinder.EdgeRoadChance_Hostile))
+                                    {
+                                        Job fleeJob = JobMaker.MakeJob(JobDefOf.Goto, exitSpot);
+                                        fleeJob.exitMapOnArrival = true;
+                                        p.jobs?.ClearQueuedJobs();
+                                        p.jobs?.EndCurrentJob(JobCondition.InterruptForced);
+                                        p.jobs?.TryTakeOrderedJob(fleeJob, JobTag.Misc);
+                                    }
                                 }
                             }
                         }
@@ -365,9 +379,13 @@ public class MapComponent_OverlandAmbush : MapComponent
                     if (record.isTransitOnly && !record.wasEngagedInCombat)
                     {
                         // Clean peaceful transit across the sector without taking casualties or joining battle
-                        record.incursion.SetCommittedPawns(record.escapedPawns);
+                        var survivingPawns = record.escapedPawns.Count > 0
+                            ? record.escapedPawns
+                            : record.trackedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+                        record.incursion.SetCommittedPawns(survivingPawns);
                         record.incursion.IsEngagedInTacticalMap = false;
-                        Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) completed sector transit peacefully with {record.escapedPawns.Count} pawns. Continuing on Geoscape towards {record.incursion.DestinationTile}.");
+                        record.incursion.AdvancePathTile();
+                        Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) completed sector transit peacefully with {survivingPawns.Count} pawns. Continuing on Geoscape towards {record.incursion.DestinationTile}.");
                         Messages.Message($"{record.contactLabel} has passed through the sector and resumed their journey on the Geoscape.", record.incursion, MessageTypeDefOf.NeutralEvent);
                     }
                     else if (record.escapedPawns.Count > 0)
@@ -522,7 +540,10 @@ public class MapComponent_OverlandAmbush : MapComponent
         allEnemies.RemoveAll(p => p == null || p.Dead || p.Destroyed);
 
         // Conscious mobile enemies marching across the map
-        var mobileEnemies = allEnemies.Where(p => p.Spawned && !p.Downed && p.Awake()).ToList();
+        bool hasHumanOrMech = allEnemies.Any(p => p != null && (p.RaceProps.Humanlike || p.RaceProps.IsMechanoid));
+        var mobileEnemies = hasHumanOrMech
+            ? allEnemies.Where(p => p.Spawned && !p.Downed && p.Awake() && (p.RaceProps.Humanlike || p.RaceProps.IsMechanoid)).ToList()
+            : allEnemies.Where(p => p.Spawned && !p.Downed && p.Awake()).ToList();
 
         // Downed enemies currently lying on the map
         var downedEnemies = allEnemies.Where(p => p.Spawned && p.Downed).ToList();
@@ -544,6 +565,13 @@ public class MapComponent_OverlandAmbush : MapComponent
         if (mobileEnemies.Count == 0)
         {
             isActive = false;
+
+            var trailingAnimals = allEnemies.Where(p => p != null && p.Spawned && !p.Dead && !p.Downed && p.RaceProps.Animal).ToList();
+            if (trailingAnimals.Count > 0)
+            {
+                IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(trailingAnimals);
+            }
+
             var livingEscaped = allEnemies.Where(p => !p.Spawned && !p.Dead && !p.Destroyed).ToList();
 
             // Hostile incursion continues overland march with pawns that successfully exited
@@ -980,6 +1008,190 @@ public class MapComponent_OverlandAmbush : MapComponent
                 Messages.Message($"{cohort.groupLabel} has gathered their survivors and is departing the area.", new GlobalTargetInfo(livingPawns[0].Position, map), MessageTypeDefOf.NeutralEvent);
             }
             cohort.hasDeparted = true;
+        }
+    }
+
+    public void Notify_MapAboutToBeDeinited()
+    {
+        Log.Message($"[Project Vigilance] Map {map.Index} ({map.Parent?.LabelCap ?? "Encounter Map"}) about to be deinited. Evacuating tracked incursion and guest pawns...");
+
+        // 1. Evacuate Engagements
+        if (engagements != null && engagements.Count > 0)
+        {
+            for (int i = 0; i < engagements.Count; i++)
+            {
+                var record = engagements[i];
+                if (record.incursion == null || !record.incursion.Spawned) continue;
+
+                var livingPawns = record.trackedPawns
+                    .Concat(record.escapedPawns)
+                    .Where(p => p != null && !p.Dead && !p.Destroyed)
+                    .Distinct()
+                    .ToList();
+
+                for (int pIdx = 0; pIdx < livingPawns.Count; pIdx++)
+                {
+                    Pawn p = livingPawns[pIdx];
+                    Lord? lord = p.GetLord();
+                    if (lord != null)
+                    {
+                        lord.RemovePawn(p);
+                    }
+
+                    if (p.Spawned)
+                    {
+                        p.DeSpawn(DestroyMode.Vanish);
+                    }
+
+                    if (Find.WorldPawns != null)
+                    {
+                        if (!Find.WorldPawns.Contains(p))
+                        {
+                            Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
+                        }
+                        Find.WorldPawns.ForcefullyKeptPawns.Add(p);
+                    }
+
+                    if (IncursionTrackingHelper.TryGetTraderIncursionFor(p, out var guestIncursion) && guestIncursion != null)
+                    {
+                        IncursionTrackingHelper.EnsureTraderComponents(p, guestIncursion);
+                    }
+                }
+
+                List<Pawn> survivors;
+                if (record.isTransitOnly && !record.wasEngagedInCombat)
+                {
+                    survivors = livingPawns;
+                    record.incursion.SetCommittedPawns(survivors);
+                    record.incursion.IsEngagedInTacticalMap = false;
+
+                    if (record.incursion.IsUnderlyingTradeCaravan && !record.incursion.IsTradeMissionAborted)
+                    {
+                        if (record.incursion.TraderPawn == null || record.incursion.TraderPawn.Dead || record.incursion.TraderPawn.Destroyed || !survivors.Contains(record.incursion.TraderPawn))
+                        {
+                            record.incursion.AbortTradeMission("caravan master lost on battlefield");
+                        }
+                    }
+
+                    if (!record.incursion.IsRetreating && !record.incursion.IsTurningBack)
+                    {
+                        record.incursion.AdvancePathTile();
+                    }
+                    Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) safely evacuated upon map deinit (peaceful transit). Survivors: {survivors.Count}. Continuing to tile {record.incursion.DestinationTile}.");
+                }
+                else
+                {
+                    var escapedLiving = record.escapedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+                    survivors = escapedLiving.Count > 0 ? escapedLiving : livingPawns.Where(p => !p.Downed).ToList();
+
+                    if (survivors.Count > 0)
+                    {
+                        record.incursion.SetCommittedPawns(survivors);
+                        record.incursion.SetRetreatingPawns(survivors);
+                        record.incursion.IsRetreating = true;
+                        record.incursion.IsEngagedInTacticalMap = false;
+                        record.incursion.IsIdentified = true;
+                        record.incursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
+
+                        if (record.capturedColonists.Count > 0)
+                        {
+                            record.incursion.SetKidnappedColonists(new List<Pawn>(record.capturedColonists));
+                        }
+
+                        if (IncursionOriginResolver.TryResolveRetreatRoute(map.Tile, record.incursion.Faction, out var destTile, out var retreatPath, out var speed))
+                        {
+                            record.incursion.SetRetreatRoute(destTile, retreatPath, speed);
+                        }
+                        else
+                        {
+                            record.incursion.ReverseCourse("escaping with survivors after map deinit");
+                        }
+                        Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) evacuated upon map deinit with {survivors.Count} survivors.");
+                    }
+                    else
+                    {
+                        record.incursion.Destroy();
+                        Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) had 0 survivors upon map deinit. Destroyed.");
+                    }
+                }
+
+                record.isDisengaged = true;
+            }
+        }
+        else if (sourceIncursion != null && sourceIncursion.Spawned)
+        {
+            var livingPawns = allEnemies
+                .Concat(escapedHostiles)
+                .Where(p => p != null && !p.Dead && !p.Destroyed)
+                .Distinct()
+                .ToList();
+
+            for (int pIdx = 0; pIdx < livingPawns.Count; pIdx++)
+            {
+                Pawn p = livingPawns[pIdx];
+                Lord? lord = p.GetLord();
+                if (lord != null) lord.RemovePawn(p);
+                if (p.Spawned) p.DeSpawn(DestroyMode.Vanish);
+                if (Find.WorldPawns != null)
+                {
+                    if (!Find.WorldPawns.Contains(p))
+                    {
+                        Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
+                    }
+                    Find.WorldPawns.ForcefullyKeptPawns.Add(p);
+                }
+            }
+
+            var survivors = escapedHostiles.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+            if (survivors.Count == 0)
+            {
+                survivors = livingPawns.Where(p => !p.Downed).ToList();
+            }
+
+            if (survivors.Count > 0)
+            {
+                sourceIncursion.SetCommittedPawns(survivors);
+                sourceIncursion.SetRetreatingPawns(survivors);
+                sourceIncursion.IsRetreating = true;
+                sourceIncursion.IsEngagedInTacticalMap = false;
+                sourceIncursion.IsIdentified = true;
+                sourceIncursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
+            }
+            else
+            {
+                sourceIncursion.Destroy();
+            }
+        }
+
+        // 2. Evacuate Guest Cohorts
+        if (guestCohorts != null && guestCohorts.Count > 0)
+        {
+            for (int i = 0; i < guestCohorts.Count; i++)
+            {
+                var cohort = guestCohorts[i];
+                var livingGuests = cohort.pawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+                for (int pIdx = 0; pIdx < livingGuests.Count; pIdx++)
+                {
+                    Pawn p = livingGuests[pIdx];
+                    Lord? lord = p.GetLord();
+                    if (lord != null) lord.RemovePawn(p);
+                    if (p.Spawned) p.DeSpawn(DestroyMode.Vanish);
+                    if (Find.WorldPawns != null)
+                    {
+                        if (!Find.WorldPawns.Contains(p))
+                        {
+                            Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
+                        }
+                        Find.WorldPawns.ForcefullyKeptPawns.Add(p);
+                    }
+
+                    if (IncursionTrackingHelper.TryGetTraderIncursionFor(p, out var guestIncursion) && guestIncursion != null)
+                    {
+                        IncursionTrackingHelper.EnsureTraderComponents(p, guestIncursion);
+                    }
+                }
+                cohort.hasDeparted = true;
+            }
         }
     }
 

@@ -25,6 +25,12 @@ public class SensoryManager : WorldComponent
     private readonly Dictionary<int, PlanetTile> lastCaravanTiles = new();
     private readonly Dictionary<int, (PlanetTile tile, float radius)> lastActiveSensorStates = new();
     private readonly List<ISensorProvider> activeSensorsCache = new();
+    private readonly HashSet<int> currentActiveVisionTileIds = new();
+    private readonly HashSet<PlanetTile> tmpActiveVisionTiles = new();
+    private readonly HashSet<int> newActiveVisionTileIds = new();
+    private readonly List<PlanetTile> tmpNeighbors = new(6);
+    private readonly Queue<(PlanetTile tile, int step)> bfsQueue = new(128);
+    private readonly HashSet<int> bfsVisitedTileIds = new(128);
 
     private byte[]? exploredBytes;
     private int nextContactTrackingId = 1;
@@ -59,9 +65,49 @@ public class SensoryManager : WorldComponent
     {
         base.WorldComponentTick();
 
+        // Responsive movement check: if an active player caravan steps onto a new hex,
+        // instantly reveal fog and update active vision without waiting for the 250-tick sweep
+        if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar && Find.TickManager.TicksGame % 5 == 0)
+        {
+            CheckPlayerCaravanMovement();
+        }
+
         if (Find.TickManager.TicksGame % SweepIntervalTicks == 0)
         {
             PerformSensorySweep();
+        }
+    }
+
+    private void CheckPlayerCaravanMovement()
+    {
+        var caravans = Find.WorldObjects?.Caravans;
+        if (caravans == null || caravans.Count == 0) return;
+
+        bool anyMoved = false;
+        for (int i = 0; i < caravans.Count; i++)
+        {
+            Caravan c = caravans[i];
+            if (c != null && c.Spawned && c.Faction == Faction.OfPlayer)
+            {
+                int id = c.ID;
+                if (!lastCaravanTiles.TryGetValue(id, out PlanetTile lastTile) || lastTile != c.Tile)
+                {
+                    lastCaravanTiles[id] = c.Tile;
+                    float radius = GeoscapeMod.Settings.caravanScoutRadius;
+                    if (caravanSensors.TryGetValue(id, out var sensor) && sensor.IsSensorActive)
+                    {
+                        radius = sensor.DetectionRadiusInTiles;
+                    }
+                    MarkSurroundingTilesExplored(c.Tile, radius);
+                    anyMoved = true;
+                }
+            }
+        }
+
+        if (anyMoved)
+        {
+            UpdateHazeActiveVision();
+            WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         }
     }
 
@@ -81,12 +127,19 @@ public class SensoryManager : WorldComponent
         }
     }
 
+    public int NextContactTrackingId => nextContactTrackingId;
+
     /// <summary>
     /// Allocates a monotonic sequential tracking ID (e.g. Contact-1, Contact-2)
     /// representing an X-COM style persistent target designation that remains for the incursion's lifetime.
+    /// Delegated to ContactRegistry for central indexing.
     /// </summary>
     public int AllocateContactTrackingId()
     {
+        if (ContactRegistry.Instance != null)
+        {
+            return ContactRegistry.Instance.AllocateTrackingId();
+        }
         return nextContactTrackingId++;
     }
 
@@ -277,7 +330,7 @@ public class SensoryManager : WorldComponent
 
             if (mode == VisibilityMode.ClassicHazeOfWar)
             {
-                WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
+                UpdateHazeActiveVision();
             }
             WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         }
@@ -299,10 +352,13 @@ public class SensoryManager : WorldComponent
                 ISensorProvider sensor = activeSensors[i];
                 if (sensor.CanDetect(target))
                 {
-                    float dist = Find.WorldGrid.ApproxDistanceInTiles(sensor.SensorTile, target.CurrentTile);
-                    // Close range (within 45% of detection radius): Full sensor tier (e.g. Classified)
+                    int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
+                    int idSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles * 0.45f));
+                    int travDist = Find.WorldGrid.TraversalDistanceBetween(sensor.SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps);
+
+                    // Close range (within 45% of detection radius, step <= idSteps): Full sensor tier (e.g. Classified)
                     // Outer range: Generic blip (Contact)
-                    IntelligenceTier tier = (dist <= sensor.DetectionRadiusInTiles * 0.45f)
+                    IntelligenceTier tier = (travDist <= idSteps)
                         ? sensor.MaxIntelligenceTier
                         : (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact ? IntelligenceTier.Contact : IntelligenceTier.Suspected);
 
@@ -364,13 +420,19 @@ public class SensoryManager : WorldComponent
             return false;
         }
 
+        if (currentActiveVisionTileIds.Count > 0)
+        {
+            return currentActiveVisionTileIds.Contains(tile.tileId);
+        }
+
         IReadOnlyList<ISensorProvider> sensors = GetActiveSensors();
         for (int i = 0; i < sensors.Count; i++)
         {
             ISensorProvider sensor = sensors[i];
             if (sensor.SensorTile.Valid && sensor.SensorTile.Layer == tile.Layer)
             {
-                if (Find.WorldGrid.ApproxDistanceInTiles(sensor.SensorTile, tile) <= sensor.DetectionRadiusInTiles)
+                int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
+                if (Find.WorldGrid.TraversalDistanceBetween(sensor.SensorTile, tile, passImpassable: true, maxDist: maxSteps) <= maxSteps)
                 {
                     return true;
                 }
@@ -378,6 +440,42 @@ public class SensoryManager : WorldComponent
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Executes a deterministic, zero-allocation topological BFS flood fill out to exactly maxSteps hops.
+    /// Guarantees mathematically symmetric hexagonal perimeters without spherical geodesic distortion or corner clipping.
+    /// </summary>
+    public void FloodFillTopological(PlanetTile root, int maxSteps, Action<PlanetTile, int> processor)
+    {
+        if (!root.Valid || root.Layer == null || maxSteps < 0) return;
+
+        bfsQueue.Clear();
+        bfsVisitedTileIds.Clear();
+
+        bfsQueue.Enqueue((root, 0));
+        bfsVisitedTileIds.Add(root.tileId);
+
+        while (bfsQueue.Count > 0)
+        {
+            var (currentTile, currentStep) = bfsQueue.Dequeue();
+            processor(currentTile, currentStep);
+
+            if (currentStep < maxSteps)
+            {
+                tmpNeighbors.Clear();
+                currentTile.Layer.GetTileNeighbors(currentTile, tmpNeighbors);
+                int nextStep = currentStep + 1;
+                for (int i = 0; i < tmpNeighbors.Count; i++)
+                {
+                    PlanetTile neighbor = tmpNeighbors[i];
+                    if (neighbor.Valid && bfsVisitedTileIds.Add(neighbor.tileId))
+                    {
+                        bfsQueue.Enqueue((neighbor, nextStep));
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -407,11 +505,10 @@ public class SensoryManager : WorldComponent
             float radius = sensor.DetectionRadiusInTiles;
             int radiusSteps = Mathf.Max(1, Mathf.RoundToInt(radius));
             int idRadiusSteps = Mathf.Max(1, Mathf.RoundToInt(radius * 0.45f));
-            int maxTiles = Mathf.Max(128, (radiusSteps + 1) * (radiusSteps + 1) * 6);
 
-            centerTile.Layer.Filler.FloodFill(
+            FloodFillTopological(
                 centerTile,
-                t => Find.WorldGrid.ApproxDistanceInTiles(centerTile, t) <= radius,
+                radiusSteps,
                 (t, step) =>
                 {
                     outTiles.Add(t);
@@ -421,7 +518,7 @@ public class SensoryManager : WorldComponent
                     }
                     if (outTileDistancesFromPerimeter != null)
                     {
-                        float hexesFromPerim = Mathf.Max(0f, radius - step);
+                        float hexesFromPerim = Mathf.Max(0f, radiusSteps - step);
                         if (outTileDistancesFromPerimeter.TryGetValue(t, out float curMin))
                         {
                             if (hexesFromPerim < curMin)
@@ -434,8 +531,7 @@ public class SensoryManager : WorldComponent
                             outTileDistancesFromPerimeter[t] = hexesFromPerim;
                         }
                     }
-                },
-                maxTilesToProcess: maxTiles);
+                });
         }
     }
 
@@ -565,6 +661,51 @@ public class SensoryManager : WorldComponent
         return false;
     }
 
+    private void UpdateHazeActiveVision()
+    {
+        var haze = WorldDrawLayer_HazeOfWar.Instance;
+        if (haze == null || !haze.IsGeometryBuilt)
+        {
+            haze?.SetDirty();
+            return;
+        }
+
+        tmpActiveVisionTiles.Clear();
+        newActiveVisionTileIds.Clear();
+        PopulateActiveVisionTiles(tmpActiveVisionTiles);
+
+        foreach (PlanetTile pt in tmpActiveVisionTiles)
+        {
+            newActiveVisionTileIds.Add(pt.tileId);
+        }
+
+        // 1. Tiles leaving active vision: restore to Haze (if explored) or Shroud (if unexplored)
+        foreach (int oldTileId in currentActiveVisionTileIds)
+        {
+            if (!newActiveVisionTileIds.Contains(oldTileId))
+            {
+                Color32 color = IsTileIdExplored(oldTileId)
+                    ? WorldDrawLayer_HazeOfWar.HazeColor
+                    : WorldDrawLayer_HazeOfWar.ShroudColor;
+                haze.SetTileColor(oldTileId, color);
+            }
+        }
+
+        // 2. Tiles entering active vision: set to ClearColor (100% transparent)
+        foreach (int newTileId in newActiveVisionTileIds)
+        {
+            if (!currentActiveVisionTileIds.Contains(newTileId))
+            {
+                haze.SetTileColor(newTileId, WorldDrawLayer_HazeOfWar.ClearColor);
+            }
+        }
+
+        currentActiveVisionTileIds.Clear();
+        currentActiveVisionTileIds.UnionWith(newActiveVisionTileIds);
+
+        haze.ApplyDirtyColors();
+    }
+
     private void MarkSurroundingTilesExplored(PlanetTile centerTile, float radiusInTiles)
     {
         if (!centerTile.Valid || exploredBytes == null)
@@ -573,32 +714,79 @@ public class SensoryManager : WorldComponent
         }
 
         bool externalModActive = ExternalFogCompatibility.IsExternalFogModActive;
-        int intRadius = Mathf.CeilToInt(radiusInTiles);
-        centerTile.Layer.Filler.FloodFill(
+        int maxSteps = Mathf.Max(1, Mathf.RoundToInt(radiusInTiles));
+        bool revealedAnyObject = false;
+        bool revealedAnyFeature = false;
+        var haze = WorldDrawLayer_HazeOfWar.Instance;
+        bool hazeReady = haze != null && haze.IsGeometryBuilt;
+
+        FloodFillTopological(
             centerTile,
-            t => Find.WorldGrid.ApproxDistanceInTiles(centerTile, t) <= radiusInTiles,
-            t =>
+            maxSteps,
+            (t, step) =>
             {
                 int tileId = t.tileId;
                 int byteIndex = tileId >> 3;
                 int bitIndex = tileId & 7;
                 if (byteIndex < exploredBytes.Length)
                 {
-                    exploredBytes[byteIndex] |= (byte)(1 << bitIndex);
+                    bool wasUnexplored = (exploredBytes[byteIndex] & (1 << bitIndex)) == 0;
+                    if (wasUnexplored)
+                    {
+                        exploredBytes[byteIndex] |= (byte)(1 << bitIndex);
+
+                        // If not currently under active vision (transparent), transition from Shroud to Haze
+                        if (hazeReady && !currentActiveVisionTileIds.Contains(tileId))
+                        {
+                            haze?.SetTileColor(tileId, WorldDrawLayer_HazeOfWar.HazeColor);
+                        }
+
+                        // Check if an unrevealed world object or settlement was on this tile
+                        if (!revealedAnyObject && Find.WorldObjects != null && Find.WorldObjects.AnyWorldObjectAt(t))
+                        {
+                            revealedAnyObject = true;
+                        }
+
+                        // Check if a landmark or mountain range center was on this tile
+                        if (!revealedAnyFeature && Find.WorldFeatures != null)
+                        {
+                            var features = Find.WorldFeatures.features;
+                            for (int f = 0; f < features.Count; f++)
+                            {
+                                if (GetFeatureCenterTile(features[f]) == tileId)
+                                {
+                                    revealedAnyFeature = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if (externalModActive)
                 {
                     ExternalFogCompatibility.NotifyExternalModTileRevealed(tileId);
                 }
-            },
-            maxTilesToProcess: (intRadius * intRadius * 4));
+            });
 
-        WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
-        if (Find.WorldGrid?.Surface != null)
+        if (hazeReady)
+        {
+            haze?.ApplyDirtyColors();
+        }
+        else
+        {
+            haze?.SetDirty();
+        }
+
+        // Selective dirtying: only notify vanilla layers if an actual object or feature was uncovered
+        if (revealedAnyObject && Find.WorldGrid?.Surface != null)
         {
             Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
             Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+        }
+
+        if (revealedAnyFeature && Find.WorldGrid?.Surface != null)
+        {
             Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
         }
     }
@@ -612,6 +800,7 @@ public class SensoryManager : WorldComponent
         stationaryExploredRadius.Clear();
         lastCaravanTiles.Clear();
         lastActiveSensorStates.Clear();
+        currentActiveVisionTileIds.Clear();
         PerformSensorySweep();
         WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();

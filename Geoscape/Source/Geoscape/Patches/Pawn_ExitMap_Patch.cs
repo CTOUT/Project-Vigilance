@@ -13,10 +13,8 @@ namespace ProjectVigilance.Geoscape.Patches;
 public static class Pawn_ExitMap_Patch
 {
     [HarmonyPrefix]
-    public static bool Prefix(Pawn __instance, out (Map? map, Pawn? captive) __state)
+    public static bool Prefix(Pawn __instance)
     {
-        __state = (null, null);
-
         if (__instance == null || __instance.Dead || __instance.Faction == null)
         {
             return true;
@@ -129,7 +127,11 @@ public static class Pawn_ExitMap_Patch
                             {
                                 record.incursion.IsEngagedInTacticalMap = false;
 
-                                var livingHostiles = record.trackedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+                                var livingHostiles = record.trackedPawns
+                                    .Concat(record.escapedPawns ?? Enumerable.Empty<Pawn>())
+                                    .Where(p => p != null && !p.Dead && !p.Destroyed)
+                                    .Distinct()
+                                    .ToList();
                                 if (livingHostiles.Count > 0)
                                 {
                                     IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(livingHostiles);
@@ -250,55 +252,68 @@ public static class Pawn_ExitMap_Patch
             return false; // Skip vanilla ExitMap discard
         }
 
-        // Track hostile raiders departing player home maps OR caravan battlefields / ambush encounter maps
+        // Track all incursion pawns (including friendly trade caravans, pack camels, visitors, and hostile raiders)
+        // departing player home maps OR caravan battlefields / ambush encounter maps.
+        // IMPORTANT: We must despawn and pass them to WorldPawns with KeepForever BEFORE vanilla Pawn.ExitMap runs,
+        // because vanilla Pawn.ExitMap calls WorldPawns.PassToWorld(this, PawnDiscardDecideMode.Decide) which
+        // immediately destroys pack animals (camels/muffalo), solo visitors, and generic guards!
+        var ambushCompForExit = map.GetComponent<MapComponent_OverlandAmbush>();
+        bool isTrackedIncursionPawn = ambushCompForExit != null && ambushCompForExit.HasTrackedIncursionFor(__instance);
         bool isTrackedMap = map.IsPlayerHome ||
                             map.Parent is CaravansBattlefield ||
-                            map.GetComponent<MapComponent_OverlandAmbush>() != null;
+                            ambushCompForExit != null;
+        bool isHostile = __instance.Faction.HostileTo(Faction.OfPlayer);
 
-        if (isTrackedMap && __instance.Faction.HostileTo(Faction.OfPlayer))
+        if (isTrackedMap && (isTrackedIncursionPawn || isHostile))
         {
             Pawn? captive = null;
             if (__instance.carryTracker?.CarriedThing is Pawn carriedPawn && carriedPawn.Faction == Faction.OfPlayer)
             {
                 captive = carriedPawn;
+                if (__instance.carryTracker.innerContainer != null && __instance.carryTracker.innerContainer.Contains(carriedPawn))
+                {
+                    __instance.carryTracker.innerContainer.Remove(carriedPawn);
+                }
+                IncursionTacticalRetreatUtility.PassCapturedColonistsToWorld(new List<Pawn> { carriedPawn });
             }
 
-            __state = (map, captive);
-
-            var ambushComp = map.GetComponent<MapComponent_OverlandAmbush>();
-            ambushComp?.Notify_PawnExitedMap(__instance, captive);
-        }
-
-        return true;
-    }
-
-    [HarmonyPostfix]
-    public static void Postfix(Pawn __instance, (Map? map, Pawn? captive) __state)
-    {
-        if (__state.map != null && __instance != null && __instance.Faction != null)
-        {
             Lord? lord = __instance.GetLord();
             if (lord != null)
             {
                 lord.RemovePawn(__instance);
-                if (lord.ownedPawns.Count == 0 && __state.map.lordManager != null && __state.map.lordManager.lords.Contains(lord))
+                if (lord.ownedPawns.Count == 0 && map.lordManager != null && map.lordManager.lords.Contains(lord))
                 {
-                    __state.map.lordManager.RemoveLord(lord);
+                    map.lordManager.RemoveLord(lord);
                 }
             }
 
-            var ambushComp = __state.map.GetComponent<MapComponent_OverlandAmbush>();
-            if (ambushComp != null && ambushComp.HasTrackedIncursionFor(__instance))
+            if (__instance.Spawned)
             {
-                if (!__instance.Destroyed && !Find.WorldPawns.Contains(__instance))
-                {
-                    Find.WorldPawns.PassToWorld(__instance, PawnDiscardDecideMode.KeepForever);
-                }
+                __instance.DeSpawn(DestroyMode.Vanish);
             }
-            else
+
+            if (!__instance.Destroyed && !Find.WorldPawns.Contains(__instance))
             {
-                IncursionRetreatManager.RegisterFleeingPawn(__instance, __state.map, __state.captive);
+                Find.WorldPawns.PassToWorld(__instance, PawnDiscardDecideMode.KeepForever);
             }
+
+            if (IncursionTrackingHelper.TryGetTraderIncursionFor(__instance, out var exitIncursion) && exitIncursion != null)
+            {
+                IncursionTrackingHelper.EnsureTraderComponents(__instance, exitIncursion);
+            }
+
+            if (isTrackedIncursionPawn)
+            {
+                ambushCompForExit!.Notify_PawnExitedMap(__instance, captive);
+            }
+            else if (isHostile)
+            {
+                IncursionRetreatManager.RegisterFleeingPawn(__instance, map, captive);
+            }
+
+            return false;
         }
+
+        return true;
     }
 }

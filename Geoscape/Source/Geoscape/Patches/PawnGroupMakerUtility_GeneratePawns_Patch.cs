@@ -38,4 +38,24 @@ public static class PawnGroupMakerUtility_GeneratePawns_Patch
 
         return true;
     }
+
+    [HarmonyPostfix]
+    public static void Postfix(ref IEnumerable<Pawn> __result)
+    {
+        if (!IncursionArrivalManager.IsExecutingArrival ||
+            IncursionArrivalManager.CurrentExecutingIncursion == null ||
+            __result == null)
+        {
+            return;
+        }
+
+        var list = __result as List<Pawn> ?? __result.ToList();
+        __result = list;
+
+        var incursion = IncursionArrivalManager.CurrentExecutingIncursion;
+        if ((incursion.CommittedPawns == null || incursion.CommittedPawns.Count == 0) && list.Count > 0)
+        {
+            incursion.SetCommittedPawns(list);
+        }
+    }
 }

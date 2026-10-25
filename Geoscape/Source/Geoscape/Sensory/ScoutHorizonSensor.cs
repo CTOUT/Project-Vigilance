@@ -302,7 +302,7 @@ public class ScoutHorizonSensor : ISensorProvider
             return false;
         }
 
-        float distance = Find.WorldGrid.ApproxDistanceInTiles(SensorTile, target.CurrentTile);
-        return distance <= DetectionRadiusInTiles;
+        int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
+        return Find.WorldGrid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps) <= maxSteps;
     }
 }

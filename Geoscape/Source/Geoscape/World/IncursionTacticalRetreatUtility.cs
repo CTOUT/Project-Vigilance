@@ -78,7 +78,11 @@ public static class IncursionTacticalRetreatUtility
             {
                 if (record.incursion != null && record.incursion.Spawned)
                 {
-                    var living = record.trackedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+                    var living = record.trackedPawns
+                        .Concat(record.escapedPawns ?? Enumerable.Empty<Pawn>())
+                        .Where(p => p != null && !p.Dead && !p.Destroyed)
+                        .Distinct()
+                        .ToList();
                     DespawnAndPassHostilesToWorld(living);
                     record.incursion.SetCommittedPawns(living);
                     record.incursion.IsEngagedInTacticalMap = false;
@@ -678,7 +682,11 @@ public static class IncursionTacticalRetreatUtility
             {
                 if (record.incursion != null && record.incursion.Spawned)
                 {
-                    var living = record.trackedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+                    var living = record.trackedPawns
+                        .Concat(record.escapedPawns ?? Enumerable.Empty<Pawn>())
+                        .Where(p => p != null && !p.Dead && !p.Destroyed)
+                        .Distinct()
+                        .ToList();
                     DespawnAndPassHostilesToWorld(living);
                     record.incursion.SetCommittedPawns(living);
                     if (!captiveAssigned && downedColonists.Count > 0)
@@ -842,6 +850,7 @@ public static class IncursionTacticalRetreatUtility
             {
                 Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
             }
+            Find.WorldPawns.ForcefullyKeptPawns.Add(p);
         }
     }
 
@@ -980,6 +989,7 @@ public static class IncursionTacticalRetreatUtility
             {
                 Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
             }
+            Find.WorldPawns.ForcefullyKeptPawns.Add(p);
             if (p.Faction != Faction.OfPlayer)
             {
                 p.SetFaction(Faction.OfPlayer);

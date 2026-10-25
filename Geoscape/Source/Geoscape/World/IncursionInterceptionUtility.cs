@@ -34,40 +34,124 @@ public static class IncursionInterceptionUtility
         }
     }
 
+    public static List<Pawn> GetOrGenerateIncursionPawns(WorldObject_Incursion incursion, Map? targetMap = null)
+    {
+        if (incursion.RetreatingPawns != null && incursion.RetreatingPawns.Count > 0)
+        {
+            var retreating = incursion.RetreatingPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+            if (retreating.Count > 0)
+            {
+                return retreating;
+            }
+        }
+
+        if (incursion.CommittedPawns != null && incursion.CommittedPawns.Count > 0)
+        {
+            var committed = incursion.CommittedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+            if (committed.Count > 0)
+            {
+                return committed;
+            }
+        }
+
+        bool isTrader = incursion.IsUnderlyingTradeCaravan;
+        bool isVisitorOrTraveler = incursion.IsUnderlyingVisitorOrTraveler;
+
+        IIncidentTarget incidentTarget = (IIncidentTarget?)targetMap ?? Find.AnyPlayerHomeMap ?? (IIncidentTarget)Find.World;
+        IncidentParms baseParms = incursion.IncidentParms != null
+            ? incursion.IncidentParms.ShallowCopy()
+            : new IncidentParms
+            {
+                target = incidentTarget,
+                faction = incursion.Faction
+            };
+
+        if (baseParms.target == null)
+        {
+            baseParms.target = incidentTarget;
+        }
+        if (baseParms.faction == null)
+        {
+            baseParms.faction = incursion.Faction;
+        }
+
+        PawnGroupKindDef groupKind = isTrader
+            ? (DefDatabase<PawnGroupKindDef>.GetNamedSilentFail("Trader") ?? PawnGroupKindDefOf.Trader ?? PawnGroupKindDefOf.Combat)
+            : (isVisitorOrTraveler
+                ? (DefDatabase<PawnGroupKindDef>.GetNamedSilentFail("Peaceful") ?? PawnGroupKindDefOf.Combat)
+                : PawnGroupKindDefOf.Combat);
+
+        if (isTrader)
+        {
+            if (baseParms.points <= 0f)
+            {
+                baseParms.points = Mathf.Max(650f, StorytellerUtility.DefaultThreatPointsNow(incidentTarget));
+            }
+            if (baseParms.traderKind == null)
+            {
+                baseParms.traderKind = incursion.TraderKind ?? incursion.Faction?.def?.caravanTraderKinds?.FirstOrDefault();
+            }
+        }
+        else if (isVisitorOrTraveler)
+        {
+            if (baseParms.points <= 0f)
+            {
+                baseParms.points = Mathf.Max(250f, StorytellerUtility.DefaultThreatPointsNow(incidentTarget) * 0.5f);
+            }
+        }
+        else
+        {
+            if (baseParms.points <= 0f)
+            {
+                baseParms.points = Mathf.Max(350f, StorytellerUtility.DefaultThreatPointsNow(incidentTarget));
+            }
+        }
+
+        var groupParms = IncidentParmsUtility.GetDefaultPawnGroupMakerParms(groupKind, baseParms, ensureCanGenerateAtLeastOnePawn: true);
+        if (isTrader)
+        {
+            groupParms.generateFightersOnly = false;
+            if (groupParms.traderKind == null)
+            {
+                groupParms.traderKind = baseParms.traderKind;
+            }
+        }
+        else if (!isVisitorOrTraveler && groupKind == PawnGroupKindDefOf.Combat)
+        {
+            groupParms.generateFightersOnly = true;
+        }
+
+        List<Pawn> generated = PawnGroupMakerUtility.GeneratePawns(groupParms).ToList();
+
+        // Fallback for solo visitors / low-point neutral groups so a visitor incursion never generates 0 pawns
+        if (generated.Count == 0 && (isVisitorOrTraveler || isTrader) && incursion.Faction != null)
+        {
+            PawnKindDef kindDef = incursion.Faction.RandomPawnKind() ?? PawnKindDefOf.Villager;
+            Pawn fallbackPawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(
+                kindDef,
+                incursion.Faction,
+                PawnGenerationContext.NonPlayer,
+                tile: incursion.Tile));
+            if (fallbackPawn != null)
+            {
+                generated.Add(fallbackPawn);
+            }
+        }
+
+        if (generated.Count > 0)
+        {
+            incursion.SetCommittedPawns(generated);
+        }
+
+        return generated;
+    }
+
     public static void ExecuteHostileInterception(Caravan caravan, WorldObject_Incursion incursion, bool isAmbush = false)
     {
         Log.Message($"[Project Vigilance] Interception initiated: {caravan.LabelCap} intercepted hostile {incursion.Label} at tile {incursion.Tile}. IsAmbush={isAmbush}");
 
-        // Determine enemy combatants
-        List<Pawn> enemies;
-        if (incursion.RetreatingPawns != null && incursion.RetreatingPawns.Count > 0)
-        {
-            enemies = incursion.RetreatingPawns.Where(p => !p.Dead).ToList();
-        }
-        else if (incursion.CommittedPawns != null && incursion.CommittedPawns.Count > 0)
-        {
-            enemies = incursion.CommittedPawns.Where(p => !p.Dead && !p.Destroyed).ToList();
-        }
-        else
-        {
-            IncidentParms parms = incursion.IncidentParms ?? new IncidentParms
-            {
-                target = Find.World,
-                points = 350f,
-                faction = incursion.Faction
-            };
-
-            PawnGroupKindDef groupKind = (incursion.GroupKind == IncursionGroupKind.TradeCaravan)
-                ? (DefDatabase<PawnGroupKindDef>.GetNamedSilentFail("Trader") ?? PawnGroupKindDefOf.Combat)
-                : PawnGroupKindDefOf.Combat;
-            var groupParms = IncidentParmsUtility.GetDefaultPawnGroupMakerParms(groupKind, parms);
-            if (groupKind == PawnGroupKindDefOf.Combat)
-            {
-                groupParms.generateFightersOnly = true;
-            }
-            enemies = PawnGroupMakerUtility.GeneratePawns(groupParms).ToList();
-            incursion.SetCommittedPawns(enemies);
-        }
+        // Determine enemy combatants (preserving full caravan/pack animal/visitor composition)
+        List<Pawn> enemies = GetOrGenerateIncursionPawns(incursion);
 
         if (enemies.Count == 0)
         {
@@ -83,6 +167,18 @@ public static class IncursionInterceptionUtility
             ? incursion.KidnappedColonists.Where(p => !p.Dead).ToList()
             : new List<Pawn>();
 
+        if (incursion.Faction != null && !incursion.Faction.HostileTo(Faction.OfPlayer) && incursion.IsUnderlyingTradeCaravan)
+        {
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                Pawn p = enemies[i];
+                if (p != null)
+                {
+                    IncursionTrackingHelper.EnsureTraderComponents(p, incursion);
+                }
+            }
+        }
+
         // Setup the local tactical battle map using RimWorld's caravan incident architecture
         Map battleMap = CaravanIncidentUtility.SetupCaravanAttackMap(caravan, enemies, sendLetterIfRelatedPawns: true);
 
@@ -96,7 +192,7 @@ public static class IncursionInterceptionUtility
 
         // Hostile overland encounters (ambushes, night camp raids, and field interceptions) start concealed
         // so enemies only engage once they detect player pawns within visual range (LOS) or hear gunfire / take damage.
-        bool isUnawareAmbush = isAmbush || isNightAmbush || incursion.GroupKind != IncursionGroupKind.TradeCaravan;
+        bool isUnawareAmbush = isAmbush || isNightAmbush || !incursion.IsUnderlyingTradeCaravan;
 
         if (battleMap != null && enemies.Count > 0)
         {
@@ -260,16 +356,22 @@ public static class IncursionInterceptionUtility
             }
         }
 
-        // Spawn any carried trade stock on the battle map if this was a trade caravan
-        if (incursion.GroupKind == IncursionGroupKind.TradeCaravan && incursion.TradeStock != null && incursion.TradeStock.Count > 0 && battleMap != null)
+        // Pack any carried trade stock onto pack animals/carriers if this was a trade caravan
+        if (incursion.IsUnderlyingTradeCaravan)
         {
-            IntVec3 enemyPos = enemies.Count > 0 ? enemies[0].Position : battleMap.Center;
-            var stockList = incursion.TradeStock.ToList();
-            for (int s = 0; s < stockList.Count; s++)
+            incursion.SyncCargoFromTradeStockToPawns(enemies);
+
+            // Fallback: If no pawns were capable of carrying items (e.g. all dead or no inventory), place on ground
+            if (incursion.TradeStock != null && incursion.TradeStock.Count > 0 && battleMap != null)
             {
-                Thing item = stockList[s];
-                incursion.TradeStock.Remove(item);
-                GenPlace.TryPlaceThing(item, enemyPos, battleMap, ThingPlaceMode.Near);
+                IntVec3 enemyPos = enemies.Count > 0 ? enemies[0].Position : battleMap.Center;
+                var stockList = incursion.TradeStock.ToList();
+                for (int s = 0; s < stockList.Count; s++)
+                {
+                    Thing item = stockList[s];
+                    incursion.TradeStock.Remove(item);
+                    GenPlace.TryPlaceThing(item, enemyPos, battleMap, ThingPlaceMode.Near);
+                }
             }
         }
 
@@ -319,7 +421,7 @@ public static class IncursionInterceptionUtility
             }
             letterText += "\n\nTip: Once hostile forces are defeated, switch to the World view and select this encounter site to reform your caravan.";
         }
-        else if (incursion.GroupKind == IncursionGroupKind.TradeCaravan)
+        else if (incursion.IsUnderlyingTradeCaravan)
         {
             letterLabel = "Caravan Assault: " + contactName;
             letterText = $"{caravan.LabelCap} has initiated a combat assault against the trade caravan from {factionName}!\n\n" +
@@ -867,29 +969,7 @@ public static class IncursionInterceptionUtility
         }
 
         // Tactical Camp Assault / Fallback: Spawn hostile combatants directly at the map edge with LordJob_AssaultColony
-        List<Pawn> enemies;
-        if (incursion.RetreatingPawns != null && incursion.RetreatingPawns.Count > 0)
-        {
-            enemies = incursion.RetreatingPawns.Where(p => !p.Dead).ToList();
-        }
-        else if (incursion.CommittedPawns != null && incursion.CommittedPawns.Count > 0)
-        {
-            enemies = incursion.CommittedPawns.Where(p => !p.Dead && !p.Destroyed).ToList();
-        }
-        else
-        {
-            IncidentParms parms = incursion.IncidentParms ?? new IncidentParms
-            {
-                target = map,
-                points = Mathf.Max(350f, StorytellerUtility.DefaultThreatPointsNow(map)),
-                faction = incursion.Faction
-            };
-
-            var groupParms = IncidentParmsUtility.GetDefaultPawnGroupMakerParms(PawnGroupKindDefOf.Combat, parms);
-            groupParms.generateFightersOnly = true;
-            enemies = PawnGroupMakerUtility.GeneratePawns(groupParms).ToList();
-            incursion.SetCommittedPawns(enemies);
-        }
+        List<Pawn> enemies = GetOrGenerateIncursionPawns(incursion, map);
 
         if (enemies.Count == 0)
         {
@@ -914,6 +994,12 @@ public static class IncursionInterceptionUtility
         for (int i = 0; i < enemies.Count; i++)
         {
             Pawn enemy = enemies[i];
+            if (enemy == null) continue;
+            if (incursion.Faction != null && !incursion.Faction.HostileTo(Faction.OfPlayer) && incursion.IsUnderlyingTradeCaravan)
+            {
+                IncursionTrackingHelper.EnsureTraderComponents(enemy, incursion);
+            }
+            if (enemy.Spawned) continue;
             CellFinder.TryFindRandomCellNear(spawnCenter, map, 4, c => c.Walkable(map) && !c.Fogged(map), out IntVec3 pCell);
             GenSpawn.Spawn(enemy, pCell.IsValid ? pCell : spawnCenter, map, Rot4.Random);
         }
@@ -1089,32 +1175,7 @@ public static class IncursionInterceptionUtility
         }
 
         // 3. Generate or retrieve pawns
-        List<Pawn> pawns;
-        if (incursion.RetreatingPawns != null && incursion.RetreatingPawns.Count > 0)
-        {
-            pawns = incursion.RetreatingPawns.Where(p => !p.Dead).ToList();
-        }
-        else if (incursion.CommittedPawns != null && incursion.CommittedPawns.Count > 0)
-        {
-            pawns = incursion.CommittedPawns.Where(p => !p.Dead && !p.Destroyed).ToList();
-        }
-        else
-        {
-            IncidentParms parms = incursion.IncidentParms ?? new IncidentParms
-            {
-                target = map,
-                points = Mathf.Max(350f, StorytellerUtility.DefaultThreatPointsNow(map)),
-                faction = incursion.Faction
-            };
-
-            PawnGroupKindDef groupKind = (incursion.GroupKind == IncursionGroupKind.TradeCaravan)
-                ? (DefDatabase<PawnGroupKindDef>.GetNamedSilentFail("Trader") ?? PawnGroupKindDefOf.Combat)
-                : PawnGroupKindDefOf.Combat;
-
-            var groupParms = IncidentParmsUtility.GetDefaultPawnGroupMakerParms(groupKind, parms);
-            pawns = PawnGroupMakerUtility.GeneratePawns(groupParms).ToList();
-            incursion.SetCommittedPawns(pawns);
-        }
+        List<Pawn> pawns = GetOrGenerateIncursionPawns(incursion, map);
 
         if (pawns.Count == 0)
         {
@@ -1123,14 +1184,24 @@ public static class IncursionInterceptionUtility
             return;
         }
 
+        bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
+
         // 4. Spawn pawns at entry edge
         for (int i = 0; i < pawns.Count; i++)
         {
             Pawn p = pawns[i];
-            if (p != null && !p.Spawned)
+            if (p != null)
             {
-                CellFinder.TryFindRandomCellNear(entryCell, map, 4, c => c.Walkable(map) && !c.Fogged(map), out IntVec3 pCell);
-                GenSpawn.Spawn(p, pCell.IsValid ? pCell : entryCell, map, Rot4.Random);
+                if (!isHostile && incursion.IsUnderlyingTradeCaravan)
+                {
+                    IncursionTrackingHelper.EnsureTraderComponents(p, incursion);
+                }
+
+                if (!p.Spawned)
+                {
+                    CellFinder.TryFindRandomCellNear(entryCell, map, 4, c => c.Walkable(map) && !c.Fogged(map), out IntVec3 pCell);
+                    GenSpawn.Spawn(p, pCell.IsValid ? pCell : entryCell, map, Rot4.Random);
+                }
             }
         }
 
@@ -1149,11 +1220,29 @@ public static class IncursionInterceptionUtility
 
         // 5. Create Lord and assign LordJob_IncursionTransit
         StripExistingLords(pawns);
-        bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
         Faction lordFaction = incursion.Faction ?? pawns[0].Faction;
 
         LordJob_IncursionTransit transitJob = new LordJob_IncursionTransit(incursion, lordFaction, exitCell, isHostile);
         LordMaker.MakeNewLord(lordFaction, transitJob, map, pawns);
+
+        // Pack any carried trade stock onto pack animals/carriers for transiting trade caravans
+        if (incursion.IsUnderlyingTradeCaravan)
+        {
+            incursion.SyncCargoFromTradeStockToPawns(pawns);
+        }
+
+        // Enable roadside trading for neutral traders while transiting peaceful sectors
+        if (!isHostile && incursion.IsUnderlyingTradeCaravan)
+        {
+            for (int i = 0; i < pawns.Count; i++)
+            {
+                Pawn p = pawns[i];
+                if (p != null)
+                {
+                    IncursionTrackingHelper.EnsureTraderComponents(p, incursion);
+                }
+            }
+        }
 
         // 6. Register into MapComponent_OverlandAmbush with isTransitOnly = true
         incursion.IsEngagedInTacticalMap = true;

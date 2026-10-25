@@ -50,9 +50,12 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private HashSet<int> metCaravanIds = new();
     private Dictionary<int, int> caravanCooldowns = new();
     private bool isRetreating = false;
+    private bool isTradeMissionAborted = false;
     private List<Pawn>? retreatingPawns;
     private List<Pawn>? kidnappedColonists;
     private List<Pawn>? committedPawns;
+    private Pawn? traderPawn;
+    private TraderKindDef? explicitTraderKind;
     private ThingOwner<Thing>? tradeStock;
 
     public IncidentDef? IncidentDef => incidentDef;
@@ -66,6 +69,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public int DepartureDelayTicks => departureDelayTicks;
     public bool IsMobilizing => departureDelayTicks > 0;
     public int TrackingId { get => trackingId; set => trackingId = value; }
+    public Pawn? TraderPawn { get => traderPawn; set => traderPawn = value; }
+    public TraderKindDef? ExplicitTraderKind { get => explicitTraderKind; set => explicitTraderKind = value; }
+    public bool IsTradeMissionAborted => isTradeMissionAborted;
     public bool IsTurningBack => isTurningBack;
     public bool HasBeenWarnedAway => hasBeenWarnedAway;
     public void MarkWarnedAway() => hasBeenWarnedAway = true;
@@ -122,28 +128,128 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public void SetRetreatingPawns(List<Pawn> pawns)
     {
-        retreatingPawns = pawns;
+        retreatingPawns = pawns != null
+            ? pawns.Where(p => p != null && !p.Dead && !p.Destroyed).Distinct().ToList()
+            : null;
+
+        if (retreatingPawns != null)
+        {
+            for (int i = 0; i < retreatingPawns.Count; i++)
+            {
+                EnsureInWorldPawnsIfUnspawned(retreatingPawns[i]);
+            }
+
+            if (IsUnderlyingTradeCaravan)
+            {
+                SyncCargoFromPawnsToTradeStock(retreatingPawns);
+            }
+        }
     }
 
     public void SetKidnappedColonists(List<Pawn> pawns)
     {
-        kidnappedColonists = pawns;
+        kidnappedColonists = pawns != null
+            ? pawns.Where(p => p != null && !p.Dead && !p.Destroyed).Distinct().ToList()
+            : null;
+
+        if (kidnappedColonists != null)
+        {
+            for (int i = 0; i < kidnappedColonists.Count; i++)
+            {
+                EnsureInWorldPawnsIfUnspawned(kidnappedColonists[i], isCaptiveColonist: true);
+            }
+        }
     }
 
     public void SetCommittedPawns(List<Pawn>? pawns)
     {
         committedPawns = pawns != null
-            ? pawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList()
+            ? pawns.Where(p => p != null && !p.Dead && !p.Destroyed).Distinct().ToList()
             : null;
+
+        if (committedPawns != null)
+        {
+            for (int i = 0; i < committedPawns.Count; i++)
+            {
+                EnsureInWorldPawnsIfUnspawned(committedPawns[i]);
+            }
+
+            if (IsUnderlyingTradeCaravan)
+            {
+                SyncCargoFromPawnsToTradeStock(committedPawns);
+                if (traderPawn == null || !committedPawns.Contains(traderPawn))
+                {
+                    traderPawn = committedPawns.FirstOrDefault(p => p.trader != null) ??
+                                 committedPawns.FirstOrDefault(p => p.kindDef != null && p.kindDef.trader) ??
+                                 committedPawns.FirstOrDefault(p => p.RaceProps != null && p.RaceProps.Humanlike);
+                }
+                if (traderPawn != null)
+                {
+                    traderPawn.mindState.wantsToTradeWithColony = true;
+                    if (traderPawn.trader == null)
+                    {
+                        traderPawn.trader = new Pawn_TraderTracker(traderPawn);
+                    }
+                    if (traderPawn.trader.traderKind == null && TraderKind != null)
+                    {
+                        traderPawn.trader.traderKind = TraderKind;
+                    }
+                }
+            }
+        }
     }
 
     public void AddKidnappedColonist(Pawn captive)
     {
-        if (captive == null) return;
+        if (captive == null || captive.Dead || captive.Destroyed) return;
         kidnappedColonists ??= new List<Pawn>();
         if (!kidnappedColonists.Contains(captive))
         {
             kidnappedColonists.Add(captive);
+        }
+        EnsureInWorldPawnsIfUnspawned(captive, isCaptiveColonist: true);
+    }
+
+    private static void EnsureInWorldPawnsIfUnspawned(Pawn? p, bool isCaptiveColonist = false)
+    {
+        if (p == null || p.Destroyed || p.Dead || p.Spawned)
+        {
+            return;
+        }
+
+        if (Find.WorldPawns != null)
+        {
+            if (!Find.WorldPawns.Contains(p))
+            {
+                Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
+            }
+            Find.WorldPawns.ForcefullyKeptPawns.Add(p);
+        }
+
+        if (isCaptiveColonist && p.Faction != Faction.OfPlayer)
+        {
+            p.SetFaction(Faction.OfPlayer);
+        }
+    }
+
+    /// <summary>
+    /// Removes dangling DirectPawnRelations pointing to pawns that were discarded by RimWorld's
+    /// WorldPawns garbage collection (or never added to WorldPawns/Maps). Prevents harmless but noisy
+    /// "Could not resolve reference... curParent=RimWorld.DirectPawnRelation" and "has relation with null pawn"
+    /// load-time warnings.
+    /// </summary>
+    private static void SanitizeDanglingRelations(Pawn? p)
+    {
+        if (p?.relations == null) return;
+
+        var relations = p.relations.DirectRelations;
+        for (int r = relations.Count - 1; r >= 0; r--)
+        {
+            Pawn other = relations[r].otherPawn;
+            if (other == null || other.Discarded || (other.Destroyed && Find.WorldPawns != null && !Find.WorldPawns.Contains(other)))
+            {
+                relations.RemoveAt(r);
+            }
         }
     }
 
@@ -163,6 +269,37 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         {
             Tile = pathTiles[0];
         }
+    }
+
+    /// <summary>
+    /// Aborts an active trade caravan expedition (e.g. following the death or loss of the caravan master/trader),
+    /// cancelling the rest of the trade route and reversing course or retreating to the nearest friendly base.
+    /// </summary>
+    public void AbortTradeMission(string? reason = null)
+    {
+        if (isTradeMissionAborted) return;
+        isTradeMissionAborted = true;
+        isRetreating = true;
+        isTurningBack = false;
+
+        if (traderPawn != null)
+        {
+            traderPawn.mindState.wantsToTradeWithColony = false;
+            traderPawn = null;
+        }
+
+        if (IncursionOriginResolver.TryResolveRetreatRoute(Tile, Faction, out var destTile, out var retreatPath, out var speed))
+        {
+            SetRetreatRoute(destTile, retreatPath, speed);
+        }
+        else
+        {
+            ReverseCourse(reason ?? "trade mission aborted");
+        }
+
+        string factionName = Faction?.Name ?? "Caravan";
+        Messages.Message($"Trade Mission Aborted: Following the loss of their merchant, the surviving travellers from {factionName} have cancelled their journey and are returning to base.", this, MessageTypeDefOf.NeutralEvent);
+        Log.Message($"[Project Vigilance] Incursion {TrackingId} ({LabelCap}) aborted trade mission. Reason: {reason ?? "merchant lost"}. Returning to {destinationTile}.");
     }
 
     public bool IsRestingAtNight
@@ -281,7 +418,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             string label = $"Investigate {LabelCap}";
             yield return new FloatMenuOption(label, () =>
             {
-                caravan.pather.StartPath(Tile, new CaravanArrivalAction_InterceptIncursion(this), true);
+                PlanetTile targetTile = GetInterceptTargetTile(caravan);
+                caravan.pather.StartPath(targetTile, new CaravanArrivalAction_InterceptIncursion(this), true);
             });
             yield break;
         }
@@ -292,7 +430,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             string interceptLabel = $"Intercept {LabelCap}";
             yield return new FloatMenuOption(interceptLabel, () =>
             {
-                caravan.pather.StartPath(Tile, new CaravanArrivalAction_InterceptIncursion(this), true);
+                PlanetTile targetTile = GetInterceptTargetTile(caravan);
+                caravan.pather.StartPath(targetTile, new CaravanArrivalAction_InterceptIncursion(this), true);
             });
         }
         else
@@ -302,7 +441,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 string tradeLabel = $"Hail & Trade with {LabelCap}";
                 yield return new FloatMenuOption(tradeLabel, () =>
                 {
-                    caravan.pather.StartPath(Tile, new CaravanArrivalAction_InterceptIncursion(this), true);
+                    PlanetTile targetTile = GetInterceptTargetTile(caravan);
+                    caravan.pather.StartPath(targetTile, new CaravanArrivalAction_InterceptIncursion(this), true);
                 });
             }
 
@@ -397,6 +537,59 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     }
 
     /// <summary>
+    /// True if this incursion was spawned as a merchant trade caravan (even if its faction subsequently turned hostile).
+    /// </summary>
+    public bool IsUnderlyingTradeCaravan
+    {
+        get
+        {
+            if (incidentParms?.traderKind != null ||
+                (incidentParms?.pawnGroupKind != null && incidentParms.pawnGroupKind == PawnGroupKindDefOf.Trader))
+            {
+                return true;
+            }
+
+            string defName = incidentDef?.defName ?? string.Empty;
+            string defLabel = incidentDef?.label ?? string.Empty;
+
+            return defName.Equals("TraderCaravanArrival", StringComparison.OrdinalIgnoreCase) ||
+                   defName.IndexOf("Trader", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defLabel.IndexOf("trader", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defLabel.IndexOf("caravan", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defLabel.IndexOf("merchant", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+    }
+
+    /// <summary>
+    /// True if this incursion was spawned as a visitor, traveller, pilgrim, or beggar group.
+    /// </summary>
+    public bool IsUnderlyingVisitorOrTraveler
+    {
+        get
+        {
+            if (IsUnderlyingTradeCaravan)
+            {
+                return false;
+            }
+
+            string defName = incidentDef?.defName ?? string.Empty;
+            string defLabel = incidentDef?.label ?? string.Empty;
+
+            return defName.Equals("VisitorGroup", StringComparison.OrdinalIgnoreCase) ||
+                   defName.IndexOf("Visitor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defLabel.IndexOf("visitor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defLabel.IndexOf("guest", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defName.Equals("TravelerGroup", StringComparison.OrdinalIgnoreCase) ||
+                   defName.IndexOf("Traveler", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defLabel.IndexOf("traveler", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defLabel.IndexOf("traveller", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defLabel.IndexOf("passer", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defName.IndexOf("Pilgrim", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   defName.IndexOf("Beggar", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+    }
+
+    /// <summary>
     /// Resolves the specific tactical kind of this incursion based on incident parameters and defs.
     /// Distinguishes between trade caravans, social visitors, passing travellers, tribute collectors, and hostile warbands.
     /// </summary>
@@ -484,9 +677,15 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             case IncursionGroupKind.HostileWarband:
                 return "hostile warband";
             case IncursionGroupKind.TradeCaravan:
-                return incidentParms?.traderKind != null
-                    ? $"trade caravan ({incidentParms.traderKind.label})"
-                    : "trade caravan";
+                if (isTradeMissionAborted)
+                {
+                    return "returning caravan (aborted mission)";
+                }
+                return explicitTraderKind != null
+                    ? $"trade caravan ({explicitTraderKind.label})"
+                    : incidentParms?.traderKind != null
+                        ? $"trade caravan ({incidentParms.traderKind.label})"
+                        : "trade caravan";
             case IncursionGroupKind.Visitors:
                 return "visitors";
             case IncursionGroupKind.Travelers:
@@ -670,6 +869,15 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             SetFaction(parms.faction);
         }
 
+        if (parms.traderKind != null)
+        {
+            explicitTraderKind = parms.traderKind;
+        }
+        else if (parms.faction?.def?.caravanTraderKinds != null && parms.faction.def.caravanTraderKinds.Count > 0)
+        {
+            explicitTraderKind = parms.faction.def.caravanTraderKinds.FirstOrDefault();
+        }
+
         if (pathTiles.Count > 0)
         {
             Tile = pathTiles[0];
@@ -679,6 +887,16 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             Tile = origin;
         }
 
+        // Allocate unique tracking ID immediately upon incursion creation
+        if (trackingId <= 0)
+        {
+            trackingId = ContactRegistry.Instance?.AllocateTrackingId() ??
+                         SensoryManager.Instance?.AllocateContactTrackingId() ?? 1;
+        }
+
+        // Eagerly pre-materialize the full force makeup (pawns, animals, mechs, weapons, inventory)
+        EnsureRosterGenerated();
+
         isIdentified = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient);
         intelligenceTier = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient)
             ? IntelligenceTier.Analysed
@@ -687,9 +905,50 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         hasDispatchedClassifiedAlert = false;
         lastSampledDrawPos = TrueDrawPos;
 
-        // Register target with SensoryManager and trigger immediate detection sweep
+        // Register target with SensoryManager and ContactRegistry, then trigger immediate detection sweep
         SensoryManager.Instance?.RegisterTarget(this);
         SensoryManager.Instance?.PerformSensorySweep();
+        ContactRegistry.Instance?.RegisterContact(this);
+    }
+
+    /// <summary>
+    /// Eagerly generates and commits the incursion's force makeup (human combatants, pack animals,
+    /// mechanoids, weapons, armor, carried provisions, and merchant trade cargo) into WorldPawns
+    /// so the force composition exists deterministically from the moment of departure.
+    /// </summary>
+    public void EnsureRosterGenerated(Map? targetMap = null)
+    {
+        if (committedPawns == null || committedPawns.Count == 0)
+        {
+            var generated = IncursionInterceptionUtility.GetOrGenerateIncursionPawns(this, targetMap);
+            if (generated != null && generated.Count > 0)
+            {
+                SetCommittedPawns(generated);
+            }
+        }
+
+        if (IsUnderlyingTradeCaravan)
+        {
+            if (traderPawn == null && committedPawns != null)
+            {
+                traderPawn = committedPawns.FirstOrDefault(p => p.trader != null) ??
+                             committedPawns.FirstOrDefault(p => p.kindDef != null && p.kindDef.trader) ??
+                             committedPawns.FirstOrDefault(p => p.RaceProps != null && p.RaceProps.Humanlike);
+            }
+            if (traderPawn != null)
+            {
+                traderPawn.mindState.wantsToTradeWithColony = true;
+                if (traderPawn.trader == null)
+                {
+                    traderPawn.trader = new Pawn_TraderTracker(traderPawn);
+                }
+                if (traderPawn.trader.traderKind == null && TraderKind != null)
+                {
+                    traderPawn.trader.traderKind = TraderKind;
+                }
+            }
+            GetOrCreateTradeStock();
+        }
     }
 
     public override void SpawnSetup()
@@ -699,12 +958,19 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         {
             lastSampledDrawPos = TrueDrawPos;
         }
+        if (trackingId <= 0)
+        {
+            trackingId = ContactRegistry.Instance?.AllocateTrackingId() ??
+                         SensoryManager.Instance?.AllocateContactTrackingId() ?? 1;
+        }
         SensoryManager.Instance?.RegisterTarget(this);
+        ContactRegistry.Instance?.RegisterContact(this);
     }
 
     public override void PostRemove()
     {
         SensoryManager.Instance?.DeregisterTarget(this);
+        ContactRegistry.Instance?.Notify_ContactRemoved(this);
         base.PostRemove();
     }
 
@@ -712,9 +978,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         intelligenceTier = newTier;
 
-        if (newTier >= IntelligenceTier.Contact && trackingId <= 0 && SensoryManager.Instance != null)
+        if (newTier >= IntelligenceTier.Contact && trackingId <= 0)
         {
-            trackingId = SensoryManager.Instance.AllocateContactTrackingId();
+            trackingId = ContactRegistry.Instance?.AllocateTrackingId() ??
+                         SensoryManager.Instance?.AllocateContactTrackingId() ?? 1;
+            ContactRegistry.Instance?.RegisterContact(this);
         }
 
         if (newTier >= IntelligenceTier.Classified)
@@ -970,6 +1238,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             caravanCooldowns = new Dictionary<int, int>();
         }
         Scribe_Values.Look(ref isRetreating, "isRetreating", false);
+        Scribe_Values.Look(ref isTradeMissionAborted, "isTradeMissionAborted", false);
         Scribe_Values.Look(ref isEngagedInTacticalMap, "isEngagedInTacticalMap", false);
 
         if (Scribe.mode == LoadSaveMode.Saving)
@@ -983,6 +1252,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     {
                         Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
                     }
+                    SanitizeDanglingRelations(p);
                 }
             }
             if (kidnappedColonists != null)
@@ -998,6 +1268,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                             p.SetFaction(Faction.OfPlayer);
                         }
                     }
+                    SanitizeDanglingRelations(p);
                 }
             }
             if (committedPawns != null)
@@ -1009,6 +1280,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     {
                         Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
                     }
+                    SanitizeDanglingRelations(p);
                 }
             }
         }
@@ -1016,6 +1288,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         Scribe_Collections.Look(ref retreatingPawns, "retreatingPawns", LookMode.Reference);
         Scribe_Collections.Look(ref kidnappedColonists, "kidnappedColonists", LookMode.Reference);
         Scribe_Collections.Look(ref committedPawns, "committedPawns", LookMode.Reference);
+        Scribe_References.Look(ref traderPawn, "traderPawn");
+        Scribe_Defs.Look(ref explicitTraderKind, "explicitTraderKind");
 
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
@@ -1026,6 +1300,34 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             committedPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
             retreatingPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
             kidnappedColonists?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
+
+            if (traderPawn != null && (traderPawn.Dead || traderPawn.Destroyed))
+            {
+                traderPawn = null;
+            }
+
+            if (IsUnderlyingTradeCaravan)
+            {
+                if (traderPawn == null && committedPawns != null)
+                {
+                    traderPawn = committedPawns.FirstOrDefault(p => p.trader != null) ??
+                                 committedPawns.FirstOrDefault(p => p.kindDef != null && p.kindDef.trader) ??
+                                 committedPawns.FirstOrDefault(p => p.RaceProps != null && p.RaceProps.Humanlike);
+                }
+
+                if (traderPawn != null)
+                {
+                    traderPawn.mindState.wantsToTradeWithColony = true;
+                    if (traderPawn.trader == null)
+                    {
+                        traderPawn.trader = new Pawn_TraderTracker(traderPawn);
+                    }
+                    if (traderPawn.trader.traderKind == null && TraderKind != null)
+                    {
+                        traderPawn.trader.traderKind = TraderKind;
+                    }
+                }
+            }
         }
         Scribe_Deep.Look(ref tradeStock, "tradeStock", this);
 
@@ -1133,6 +1435,17 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             if (committedPawns != null && !isEngagedInTacticalMap)
             {
                 TickCommittedPawnsPhysiology(250);
+            }
+            if (IsUnderlyingTradeCaravan && !isTradeMissionAborted)
+            {
+                if (traderPawn != null && (traderPawn.Dead || traderPawn.Destroyed))
+                {
+                    AbortTradeMission("caravan master perished en route");
+                }
+                else if (committedPawns != null && committedPawns.Count > 0 && !committedPawns.Any(p => p != null && !p.Dead && p.RaceProps != null && p.RaceProps.Humanlike))
+                {
+                    AbortTradeMission("all merchant personnel lost");
+                }
             }
         }
 
@@ -1287,19 +1600,40 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     return;
                 }
 
-                // Dynamic pursuit tracking: if incursion moved to a different tile
-                if (c.pather.Destination != Tile)
+                // Head-on shared-edge crossing:
+                // If the caravan is on our immediate next tile and either waiting for us at the border
+                // or marching directly into our current tile while we march into theirs, engage where the icons meet!
+                PlanetTile nextTile = NextPathTile;
+                if (nextTile.Valid && nextTile != Tile && c.Tile == nextTile)
                 {
-                    var sensoryManager = Find.World?.GetComponent<SensoryManager>();
-                    bool hasVision = sensoryManager != null && sensoryManager.HasActiveVision(Tile);
-                    if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact || hasVision)
+                    bool caravanMovingIntoUs = c.pather is { Moving: true } && c.pather.nextTile == Tile;
+                    float caravanProgress = caravanMovingIntoUs
+                        ? 1f - Mathf.Clamp01(c.pather.nextTileCostLeft / Mathf.Max(1f, c.pather.nextTileCostTotal))
+                        : 0f;
+
+                    if ((caravanMovingIntoUs && (tileProgress + caravanProgress) >= 0.95f) ||
+                        (!caravanMovingIntoUs && tileProgress >= 0.85f))
                     {
-                        c.pather.StartPath(Tile, interceptAction, resetPauseStatus: false);
+                        AdvancePathTile();
+                        IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
+                        return;
                     }
-                    else
+                }
+
+                // Dynamic pursuit tracking: plot X-COM lead intercept tile along incursion heading
+                var sensoryManager = Find.World?.GetComponent<SensoryManager>();
+                bool hasVision = sensoryManager != null && sensoryManager.HasActiveVision(Tile);
+                if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact || hasVision)
+                {
+                    PlanetTile targetTile = GetInterceptTargetTile(c);
+                    if (c.pather.Destination != targetTile)
                     {
-                        IncursionInterceptionUtility.CheckContactLost(c, this);
+                        c.pather.StartPath(targetTile, interceptAction, resetPauseStatus: false);
                     }
+                }
+                else if (c.pather.Destination != Tile && c.pather.Destination != NextPathTile)
+                {
+                    IncursionInterceptionUtility.CheckContactLost(c, this);
                 }
             }
         }
@@ -1340,6 +1674,76 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
     }
 
+    public PlanetTile NextPathTile =>
+        (pathTiles != null && currentPathIndex + 1 < pathTiles.Count)
+            ? pathTiles[currentPathIndex + 1]
+            : Tile;
+
+    /// <summary>
+    /// Computes the X-COM style predictive intercept hex for a pursuing player caravan.
+    /// Instead of aiming at the hex the incursion is already walking out of, leads moving targets
+    /// to their next transit hex when appropriate.
+    /// </summary>
+    public PlanetTile GetInterceptTargetTile(Caravan? caravan)
+    {
+        if (caravan == null || !caravan.Spawned || !Tile.Valid || pathTiles == null || pathTiles.Count == 0)
+        {
+            return Tile;
+        }
+
+        if (caravan.Tile == Tile)
+        {
+            return Tile;
+        }
+
+        // If the incursion is stationary (mobilizing, resting for the night, in combat, or at final tile), target its current hex
+        if (IsMobilizing || IsRestingAtNight || isEngagedInTacticalMap || currentPathIndex >= pathTiles.Count - 1)
+        {
+            return Tile;
+        }
+
+        PlanetTile nextTile = pathTiles[currentPathIndex + 1];
+
+        // If the caravan is already standing on nextTile (directly in front of the incursion),
+        // step toward Tile if the incursion is still in the first half of Tile, or hold on nextTile if it's crossing the border
+        if (caravan.Tile == nextTile)
+        {
+            return tileProgress >= 0.55f ? nextTile : Tile;
+        }
+
+        // Do not lead into a player home settlement tile on the very last step if the caravan is trying to intercept in the field outside the base
+        bool nextIsFinalPlayerSettlement = (currentPathIndex + 1 == pathTiles.Count - 1) &&
+                                           (Current.Game?.FindMap(nextTile)?.IsPlayerHome == true);
+        if (nextIsFinalPlayerSettlement && tileProgress < 0.75f)
+        {
+            return Tile;
+        }
+
+        float distToCur = Find.WorldGrid.ApproxDistanceInTiles(caravan.Tile, Tile);
+        float distToNext = Find.WorldGrid.ApproxDistanceInTiles(caravan.Tile, nextTile);
+
+        // Lead the target to nextTile when:
+        // 1. The incursion is past the center of its current hex (heading toward the exit edge into nextTile), OR
+        // 2. nextTile is closer or equal distance to the intercepting caravan's approach vector, OR
+        // 3. The caravan is more than 1 hex away and chasing a moving target
+        if (tileProgress >= 0.40f || distToNext <= distToCur + 0.25f || distToCur > 1.35f)
+        {
+            return nextTile;
+        }
+
+        return Tile;
+    }
+
+    /// <summary>
+    /// Edge-to-Edge Within-Hex Interpolation:
+    /// Rather than interpolating from Center[i] to Center[i+1] (which visually places the icon inside Hex[i+1]
+    /// while Tile is still Hex[i] for tileProgress 0.50..0.99), interpolates across the current hex's physical span:
+    ///   - Entry Border (shared midpoint with Hex[i-1]) at tileProgress = 0.0
+    ///   - Hex Center (Center[i]) at tileProgress = 0.5
+    ///   - Exit Border (shared midpoint with Hex[i+1]) at tileProgress = 1.0
+    /// Because ExitBorder[i] == EntryBorder[i+1], motion is 100% C0-continuous while guaranteeing the icon is
+    /// ALWAYS visually inside its actual Tile and crosses the hex border at the exact tick Tile updates.
+    /// </summary>
     public Vector3 TrueDrawPos
     {
         get
@@ -1356,7 +1760,15 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
             if (currentPathIndex >= pathTiles.Count - 1)
             {
-                return Find.WorldGrid.GetTileCenter(pathTiles[pathTiles.Count - 1]);
+                int lastIdx = pathTiles.Count - 1;
+                Vector3 finalCenter = Find.WorldGrid.GetTileCenter(pathTiles[lastIdx]);
+                if (lastIdx > 0)
+                {
+                    Vector3 prevCenter = Find.WorldGrid.GetTileCenter(pathTiles[lastIdx - 1]);
+                    Vector3 entryEdge = Vector3.Slerp(prevCenter, finalCenter, 0.5f);
+                    return Vector3.Slerp(entryEdge, finalCenter, Mathf.Clamp01(tileProgress * 2f));
+                }
+                return finalCenter;
             }
 
             PlanetTile curTile = pathTiles[currentPathIndex];
@@ -1364,8 +1776,28 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
             Vector3 curCenter = Find.WorldGrid.GetTileCenter(curTile);
             Vector3 nextCenter = Find.WorldGrid.GetTileCenter(nextTile);
+            Vector3 exitEdge = Vector3.Slerp(curCenter, nextCenter, 0.5f);
 
-            return Vector3.Slerp(curCenter, nextCenter, Mathf.Clamp01(tileProgress));
+            float t = Mathf.Clamp01(tileProgress);
+
+            // Origin tile (index 0): starts at origin center and moves to the first hex border at t = 1.0
+            if (currentPathIndex == 0)
+            {
+                return Vector3.Slerp(curCenter, exitEdge, t);
+            }
+
+            // Transit tiles (index > 0):
+            // t in [0.0, 0.5] -> Entry Edge (border with previous tile) to Current Tile Center
+            // t in [0.5, 1.0] -> Current Tile Center to Exit Edge (border with next tile)
+            Vector3 prevTileCenter = Find.WorldGrid.GetTileCenter(pathTiles[currentPathIndex - 1]);
+            Vector3 entryEdgePos = Vector3.Slerp(prevTileCenter, curCenter, 0.5f);
+
+            if (t <= 0.5f)
+            {
+                return Vector3.Slerp(entryEdgePos, curCenter, t * 2f);
+            }
+
+            return Vector3.Slerp(curCenter, exitEdge, (t - 0.5f) * 2f);
         }
     }
 
@@ -1449,12 +1881,13 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
         {
             Vector3 curDrawPos = DrawPos + DrawPos.normalized * 0.08f;
-            if (currentPathIndex < tiles.Count)
+            int anchorIdx = (currentPathIndex > 0 && tileProgress < 0.5f) ? currentPathIndex - 1 : currentPathIndex;
+            if (anchorIdx < tiles.Count)
             {
-                Vector3 pCur = GetElevatedTileCenter(tiles[currentPathIndex]);
-                if ((curDrawPos - pCur).sqrMagnitude > 0.001f)
+                Vector3 pAnchor = GetElevatedTileCenter(tiles[anchorIdx]);
+                if ((curDrawPos - pAnchor).sqrMagnitude > 0.001f)
                 {
-                    GenDraw.DrawWorldLineBetween(pCur, curDrawPos, FriendlyPastLineMat, 1.0f);
+                    GenDraw.DrawWorldLineBetween(pAnchor, curDrawPos, FriendlyPastLineMat, 1.0f);
                 }
             }
             return;
@@ -1476,40 +1909,71 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             return;
         }
 
-        // 1. Draw traversed past path (from origin up to currentPathIndex)
-        for (int i = 0; i < currentPathIndex; i++)
-        {
-            Vector3 pA = GetElevatedTileCenter(tiles[i]);
-            Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
-            GenDraw.DrawWorldLineBetween(pA, pB, pastMat, 1.0f);
-        }
-
-        // 2. Draw current leg connecting to smooth DrawPos
         Vector3 curDrawPos2 = DrawPos + DrawPos.normalized * 0.08f;
+        bool beforeHexCenter = currentPathIndex > 0 && tileProgress < 0.5f;
 
-        if (currentPathIndex < tiles.Count)
+        if (beforeHexCenter)
         {
+            // Icon is between EntryEdge[i] and Center[i] (segment tiles[i-1] -> tiles[i])
+            for (int i = 0; i < currentPathIndex - 1; i++)
+            {
+                Vector3 pA = GetElevatedTileCenter(tiles[i]);
+                Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
+                GenDraw.DrawWorldLineBetween(pA, pB, pastMat, 1.0f);
+            }
+
+            Vector3 pPrev = GetElevatedTileCenter(tiles[currentPathIndex - 1]);
+            if ((curDrawPos2 - pPrev).sqrMagnitude > 0.001f)
+            {
+                GenDraw.DrawWorldLineBetween(pPrev, curDrawPos2, pastMat, 1.0f);
+            }
+
             Vector3 pCur = GetElevatedTileCenter(tiles[currentPathIndex]);
-            if ((curDrawPos2 - pCur).sqrMagnitude > 0.001f)
+            if ((pCur - curDrawPos2).sqrMagnitude > 0.001f)
             {
-                GenDraw.DrawWorldLineBetween(pCur, curDrawPos2, pastMat, 1.0f);
-            }
-        }
-
-        if (currentPathIndex + 1 < tiles.Count)
-        {
-            Vector3 pNext = GetElevatedTileCenter(tiles[currentPathIndex + 1]);
-            if ((pNext - curDrawPos2).sqrMagnitude > 0.001f)
-            {
-                GenDraw.DrawWorldLineBetween(curDrawPos2, pNext, activeMat, 1.2f);
+                GenDraw.DrawWorldLineBetween(curDrawPos2, pCur, activeMat, 1.2f);
             }
 
-            // 3. Draw remaining upcoming path from next tile to destination
-            for (int i = currentPathIndex + 1; i < tiles.Count - 1; i++)
+            for (int i = currentPathIndex; i < tiles.Count - 1; i++)
             {
                 Vector3 pA = GetElevatedTileCenter(tiles[i]);
                 Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
                 GenDraw.DrawWorldLineBetween(pA, pB, activeMat, 1.2f);
+            }
+        }
+        else
+        {
+            // Icon is between Center[i] and ExitEdge[i] (segment tiles[i] -> tiles[i+1])
+            for (int i = 0; i < currentPathIndex; i++)
+            {
+                Vector3 pA = GetElevatedTileCenter(tiles[i]);
+                Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
+                GenDraw.DrawWorldLineBetween(pA, pB, pastMat, 1.0f);
+            }
+
+            if (currentPathIndex < tiles.Count)
+            {
+                Vector3 pCur = GetElevatedTileCenter(tiles[currentPathIndex]);
+                if ((curDrawPos2 - pCur).sqrMagnitude > 0.001f)
+                {
+                    GenDraw.DrawWorldLineBetween(pCur, curDrawPos2, pastMat, 1.0f);
+                }
+            }
+
+            if (currentPathIndex + 1 < tiles.Count)
+            {
+                Vector3 pNext = GetElevatedTileCenter(tiles[currentPathIndex + 1]);
+                if ((pNext - curDrawPos2).sqrMagnitude > 0.001f)
+                {
+                    GenDraw.DrawWorldLineBetween(curDrawPos2, pNext, activeMat, 1.2f);
+                }
+
+                for (int i = currentPathIndex + 1; i < tiles.Count - 1; i++)
+                {
+                    Vector3 pA = GetElevatedTileCenter(tiles[i]);
+                    Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
+                    GenDraw.DrawWorldLineBetween(pA, pB, activeMat, 1.2f);
+                }
             }
         }
     }
@@ -1631,7 +2095,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             case IncursionGroupKind.HostileWarband:
                 return $"A hostile warband from {Faction?.Name ?? "an unknown enemy faction"} traversing the planetary surface towards colony territory.";
             case IncursionGroupKind.TradeCaravan:
-                string traderDetail = incidentParms?.traderKind != null ? $" ({incidentParms.traderKind.label})" : string.Empty;
+                if (isTradeMissionAborted)
+                {
+                    return $"A surviving merchant group from {Faction?.Name ?? "a friendly faction"} returning to base after losing their head merchant.";
+                }
+                string traderDetail = TraderKind != null ? $" ({TraderKind.label})" : string.Empty;
                 return $"A merchant trade caravan{traderDetail} from {Faction?.Name ?? "a friendly faction"} travelling with trade goods and pack animals.";
             case IncursionGroupKind.Visitors:
                 return $"A party of visitors from {Faction?.Name ?? "a friendly faction"} travelling to socialise and visit your settlement.";
@@ -1654,17 +2122,17 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     // ITrader & IThingHolder Implementations (Roadside Persistent Trading)
     // =========================================================================
 
-    public TraderKindDef? TraderKind => GroupKind == IncursionGroupKind.TradeCaravan
-        ? (incidentParms?.traderKind ?? Faction?.def?.caravanTraderKinds?.FirstOrDefault())
+    public TraderKindDef? TraderKind => IsUnderlyingTradeCaravan
+        ? (explicitTraderKind ?? incidentParms?.traderKind ?? Faction?.def?.caravanTraderKinds?.FirstOrDefault())
         : null;
 
-    public IEnumerable<Thing> Goods => GroupKind == IncursionGroupKind.TradeCaravan ? GetOrCreateTradeStock() : Enumerable.Empty<Thing>();
+    public IEnumerable<Thing> Goods => IsUnderlyingTradeCaravan ? GetOrCreateTradeStock() : Enumerable.Empty<Thing>();
 
     public int RandomPriceFactorSeed => ID;
 
     public string TraderName => LabelCap;
 
-    public bool CanTradeNow => GroupKind == IncursionGroupKind.TradeCaravan && Faction != null && !Faction.HostileTo(Faction.OfPlayer);
+    public bool CanTradeNow => IsUnderlyingTradeCaravan && !isTradeMissionAborted && Faction != null && !Faction.HostileTo(Faction.OfPlayer);
 
     public float TradePriceImprovementOffsetForPlayer => 0f;
 
@@ -1707,20 +2175,98 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         if (tradeStock == null)
         {
             tradeStock = new ThingOwner<Thing>(this);
-            if (GroupKind == IncursionGroupKind.TradeCaravan && TraderKind != null)
+            if (IsUnderlyingTradeCaravan)
             {
-                ThingSetMakerParams parms = default;
-                parms.traderDef = TraderKind;
-                parms.makingFaction = Faction;
-                parms.tile = Tile;
-                List<Thing> generated = ThingSetMakerDefOf.TraderStock.root.Generate(parms);
-                for (int i = 0; i < generated.Count; i++)
+                // First check if committed or retreating pawns already carry wares from generation
+                bool foundAnyItemsInCarriers = false;
+                var sourcePawns = committedPawns ?? retreatingPawns;
+                if (sourcePawns != null && sourcePawns.Count > 0)
                 {
-                    tradeStock.TryAdd(generated[i], canMergeWithExistingStacks: false);
+                    for (int i = 0; i < sourcePawns.Count; i++)
+                    {
+                        Pawn p = sourcePawns[i];
+                        if (p?.inventory?.innerContainer != null && p.inventory.innerContainer.Count > 0)
+                        {
+                            foundAnyItemsInCarriers = true;
+                            var items = p.inventory.innerContainer.ToList();
+                            for (int it = 0; it < items.Count; it++)
+                            {
+                                Thing t = items[it];
+                                p.inventory.innerContainer.Remove(t);
+                                tradeStock.TryAdd(t, canMergeWithExistingStacks: true);
+                            }
+                        }
+                    }
+                }
+
+                if (!foundAnyItemsInCarriers && TraderKind != null)
+                {
+                    ThingSetMakerParams parms = default;
+                    parms.traderDef = TraderKind;
+                    parms.makingFaction = Faction;
+                    parms.tile = Tile;
+                    List<Thing> generated = ThingSetMakerDefOf.TraderStock.root.Generate(parms);
+                    for (int i = 0; i < generated.Count; i++)
+                    {
+                        tradeStock.TryAdd(generated[i], canMergeWithExistingStacks: false);
+                    }
                 }
             }
         }
         return tradeStock;
+    }
+
+    /// <summary>
+    /// Transfers all items held in tradeStock onto carrier pack animals (or humanoids if pack animals are absent)
+    /// so the caravan pawns physically transport their trade cargo on tactical battle and transit maps.
+    /// </summary>
+    public void SyncCargoFromTradeStockToPawns(List<Pawn> pawns)
+    {
+        if (!IsUnderlyingTradeCaravan || tradeStock == null || tradeStock.Count == 0 || pawns == null || pawns.Count == 0) return;
+
+        var carriers = pawns.Where(p => p != null && !p.Dead && p.inventory != null && p.RaceProps != null && p.RaceProps.packAnimal).ToList();
+        if (carriers.Count == 0)
+        {
+            carriers = pawns.Where(p => p != null && !p.Dead && p.inventory != null).ToList();
+        }
+
+        if (carriers.Count > 0)
+        {
+            int carrierIdx = 0;
+            var stockList = tradeStock.ToList();
+            for (int s = 0; s < stockList.Count; s++)
+            {
+                Thing item = stockList[s];
+                tradeStock.Remove(item);
+                Pawn carrier = carriers[carrierIdx % carriers.Count];
+                carrier.inventory.innerContainer.TryAdd(item, canMergeWithExistingStacks: true);
+                carrierIdx++;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gathers all items from carrier pawns' inventories back into tradeStock when transitioning from tactical maps
+    /// to the Geoscape, ensuring dropped cargo from casualties stays on the battlefield while surviving cargo persists.
+    /// </summary>
+    public void SyncCargoFromPawnsToTradeStock(List<Pawn> pawns)
+    {
+        if (!IsUnderlyingTradeCaravan || pawns == null || pawns.Count == 0) return;
+        var stock = GetOrCreateTradeStock();
+        for (int i = 0; i < pawns.Count; i++)
+        {
+            Pawn p = pawns[i];
+            if (p?.inventory?.innerContainer != null && p.inventory.innerContainer.Count > 0)
+            {
+                var items = p.inventory.innerContainer.ToList();
+                for (int it = 0; it < items.Count; it++)
+                {
+                    Thing t = items[it];
+                    p.inventory.innerContainer.Remove(t);
+                    stock.TryAdd(t, canMergeWithExistingStacks: true);
+                }
+            }
+        }
     }
 
     public void GetChildHolders(List<IThingHolder> outChildren)
@@ -1943,6 +2489,34 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 }
             }
         }
+    }
+
+    public override void Destroy()
+    {
+        ContactRegistry.Instance?.Notify_ContactDestroyed(this, "Neutralized");
+
+        if (committedPawns != null)
+        {
+            foreach (var p in committedPawns)
+            {
+                if (p != null && Find.WorldPawns != null)
+                {
+                    Find.WorldPawns.ForcefullyKeptPawns.Remove(p);
+                }
+            }
+        }
+        if (retreatingPawns != null)
+        {
+            foreach (var p in retreatingPawns)
+            {
+                if (p != null && Find.WorldPawns != null)
+                {
+                    Find.WorldPawns.ForcefullyKeptPawns.Remove(p);
+                }
+            }
+        }
+        tradeStock?.ClearAndDestroyContents();
+        base.Destroy();
     }
 }
 

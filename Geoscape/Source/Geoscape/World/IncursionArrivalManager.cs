@@ -24,6 +24,15 @@ public static class IncursionArrivalManager
         if (incursion.IsRetreating)
         {
             string fName = incursion.Faction?.Name ?? "enemy forces";
+            if (incursion.IsTradeMissionAborted)
+            {
+                Log.Message($"[Project Vigilance] Aborted trade caravan {incursion.TrackingId} ({incursion.Label}) from {fName} returned to their stronghold safely.");
+                Messages.Message($"The surviving travellers from {fName} have returned safely to their territory following their aborted trade mission.", new GlobalTargetInfo(incursion.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
+                ContactRegistry.Instance?.DeregisterContact(incursion, "AbortedMissionReturnedHome");
+                incursion.Destroy();
+                return true;
+            }
+
             if (incursion.KidnappedColonists != null && incursion.KidnappedColonists.Count > 0)
             {
                 Pawn? kidnapper = incursion.RetreatingPawns?.FirstOrDefault();
@@ -57,6 +66,7 @@ public static class IncursionArrivalManager
                 Log.Message($"[Project Vigilance] Retreating incursion {incursion.TrackingId} ({incursion.Label}) from {fName} returned to their stronghold safely.");
             }
 
+            ContactRegistry.Instance?.Notify_ContactReturnedToBase(incursion);
             incursion.Destroy();
             return true;
         }
@@ -67,6 +77,7 @@ public static class IncursionArrivalManager
             string fName = incursion.Faction?.Name ?? "peaceful travellers";
             Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) returned home safely after being warned away.");
             Messages.Message($"The {groupDesc} from {fName} returned to their home territory safely.", new GlobalTargetInfo(incursion.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
+            ContactRegistry.Instance?.DeregisterContact(incursion, "ReturnedHomeAfterWarning");
             incursion.Destroy();
             return true;
         }

@@ -42,6 +42,27 @@ public class LordToil_IncursionTransit : LordToil_Travel
     }
 }
 
+public class Trigger_TraderLost : Trigger
+{
+    private readonly WorldObject_Incursion? incursion;
+
+    public Trigger_TraderLost(WorldObject_Incursion? incursion)
+    {
+        this.incursion = incursion;
+    }
+
+    public override bool ActivateOn(Lord lord, TriggerSignal signal)
+    {
+        if (incursion == null || !incursion.IsUnderlyingTradeCaravan) return false;
+        Pawn? trader = incursion.TraderPawn;
+        if (trader != null && (trader.Dead || trader.Downed))
+        {
+            return true;
+        }
+        return false;
+    }
+}
+
 public class Trigger_IncursionThreatDetection : Trigger
 {
     private readonly LordJob_IncursionTransit job;
@@ -75,7 +96,7 @@ public class Trigger_IncursionThreatDetection : Trigger
         // 3. Periodic tactical check (every 30 ticks = 0.5s)
         else if (signal.type == TriggerSignalType.Tick && Find.TickManager.TicksGame % 30 == 0)
         {
-            threatTriggered = CheckSensoryDetection(lord);
+            threatTriggered = CheckSensoryDetection(lord, job.IsHostile);
         }
 
         if (!threatTriggered)
@@ -102,14 +123,14 @@ public class Trigger_IncursionThreatDetection : Trigger
         return false;
     }
 
-    private static bool CheckSensoryDetection(Lord lord)
+    private static bool CheckSensoryDetection(Lord lord, bool isHostile)
     {
         Map map = lord.Map;
         if (map == null) return false;
 
         var ambush = map.GetComponent<MapComponent_OverlandAmbush>();
 
-        // Recent gunfire / explosion within hearing distance
+        // 1. Recent gunfire / explosion within hearing distance (applies to both hostiles and neutrals)
         if (ambush != null && ambush.LastCombatNoiseTick > 0 && (Find.TickManager.TicksGame - ambush.LastCombatNoiseTick) < 300)
         {
             IntVec3 noisePos = ambush.LastCombatNoisePos;
@@ -126,30 +147,80 @@ public class Trigger_IncursionThreatDetection : Trigger
             }
         }
 
-        // Visual Line of Sight to Conscious Player Colonists within 18 cells
-        var colonists = map.mapPawns?.FreeColonistsSpawned;
-        if (colonists != null)
+        // 2. Visual Line of Sight detection:
+        if (isHostile)
         {
-            for (int i = 0; i < lord.ownedPawns.Count; i++)
+            // For HOSTILE incursions: player colonists are the target/threat
+            var colonists = map.mapPawns?.FreeColonistsSpawned;
+            if (colonists != null)
             {
-                Pawn incursionPawn = lord.ownedPawns[i];
-                if (incursionPawn == null || !incursionPawn.Spawned || incursionPawn.Dead || incursionPawn.Downed || !incursionPawn.Awake())
+                for (int i = 0; i < lord.ownedPawns.Count; i++)
                 {
-                    continue;
-                }
-
-                for (int j = 0; j < colonists.Count; j++)
-                {
-                    Pawn col = colonists[j];
-                    if (col == null || !col.Spawned || col.Dead || col.Downed)
+                    Pawn incursionPawn = lord.ownedPawns[i];
+                    if (incursionPawn == null || !incursionPawn.Spawned || incursionPawn.Dead || incursionPawn.Downed || !incursionPawn.Awake())
                     {
                         continue;
                     }
 
-                    float distSq = incursionPawn.Position.DistanceToSquared(col.Position);
-                    if (distSq <= 324f && GenSight.LineOfSight(incursionPawn.Position, col.Position, map, skipFirstCell: true))
+                    for (int j = 0; j < colonists.Count; j++)
                     {
-                        return true;
+                        Pawn col = colonists[j];
+                        if (col == null || !col.Spawned || col.Dead || col.Downed)
+                        {
+                            continue;
+                        }
+
+                        float distSq = incursionPawn.Position.DistanceToSquared(col.Position);
+                        if (distSq <= 324f && GenSight.LineOfSight(incursionPawn.Position, col.Position, map, skipFirstCell: true))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            // For NEUTRAL / FRIENDLY incursions:
+            // Player colonists are FRIENDS or NEUTRALS, NOT threats!
+            // Only actual hostiles (enemies to this faction or hostile manhunter animals) trigger evasion.
+            var allPawns = map.mapPawns?.AllPawnsSpawned;
+            if (allPawns != null)
+            {
+                Faction caravanFaction = lord.faction;
+                for (int i = 0; i < lord.ownedPawns.Count; i++)
+                {
+                    Pawn incursionPawn = lord.ownedPawns[i];
+                    if (incursionPawn == null || !incursionPawn.Spawned || incursionPawn.Dead || incursionPawn.Downed || !incursionPawn.Awake())
+                    {
+                        continue;
+                    }
+
+                    for (int j = 0; j < allPawns.Count; j++)
+                    {
+                        Pawn potentialThreat = allPawns[j];
+                        if (potentialThreat == null || !potentialThreat.Spawned || potentialThreat.Dead || potentialThreat.Downed)
+                        {
+                            continue;
+                        }
+
+                        // Player colonists and friendly allies are NEVER considered threats
+                        if (potentialThreat.Faction == Faction.OfPlayer || potentialThreat.IsColonist)
+                        {
+                            continue;
+                        }
+
+                        bool isEnemy = (potentialThreat.Faction != null && caravanFaction != null && potentialThreat.Faction.HostileTo(caravanFaction)) ||
+                                       potentialThreat.InAggroMentalState;
+
+                        if (isEnemy)
+                        {
+                            float distSq = incursionPawn.Position.DistanceToSquared(potentialThreat.Position);
+                            if (distSq <= 324f && GenSight.LineOfSight(incursionPawn.Position, potentialThreat.Position, map, skipFirstCell: true))
+                            {
+                                return true;
+                            }
+                        }
                     }
                 }
             }
@@ -348,9 +419,25 @@ public class LordJob_IncursionTransit : LordJob
             dangerTransition.AddPreAction(new TransitionAction_Custom(() =>
             {
                 threatDetected = true;
-                Messages.Message($"Gunfire ahead! {faction?.Name ?? "Travellers"} have detected danger, giving the combat zone a wide berth as they hurry toward the exit!", new TargetInfo(lord.ownedPawns.FirstOrDefault()?.Position ?? IntVec3.Invalid, Map), MessageTypeDefOf.NeutralEvent);
+                var ambush = Map?.GetComponent<MapComponent_OverlandAmbush>();
+                bool heardGunfire = ambush != null && ambush.LastCombatNoiseTick > 0 && (Find.TickManager.TicksGame - ambush.LastCombatNoiseTick) < 300;
+                string threatDesc = heardGunfire
+                    ? $"Gunfire ahead! {faction?.Name ?? "Travellers"} have heard the sounds of battle, giving the combat zone a wide berth as they hurry toward the exit!"
+                    : $"Danger spotted! {faction?.Name ?? "Travellers"} have spotted hostile threats, giving the area a wide berth as they hurry toward the exit!";
+
+                Messages.Message(threatDesc, new TargetInfo(lord.ownedPawns.FirstOrDefault()?.Position ?? IntVec3.Invalid, Map), MessageTypeDefOf.NeutralEvent);
             }));
             stateGraph.AddTransition(dangerTransition);
+
+            // If the trade caravan's trader dies or is downed, abort the trade mission and retreat
+            Transition abortMissionTransition = new Transition(transitToil, wideBerthExitToil, false, true);
+            abortMissionTransition.AddTrigger(new Trigger_TraderLost(incursion));
+            abortMissionTransition.AddPreAction(new TransitionAction_Custom(() =>
+            {
+                threatDetected = true;
+                incursion?.AbortTradeMission("caravan master lost");
+            }));
+            stateGraph.AddTransition(abortMissionTransition);
 
             // If directly attacked / harmed, defend themselves
             LordToil_ExitMapTraderFighting defendFightingToil = new LordToil_ExitMapTraderFighting();

@@ -48,13 +48,42 @@ public class CaravanArrivalAction_InterceptIncursion : CaravanArrivalAction
             return;
         }
 
-        if (caravan.Tile != targetIncursion.Tile)
+        if (caravan.Tile == targetIncursion.Tile)
         {
-            Messages.Message($"{caravan.LabelCap} arrived at the last known position of {targetIncursion.LabelCap}, but the contact has moved on.", caravan, MessageTypeDefOf.NeutralEvent);
+            IncursionInterceptionUtility.ExecuteInterception(caravan, targetIncursion, isAmbush: false);
             return;
         }
 
-        IncursionInterceptionUtility.ExecuteInterception(caravan, targetIncursion, isAmbush: false);
+        // If the caravan arrived at the predicted lead hex (NextPathTile) just ahead of the moving incursion:
+        if (caravan.Tile == targetIncursion.NextPathTile && targetIncursion.NextPathTile != targetIncursion.Tile)
+        {
+            if (targetIncursion.TileProgress >= 0.50f)
+            {
+                targetIncursion.AdvancePathTile();
+                IncursionInterceptionUtility.ExecuteInterception(caravan, targetIncursion, isAmbush: false);
+                return;
+            }
+
+            caravan.pather?.StartPath(targetIncursion.Tile, this, resetPauseStatus: false);
+            return;
+        }
+
+        // If the incursion is still visible to sensors, continue pursuing its updated lead vector
+        var sensoryManager = Find.World?.GetComponent<Sensory.SensoryManager>();
+        bool hasVision = sensoryManager != null && sensoryManager.HasActiveVision(targetIncursion.Tile);
+        if (GeoscapeMod.Settings.visibilityMode == Sensory.VisibilityMode.Omniscient ||
+            targetIncursion.CurrentIntelligenceTier >= Sensory.IntelligenceTier.Contact ||
+            hasVision)
+        {
+            PlanetTile nextTarget = targetIncursion.GetInterceptTargetTile(caravan);
+            if (nextTarget.Valid && nextTarget != caravan.Tile)
+            {
+                caravan.pather?.StartPath(nextTarget, this, resetPauseStatus: false);
+                return;
+            }
+        }
+
+        Messages.Message($"{caravan.LabelCap} arrived at the last known position of {targetIncursion.LabelCap}, but the contact has moved on.", caravan, MessageTypeDefOf.NeutralEvent);
     }
 
     public override void ExposeData()
