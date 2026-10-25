@@ -154,7 +154,7 @@ To ensure 100% deterministic persistence of all planetary forces across both Geo
    - **Pawns (Humans & Aliens):** Full RimWorld `Pawn` instances registered into `Find.WorldPawns` with `KeepForever` and `ForcefullyKeptPawns` (granting immunity to vanilla GC discard).
    - **Pets & Pack Animals:** Dromedary camels, muffalo, horses, and attack beasts are created with pack saddles and luggage.
    - **Mechanoids:** Full mechanoid warframes (centipedes, scythers, militors) with specific chassis stats.
-   - **Weapons, Armor & Cargo:** Primary weapons, apparel, carried provisions (medicine, food, silver), and merchant bulk stock (`TradeStock`).
+   - **Weapons, Armour & Cargo:** Primary weapons, apparel, carried provisions (medicine, food, silver), and merchant bulk stock (`TradeStock`).
    - **Continuous Physiological Simulation:** Overland physiology (`SimulatePawnsPhysiology`) ticks health, wound bleeding, medic tending, night rest, and food consumption while en route.
 
 3. **Central Query API (`ContactRegistry`):**
@@ -167,9 +167,10 @@ To ensure 100% deterministic persistence of all planetary forces across both Geo
 Guided by the principle _"You don't know what you don't know: to know, you need to find out"_, detailed tactical telemetry is locked behind reconnaissance and intelligence capability.
 
 #### Intelligence Gating & Access Requirements
+
 - **Tier 0–1 (Undetected / Suspected):** No inspect window or contact selection.
 - **Tier 2 (Contact):** Basic inspect pane in the bottom-left corner displaying coarse telemetry: designation (`Contact-N`), speed class, rough heading, and status (`Camped`, `Marching`, `Stationary`).
-- **Tier 3 (Classified):** Confirms faction identity, faction insignia, broad category (*Trade Caravan*, *Pirate Warband*, *Mechanoid Hive*), and approximate force size (*Small Squad [~3–5]*, *Company [~10–15]*, *Army [~25+]*) with projected destination vector.
+- **Tier 3 (Classified):** Confirms faction identity, faction insignia, broad category (_Trade Caravan_, _Pirate Warband_, _Mechanoid Hive_), and approximate force size (_Small Squad [~3–5]_, _Company [~10–15]_, _Army [~25+]_) with projected destination vector.
 - **Tier 4 (Analysed / Reconnoitred) & Omniscient Mode:** Unlocks the **Tactical Intelligence Dossier** dialog and Geoscape Inspect Tabs. Achieved by:
   1. Operating a high-tech planetary scanning array (Hyper-Wave Decoder / Strategic Intelligence Facility).
   2. Field reconnaissance: Maintaining a player scout caravan within direct visual range (~2 hexes).
@@ -182,18 +183,18 @@ Selecting an Analysed contact on the Geoscape provides an interactive inspection
 1. **Header Banner:**
    - Unique Tracking ID badge (`Contact-12 [Pirate Warband]`).
    - Faction emblem, current hex location, speed, heading, and live ETA countdown to target.
-   - Threat Assessment rating (e.g. *Extreme - Mechanoid Armor Detected*).
+   - Threat Assessment rating (e.g. _Extreme - Mechanoid Armour Detected_).
 
 2. **Tab 1: Force Roster (Combatants, Mechs, & Animals):**
    - **Category Sections:**
-     - *Combatants & Leaders:* Headcount, names, combat roles (Sniper, Brawler, Heavy Gunner), and conscious/downed status.
-     - *Mechanoids & War Engines:* Identified chassis types (e.g. `2x Centipede (Heavy Gunner)`, `3x Scyther`).
-     - *Pack Animals & War Beasts:* Identified species (e.g. `4x Dromedary Camel (Pack)`, `2x Warg`).
+     - _Combatants & Leaders:_ Headcount, names, combat roles (Sniper, Brawler, Heavy Gunner), and conscious/downed status.
+     - _Mechanoids & War Engines:_ Identified chassis types (e.g. `2x Centipede (Heavy Gunner)`, `3x Scyther`).
+     - _Pack Animals & War Beasts:_ Identified species (e.g. `4x Dromedary Camel (Pack)`, `2x Warg`).
    - **Health Telemetry:** Live health conditions, untreated bleed rates, infection warnings, and mobility ratings derived from continuous physiological simulation.
 
 3. **Tab 2: Equipment, Inventory & Cargo:**
    - **Primary Armament:** List of equipped ranged and melee weapons (with quality and tech tier icons).
-   - **Armor Rating:** Average blunt/sharp armor protection across the squad.
+   - **Armour Rating:** Average blunt/sharp armour protection across the squad.
    - **Carried Provisions:** Total medicine units, food rations/pemmican, and combat drugs.
    - **Trade Stock (Merchant Caravans):** Catalog of carried trade goods, techprints, silver, and exotic items.
    - **Captives:** Known abducted colonists held in captivity, showing their health state and rescue urgency.
@@ -239,7 +240,7 @@ To eliminate all movement hitches and achieve silky-smooth 60 FPS caravan travel
 
 ### 3.8 Topological Hex-Step Metric & Future Line-of-Sight Backlog
 
-To provide players with a clean, intuitive sensory boundary akin to *Civilization*—where every hex hop is uniform and predictable—active vision, fog-of-war exploration, and sensor ranges use discrete **Topological Hex-Step Distance** rather than continuous spherical geodesic distance:
+To provide players with a clean, intuitive sensory boundary akin to _Civilization_—where every hex hop is uniform and predictable—active vision, fog-of-war exploration, and sensor ranges use discrete **Topological Hex-Step Distance** rather than continuous spherical geodesic distance:
 
 1. **Elimination of Icosahedral Projection Distortion:**
    - On RimWorld's subdivided icosahedron globe (Goldberg polyhedron), continuous spherical distance (`ApproxDistanceInTiles`) projects a continuous circular cap onto non-uniform hexagons, clipping corners where tiles are stretched and creating protruding teeth where tiles are compressed.
@@ -248,7 +249,7 @@ To provide players with a clean, intuitive sensory boundary akin to *Civilizatio
    - The outer active vision perimeter (`maxSteps = 5`), the inner optical identification horizon (`maxSteps = 2`), and sensor detection checks (`TraversalDistanceBetween <= maxSteps`) now share the exact same topological metric.
    - Moving contacts transition from Unidentified to Classified the exact instant their blip crosses the visible inner orange perimeter.
 3. **Future Milestone Backlog — Mountainous Line-of-Sight Occlusion:**
-   - *Design Goal:* In a future update, integrate raycast or Bresenham sightline checks on the globe where impassable mountains, high elevation peaks, or severe weather cells cast **sensory shadows** behind them, blocking ground lookouts and low-tech spotters while high-altitude radar arrays and orbital reconnaissance bypass ground occlusion.
+   - _Design Goal:_ In a future update, integrate raycast or Bresenham sightline checks on the globe where impassable mountains, high elevation peaks, or severe weather cells cast **sensory shadows** behind them, blocking ground lookouts and low-tech spotters while high-altitude radar arrays and orbital reconnaissance bypass ground occlusion.
 
 ---
 
@@ -384,22 +385,46 @@ If the player's colony or destination is located on an isolated island or enclos
 4. **Zero-Failure Safe-Guard (Idempotent Fallback):**
    - If path resolution fails completely, the system safely bypasses incursion transit and executes the vanilla incident instantly, ensuring the Storyteller loop never deadlocks.
 
-### 6.5 Abandoned Site Incursion Behaviour & Overland Track Pursuit
+### 6.5 Empty & Abandoned Site Incursion Behaviour: Probabilistic Overland Pursuit & Opportunistic Retargeting
 
-In vanilla RimWorld, when a settlement or temporary camp is abandoned while a hostile force is en route, the incident abruptly terminates upon arrival and the raiding party simply disappears. In Project Vigilance, incursions maintain persistent physical agency upon arriving at an abandoned site:
+In vanilla RimWorld, when a settlement or temporary camp is abandoned or evacuated while an incursion is en route, the incident abruptly terminates upon arrival and the raiding party simply disappears into thin air. In Project Vigilance, both hostile and peaceful incursions maintain persistent physical agency upon arriving at an evacuated or abandoned site:
 
-1. **Physical Track Detection:**
-   - When an incursion reaches an abandoned tile, raiders actively search the vacant camp.
-   - The engine checks recent caravan departure records from that tile. If the evacuation departed **overland** on foot or with pack animals, raiders roll a tactical tracking chance based on time elapsed since departure and biome weather.
-   - **Odyssey / Flight Exclusion:** Evacuations conducted via high-tech shuttles, drop-pods, or Odyssey gravships leave no ground trail, preventing pursuers from acquiring tracks.
-2. **Search Delay & Hot Pursuit:**
-   - If the tracking check succeeds, the incursion enters a search state at the abandoned camp for a short delay (e.g. 2–6 in-game hours) before locking onto the fleeing caravan's trajectory.
-   - Raiders reroute into an active pursuit on the `WorldGrid`, tracking the caravan toward its destination or ambushing it on the road.
-3. **Fallback March & Opportunistic Retargeting:**
-   - If no tracks are found or the trail goes cold:
-     - **Return March:** Raiders reverse course toward their home settlement or march to the nearest friendly outpost.
-     - **Opportunistic Retargeting:** Incursions can dynamically redirect their assault toward an adjacent player outpost, listening post, or allied settlement within range.
-     - **Occupation Camp:** In remote wilderness, raiders may convert the abandoned player camp into an enemy outpost or bandit staging base.
+1. **Peaceful Incursions (Visitors & Traders):**
+   - Arriving visitors and merchant caravans that find no conscious colonists present safely turn back (`incursion.ReverseCourse`), physically marching across the Geoscape back to their home base with status `Status: Returning home` and full ETA telemetry.
+   - Upon reaching their home base, they cleanly disband and register outcome `"ReturnedHomeSafely"`.
+
+2. **Hostile Incursions (Raids & Warbands) — 3-Tier Tactical Hierarchy:**
+   - When a hostile incursion arrives at an active settlement with zero conscious colonists or an abandoned settlement tile, raiders execute a dynamic tactical decision tree:
+
+   - **Tier 1: Physical Track Detection & Hot Pursuit (`TryFindEvacuatingCaravanTracks`, `SetPursuitTarget`):**
+     - Raiders actively scour the deserted settlement for signs of recent departure.
+     - Detects player caravans within tracking radius ($\le 8$ hexes) in the same planetary layer.
+     - **Probabilistic Tracking Roll:** Raiders roll a tactical tracking chance based on technology level, doctrine, trail age, and weather:
+       - **Faction Tech Level Baseline:**
+         - `Neolithic` (Tribals): **85%** base tracking capability (wilderness survivalists, scouts, and hunters reading broken vegetation, ash, and footprints).
+         - `Medieval`: **65%** base tracking capability.
+         - `Industrial` (Outlanders, Pirates): **50%** base tracking capability (standard infantry reconnaissance).
+         - `Spacer` / `Ultra` (Empire): **45%** base tracking capability.
+         - `Archotech`: **35%** base tracking capability.
+         - `Mechanoid`: **30%** base tracking capability (devoid of biological tracking instincts; relies strictly on ground seismic and electromagnetic sensor disturbance).
+       - **Tactical Modifiers:**
+         - Sapper / Breacher Raids: **-15%** penalty (encumbered with heavy mining/siege apparatus and focused on structures).
+         - Hunting / War Beasts: **+15%** bonus if the incursion includes hunting hounds, wolves, or wargs utilizing scent tracking.
+         - Distance Decay: **-5% per hex** of separation between the settlement and the caravan (colder trails and dispersed tracks).
+         - Weather Factor: **-20%** penalty if active rain has washed away ground tracks; **-15%** in heavy snow.
+         - Clamped within **5% to 90%** certainty.
+     - **Hot Pursuit Execution:** If the roll succeeds, the incursion locks onto the target caravan, shifts into hot pursuit (`[Pursuit]`), and charts an intercept path toward the caravan.
+     - **Dynamic Trajectory Updates:** Every 250 game ticks, the pursuing warband checks the moving caravan's coordinates; if the caravan moves to a new hex, the pursuer automatically re-plots its intercept course.
+     - **Field Ambush:** Upon entering the caravan's hex, the pursuers immediately ambush the fleeing colonists (`ExecuteHostileInterception(isAmbush: true)`).
+
+   - **Tier 2: Opportunistic Retargeting (Adjacent Outposts & Settlements):**
+     - If raiders fail to find tracks or no caravans are within tracking radius, the warband evaluates nearby targets.
+     - Searches for reachable player colonies, camps, or listening outposts within striking distance ($\le 10$ hexes).
+     - If found, the incursion dynamically diverts course (`SetRetargetRoute`), dispatching a threat letter to the player (`"Hostile Force Diverting"`) as it marches to assault the secondary outpost.
+
+   - **Tier 3: Fallback Ransack & Return March:**
+     - If no caravan tracks are found and no secondary outposts are within striking distance, the warband ransacks the vacant structures, claims whatever plunder was left behind, and reverses course (`incursion.ReverseCourse`).
+     - The incursion physically marches across the Geoscape back to its origin base or nearest friendly stronghold, remaining visible on sensors until exiting into home territory (`ReturnedHomeSafely`).
 
 ### 6.6 Night Owl & Schedule-Aware Caravan Rest
 
@@ -467,7 +492,7 @@ Project Vigilance implements an overland trade caravan architecture:
 
 1. **Discrete Topological Hex Vision Perimeters:**
    - Switched fog exploration, active vision perimeters, and sensor ranges from continuous spherical geodesic distance (`ApproxDistanceInTiles`) to discrete **Topological Hex Steps** (`FloodFillTopological` & `TraversalDistanceBetween`).
-   - Eliminates corner clipping and asymmetric teeth caused by Goldberg icosahedron distortion, ensuring vision reveals form clean, perfectly regular hexagonal boundaries (*Civilization* style).
+   - Eliminates corner clipping and asymmetric teeth caused by Goldberg icosahedron distortion, ensuring vision reveals form clean, perfectly regular hexagonal boundaries (_Civilization_ style).
 2. **Dynamic In-Place Vertex Colors (`WorldDrawLayer_HazeOfWar`):**
    - Eliminated the 100–250ms movement stutter caused by full-globe 3D mesh re-triangulation when caravans uncover new sectors.
    - The 3D globe mesh geometry (vertices, normals, triangles) is generated once during startup using a time-sliced coroutine yielding every 3ms.

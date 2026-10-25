@@ -57,6 +57,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private Pawn? traderPawn;
     private TraderKindDef? explicitTraderKind;
     private ThingOwner<Thing>? tradeStock;
+    private Caravan? pursuitTargetCaravan;
+    private int pursuitTargetCaravanId = -1;
 
     public IncidentDef? IncidentDef => incidentDef;
     public IncidentParms? IncidentParms => incidentParms;
@@ -90,6 +92,50 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         caravanCooldowns[caravanId] = expiryTick;
     }
     public bool IsEngagedInTacticalMap { get => isEngagedInTacticalMap; set => isEngagedInTacticalMap = value; }
+    public Caravan? PursuitTargetCaravan => pursuitTargetCaravan;
+    public bool IsPursuingCaravan => pursuitTargetCaravanId > 0;
+
+    public void SetPursuitTarget(Caravan targetCaravan, List<PlanetTile> initialPath)
+    {
+        if (targetCaravan == null) return;
+        pursuitTargetCaravan = targetCaravan;
+        pursuitTargetCaravanId = targetCaravan.ID;
+        destinationTile = targetCaravan.Tile;
+        pathTiles = initialPath;
+        currentPathIndex = 0;
+        tileProgress = 0f;
+        isTurningBack = false;
+        if (initialPath != null && initialPath.Count > 0)
+        {
+            Tile = initialPath[0];
+        }
+        Log.Message($"[Project Vigilance] Incursion {TrackingId} ({LabelCap}) initiated hot pursuit of caravan {targetCaravan.LabelCap} towards tile {destinationTile}.");
+    }
+
+    public void ClearPursuitTarget()
+    {
+        pursuitTargetCaravan = null;
+        pursuitTargetCaravanId = -1;
+    }
+
+    public void SetRetargetRoute(PlanetTile newDest, List<PlanetTile> newPath)
+    {
+        ClearPursuitTarget();
+        destinationTile = newDest;
+        pathTiles = newPath;
+        currentPathIndex = 0;
+        tileProgress = 0f;
+        isTurningBack = false;
+        if (newPath.Count > 0)
+        {
+            Tile = newPath[0];
+        }
+        if (incidentParms != null)
+        {
+            incidentParms.target = Current.Game?.FindMap(newDest);
+        }
+        Log.Message($"[Project Vigilance] Incursion {TrackingId} ({LabelCap}) diverted to secondary target tile {newDest}.");
+    }
 
     public void AdvancePathTile()
     {
@@ -527,6 +573,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                         ? " [Kidnappers]"
                         : " [Retreating]";
                     return $"{GetIdentifiedGroupLabel()}{idTag}{retreatTag}";
+                }
+
+                if (pursuitTargetCaravan != null && pursuitTargetCaravan.Spawned)
+                {
+                    return $"{GetIdentifiedGroupLabel()}{idTag} [Pursuit]";
                 }
 
                 return $"{GetIdentifiedGroupLabel()}{idTag}";
@@ -1366,6 +1417,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             pathTiles = serializedPath.Select(id => (PlanetTile)id).ToList();
         }
 
+        Scribe_References.Look(ref pursuitTargetCaravan, "pursuitTargetCaravan");
+        Scribe_Values.Look(ref pursuitTargetCaravanId, "pursuitTargetCaravanId", -1);
+
         if (Scribe.mode == LoadSaveMode.PostLoadInit && incidentParms != null && incidentParms.target == null && destinationTile.Valid)
         {
             incidentParms.target = Current.Game.FindMap(destinationTile);
@@ -1447,6 +1501,35 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     AbortTradeMission("all merchant personnel lost");
                 }
             }
+
+            // Dynamic Overland Pursuit Tracking: re-plot intercept path if target caravan moves
+            if (pursuitTargetCaravanId > 0)
+            {
+                if (pursuitTargetCaravan == null || !pursuitTargetCaravan.Spawned)
+                {
+                    pursuitTargetCaravan = Find.WorldObjects?.Caravans?.FirstOrDefault(c => c.ID == pursuitTargetCaravanId);
+                }
+
+                if (pursuitTargetCaravan != null && pursuitTargetCaravan.Spawned)
+                {
+                    if (pursuitTargetCaravan.Tile != destinationTile)
+                    {
+                        if (IncursionOriginResolver.TryBuildPath(Tile, pursuitTargetCaravan.Tile, out var updatedPursuitPath))
+                        {
+                            pathTiles = updatedPursuitPath;
+                            currentPathIndex = 0;
+                            tileProgress = 0f;
+                            destinationTile = pursuitTargetCaravan.Tile;
+                        }
+                    }
+                }
+                else
+                {
+                    Log.Message($"[Project Vigilance] Incursion {TrackingId} ({LabelCap}) lost pursuit target caravan #{pursuitTargetCaravanId}. Reversing course.");
+                    ClearPursuitTarget();
+                    ReverseCourse("lost pursuit target caravan");
+                }
+            }
         }
 
         // Nighttime Rest: Biological mortal forces halt and camp at night
@@ -1479,11 +1562,25 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public void ReverseCourse(string? reason = null)
     {
+        ClearPursuitTarget();
         if (!isRetreating)
         {
             isTurningBack = true;
         }
-        if (pathTiles != null && pathTiles.Count > 0)
+
+        // 1. Prefer direct path back to origin base if valid and reachable
+        if (originTile.Valid && Tile != originTile && IncursionOriginResolver.TryBuildPath(Tile, originTile, out var directReturnPath))
+        {
+            destinationTile = originTile;
+            pathTiles = directReturnPath;
+            currentPathIndex = 0;
+            tileProgress = 0f;
+            if (directReturnPath.Count > 0)
+            {
+                Tile = directReturnPath[0];
+            }
+        }
+        else if (pathTiles != null && pathTiles.Count > 0)
         {
             List<PlanetTile> newPath = new();
             int startIdx = Mathf.Clamp(currentPathIndex, 0, pathTiles.Count - 1);
@@ -1493,9 +1590,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             }
             if (newPath.Count <= 1 && Tile != originTile && originTile.Valid)
             {
-                if (IncursionOriginResolver.TryBuildPath(Tile, originTile, out var directReturnPath))
+                if (IncursionOriginResolver.TryBuildPath(Tile, originTile, out var directPath))
                 {
-                    newPath = directReturnPath;
+                    newPath = directPath;
                 }
             }
             if (newPath.Count <= 1 && (!originTile.Valid || Tile == originTile))
@@ -2058,6 +2155,15 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         float actualRemainingTiles = Math.Max(0f, (pathTiles != null ? (pathTiles.Count - currentPathIndex) : 0) - tileProgress);
         float remainingDays = actualRemainingTiles / Math.Max(0.1f, effectiveSpeed);
         float remainingHours = remainingDays * 24f;
+
+        if (pursuitTargetCaravan != null && pursuitTargetCaravan.Spawned)
+        {
+            if (!isClassified)
+            {
+                return $"{label.CapitalizeFirst()}\nStatus: In hot pursuit\nSpeed: ~{speedTilesPerDay:F0} hexes/day";
+            }
+            return $"{label.CapitalizeFirst()} ({factionName})\nStatus: In hot pursuit of {pursuitTargetCaravan.LabelCap}\nTarget: Hex {destinationTile}\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
+        }
 
         if (isTurningBack)
         {

@@ -21,6 +21,15 @@ public static class IncursionArrivalManager
 
     public static bool ExecuteArrival(WorldObject_Incursion incursion)
     {
+        if (incursion.PursuitTargetCaravan != null && incursion.PursuitTargetCaravan.Spawned && incursion.PursuitTargetCaravan.Tile == incursion.Tile)
+        {
+            Caravan targetCaravan = incursion.PursuitTargetCaravan;
+            incursion.ClearPursuitTarget();
+            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) caught up with pursued caravan {targetCaravan.LabelCap} at tile {incursion.Tile}. Executing hostile interception.");
+            IncursionInterceptionUtility.ExecuteInterception(targetCaravan, incursion, isAmbush: true);
+            return true;
+        }
+
         if (incursion.IsRetreating)
         {
             string fName = incursion.Faction?.Name ?? "enemy forces";
@@ -74,7 +83,8 @@ public static class IncursionArrivalManager
         if (incursion.IsTurningBack)
         {
             string groupDesc = incursion.GetIdentifiedGroupLabel();
-            string fName = incursion.Faction?.Name ?? "peaceful travellers";
+            bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
+            string fName = incursion.Faction?.Name ?? (isHostile ? "enemy forces" : "peaceful travellers");
             string returnReason = incursion.HasBeenWarnedAway ? "ReturnedHomeAfterWarning" : "ReturnedHomeSafely";
             Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) returned home safely.");
             Messages.Message($"The {groupDesc} from {fName} returned to their home territory safely.", new GlobalTargetInfo(incursion.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
@@ -115,14 +125,7 @@ public static class IncursionArrivalManager
             }
             else
             {
-                string groupDesc = isIdentified ? incursion.GetIdentifiedGroupLabel() : "An unidentified force";
-                string msg = isIdentified
-                    ? $"The {groupDesc} from {fName} arrived at the abandoned settlement, found no defenders or structures of value, and dispersed."
-                    : "An unidentified force arrived at the abandoned settlement, found no defenders, and dispersed.";
-                Messages.Message(msg, MessageTypeDefOf.NeutralEvent, false);
-                ContactRegistry.Instance?.DeregisterContact(incursion, "DispersedAtAbandonedSettlement");
-                incursion.Destroy();
-                return false;
+                return HandleHostileArrivalAtEmptyOrAbandonedSettlement(incursion, targetMap, incursion.DestinationTile.Valid ? incursion.DestinationTile : incursion.Tile);
             }
         }
 
@@ -162,12 +165,7 @@ public static class IncursionArrivalManager
             }
             else
             {
-                string emptyMsg = $"The {groupDesc} from {fName} arrived at {settlementName}, found no defenders present, and dispersed.";
-                Log.Message($"[Project Vigilance] {emptyMsg}");
-                Messages.Message(emptyMsg, new GlobalTargetInfo(targetMap.Tile), MessageTypeDefOf.NeutralEvent, historical: true);
-                ContactRegistry.Instance?.DeregisterContact(incursion, "DispersedNoDefenders");
-                incursion.Destroy();
-                return false;
+                return HandleHostileArrivalAtEmptyOrAbandonedSettlement(incursion, targetMap, targetMap.Tile);
             }
         }
 
@@ -220,24 +218,15 @@ public static class IncursionArrivalManager
             {
                 string settlementName = targetMap.Parent?.LabelCap ?? "the settlement";
                 string groupDesc = incursion.GetIdentifiedGroupLabel();
-                string fName = incursion.Faction?.Name ?? "approaching force";
+                string fName = incursion.Faction?.Name ?? (isHostileToPlayer ? "enemy forces" : "approaching force");
                 string failMsg = incursion.GroupKind == IncursionGroupKind.HostileWarband
-                    ? $"The {groupDesc} from {fName} arrived at {settlementName}, but could not find a path to attack and dispersed."
+                    ? $"The {groupDesc} from {fName} arrived at {settlementName}, but could not find a path to attack and turned back to return home."
                     : $"The {groupDesc} from {fName} arrived at {settlementName}, but departed without incident.";
                 Log.Warning($"[Project Vigilance] Incursion arrival incident {incursion.IncidentDef.defName} did not execute successfully. Notifying player.");
                 Messages.Message(failMsg, new GlobalTargetInfo(incursion.DestinationTile), MessageTypeDefOf.NeutralEvent, historical: true);
 
-                if (!isHostileToPlayer)
-                {
-                    incursion.ReverseCourse("arrival incident failed to execute");
-                    return false;
-                }
-                else
-                {
-                    ContactRegistry.Instance?.DeregisterContact(incursion, "DispersedFailedPath");
-                    incursion.Destroy();
-                    return false;
-                }
+                incursion.ReverseCourse("arrival incident failed to execute");
+                return false;
             }
 
             if (success && incursion.GroupKind == IncursionGroupKind.HostileWarband)
@@ -280,12 +269,191 @@ public static class IncursionArrivalManager
         {
             isExecutingArrival = false;
             currentExecutingIncursion = null;
-            if (incursion.Spawned && !incursion.IsEngagedInTacticalMap && !incursion.IsTurningBack && !incursion.IsRetreating)
+            if (incursion.Spawned && !incursion.IsEngagedInTacticalMap && !incursion.IsTurningBack && !incursion.IsRetreating && !incursion.IsPursuingCaravan)
             {
                 incursion.Destroy();
             }
         }
 
         return success;
+    }
+
+    private static bool HandleHostileArrivalAtEmptyOrAbandonedSettlement(WorldObject_Incursion incursion, Map? targetMap, PlanetTile arrivalTile)
+    {
+        string fName = incursion.Faction?.Name ?? "enemy forces";
+        string groupDesc = incursion.GetIdentifiedGroupLabel();
+        string settlementLabel = (targetMap?.Parent?.LabelCap) ?? (arrivalTile.Valid ? $"the site at tile {arrivalTile}" : "the abandoned site");
+
+        // -------------------------------------------------------------------------
+        // Priority 1: Hot Pursuit of Evacuating / Nearby Player Caravans
+        // -------------------------------------------------------------------------
+        if (TryFindEvacuatingCaravanTracks(incursion, arrivalTile, targetMap, out Caravan? targetCaravan, out float calculatedChance))
+        {
+            if (targetCaravan != null && IncursionOriginResolver.TryBuildPath(arrivalTile, targetCaravan.Tile, out var pursuitPath))
+            {
+                float dist = Find.WorldGrid.ApproxDistanceInTiles(arrivalTile, targetCaravan.Tile);
+                incursion.SetPursuitTarget(targetCaravan, pursuitPath);
+
+                string title = "Overland Pursuit: " + incursion.LabelCap;
+                string text = $"The {groupDesc} from {fName} arrived at {settlementLabel} and found no defenders present.\n\n" +
+                              $"However, their scouts discovered fresh overland tracks ({calculatedChance:P0} tracking certainty) and have set off in hot pursuit of your caravan ({targetCaravan.LabelCap})!\n\n" +
+                              $"The pursuers are {dist:F1} hexes behind. Prepare your caravan for interception or attempt to outpace them.";
+
+                Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, incursion);
+                Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) discovered tracks ({calculatedChance:P0}) and initiated hot pursuit of {targetCaravan.LabelCap} ({dist:F1} hexes away).");
+                return false;
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // Priority 2: Opportunistic Retargeting (Adjacent Colony / Camp / Outpost)
+        // -------------------------------------------------------------------------
+        Settlement? secondaryTarget = Find.WorldObjects?.Settlements?
+            .Where(s => s.Faction == Faction.OfPlayer && s.Tile != arrivalTile && s.Tile.Valid && s.Tile.Layer == arrivalTile.Layer)
+            .Where(s => Find.WorldGrid.ApproxDistanceInTiles(arrivalTile, s.Tile) <= 10.0f)
+            .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(arrivalTile, s.Tile))
+            .FirstOrDefault(s => IncursionOriginResolver.TryBuildPath(arrivalTile, s.Tile, out _));
+
+        if (secondaryTarget != null && IncursionOriginResolver.TryBuildPath(arrivalTile, secondaryTarget.Tile, out var retargetPath))
+        {
+            float dist = Find.WorldGrid.ApproxDistanceInTiles(arrivalTile, secondaryTarget.Tile);
+            incursion.SetRetargetRoute(secondaryTarget.Tile, retargetPath);
+
+            string title = "Hostile Force Diverting: " + incursion.LabelCap;
+            string text = $"The {groupDesc} from {fName} arrived at {settlementLabel} and found it undefended.\n\n" +
+                          $"Spotting your nearby settlement at {secondaryTarget.LabelCap} ({dist:F0} hexes away), the warband has altered course to attack it instead!\n\n" +
+                          $"Prepare your defenses at {secondaryTarget.LabelCap}.";
+
+            Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, incursion);
+            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) diverted to secondary target {secondaryTarget.LabelCap} ({dist:F0} hexes away).");
+            return false;
+        }
+
+        // -------------------------------------------------------------------------
+        // Priority 3: Fallback Ransack & Return Home March
+        // -------------------------------------------------------------------------
+        string ransackMsg = $"The {groupDesc} from {fName} arrived at {settlementLabel}, found no defenders present, ransacked the vacant structures, and turned back to return home.";
+        Log.Message($"[Project Vigilance] {ransackMsg}");
+        Messages.Message(ransackMsg, new GlobalTargetInfo(arrivalTile), MessageTypeDefOf.NeutralEvent, historical: true);
+
+        incursion.ReverseCourse("ransacked empty settlement");
+        return false;
+    }
+
+    private static bool TryFindEvacuatingCaravanTracks(
+        WorldObject_Incursion incursion,
+        PlanetTile arrivalTile,
+        Map? targetMap,
+        out Caravan? targetCaravan,
+        out float calculatedChance)
+    {
+        targetCaravan = null;
+        calculatedChance = 0f;
+
+        if (incursion == null || !arrivalTile.Valid)
+        {
+            return false;
+        }
+
+        var caravans = Find.WorldObjects?.Caravans;
+        if (caravans == null || caravans.Count == 0)
+        {
+            return false;
+        }
+
+        // Candidates: spawned player caravans in the same layer within max tracking radius (8 hexes)
+        var candidates = caravans
+            .Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile.Valid && c.Tile.Layer == arrivalTile.Layer)
+            .Select(c => new { Caravan = c, Distance = Find.WorldGrid.ApproxDistanceInTiles(arrivalTile, c.Tile) })
+            .Where(x => x.Distance <= 8.0f)
+            .OrderBy(x => x.Distance)
+            .ToList();
+
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        var bestCandidate = candidates[0];
+        Caravan candidateCaravan = bestCandidate.Caravan;
+        float dist = bestCandidate.Distance;
+
+        // Base Tracking Chance by Faction Tech Level
+        float baseChance = 0.50f;
+        TechLevel tech = incursion.Faction?.def?.techLevel ?? TechLevel.Industrial;
+        switch (tech)
+        {
+            case TechLevel.Animal:
+            case TechLevel.Neolithic:
+                baseChance = 0.85f; // Tribal hunters excel at wilderness tracking
+                break;
+            case TechLevel.Medieval:
+                baseChance = 0.65f;
+                break;
+            case TechLevel.Industrial:
+                baseChance = 0.50f;
+                break;
+            case TechLevel.Spacer:
+            case TechLevel.Ultra:
+                baseChance = 0.45f;
+                break;
+            case TechLevel.Archotech:
+                baseChance = 0.35f;
+                break;
+        }
+
+        // Mechanoids rely on sensors/radar rather than footprint tracking
+        bool isMechanoid = incursion.Faction != null && (incursion.Faction.def == FactionDefOf.Mechanoid || incursion.Faction.def.defName.Contains("Mechanoid"));
+        if (isMechanoid)
+        {
+            baseChance = 0.30f;
+        }
+
+        float chance = baseChance;
+
+        // Modifier: Sapper / Breach raids are focused on structures and less observant
+        string incidentDefName = incursion.IncidentDef?.defName ?? string.Empty;
+        if (incidentDefName.IndexOf("Sapper", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            incidentDefName.IndexOf("Breach", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            chance -= 0.15f;
+        }
+
+        // Modifier: War beasts / Hunting hounds scent tracking bonus (+15%)
+        var breakdown = ContactRegistry.Instance?.GetRosterBreakdown(incursion);
+        if (breakdown != null && breakdown.AnimalCount > 0)
+        {
+            chance += 0.15f;
+        }
+
+        // Distance Decay: Trail disperses / cools with distance (-5% per hex)
+        float distPenalty = dist * 0.05f;
+        chance -= distPenalty;
+
+        // Weather Modifier: Rain washes away tracks (-20%)
+        if (targetMap?.weatherManager != null)
+        {
+            if (targetMap.weatherManager.RainRate > 0.1f)
+            {
+                chance -= 0.20f;
+            }
+            else if (targetMap.weatherManager.SnowRate > 0.1f)
+            {
+                chance -= 0.15f;
+            }
+        }
+
+        calculatedChance = UnityEngine.Mathf.Clamp(chance, 0.05f, 0.90f);
+
+        bool rolledSuccess = Rand.Chance(calculatedChance);
+        Log.Message($"[Project Vigilance] Tracking roll for incursion {incursion.TrackingId} against caravan {candidateCaravan.LabelCap} ({dist:F1} hexes): Tech={tech}, Base={baseChance:P0}, Final={calculatedChance:P0}, Succeeded={rolledSuccess}.");
+
+        if (rolledSuccess)
+        {
+            targetCaravan = candidateCaravan;
+            return true;
+        }
+
+        return false;
     }
 }
