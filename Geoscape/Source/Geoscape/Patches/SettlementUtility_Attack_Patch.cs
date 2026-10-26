@@ -39,7 +39,7 @@ public static class SettlementUtility_Attack_Patch
 
         foreach (Pawn captive in captives)
         {
-            if (captive != null && !captive.Spawned)
+            if (captive != null && !captive.Spawned && !captive.Dead && !captive.Destroyed)
             {
                 CellFinder.TryFindRandomCellNear(baseCenter, map, 12, c => c.Walkable(map) && !c.Fogged(map), out IntVec3 spawnCell);
                 GenSpawn.Spawn(captive, spawnCell.IsValid ? spawnCell : baseCenter, map, Rot4.Random);
@@ -51,8 +51,12 @@ public static class SettlementUtility_Attack_Patch
             }
         }
 
-        string names = string.Join(", ", captives.Select(c => c.LabelShort));
-        Messages.Message($"RESCUE MISSION: Captured colonist(s) ({names}) are incarcerated inside this stronghold! Secure them during the assault.", settlement, MessageTypeDefOf.PositiveEvent);
+        var livingCaptives = captives.Where(c => c != null && !c.Dead && !c.Destroyed).ToList();
+        if (livingCaptives.Count > 0)
+        {
+            string names = string.Join(", ", livingCaptives.Select(c => c.LabelShort));
+            Messages.Message($"RESCUE MISSION: Captured colonist(s) ({names}) are incarcerated inside this stronghold! Secure them during the assault.", settlement, MessageTypeDefOf.PositiveEvent);
+        }
         IncursionRetreatManager.RemoveIncarceratedColonistsAt(settlement.Tile);
     }
 }

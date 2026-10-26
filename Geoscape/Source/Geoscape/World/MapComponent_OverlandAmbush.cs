@@ -112,6 +112,36 @@ public class MapComponent_OverlandAmbush : MapComponent
     public List<Pawn> EscapedHostiles => escapedHostiles;
     public List<Pawn> CapturedColonists => capturedColonists;
 
+    /// <summary>
+    /// Yields all active incursions associated with this tactical encounter,
+    /// whether tracked via multi-incursion Engagements or legacy SourceIncursion.
+    /// Provides tracked living enemies, captured colonists, and contact labels in a single unified view.
+    /// </summary>
+    public IEnumerable<(WorldObject_Incursion incursion, List<Pawn> trackedHostiles, List<Pawn>? capturedPawns, string contactLabel)> GetActiveIncursionSummaries()
+    {
+        if (engagements != null && engagements.Count > 0)
+        {
+            for (int i = 0; i < engagements.Count; i++)
+            {
+                var record = engagements[i];
+                if (record.incursion != null && record.incursion.Spawned)
+                {
+                    var living = record.trackedPawns
+                        .Concat(record.escapedPawns ?? Enumerable.Empty<Pawn>())
+                        .Where(p => p != null && !p.Dead && !p.Destroyed)
+                        .Distinct()
+                        .ToList();
+                    yield return (record.incursion, living, record.capturedColonists, record.contactLabel);
+                }
+            }
+        }
+        else if (sourceIncursion != null && sourceIncursion.Spawned)
+        {
+            var living = GetLivingEnemies();
+            yield return (sourceIncursion, living, null, contactName);
+        }
+    }
+
     public void RegisterGuestCohort(string label, Faction? f, IEnumerable<Pawn> cohortPawns)
     {
         if (cohortPawns == null) return;

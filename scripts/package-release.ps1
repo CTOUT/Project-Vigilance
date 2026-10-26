@@ -40,21 +40,9 @@ if (-not (Test-Path $solutionFile)) {
 }
 
 # 2. Handle active DLL locks if RimWorld is open
+. (Join-Path $PSScriptRoot 'lib\ModDeployHelper.ps1')
 $targetDll = Join-Path $geoscapeDir '1.7\Assemblies\Geoscape.dll'
-$oldDll = Join-Path $geoscapeDir '1.7\Assemblies\Geoscape.dll.old'
-if (Test-Path $oldDll) {
-    Remove-Item $oldDll -Force -ErrorAction SilentlyContinue
-}
-if (Test-Path $targetDll) {
-    try {
-        $fileStream = [System.IO.File]::Open($targetDll, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
-        $fileStream.Close()
-        $fileStream.Dispose()
-    } catch {
-        Write-Host "--> Active file lock detected on Geoscape.dll (RimWorld running). Rotating locked assembly..." -ForegroundColor Yellow
-        Move-Item -Path $targetDll -Destination $oldDll -Force
-    }
-}
+Invoke-AssemblyLockRotation -AssemblyPath $targetDll
 
 # 3. Build Release configuration
 Write-Host "--> Building Geoscape (Release configuration)..." -ForegroundColor Yellow

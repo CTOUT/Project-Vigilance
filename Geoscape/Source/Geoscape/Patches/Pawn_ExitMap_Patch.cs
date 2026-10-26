@@ -119,120 +119,58 @@ public static class Pawn_ExitMap_Patch
 
                     bool hasAnyCaptives = ambushComp.CapturedColonists != null && ambushComp.CapturedColonists.Count > 0;
 
-                    if (ambushComp.Engagements != null && ambushComp.Engagements.Count > 0)
+                    foreach (var (incursion, livingHostiles, capturedPawns, contactLabel) in ambushComp.GetActiveIncursionSummaries())
                     {
-                        foreach (var record in ambushComp.Engagements)
-                        {
-                            if (record.incursion != null && record.incursion.Spawned)
-                            {
-                                record.incursion.IsEngagedInTacticalMap = false;
+                        incursion.IsEngagedInTacticalMap = false;
 
-                                var livingHostiles = record.trackedPawns
-                                    .Concat(record.escapedPawns ?? Enumerable.Empty<Pawn>())
-                                    .Where(p => p != null && !p.Dead && !p.Destroyed)
-                                    .Distinct()
-                                    .ToList();
-                                if (livingHostiles.Count > 0)
-                                {
-                                    IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(livingHostiles);
-                                    record.incursion.SetCommittedPawns(livingHostiles);
-                                }
-
-                                bool recordHasCaptives = hasAnyCaptives ||
-                                    (record.capturedColonists != null && record.capturedColonists.Count > 0) ||
-                                    (record.incursion.KidnappedColonists != null && record.incursion.KidnappedColonists.Count > 0);
-
-                                if (recordHasCaptives)
-                                {
-                                    record.incursion.IsRetreating = true;
-                                    if (ambushComp.CapturedColonists != null && ambushComp.CapturedColonists.Count > 0)
-                                    {
-                                        record.incursion.SetKidnappedColonists(new List<Pawn>(ambushComp.CapturedColonists));
-                                    }
-                                    else if (record.capturedColonists != null && record.capturedColonists.Count > 0)
-                                    {
-                                        record.incursion.SetKidnappedColonists(new List<Pawn>(record.capturedColonists));
-                                    }
-
-                                    if (livingHostiles.Count > 0)
-                                    {
-                                        record.incursion.SetRetreatingPawns(livingHostiles);
-                                    }
-
-                                    if (IncursionOriginResolver.TryResolveRetreatRoute(map.Tile, record.incursion.Faction, out var destTile, out var retreatPath, out var speed))
-                                    {
-                                        record.incursion.SetRetreatRoute(destTile, retreatPath, speed);
-                                    }
-                                    else
-                                    {
-                                        record.incursion.ReverseCourse("escaping with captives after engagement");
-                                    }
-
-                                    Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) abducted colonist(s) and is retreating on Geoscape towards {record.incursion.DestinationTile}.");
-                                    Messages.Message($"Enemy raid {record.contactLabel} has abducted colonist(s) and is retreating on the Geoscape!", record.incursion, MessageTypeDefOf.NegativeEvent);
-                                }
-                                else
-                                {
-                                    record.incursion.AdvancePathTile();
-                                }
-
-                                if (caravan != null)
-                                {
-                                    record.incursion.MarkCaravanMet(caravan.ID);
-                                    record.incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 7500);
-                                }
-                            }
-                        }
-                    }
-                    else if (ambushComp.SourceIncursion != null && ambushComp.SourceIncursion.Spawned)
-                    {
-                        var sourceIncursion = ambushComp.SourceIncursion;
-                        sourceIncursion.IsEngagedInTacticalMap = false;
-
-                        var livingHostiles = ambushComp.GetLivingEnemies();
                         if (livingHostiles.Count > 0)
                         {
                             IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(livingHostiles);
-                            sourceIncursion.SetCommittedPawns(livingHostiles);
+                            incursion.SetCommittedPawns(livingHostiles);
                         }
 
-                        bool sourceHasCaptives = hasAnyCaptives ||
-                            (sourceIncursion.KidnappedColonists != null && sourceIncursion.KidnappedColonists.Count > 0);
+                        bool recordHasCaptives = hasAnyCaptives ||
+                            (capturedPawns != null && capturedPawns.Count > 0) ||
+                            (incursion.KidnappedColonists != null && incursion.KidnappedColonists.Count > 0);
 
-                        if (sourceHasCaptives)
+                        if (recordHasCaptives)
                         {
-                            sourceIncursion.IsRetreating = true;
+                            incursion.IsRetreating = true;
                             if (ambushComp.CapturedColonists != null && ambushComp.CapturedColonists.Count > 0)
                             {
-                                sourceIncursion.SetKidnappedColonists(new List<Pawn>(ambushComp.CapturedColonists));
+                                incursion.SetKidnappedColonists(new List<Pawn>(ambushComp.CapturedColonists));
+                            }
+                            else if (capturedPawns != null && capturedPawns.Count > 0)
+                            {
+                                incursion.SetKidnappedColonists(new List<Pawn>(capturedPawns));
                             }
 
                             if (livingHostiles.Count > 0)
                             {
-                                sourceIncursion.SetRetreatingPawns(livingHostiles);
+                                incursion.SetRetreatingPawns(livingHostiles);
                             }
 
-                            if (IncursionOriginResolver.TryResolveRetreatRoute(map.Tile, sourceIncursion.Faction, out var destTile, out var retreatPath, out var speed))
+                            if (IncursionOriginResolver.TryResolveRetreatRoute(map.Tile, incursion.Faction, out var destTile, out var retreatPath, out var speed))
                             {
-                                sourceIncursion.SetRetreatRoute(destTile, retreatPath, speed);
+                                incursion.SetRetreatRoute(destTile, retreatPath, speed);
                             }
                             else
                             {
-                                sourceIncursion.ReverseCourse("escaping with captives after engagement");
+                                incursion.ReverseCourse("escaping with captives after engagement");
                             }
 
-                            Log.Message($"[Project Vigilance] Incursion {sourceIncursion.TrackingId} abducted colonist(s) and is retreating on Geoscape towards {sourceIncursion.DestinationTile}.");
-                            Messages.Message($"Enemy raid has abducted colonist(s) and is retreating on the Geoscape!", sourceIncursion, MessageTypeDefOf.NegativeEvent);
+                            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({contactLabel}) abducted colonist(s) and is retreating on Geoscape towards {incursion.DestinationTile}.");
+                            Messages.Message($"Enemy raid {contactLabel} has abducted colonist(s) and is retreating on the Geoscape!", incursion, MessageTypeDefOf.NegativeEvent);
                         }
                         else
                         {
-                            sourceIncursion.AdvancePathTile();
+                            incursion.AdvancePathTile();
                         }
 
                         if (caravan != null)
                         {
-                            sourceIncursion.MarkCaravanMet(caravan.ID);
-                            sourceIncursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 7500);
+                            incursion.MarkCaravanMet(caravan.ID);
+                            incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 7500);
                         }
                     }
                 }

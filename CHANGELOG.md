@@ -35,6 +35,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Save-Time Dangling Map Reference Elimination in Fleeing Raider Batches (`IncursionRetreatManager.RetreatBatch`):**
+  - Resolved a save-time error where `IncursionRetreatManager.RetreatBatch` held a strong reference to `Map` via `Scribe_References.Look(ref map, "map")`. If raiders fled a temporary encounter map or `CaravansBattlefield` that was deinited before the 25-second batch timeout expired, saving the game triggered red errors from RimWorld's `DebugLoadIDsSavingErrorsChecker`.
+  - Replaced `Map map` with `PlanetTile originTile` and `string settlementName`, completely eliminating dangling Map pointers and sanitizing dead or destroyed pawns prior to saving.
+- **Stale WorldComponent Binding Leak Across World Loads (`ExternalFogCompatibility`, `SensoryManager`):**
+  - Resolved an issue where returning to the main menu and loading a new game or different save left `ExternalFogCompatibility` bound to delegates and collections from the previous world.
+  - Replaced one-shot `Initialize()` calls in `SensoryManager` with `ExternalFogCompatibility.ResetAndRescan()` during `FinalizeInit()`, ensuring fresh component discovery on each world load.
+- **Destroyed Medicine Reuse in Overland Physiology Simulation (`WorldObject_Incursion.SimulatePawnsPhysiology`):**
+  - Resolved an edge case where multiple wounded pawns tended in sequence could pass a destroyed medicine reference to `TendUtility.DoTend` after the first tend depleted the carried stack.
+  - Added real-time destroyed/depletion validation and refreshed medicine lookups between successive tends.
+- **Dead Captive Entity Spawning Guard in Stronghold Assaults (`SettlementUtility_Attack_Patch`):**
+  - Added `!captive.Dead && !captive.Destroyed` guards before spawning incarcerated colonists during base assaults, preventing deceased captives from attempting to spawn as live pawns.
+- **GitHub Actions Least-Privilege Permissions (`.github/workflows/*.yml`):**
+  - Added explicit top-level `permissions: contents: read` across `format.yml`, `gitleaks.yml`, `ps-analyzer.yml`, and `spellcheck.yml` to prevent unintended privilege escalation from default repository tokens.
+- **DRY Multi-Incursion Iteration Consolidation (`MapComponent_OverlandAmbush`, `IncursionTacticalRetreatUtility`, `Pawn_ExitMap_Patch`):**
+  - Consolidated duplicate multi-incursion vs. single-source loops across `ExecuteStealthDisengage`, `ExecuteRetreat`, `CleanUpEncounterMap`, and `Pawn_ExitMap_Patch` by introducing `MapComponent_OverlandAmbush.GetActiveIncursionSummaries()`.
+  - Removed over 120 lines of redundant boilerplate code while guaranteeing consistent handling across all retreat and disengage scenarios.
+- **DRY Assembly Lock Rotation Script Modularisation (`scripts/lib/ModDeployHelper.ps1`):**
+  - Extracted duplicated file-lock detection and rotation routines from `deploy-geoscape.ps1` and `package-release.ps1` into a shared, reusable PowerShell helper module.
+- **Hot-Path Zero-Allocation Collision Loop Optimization (`WorldObject_Incursion.CheckInterceptionsAndPursuits`):**
+  - Eliminated per-tick LINQ closure and list allocations in caravan interception and direct-tile collision checks, replacing them with index-based loops and lazy list initialization.
+
 - **Dangling Deinited Map Reference in Tactical Encounter Letters (`ChoiceLetter_TacticalEncounter`):**
   - Resolved a save-time warning and future load error: `"Object with load ID Map_X is referenced (xml node name: battleMap) but is not deep-saved. This will cause errors during loading."` when saving after reforming a caravan from a tactical encounter map.
   - Root cause: When a player reformed a caravan from a `CaravansBattlefield` map, the temporary map was deinited and removed from `Find.Maps`. However, the tactical encounter letter (`ChoiceLetter_TacticalEncounter`) remaining in the letter stack/archive retained an unmanaged `Scribe_References.Look` to the deinited `battleMap`. Because deinited maps are not deep-saved, RimWorld's `DebugLoadIDsSavingErrorsChecker` flagged the dangling reference on save.

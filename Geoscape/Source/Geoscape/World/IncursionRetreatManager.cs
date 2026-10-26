@@ -13,7 +13,8 @@ public class IncursionRetreatManager : WorldComponent
 
     public class RetreatBatch : IExposable
     {
-        public Map? map;
+        public PlanetTile originTile;
+        public string settlementName = "the colony";
         public Faction? faction;
         public List<Pawn> fleeingPawns = new();
         public List<Pawn> kidnappedColonists = new();
@@ -21,7 +22,13 @@ public class IncursionRetreatManager : WorldComponent
 
         public void ExposeData()
         {
-            Scribe_References.Look(ref map, "map");
+            int tileId = originTile.tileId;
+            Scribe_Values.Look(ref tileId, "originTileId", 0);
+            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
+                originTile = (PlanetTile)tileId;
+            }
+            Scribe_Values.Look(ref settlementName, "settlementName", "the colony");
             Scribe_References.Look(ref faction, "faction");
             Scribe_Collections.Look(ref fleeingPawns, "fleeingPawns", LookMode.Reference);
             Scribe_Collections.Look(ref kidnappedColonists, "kidnappedColonists", LookMode.Reference);
@@ -105,15 +112,17 @@ public class IncursionRetreatManager : WorldComponent
     private void RegisterPawnInternal(Pawn pawn, Map map, Pawn? captive)
     {
         Faction faction = pawn.Faction;
+        PlanetTile mapTile = map.Tile;
+        string mapLabel = map.Parent?.LabelCap ?? "the colony";
 
-        RetreatBatch? batch = activeBatches.FirstOrDefault(b => b.map == map && b.faction == faction);
+        RetreatBatch? batch = activeBatches.FirstOrDefault(b => b.originTile == mapTile && b.faction == faction);
 
         if (batch == null)
         {
             // Check if a retreating incursion from this map and faction is already active on the geoscape nearby
             WorldObject_Incursion? existingIncursion = Find.WorldObjects?.AllWorldObjects
                 .OfType<WorldObject_Incursion>()
-                .FirstOrDefault(inc => inc.Spawned && inc.IsRetreating && inc.Faction == faction && inc.OriginTile == map.Tile && inc.CurrentPathIndex <= 1);
+                .FirstOrDefault(inc => inc.Spawned && inc.IsRetreating && inc.Faction == faction && inc.OriginTile == mapTile && inc.CurrentPathIndex <= 1);
 
             if (existingIncursion != null)
             {
@@ -147,7 +156,8 @@ public class IncursionRetreatManager : WorldComponent
 
             batch = new RetreatBatch
             {
-                map = map,
+                originTile = mapTile,
+                settlementName = mapLabel,
                 faction = faction,
                 timeoutTick = Find.TickManager.TicksGame + 1500 // 25 seconds departure window
             };
@@ -190,7 +200,7 @@ public class IncursionRetreatManager : WorldComponent
         {
             RetreatBatch batch = activeBatches[i];
 
-            if (curTick >= batch.timeoutTick || batch.map == null || !Find.Maps.Contains(batch.map))
+            if (curTick >= batch.timeoutTick || !batch.originTile.Valid)
             {
                 FinalizeBatch(batch);
                 activeBatches.RemoveAt(i);
@@ -200,12 +210,12 @@ public class IncursionRetreatManager : WorldComponent
 
     private void FinalizeBatch(RetreatBatch batch)
     {
-        if (batch.map == null || batch.faction == null || batch.fleeingPawns.Count == 0)
+        if (!batch.originTile.Valid || batch.faction == null || batch.fleeingPawns.Count == 0)
         {
             return;
         }
 
-        PlanetTile originTile = batch.map.Tile;
+        PlanetTile originTile = batch.originTile;
 
         // Resolve retreat route back to faction stronghold or wilderness staging area
         if (!IncursionOriginResolver.TryResolveRetreatRoute(originTile, batch.faction, out PlanetTile destinationTile, out var path, out float speed))
@@ -256,7 +266,7 @@ public class IncursionRetreatManager : WorldComponent
         // Dispatch alert letter to the player
         string contactLabel = incursion.LabelCap;
         string factionName = batch.faction.Name;
-        string settlementName = batch.map.Parent?.LabelCap ?? "the colony";
+        string settlementName = batch.settlementName;
         string destName = destinationTile.Valid && destinationTile.Layer != null
             ? "their stronghold"
             : "their territory";
@@ -286,12 +296,28 @@ public class IncursionRetreatManager : WorldComponent
     public override void ExposeData()
     {
         base.ExposeData();
+
+        if (Scribe.mode == LoadSaveMode.Saving)
+        {
+            incarceratedColonists.RemoveAll(r => r.captive == null || r.captive.Dead || r.captive.Destroyed);
+            for (int i = activeBatches.Count - 1; i >= 0; i--)
+            {
+                activeBatches[i].fleeingPawns.RemoveAll(p => p == null || p.Dead || p.Destroyed);
+                activeBatches[i].kidnappedColonists.RemoveAll(p => p == null || p.Dead || p.Destroyed);
+                if (activeBatches[i].fleeingPawns.Count == 0)
+                {
+                    activeBatches.RemoveAt(i);
+                }
+            }
+        }
+
         Scribe_Collections.Look(ref activeBatches, "activeBatches", LookMode.Deep);
         Scribe_Collections.Look(ref incarceratedColonists, "incarceratedColonists", LookMode.Deep);
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
             activeBatches ??= new List<RetreatBatch>();
             incarceratedColonists ??= new List<IncarcerationRecord>();
+            incarceratedColonists.RemoveAll(r => r.captive == null || r.captive.Dead || r.captive.Destroyed);
             Instance = this;
         }
     }

@@ -1670,11 +1670,21 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             if (worldCaravans != null && worldCaravans.Count > 0)
             {
                 // Clean up any caravans no longer on this tile that are not on active cooldown
-                metCaravanIds.RemoveWhere(id =>
+                if (metCaravanIds.Count > 0)
                 {
-                    var cv = worldCaravans.FirstOrDefault(c => c.ID == id);
-                    return cv == null || cv.Tile != Tile;
-                });
+                    metCaravanIds.RemoveWhere(id =>
+                    {
+                        for (int cIdx = 0; cIdx < worldCaravans.Count; cIdx++)
+                        {
+                            var cv = worldCaravans[cIdx];
+                            if (cv != null && cv.ID == id)
+                            {
+                                return cv.Tile != Tile && !IsCaravanOnCooldown(id);
+                            }
+                        }
+                        return !IsCaravanOnCooldown(id);
+                    });
+                }
 
                 // 1a. Dynamic pursuit tracking: caravans with intercept actions targeted at this incursion
                 for (int i = 0; i < worldCaravans.Count; i++)
@@ -1733,29 +1743,38 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 }
 
                 // 1b. Direct tile collision: caravans occupying this hex
-                var caravansOnTile = worldCaravans
-                    .Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == Tile &&
-                                !(c.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion intercept && intercept.TargetIncursion == this))
-                    .ToList();
-
-                if (caravansOnTile.Count > 0)
+                List<Caravan>? eligibleCaravans = null;
+                for (int i = 0; i < worldCaravans.Count; i++)
                 {
-                    var eligibleCaravans = caravansOnTile
-                        .Where(c => !metCaravanIds.Contains(c.ID) && !IsCaravanOnCooldown(c.ID))
-                        .ToList();
-
-                    if (eligibleCaravans.Count > 0)
+                    Caravan c = worldCaravans[i];
+                    if (c == null || !c.Spawned || c.Faction != Faction.OfPlayer || c.Tile != Tile)
                     {
-                        if (!isHostile)
-                        {
-                            IncursionInterceptionUtility.ExecuteFriendlyInterception(eligibleCaravans, this);
-                        }
-                        else if (!isRetreating && !isTurningBack)
-                        {
-                            IncursionInterceptionUtility.ExecuteHostileInterception(eligibleCaravans, this, isAmbush: true);
-                        }
-                        return;
+                        continue;
                     }
+
+                    if (c.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion intercept && intercept.TargetIncursion == this)
+                    {
+                        continue;
+                    }
+
+                    if (!metCaravanIds.Contains(c.ID) && !IsCaravanOnCooldown(c.ID))
+                    {
+                        eligibleCaravans ??= new List<Caravan>();
+                        eligibleCaravans.Add(c);
+                    }
+                }
+
+                if (eligibleCaravans != null && eligibleCaravans.Count > 0)
+                {
+                    if (!isHostile)
+                    {
+                        IncursionInterceptionUtility.ExecuteFriendlyInterception(eligibleCaravans, this);
+                    }
+                    else if (!isRetreating && !isTurningBack)
+                    {
+                        IncursionInterceptionUtility.ExecuteHostileInterception(eligibleCaravans, this, isAmbush: true);
+                    }
+                    return;
                 }
             }
         }
@@ -2613,6 +2632,20 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
                 if (doctor != null && p.health != null && p.health.HasHediffsNeedingTend())
                 {
+                    if (carriedMed != null && (carriedMed.Destroyed || carriedMed.stackCount <= 0))
+                    {
+                        carriedMed = null;
+                        for (int m = 0; m < pawns.Count; m++)
+                        {
+                            var med = pawns[m].inventory?.innerContainer?.FirstOrDefault(t => t is Medicine && !t.Destroyed && t.stackCount > 0) as Medicine;
+                            if (med != null)
+                            {
+                                carriedMed = med;
+                                break;
+                            }
+                        }
+                    }
+
                     TendUtility.DoTend(doctor, p, carriedMed);
                 }
 

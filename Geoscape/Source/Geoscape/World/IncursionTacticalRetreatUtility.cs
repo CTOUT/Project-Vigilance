@@ -69,34 +69,16 @@ public static class IncursionTacticalRetreatUtility
             return;
         }
 
-        var sourceIncursion = ambushComp?.SourceIncursion;
-
         // Commit surviving tracked enemies to the world incursions
-        if (ambushComp?.Engagements != null && ambushComp.Engagements.Count > 0)
+        if (ambushComp != null)
         {
-            foreach (var record in ambushComp.Engagements)
+            foreach (var (incursion, living, _, _) in ambushComp.GetActiveIncursionSummaries())
             {
-                if (record.incursion != null && record.incursion.Spawned)
-                {
-                    var living = record.trackedPawns
-                        .Concat(record.escapedPawns ?? Enumerable.Empty<Pawn>())
-                        .Where(p => p != null && !p.Dead && !p.Destroyed)
-                        .Distinct()
-                        .ToList();
-                    DespawnAndPassHostilesToWorld(living);
-                    record.incursion.SetCommittedPawns(living);
-                    record.incursion.IsEngagedInTacticalMap = false;
-                    record.incursion.AdvancePathTile();
-                }
+                DespawnAndPassHostilesToWorld(living);
+                incursion.SetCommittedPawns(living);
+                incursion.IsEngagedInTacticalMap = false;
+                incursion.AdvancePathTile();
             }
-        }
-        else if (sourceIncursion != null && sourceIncursion.Spawned)
-        {
-            var livingEnemies = ambushComp != null ? ambushComp.GetLivingEnemies() : new List<Pawn>();
-            DespawnAndPassHostilesToWorld(livingEnemies);
-            sourceIncursion.SetCommittedPawns(livingEnemies);
-            sourceIncursion.IsEngagedInTacticalMap = false;
-            sourceIncursion.AdvancePathTile();
         }
 
         // Gather all player colonists and tamed animals
@@ -120,23 +102,12 @@ public static class IncursionTacticalRetreatUtility
         // Clean up encounter map
         CleanUpEncounterMap(map);
 
-        if (caravan != null)
+        if (caravan != null && ambushComp != null)
         {
-            if (ambushComp?.Engagements != null && ambushComp.Engagements.Count > 0)
+            foreach (var (incursion, _, _, _) in ambushComp.GetActiveIncursionSummaries())
             {
-                foreach (var record in ambushComp.Engagements)
-                {
-                    if (record.incursion != null && record.incursion.Spawned)
-                    {
-                        record.incursion.MarkCaravanMet(caravan.ID);
-                        record.incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 15000);
-                    }
-                }
-            }
-            else if (sourceIncursion != null && sourceIncursion.Spawned)
-            {
-                sourceIncursion.MarkCaravanMet(caravan.ID);
-                sourceIncursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 15000);
+                incursion.MarkCaravanMet(caravan.ID);
+                incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 15000);
             }
         }
 
@@ -674,45 +645,20 @@ public static class IncursionTacticalRetreatUtility
         var mobileColonists = allPlayerPawns.Where(p => !p.Downed).ToList();
         var downedColonists = allPlayerPawns.Where(p => p.Downed).ToList();
 
-        var sourceIncursion = ambushComp?.SourceIncursion;
-        if (ambushComp?.Engagements != null && ambushComp.Engagements.Count > 0)
+        if (ambushComp != null)
         {
             bool captiveAssigned = false;
-            foreach (var record in ambushComp.Engagements)
+            foreach (var (incursion, living, _, _) in ambushComp.GetActiveIncursionSummaries())
             {
-                if (record.incursion != null && record.incursion.Spawned)
+                DespawnAndPassHostilesToWorld(living);
+                incursion.SetCommittedPawns(living);
+                if (!captiveAssigned && downedColonists.Count > 0)
                 {
-                    var living = record.trackedPawns
-                        .Concat(record.escapedPawns ?? Enumerable.Empty<Pawn>())
-                        .Where(p => p != null && !p.Dead && !p.Destroyed)
-                        .Distinct()
-                        .ToList();
-                    DespawnAndPassHostilesToWorld(living);
-                    record.incursion.SetCommittedPawns(living);
-                    if (!captiveAssigned && downedColonists.Count > 0)
-                    {
-                        record.incursion.SetKidnappedColonists(downedColonists);
-                        captiveAssigned = true;
-                    }
-                    record.incursion.IsEngagedInTacticalMap = false;
+                    incursion.SetKidnappedColonists(downedColonists);
+                    captiveAssigned = true;
                 }
+                incursion.IsEngagedInTacticalMap = false;
             }
-        }
-        else if (sourceIncursion != null && sourceIncursion.Spawned)
-        {
-            var livingEnemies = ambushComp != null
-                ? ambushComp.GetLivingEnemies()
-                : map.mapPawns.AllPawns.Where(p => p.HostileTo(Faction.OfPlayer) && !p.Dead).ToList();
-
-            DespawnAndPassHostilesToWorld(livingEnemies);
-            sourceIncursion.SetCommittedPawns(livingEnemies);
-
-            if (downedColonists.Count > 0)
-            {
-                sourceIncursion.SetKidnappedColonists(downedColonists);
-            }
-
-            sourceIncursion.IsEngagedInTacticalMap = false;
         }
 
         if (mobileColonists.Count == 0)
@@ -731,30 +677,17 @@ public static class IncursionTacticalRetreatUtility
 
         CleanUpEncounterMap(map);
 
-        if (ambushComp?.Engagements != null && ambushComp.Engagements.Count > 0)
+        if (ambushComp != null)
         {
-            foreach (var record in ambushComp.Engagements)
+            foreach (var (incursion, _, _, _) in ambushComp.GetActiveIncursionSummaries())
             {
-                if (record.incursion != null && record.incursion.Spawned)
+                incursion.IsEngagedInTacticalMap = false;
+                incursion.AdvancePathTile();
+                if (caravan != null)
                 {
-                    record.incursion.IsEngagedInTacticalMap = false;
-                    record.incursion.AdvancePathTile();
-                    if (caravan != null)
-                    {
-                        record.incursion.MarkCaravanMet(caravan.ID);
-                        record.incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 7500);
-                    }
+                    incursion.MarkCaravanMet(caravan.ID);
+                    incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 7500);
                 }
-            }
-        }
-        else if (sourceIncursion != null && sourceIncursion.Spawned)
-        {
-            sourceIncursion.IsEngagedInTacticalMap = false;
-            sourceIncursion.AdvancePathTile();
-            if (caravan != null)
-            {
-                sourceIncursion.MarkCaravanMet(caravan.ID);
-                sourceIncursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 7500);
             }
         }
 
@@ -779,19 +712,9 @@ public static class IncursionTacticalRetreatUtility
         var ambushComp = map.GetComponent<MapComponent_OverlandAmbush>();
         if (ambushComp != null)
         {
-            if (ambushComp.Engagements != null)
+            foreach (var (incursion, _, _, _) in ambushComp.GetActiveIncursionSummaries())
             {
-                foreach (var record in ambushComp.Engagements)
-                {
-                    if (record.incursion != null && record.incursion.Spawned)
-                    {
-                        record.incursion.IsEngagedInTacticalMap = false;
-                    }
-                }
-            }
-            if (ambushComp.SourceIncursion != null && ambushComp.SourceIncursion.Spawned)
-            {
-                ambushComp.SourceIncursion.IsEngagedInTacticalMap = false;
+                incursion.IsEngagedInTacticalMap = false;
             }
         }
 

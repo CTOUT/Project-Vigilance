@@ -39,13 +39,13 @@ public class SensoryManager : WorldComponent
 
     public SensoryManager(RimWorld.Planet.World world) : base(world)
     {
-        ExternalFogCompatibility.Initialize();
+        ExternalFogCompatibility.ResetAndRescan();
     }
 
     public override void FinalizeInit(bool fromLoad)
     {
         base.FinalizeInit(fromLoad);
-        ExternalFogCompatibility.Initialize();
+        ExternalFogCompatibility.ResetAndRescan();
 
         // Eagerly initialize explored bitset and execute sensory sweep
         // so player colonies and caravans are revealed before the globe renders.

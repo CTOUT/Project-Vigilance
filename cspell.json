@@ -18,6 +18,7 @@
     "**/*.jpg"
   ],
   "words": [
+    "Analyzer",
     "Anomaly",
     "Aquatoid",
     "Aquatoids",
@@ -40,6 +41,7 @@
     "Creepjoiner",
     "Creepjoiners",
     "CTOUT",
+    "cutoff",
     "Cydonia",
     "D4egon",
     "Daywalkers",
@@ -99,6 +101,7 @@
     "Kevlar",
     "killbox",
     "killboxes",
+    "LINQ",
     "llms",
     "loadouts",
     "Ludeon",
@@ -164,6 +167,7 @@
     "Thermoclines",
     "ThingComp",
     "ThingDefs",
+    "timedout",
     "Transhuman",
     "Traveler",
     "Triton",
