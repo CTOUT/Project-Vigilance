@@ -80,6 +80,24 @@
 
 ---
 
+### Milestone 1.5: Foundation Framework, Modding Extensibility & Community Localisation
+
+- [ ] **RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**
+  - **Externalise Hardcoded Phraseology:** Extract hardcoded English string literals across C# classes (notification letters, dialogue trees, float menu options, inspect strings, narrative logs, and settings window tabs) into RimWorld's standard translation lookup pattern (`"Key".Translate(...)`).
+  - **English Reference Dictionary:** Structure clean, documented reference XML files in `Languages/English/Keyed/` (`Geoscape_Letters.xml`, `Geoscape_Dialog.xml`, `Geoscape_Inspect.xml`, `Geoscape_Settings.xml`) so community translation teams can readily author and maintain non-English translations without modifying compiled C# assemblies.
+  - **Parameter Tokens & Formatting:** Use proper replacement tokens (`{0}`, `{1}`) and RimWorld grammar helpers (`CapitalizeFirst`, gender, and pluralisation rules) to ensure clean grammar and flexibility in all destination languages.
+- [ ] **Modder Extensibility Hooks & Foundation Library Architecture:**
+  - **DefModExtension & XML Registration:** Enable external mod developers to configure custom structures as radar stations or sensor nodes via XML `DefModExtension` without requiring hard compile-time code dependencies.
+  - **Public Sensor & Target Provider API:** Expose formal registration interfaces (`ISensorProvider`, `IDetectableTarget`) so third-party mods (e.g. satellite systems, psychic reconnaissance, aircraft, or custom vehicle frameworks) can register dynamic sensors or detectable overland craft directly with `SensoryManager`.
+  - **Incursion & Tactical Event Lifecycle Hooks:** Expose public C# event delegates and callbacks across key operational milestones:
+    - Incursion inception, routing, and departure (`OnIncursionSpawned`, `OnIncursionDeparted`).
+    - Contact detection, classification, and loss-of-contact (`OnContactDetected`, `OnContactClassified`, `OnContactLost`).
+    - Global hex interception, forward ambush triggering, and tactical disengage (`OnIncursionIntercepted`, `OnAmbushSprung`, `OnTacticalDisengage`).
+    - Colony arrival, physical retreat initiation, and captive incarceration (`OnIncursionArrived`, `OnIncursionRetreatStarted`, `OnCaptiveIncarcerated`).
+  - **Foundation Library Extraction Evaluation:** Assess isolating core spatial bitmask grids, native 3D mesh world layers, overland waypoint pathing, and abstract sensor/incursion contracts into a standalone foundation framework (`ProjectVigilance.Core` or `VigilanceFoundation`) that other planetary or tactical mods can depend on as a lightweight base library.
+
+---
+
 ## Phase 3: Module 2 — Interception & Rapid Response (Standalone Framework)
 
 - [ ] Define craft stats (speed, fuel, range, armament slots).
