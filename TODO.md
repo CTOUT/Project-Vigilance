@@ -2,62 +2,7 @@
 
 ## Active Roadmap: Phase 2 — Geoscape & Radar Grid (Standalone Framework)
 
-### Milestone 1.1: Sensory Architecture, Visibility Modes & Scout Horizon (Shipped in v0.2.0)
-
-- [x] **Decoupled Namespace Setup:** Establish `ProjectVigilance.Geoscape.Sensory` namespace and `ISensorProvider` / `IDetectableTarget` contracts.
-- [x] **Zero-Allocation Spatial Bitmask State:** Implement compact 64-bit word bitsets (`isExploredBitset`, `isActiveVisionBitset`) in `.NET 10` for high-performance tile state tracking without GC churn.
-- [x] **Configurable Visibility Modes (`GeoscapeSettings`):**
-  - **Planetary Surveillance (Default / X-COM Style):** Static global geography (continents, oceans, cities) is known; moving incursions and clandestine threats are hidden outside sensor range.
-  - **Classic Haze of War (3-Tier RTS Style):** Unexplored (Black Shroud) → Explored/Unmonitored (Translucent Grey Haze remembering static terrain) → Active Vision (Clear + live target reveal).
-  - **Omniscient (Spectator Style):** All planetary movement immediately visible across the globe without fog or radar requirements.
-- [x] **Natural Scout Horizon:** Implement baseline line-of-sight vision for player colonies (~5 tiles) and caravans (~3 tiles) via `ScoutHorizonSensor` so low-tech/tribal colonies receive early warning naturally.
-- [x] **5-Tier Contact Classification & Incursion Masking:**
-  - _Tier 0 (Undetected):_ Completely hidden on the world map and unselectable.
-  - _Tier 1 (Suspected):_ Indirect narrative cues and sector rumours.
-  - _Tier 2 (Contact):_ Pulsing amber blip without faction crest or destination vector.
-  - _Tier 3 (Classified):_ Faction identity and broad warband type identified.
-  - _Tier 4 (Analysed):_ Full telemetry (exact pawn count, weaponry, target colony, live ETA).
-- [x] **Two-Stage Early Warning Escalation (Fog-of-War Parity):** Removed faction cheat. All approaching entities (hostile warbands, trade caravans, visitor groups) trigger an **Unidentified Contact** alert (`ThreatSmall`) at the outer 5-hex perimeter with an amber pulsing blip. Escalates to **Classified Confirmation** (`ThreatBig` for raids, `PositiveEvent` for friendly caravans) upon reaching close visual range (~2.2 hexes) or field scout interception.
-- [x] **Sampled Radar Jumps vs. Optical Continuous Smoothing:** Discrete 250-tick sweep position updates for radar/contact blips vs smooth 60 FPS Slerp for direct optical sight.
-- [x] **Off-World Render Gating & Peacetime Early-Exit:** Zero TPS impact while managing colonies, instant bypass when no incursions are active, and stationary sensor caching.
-- [x] **Tactical Ingress Diversification & Anti-Funnel Pathing:**
-  - **Approach Waypoint Offsets:** Eliminate highway magnetism by generating randomized flanking waypoints (~4–8 hexes outside colony) so raids from the same direction don't always funnel down the identical highway corridor.
-  - **Faction Movement Doctrines:** Differentiate path preferences—civilian traders use highways, tribals favour wilderness cover to avoid lookouts, and mechanoids march in uncompromising geodesic lines.
-  - **Multi-Vector Compass Pincers:** Enforce separate approach quadrants for multi-column assaults so they surround the colony in coordinated pincer strikes rather than arriving in a conga line.
-- [x] **`WorldLayer_HazeOfWar` & `WorldDrawLayer_HazeOfWar`:** Render native 3D mesh overlay on the RimWorld 1.7 multi-layer planetary grid (`PlanetLayer.WorldDrawLayers`) for Classic Haze mode. Triangulates sector geometry using `WorldAltitudeOffsets.MiscTileOverlay` and `WorldMaterials.VertexColorTransparent`: deep obsidian shroud (~98% opacity) over unexplored tiles, translucent slate-grey haze (~55% opacity) over unmonitored sectors revealing underlying terrain, and crystal-clear cutouts for active sensory perimeters. Features zero-allocation submesh reuse and batched asynchronous regeneration.
-- [x] **Soft Compatibility with Community Mods:** Implemented `ExternalFogCompatibility` soft reflection bridge detecting external planetary fog mods (such as D4egon's _World Fog of War_ `#3765828104`, _Rimworld Exploration Mode_, and VEF-compatible fog grids) without compile-time or runtime dependencies on `VanillaExpandedFramework.dll`. Bi-directionally reads external revealed tile state and propagates scout/radar reveals into external grids.
-- [x] **Dynamic Incursion Classification & Atmospheric Masking:** Differentiated tactical incursion categories (`HostileWarband`, `TradeCaravan`, `Visitors`, `Travelers`, `TributeCollector`, `Pilgrims`, `Beggars`, `AlliedReinforcements`). Masked Def labels and Info cards as neutral "Unidentified Contact" at Tier 2 (`Contact`) while revealing tailored labels and tactical descriptions upon classification.
-- [x] **Empty Settlement Incursion/Visitor Resolution:** Friendly visitors and caravans arriving at an evacuated settlement map (zero conscious colonists) gracefully notify the player and depart safely instead of vanishing silently due to vanilla targeting failures.
-- [x] **Selection Lockout for Shrouded & Undetected Objects:** Sealed click and marquee box selection exploits for unrevealed world objects and undetected contacts via `WorldSelector` and `WorldObjectSelectionUtility` patches.
-- [x] **Nighttime Visual Horizon & Alertness Simulation:** Naked-eye optical lookouts on colonies and caravans suffer a 50% detection radius penalty during darkness (`GenCelestial.CurCelestialSunGlow < 0.35f`). If 100% of conscious colonists on the map are asleep in bed, vision collapses to an unattended 1.0-hex perimeter. Dynamic sensor labels update to "Night Watchers", "Sleeping Lookouts", or "Asleep in Camp".
-- [x] **Biological Incursion Night Resting & Campfires:** Living mortal factions (Tribals, Outlanders, Pirates, Empire, neutral traders, visitors) halt overland movement and make camp between 22:00 and 06:00 local solar time using `CaravanNightRestUtility.RestingNowAt(Tile)`. Mechanoids and anomaly horrors march relentlessly 24/7. Contacts camped for the night display stationary status, dawn resumption countdowns, and campfire observations.
-- [x] **Watertight Shroud & Info Card Button Suppression:** Sealed biome and terrain info leaks by patching `WorldInspectPane.DoInspectPaneButtons` to suppress the Info Card ('i') button when clicking unexplored shroud tiles in Classic Haze of War.
-- [x] **Cell Inspector Shrouding & Loss-of-Contact Deselection:** Patched `CellInspectorDrawer.DrawWorldInspector` to block Left Alt inspection on unexplored shroud hexes, and implemented instant auto-deselection and travel-line overlay suppression when contacts move outside sensor range.
-- [x] **X-COM Style Persistent Tracking IDs:** Monotonic sequential tracking designation counter allocated on first detection (`Contact-1`, `Contact-2` for Industrial/Spacer; `Strangers #1`, `Strangers #2` for Tribal/Medieval). Designations persist for the object's entire lifespan across radar dead zones, night rest, and classification escalations (`Hostile Warband [Contact-1]`), serialized into `SensoryManager` and `WorldObject_Incursion` save data.
-
----
-
-### Milestone 1.2: Ground Interception & Forward Ambush (Shipped in v0.3.0)
-
-- [x] **Field Interception & Forward Ambush:** Allow player caravans (and rapid-response transports) to intercept approaching incursions on the global hex grid, generating an encounter map where raiders can be engaged, ambushed, or routed before reaching the colony. Right-click float menus (`Intercept`, `Hail & Trade`, `Warn Away / Turn Back`), dynamic target pursuit tracking, and X-COM "Contact Lost" telemetry dialog. Night camp ambush advantages and Night-Owl trait bonuses.
-- [x] **Night Owl & Schedule-Aware Caravan Rest:** Replace hardcoded 22:00–06:00 player caravan rest lock with circadian and `Pawn_TimetableTracker` evaluation (`Caravan_NightResting_Patch`, `CaravanNightRestUtility_LeftRestTicksAt_Patch`). All-Night-Owl (or majority Night-Owl) squads automatically camp during daytime (11:00–18:00) and march through the night; mixed squads follow the majority shift; explicit `Sleep` or `Work` schedule assignments allow custom rest shifts or force-marching.
-- [x] **Threat-Aware Tactical Retreat & Settlement Evacuation:** Evaluate known/visible hostile threats (raiders, mechanoids, insectoids, turrets) across all four map edges and verify `PawnPath` trajectory safety when retreating (`IncursionTacticalRetreatUtility`). Support emergency caravan evacuation from besieged home settlements without losing pawns to `WorldPawns`.
-- [x] **Retreat, Pursuit & Kidnap Recovery:** When raiders flee, rout, or kidnap colonists, simulate their physical retreat across the world map back to their home settlement (maintaining the incursion's assigned persistent tracking ID, e.g. `Contact-3 [Retreating]` / `Contact-3 [Kidnappers]`). Fleeing pawns preserve 1:1 wounds, carried loot, and captive colonists. Incursions simulate overland physiological processes (bleeding, natural healing, field tending with carried medicine, night rest, and hunger). Intercepting them spawns the captive colonist on the battlefield for rescue; reaching the stronghold transfers captives cleanly into vanilla's `Faction.kidnapped` system.
-- [x] **Roadside Trading & Persistent Stock:** Friendly trade caravans generate their trade stock once upon inception (`Dialog_Trade`). Roadside trading deducts bought goods and adds sold items to persistent stock, preventing double-dipping or item duplication upon colony arrival.
-- [x] **Warn Away / Turn Back:** Friendly/neutral travellers approaching an active danger zone can be warned off by player caravans or radio, reversing course toward home with positive faction goodwill (`+5`).
-- [x] **Abandoned Camp Fallback & Overland Track Pursuit:** When raiders or incursions arrive at an abandoned colony or vacated camp, replace instant disbanding with intelligent tactical behaviour:
-  - **Ground Track Pursuit:** Evaluate recently evacuated player caravans from the tile. If the evacuation departed overland on foot or pack animals, roll a tactical tracking chance. After a delay searching the empty camp, reroute the incursion to actively pursue the caravan to its next destination or ambush it en route.
-  - **Tactical Fallback & Retargeting:** If no tracks are discovered or the trail goes cold, raiders choose between marching back to their home base/nearest faction outpost, establishing an occupation camp, or opportunistically redirecting their assault toward an adjacent player settlement or ally.
-- [ ] **Dynamic Inter-Faction Encounters:** Enable roaming NPC incursions and trade caravans to interact when their routes cross—simulating background skirmishes between warring factions, ambush aftermath sites, and trade rendezvous.
-- [ ] **Simulated Inter-Faction Trade Routes & Storyteller Caravan Encounter Grounding:**
-  - **Organic Trade Route Network:** Generate physical, persistent NPC trade caravans (`WorldObject_Incursion`) travelling between NPC faction bases, outposts, and allied settlements along planetary roads and mountain passes, establishing organic background commerce rather than solely player-directed traffic.
-  - **Grounding Storyteller Caravan Encounters:** Hook abstract storyteller incident events (`IncidentWorker_CaravanMeeting`, `IncidentWorker_CaravanDemand`) into physical world map incursions. When a player caravan meets another group on the road, ground the event in an actual travelling incursion with persistent inventory, pawn rosters, and origin/destination telemetry rather than spawning an ephemeral caravan out of thin air.
-  - **Persistent Traversal & Aftermath:** Following a roadside meeting (trading, paying demands, or moving on), the NPC incursion continues moving along its route toward its destination instead of despawning into the void. Enables hostile raiders to intercept or ambush NPC merchant routes, spawning dynamic distress calls or salvageable aftermath sites.
-- [x] **Physical Settlement Incarceration & Base Assault Rescue:** When retreating kidnappers reach their stronghold unintercepted, captive colonists are registered as incarcerated at that specific settlement tile (`IncursionRetreatManager.RecordSettlementIncarceration`). When the player mounts an assault on that enemy stronghold (`SettlementUtility.Attack`), the captured colonist is spawned inside the fortress as a prisoner, enabling direct base-liberation missions.
-
----
-
-### Milestone 1.3: Radar Infrastructure & Advanced Early Warning
+### Milestone 1.3: Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters
 
 - [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
 - [ ] Implement `CompProperties_Radar` and `CompRadar` building components.
@@ -69,6 +14,11 @@
   - **Haze Concealment for Dynamic Camps:** When storyteller/quests spawn work sites, hunting camps, bandit outposts, or pirate forward staging bases in unmonitored sectors (Haze), suppress instant global announcement letters and map markers until an active player sensor or scout caravan enters visual range.
   - **Breadcrumb Rumours & Traveller Intelligence:** Visiting trade caravans, friendly guests, or allied patrols arriving at player settlements can share intelligence on unmapped sites they encountered en route (_"We passed a hostile logging camp about 5 hexes north-west"_), creating narrative reconnaissance leads and map reveals.
   - **Forward Staging Ground Detection:** Hostile raid preparations can establish temporary forward staging camps in the Haze that can be pre-emptively raided or dispersed before the main assault launches.
+- [ ] **Dynamic Inter-Faction Encounters (Deferred from Milestone 1.2):** Enable roaming NPC incursions and trade caravans to interact when their routes cross—simulating background skirmishes between warring factions, ambush aftermath sites, and trade rendezvous.
+- [ ] **Simulated Inter-Faction Trade Routes & Storyteller Caravan Encounter Grounding (Deferred from Milestone 1.2):**
+  - **Organic Trade Route Network:** Generate physical, persistent NPC trade caravans (`WorldObject_Incursion`) travelling between NPC faction bases, outposts, and allied settlements along planetary roads and mountain passes, establishing organic background commerce rather than solely player-directed traffic.
+  - **Grounding Storyteller Caravan Encounters:** Hook abstract storyteller incident events (`IncidentWorker_CaravanMeeting`, `IncidentWorker_CaravanDemand`) into physical world map incursions. When a player caravan meets another group on the road, ground the event in an actual travelling incursion with persistent inventory, pawn rosters, and origin/destination telemetry rather than spawning an ephemeral caravan out of thin air.
+  - **Persistent Traversal & Aftermath:** Following a roadside meeting (trading, paying demands, or moving on), the NPC incursion continues moving along its route toward its destination instead of despawning into the void. Enables hostile raiders to intercept or ambush NPC merchant routes, spawning dynamic distress calls or salvageable aftermath sites.
 
 ---
 
@@ -169,6 +119,62 @@
 ## Completed Milestones
 
 <details>
+<summary><b>v0.3.0 — Ground Interception, Tactical Ambushes & Evacuated Colony Hierarchy (Shipped 2026-10-26)</b></summary>
+
+### Milestone 1.2: Ground Interception & Forward Ambush
+
+- [x] **Field Interception & Forward Ambush:** Allow player caravans (and rapid-response transports) to intercept approaching incursions on the global hex grid, generating an encounter map where raiders can be engaged, ambushed, or routed before reaching the colony. Right-click float menus (`Intercept`, `Hail & Trade`, `Warn Away / Turn Back`), dynamic target pursuit tracking, and X-COM "Contact Lost" telemetry dialog. Night camp ambush advantages and Night-Owl trait bonuses.
+- [x] **Night Owl & Schedule-Aware Caravan Rest:** Replace hardcoded 22:00–06:00 player caravan rest lock with circadian and `Pawn_TimetableTracker` evaluation (`Caravan_NightResting_Patch`, `CaravanNightRestUtility_LeftRestTicksAt_Patch`). All-Night-Owl (or majority Night-Owl) squads automatically camp during daytime (11:00–18:00) and march through the night; mixed squads follow the majority shift; explicit `Sleep` or `Work` schedule assignments allow custom rest shifts or force-marching.
+- [x] **Threat-Aware Tactical Retreat & Settlement Evacuation:** Evaluate known/visible hostile threats (raiders, mechanoids, insectoids, turrets) across all four map edges and verify `PawnPath` trajectory safety when retreating (`IncursionTacticalRetreatUtility`). Support emergency caravan evacuation from besieged home settlements without losing pawns to `WorldPawns`.
+- [x] **Retreat, Pursuit & Kidnap Recovery:** When raiders flee, rout, or kidnap colonists, simulate their physical retreat across the world map back to their home settlement (maintaining the incursion's assigned persistent tracking ID, e.g. `Contact-3 [Retreating]` / `Contact-3 [Kidnappers]`). Fleeing pawns preserve 1:1 wounds, carried loot, and captive colonists. Incursions simulate overland physiological processes (bleeding, natural healing, field tending with carried medicine, night rest, and hunger). Intercepting them spawns the captive colonist on the battlefield for rescue; reaching the stronghold transfers captives cleanly into vanilla's `Faction.kidnapped` system.
+- [x] **Roadside Trading & Persistent Stock:** Friendly trade caravans generate their trade stock once upon inception (`Dialog_Trade`). Roadside trading deducts bought goods and adds sold items to persistent stock, preventing double-dipping or item duplication upon colony arrival.
+- [x] **Warn Away / Turn Back:** Friendly/neutral travellers approaching an active danger zone can be warned off by player caravans or radio, reversing course toward home with positive faction goodwill (`+5`).
+- [x] **Abandoned Camp Fallback & Overland Track Pursuit:** When raiders or incursions arrive at an abandoned colony or vacated camp, replace instant disbanding with intelligent tactical behaviour:
+  - **Ground Track Pursuit:** Evaluate recently evacuated player caravans from the tile. If the evacuation departed overland on foot or pack animals, roll a tactical tracking chance. After a delay searching the empty camp, reroute the incursion to actively pursue the caravan to its next destination or ambush it en route.
+  - **Tactical Fallback & Retargeting:** If no tracks are discovered or the trail goes cold, raiders choose between marching back to their home base/nearest faction outpost, establishing an occupation camp, or opportunistically redirecting their assault toward an adjacent player settlement or ally.
+- [x] **Physical Settlement Incarceration & Base Assault Rescue:** When retreating kidnappers reach their stronghold unintercepted, captive colonists are registered as incarcerated at that specific settlement tile (`IncursionRetreatManager.RecordSettlementIncarceration`). When the player mounts an assault on that enemy stronghold (`SettlementUtility.Attack`), the captured colonist is spawned inside the fortress as a prisoner, enabling direct base-liberation missions.
+
+</details>
+
+<details>
+<summary><b>v0.2.0 — Sensory Architecture, Visibility Modes & Scout Horizon (Shipped 2026-10-19)</b></summary>
+
+### Milestone 1.1: Sensory Architecture, Visibility Modes & Scout Horizon
+
+- [x] **Decoupled Namespace Setup:** Establish `ProjectVigilance.Geoscape.Sensory` namespace and `ISensorProvider` / `IDetectableTarget` contracts.
+- [x] **Zero-Allocation Spatial Bitmask State:** Implement compact 64-bit word bitsets (`isExploredBitset`, `isActiveVisionBitset`) in `.NET 10` for high-performance tile state tracking without GC churn.
+- [x] **Configurable Visibility Modes (`GeoscapeSettings`):**
+  - **Planetary Surveillance (Default / X-COM Style):** Static global geography (continents, oceans, cities) is known; moving incursions and clandestine threats are hidden outside sensor range.
+  - **Classic Haze of War (3-Tier RTS Style):** Unexplored (Black Shroud) → Explored/Unmonitored (Translucent Grey Haze remembering static terrain) → Active Vision (Clear + live target reveal).
+  - **Omniscient (Spectator Style):** All planetary movement immediately visible across the globe without fog or radar requirements.
+- [x] **Natural Scout Horizon:** Implement baseline line-of-sight vision for player colonies (~5 tiles) and caravans (~3 tiles) via `ScoutHorizonSensor` so low-tech/tribal colonies receive early warning naturally.
+- [x] **5-Tier Contact Classification & Incursion Masking:**
+  - _Tier 0 (Undetected):_ Completely hidden on the world map and unselectable.
+  - _Tier 1 (Suspected):_ Indirect narrative cues and sector rumours.
+  - _Tier 2 (Contact):_ Pulsing amber blip without faction crest or destination vector.
+  - _Tier 3 (Classified):_ Faction identity and broad warband type identified.
+  - _Tier 4 (Analysed):_ Full telemetry (exact pawn count, weaponry, target colony, live ETA).
+- [x] **Two-Stage Early Warning Escalation (Fog-of-War Parity):** Removed faction cheat. All approaching entities (hostile warbands, trade caravans, visitor groups) trigger an **Unidentified Contact** alert (`ThreatSmall`) at the outer 5-hex perimeter with an amber pulsing blip. Escalates to **Classified Confirmation** (`ThreatBig` for raids, `PositiveEvent` for friendly caravans) upon reaching close visual range (~2.2 hexes) or field scout interception.
+- [x] **Sampled Radar Jumps vs. Optical Continuous Smoothing:** Discrete 250-tick sweep position updates for radar/contact blips vs smooth 60 FPS Slerp for direct optical sight.
+- [x] **Off-World Render Gating & Peacetime Early-Exit:** Zero TPS impact while managing colonies, instant bypass when no incursions are active, and stationary sensor caching.
+- [x] **Tactical Ingress Diversification & Anti-Funnel Pathing:**
+  - **Approach Waypoint Offsets:** Eliminate highway magnetism by generating randomized flanking waypoints (~4–8 hexes outside colony) so raids from the same direction don't always funnel down the identical highway corridor.
+  - **Faction Movement Doctrines:** Differentiate path preferences—civilian traders use highways, tribals favour wilderness cover to avoid lookouts, and mechanoids march in uncompromising geodesic lines.
+  - **Multi-Vector Compass Pincers:** Enforce separate approach quadrants for multi-column assaults so they surround the colony in coordinated pincer strikes rather than arriving in a conga line.
+- [x] **`WorldLayer_HazeOfWar` & `WorldDrawLayer_HazeOfWar`:** Render native 3D mesh overlay on the RimWorld 1.7 multi-layer planetary grid (`PlanetLayer.WorldDrawLayers`) for Classic Haze mode. Triangulates sector geometry using `WorldAltitudeOffsets.MiscTileOverlay` and `WorldMaterials.VertexColorTransparent`: deep obsidian shroud (~98% opacity) over unexplored tiles, translucent slate-grey haze (~55% opacity) over unmonitored sectors revealing underlying terrain, and crystal-clear cutouts for active sensory perimeters. Features zero-allocation submesh reuse and batched asynchronous regeneration.
+- [x] **Soft Compatibility with Community Mods:** Implemented `ExternalFogCompatibility` soft reflection bridge detecting external planetary fog mods (such as D4egon's _World Fog of War_ `#3765828104`, _Rimworld Exploration Mode_, and VEF-compatible fog grids) without compile-time or runtime dependencies on `VanillaExpandedFramework.dll`. Bi-directionally reads external revealed tile state and propagates scout/radar reveals into external grids.
+- [x] **Dynamic Incursion Classification & Atmospheric Masking:** Differentiated tactical incursion categories (`HostileWarband`, `TradeCaravan`, `Visitors`, `Travelers`, `TributeCollector`, `Pilgrims`, `Beggars`, `AlliedReinforcements`). Masked Def labels and Info cards as neutral "Unidentified Contact" at Tier 2 (`Contact`) while revealing tailored labels and tactical descriptions upon classification.
+- [x] **Empty Settlement Incursion/Visitor Resolution:** Friendly visitors and caravans arriving at an evacuated settlement map (zero conscious colonists) gracefully notify the player and depart safely instead of vanishing silently due to vanilla targeting failures.
+- [x] **Selection Lockout for Shrouded & Undetected Objects:** Sealed click and marquee box selection exploits for unrevealed world objects and undetected contacts via `WorldSelector` and `WorldObjectSelectionUtility` patches.
+- [x] **Nighttime Visual Horizon & Alertness Simulation:** Naked-eye optical lookouts on colonies and caravans suffer a 50% detection radius penalty during darkness (`GenCelestial.CurCelestialSunGlow < 0.35f`). If 100% of conscious colonists on the map are asleep in bed, vision collapses to an unattended 1.0-hex perimeter. Dynamic sensor labels update to "Night Watchers", "Sleeping Lookouts", or "Asleep in Camp".
+- [x] **Biological Incursion Night Resting & Campfires:** Living mortal factions (Tribals, Outlanders, Pirates, Empire, neutral traders, visitors) halt overland movement and make camp between 22:00 and 06:00 local solar time using `CaravanNightRestUtility.RestingNowAt(Tile)`. Mechanoids and anomaly horrors march relentlessly 24/7. Contacts camped for the night display stationary status, dawn resumption countdowns, and campfire observations.
+- [x] **Watertight Shroud & Info Card Button Suppression:** Sealed biome and terrain info leaks by patching `WorldInspectPane.DoInspectPaneButtons` to suppress the Info Card ('i') button when clicking unexplored shroud tiles in Classic Haze of War.
+- [x] **Cell Inspector Shrouding & Loss-of-Contact Deselection:** Patched `CellInspectorDrawer.DrawWorldInspector` to block Left Alt inspection on unexplored shroud hexes, and implemented instant auto-deselection and travel-line overlay suppression when contacts move outside sensor range.
+- [x] **X-COM Style Persistent Tracking IDs:** Monotonic sequential tracking designation counter allocated on first detection (`Contact-1`, `Contact-2` for Industrial/Spacer; `Strangers #1`, `Strangers #2` for Tribal/Medieval). Designations persist for the object's entire lifespan across radar dead zones, night rest, and classification escalations (`Hostile Warband [Contact-1]`), serialized into `SensoryManager` and `WorldObject_Incursion` save data.
+
+</details>
+
+<details>
 <summary><b>v0.1.0 — Architecture & Overland Incursions (Shipped 2026-10-18)</b></summary>
 
 ### Phase 1: Architecture & Foundation
@@ -190,4 +196,4 @@
 
 </details>
 
-#### See [CHANGELOG.md](CHANGELOG.md#010---2026-10-18) for full release notes
+#### See [CHANGELOG.md](CHANGELOG.md) for full release notes
