@@ -102,7 +102,7 @@ graph TD
   - `WorldObjectComp_Radar`: Attached to settlements or standalone world objects (listening posts, satellites).
   - Planetary sensory bubbles: Calculates detection range on the `WorldGrid`.
   - Detection probability algorithms based on craft altitude, size, and stealth signatures.
-  - Hidden world objects / dynamic moving targets (`UFO_WorldObject`).
+  - Hidden world objects / dynamic moving targets (`WorldObject_Incursion` / `WorldObject_MovingCraft`).
   - Aquatic sonar support for oceanic tiles (Terror from the Deep layer).
 
 ### Module 2: Interception & Rapid Response (`Rimworld-Interception`)

@@ -5,11 +5,25 @@
 ### Milestone 1.3: Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters
 
 - [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
-- [ ] Implement `CompProperties_Radar` and `CompRadar` building components.
-- [ ] Implement `WorldObjectComp_Radar` for settlements and forward listening posts.
+- [ ] **Colony Technological Radar Infrastructure:**
+  - `CompProperties_Radar` and `CompRadar` with dynamic standby vs active power scaling (`standbyPowerDraw` / `activePowerDraw`).
+  - **Multi-Dish Settlement Stacking (Interferometry & Redundancy):** Primary array gives 100% base radius; secondary dishes provide diminishing radius boosts (+20% 2nd dish, +10% 3rd dish, capped at +30% maximum boost) with discrete integer hex rounding (`Mathf.RoundToInt`). Fail-safe redundancy ensures uninterrupted coverage if one dish is disabled or breaks down.
+  - **Sensory Building Defs & Research Projects:**
+    - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 hexes, unpowered/manned, Contact Tier).
+    - `Geoscape_RadarSmall` (Industrial Early-Warning Dome, 14 hexes, 350W/750W, Contact Tier).
+    - `Geoscape_RadarLarge` (Spacer Phased Array, 26 hexes, 800W/1,800W, Classified Tier).
+    - `Geoscape_SigintConsole` (Ultra SIGINT Decryption Console, `CompFacility` linkable, 700W/1,400W, upgrades Phased Array to Tier 4 Analysed).
+    - `Geoscape_SonarArray` (Industrial Coastal Hydrophone Station, 18 hexes water/coast).
+- [ ] **Lightweight Geoscape Outposts & World Map Strategic Context Actions:**
+  - `WorldObject_ListeningPost` (Zero-TPS global entity, automated solar relay vs manned lookout garrison).
+  - **Civilization-Style Right-Click Hex Interaction (`FloatMenuMakerWorld`):**
+    - *"Dispatch Expedition Here..."* (pre-populates and locks destination tile in `Dialog_FormCaravan`).
+    - *"Establish Outpost / Relay Here..."* (instant deploy if caravan on tile; prompts outpost kit caravan from settlement if remote).
+    - *"Reclaim Garrison / Dismantle / Repair"* actions on existing outposts.
+  - Outpost vulnerability & sabotage events from passing hostile incursions.
 - [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) for efficient spatial distance checks.
 - [ ] Build Oceanic Sonar detection layer for water hexes.
-- [ ] Early Warning Dispatcher: generate advance warning alerts and reveal telemetry based on radar tier.
+- [ ] Two-Stage Early Warning Dispatcher: generate advance warning alerts and reveal telemetry based on radar tier.
 - [ ] **Concealed Dynamic Sites & Reconnaissance in the Haze:**
   - **Haze Concealment for Dynamic Camps:** When storyteller/quests spawn work sites, hunting camps, bandit outposts, or pirate forward staging bases in unmonitored sectors (Haze), suppress instant global announcement letters and map markers until an active player sensor or scout caravan enters visual range.
   - **Breadcrumb Rumours & Traveller Intelligence:** Visiting trade caravans, friendly guests, or allied patrols arriving at player settlements can share intelligence on unmapped sites they encountered en route (_"We passed a hostile logging camp about 5 hexes north-west"_), creating narrative reconnaissance leads and map reveals.

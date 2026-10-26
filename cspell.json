@@ -98,6 +98,8 @@
     "ideoligion",
     "ideoligions",
     "Incognita",
+    "interferometric",
+    "interferometry",
     "Interceptor",
     "Interceptors",
     "Kevlar",
@@ -107,6 +109,7 @@
     "llms",
     "loadouts",
     "Ludeon",
+    "Mathf",
     "mechanitor",
     "mechanoid",
     "mechanoids",
@@ -116,6 +119,7 @@
     "militors",
     "minigame",
     "Mothership",
+    "motherships",
     "muffalo",
     "muffalos",
     "Muton",
@@ -134,6 +138,8 @@
     "psylink",
     "Psylinks",
     "Quadrum",
+    "radome",
+    "radomes",
     "Rebreathers",
     "Recon",
     "respawning",
@@ -148,6 +154,7 @@
     "Sectoids",
     "shadowcasting",
     "Shadowcasting",
+    "SIGINT",
     "sightline",
     "sightlines",
     "Skyranger",
@@ -199,6 +206,7 @@
     "XCOM",
     "Xenobiology",
     "xenotypes",
-    "zombification"
+    "zombification",
+    "Zzzt"
   ]
 }

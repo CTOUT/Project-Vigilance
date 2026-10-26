@@ -14,13 +14,33 @@ In vanilla RimWorld, all quest sites, faction bases, and world incidents appear 
 
 Radar and sensor facilities can be constructed at player colonies or deployed as unmanned forward listening posts on the world map:
 
-| Facility Type                      | Detection Radius (Tiles) | Power Draw | Operational Data Provided                                           |
-| :--------------------------------- | :----------------------: | :--------: | :------------------------------------------------------------------ |
-| **Small Radar Dome**               |            12            |   800 W    | Blip presence, coarse location                                      |
-| **Large Radar Array**              |            25            |  2,500 W   | Blip, craft size class, speed, heading                              |
-| **Hyper-wave Decoder**             |            35            |  5,000 W   | Full telemetry: craft type, crew race, mission profile, destination |
-| **Oceanic Sonar Array**            |     18 (Ocean/Coast)     |  1,200 W   | Sub-surface USOs, seabed anomaly detection                          |
-| **Listening Post (World Outpost)** |            10            | Standalone | Small radar coverage at remote global coordinates                   |
+| Facility Type | Tech Level | Type | Detection Radius | Power Draw (Standby / Active) | Intelligence Tier | Operational Data Provided |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Lookout Watchtower** | Neolithic / Medieval | Building | **8 hexes** | 0 W (Unpowered, Manned) | Tier 2 (*Contact*) | Visual horizon extension; detects overland movement blips. |
+| **Early-Warning Radar Dome** | Industrial | Building | **14 hexes** | 350 W / 750 W | Tier 2 (*Contact*) | Weatherproof radome microwave dish; detects overland blips, speed, and heading. |
+| **Phased Radar Array** | Spacer | Building | **26 hexes** | 800 W / 1,800 W | Tier 3 (*Classified*) | Steerable electronically scanned array; identifies attacking faction insignia and broad force size. |
+| **SIGINT Decryption Console** | Ultra | Facility Linker (`CompFacility`) | *Attached to Array* | 700 W / 1,400 W | **Upgrades to Tier 4 (*Analysed*)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. |
+| **Oceanic Sonar Array** | Industrial | Building | **18 hexes (Water)** | 500 W / 1,200 W | Coastal / Ocean | Shoreline hydrophone array monitoring maritime transit and aquatic incursions. |
+| **Listening Post (World Outpost)** | Industrial / Spacer | WorldObject | **10 hexes** | Standalone Solar | Tier 2 (*Contact*) | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. |
+
+#### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Redundancy)
+
+When multiple radar installations operate on the same colony map:
+1. **Primary Sensor Designation:** The highest-tier radar structure acts as the **Primary Array**, projecting 100% of its base detection radius.
+2. **Interferometric Baseline Expansion:** Additional active, powered radar dishes on the same map function as a synthetic aperture array, providing diminishing returns:
+   - **2nd Dish:** +20% radius boost (`Mathf.RoundToInt(baseRadius * 0.20f)`: **+5 hexes** on a 26-hex Phased Array $\rightarrow$ **31 hexes**).
+   - **3rd Dish:** +10% radius boost (`Mathf.RoundToInt(baseRadius * 0.10f)`: **+3 hexes** on a 26-hex Phased Array $\rightarrow$ **34 hexes** total).
+   - **Subsequent Dishes:** +0% additional range (hard cap at +30% maximum boost).
+3. **Discrete Integer Hex Policy:** In RimWorld's discrete hexagonal `WorldGrid`, fractional radii (`0.x`) are avoided. All radii and bonuses are rounded to whole integer hexes using `Mathf.RoundToInt`, ensuring that each tile is deterministically 100% inside or outside coverage.
+4. **Power & Resource Trade-Off:** Each secondary dish draws its full standby and active power requirements (e.g. three Phased Arrays draw 2,400 W standby / 5,400 W active!), demanding dedicated power grids.
+5. **Fail-Safe Redundancy:** If a mortar strike, electrical fault (`Zzzt!`), or solar flare disables the primary dish, secondary dishes instantly maintain uninterrupted sensory coverage without the colony going blind.
+6. **Configurable Balancing:** Players can choose between *Diminishing Interferometry (+30% Max)* [Default] and *Strict One-Per-Settlement Limit* via Mod Settings.
+
+#### 2.1.2 SIGINT Console vs. Alien Hyper-Wave Decoder
+
+To strictly preserve **Rule 1 (Zero Thematic Hardcoding in Frameworks)**:
+- **Module 1 (Generic Framework):** Uses the **Signals Intelligence (SIGINT) Decryption Console**, an indoor electronics console placed adjacent to a Phased Radar Array via RimWorld's native `CompFacility` linking system. It intercepts and decrypts human and mechanoid radio transmissions.
+- **Module 4/5 (Alien Invasion Campaign):** The iconic **Hyper-wave Decoder** is introduced as an alien-tech research project reverse-engineered from downed UFO navigation computers and captive alien leaders. The alien Hyper-wave Decoder tracks cloaked UFO craft, orbital motherships, and subterranean alien bases on a specialized orbital layer.
 
 ### 2.2 Planetary Radar Overlays
 
@@ -59,7 +79,7 @@ Guided by our core design practice—_"You don't know what you don't know: to kn
 | **Tier 1: Suspected**  | _Narrative Cue / Ripple_      | Rumoured presence or acoustic anomaly. Exact location remains unconfirmed.                            | Scout rumours, forward outpost radio chatter, or regional acoustic cues.                |
 | **Tier 2: Contact**    | Generic pulsing marker / blip | Presence, rough heading, coarse speed. Faction emblem and headcount are hidden. Updates discretely.   | Colony Scout Horizon (~5 tiles), roaming caravans (~3 tiles), or small radar perimeter. |
 | **Tier 3: Classified** | Faction emblem + category     | Attacking faction identified, broad classification (e.g. _Pirate Warband_, _Mechanoid Strike Fleet_). | Mid-range Radar array, forward listening post, or line-of-sight within 2 hexes.         |
-| **Tier 4: Analysed**   | Full tactical telemetry       | Exact pawn headcount, siege weaponry breakdown, target colony destination, and live arrival ETA.      | Hyper-wave decoder, high-tech intelligence centre, or direct optical reconnaissance.    |
+| **Tier 4: Analysed**   | Full tactical telemetry       | Exact pawn headcount, siege weaponry breakdown, target colony destination, and live arrival ETA.      | SIGINT decryption console (linked to Phased Array), high-tech intelligence centre, or direct optical reconnaissance. |
 
 #### Two-Stage Early Warning Escalation (Fog-of-War Parity)
 
@@ -84,6 +104,38 @@ To preserve authentic tactical uncertainty, the engine strictly forbids "faction
 2. **Soft Compatibility with Community Fog Mods:**
    - Detects external world fog overhauls (such as D4egon's _World Fog of War_ `#3765828104`) via soft reflection.
    - When detected, `SensoryManager` integrates with their visibility state without requiring a hard dependency on `Vanilla Expanded Framework` (VEF), allowing radar installations to act as natural revealers.
+
+### 2.6 Geoscape Strategic Context Actions (Right-Click World Hexes)
+
+In vanilla RimWorld, right-clicking empty world tiles is inactive unless a player caravan is already actively selected. The module introduces a grand-strategy strategic context menu (`FloatMenuMakerWorld` / `WorldInterface`):
+
+```text
+[ Right-Click World Hex #14820 ]
+ ├── "Dispatch Expedition Here..."
+ │    ├── "From: Home Colony"  ──────────> Opens Dialog_FormCaravan with destination locked to #14820
+ │    ├── "From: Mining Outpost"
+ │    └── "From: 1st Recon Caravan (3 hexes away)" ──> Direct route waypoint to hex #14820
+ │
+ ├── "Establish Outpost / Relay Here..."
+ │    ├── (If caravan is on tile): "Deploy Automated Listening Post" (Consumes carried 100 Steel, 4 Comp)
+ │    ├── (If caravan is on tile): "Construct Hilltop Watchtower" (Consumes carried 150 Wood/Stone)
+ │    └── (If remote tile): "Dispatch Construction Caravan from [Colony]..."
+ │         └── Opens Dialog_FormCaravan with destination locked & Outpost Kit pre-selected
+ │
+ └── "Survey Sector / Set Waypoint"
+      └── Places a tactical map pin / scout waypoint for visual planning
+```
+
+1. **"Dispatch Expedition Here...":**
+   - Presents a list of player settlements or nearby active caravans within range.
+   - Automatically opens vanilla's `Dialog_FormCaravan` with the destination tile **pre-populated and locked** to the clicked hex.
+2. **"Establish Outpost / Relay Here...":**
+   - **Local Deployment:** If a player caravan is present on the tile and holds required cargo (100 Steel, 4 Components for Automated Relay; 150 Wood/Stone for Watchtower), an immediate 1–2 hour setup task elapses, and the lightweight `WorldObject_ListeningPost` spawns on the hex.
+   - **Remote Dispatch:** Prompts to dispatch a construction caravan from the nearest colony, automatically pre-selecting the necessary outpost construction ingredients in the checklist as a preset!
+3. **Existing Outpost Context Options:**
+   - *"Reclaim Garrison"* (absorbs garrisoned lookouts back into visiting caravan).
+   - *"Dismantle Outpost"* (salvages 75% of construction materials back into caravan).
+   - *"Repair Sabotaged Station"* (repairs stations disabled or vandalized by passing enemy incursions).
 
 ---
 
@@ -172,7 +224,7 @@ Guided by the principle _"You don't know what you don't know: to know, you need 
 - **Tier 2 (Contact):** Basic inspect pane in the bottom-left corner displaying coarse telemetry: designation (`Contact-N`), speed class, rough heading, and status (`Camped`, `Marching`, `Stationary`).
 - **Tier 3 (Classified):** Confirms faction identity, faction insignia, broad category (_Trade Caravan_, _Pirate Warband_, _Mechanoid Hive_), and approximate force size (_Small Squad [~3–5]_, _Company [~10–15]_, _Army [~25+]_) with projected destination vector.
 - **Tier 4 (Analysed / Reconnoitred) & Omniscient Mode:** Unlocks the **Tactical Intelligence Dossier** dialog and Geoscape Inspect Tabs. Achieved by:
-  1. Operating a high-tech planetary scanning array (Hyper-Wave Decoder / Strategic Intelligence Facility).
+  1. Operating a high-tech planetary scanning array (SIGINT Decryption Console linked to Phased Radar Array / Strategic Intelligence Facility).
   2. Field reconnaissance: Maintaining a player scout caravan within direct visual range (~2 hexes).
   3. Field interception: Engaging the contact on a tactical encounter map.
 
