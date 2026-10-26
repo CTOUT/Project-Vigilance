@@ -31,12 +31,32 @@ public class ChoiceLetter_TacticalEncounter : ChoiceLetter
         set => Text = value;
     }
 
+    public override bool CanShowInLetterStack
+    {
+        get
+        {
+            if (!base.CanShowInLetterStack)
+            {
+                return false;
+            }
+
+            // If this letter was for an encounter map that has been deinited/destroyed,
+            // and the letter was solely prompting to reform caravan, auto-dismiss from letter stack
+            if (canReformCaravan && (battleMap == null || !Find.Maps.Contains(battleMap)))
+            {
+                return false;
+            }
+
+            return true;
+        }
+    }
+
     public override IEnumerable<DiaOption> Choices
     {
         get
         {
             // Option 1: Enter the Battlescape / Local Map
-            if (battleMap != null && battleMap.Index >= 0)
+            if (battleMap != null && battleMap.Index >= 0 && Find.Maps.Contains(battleMap))
             {
                 string label = !string.IsNullOrEmpty(battleButtonLabel) ? battleButtonLabel : "Go to Battlescape";
                 DiaOption jumpToMap = new DiaOption(label)
@@ -81,7 +101,7 @@ public class ChoiceLetter_TacticalEncounter : ChoiceLetter
             }
 
             // Option 3: Reform Caravan (if applicable)
-            if (canReformCaravan && battleMap != null && battleMap.Index >= 0)
+            if (canReformCaravan && battleMap != null && battleMap.Index >= 0 && Find.Maps.Contains(battleMap))
             {
                 DiaOption reformOption = new DiaOption("Reform Caravan Now")
                 {
@@ -107,6 +127,20 @@ public class ChoiceLetter_TacticalEncounter : ChoiceLetter
     public override void ExposeData()
     {
         base.ExposeData();
+
+        if (Scribe.mode == LoadSaveMode.Saving)
+        {
+            if (battleMap != null && (!Find.Maps.Contains(battleMap) || battleMap.Index < 0))
+            {
+                battleMap = null;
+            }
+
+            if (targetWorldObject != null && (!targetWorldObject.Spawned || targetWorldObject.Destroyed))
+            {
+                targetWorldObject = null;
+            }
+        }
+
         Scribe_References.Look(ref battleMap, "battleMap");
         Scribe_References.Look(ref targetWorldObject, "targetWorldObject");
         Scribe_Values.Look(ref targetTile, "targetTile");
