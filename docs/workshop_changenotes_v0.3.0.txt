@@ -1,38 +1,47 @@
-v0.3.0 — Milestone 1.2: Ground Interception, Forward Ambush & Evacuated Colony Hierarchy
-
-Tactical Ground Interception & Forward Ambush:
-- Intercept approaching hostile incursions directly on the global hex grid before they reach your colony.
-- Right-click commands on detected incursions: Intercept & Engage, Hail & Trade, or Warn Away / Turn Back.
-- Forward ambush encounters: catch raiders unaware in stalking ambushes, or launch surprise night raids while columns are camped asleep.
-- Dynamic pursuit tracking: intercepting caravans calculate predictive pursuit vectors and update course in real time.
-
-Retreat Lifecycle, Pursuit & Kidnap Recovery:
-- Fleeing raiders physically retreat across the world map back to their home base with 1:1 wounds, carried loot, and captive colonists intact.
-- Overland physiology: wounded marchers bleed, heal, self-tend with carried medicine, or suffer exhaustion during transit.
-- Rescue captured colonists by intercepting the retreating kidnapper column before it reaches home territory—or mount a base assault on their fortress to liberate prisoners from settlement incarceration!
-- Threat-aware tactical retreats: fleeing colonists evaluate visible enemies, turrets, and fire exposure across all map boundaries to pick the safest evacuation corridor.
-
-Evacuated Colony Hierarchy & Track Pursuit:
-- Hostile forces reaching an evacuated player base or abandoned settlement no longer abruptly disperse.
-- 3-tier tactical decision hierarchy: raiders search for tracks to hot-pursue fleeing player caravans (tech/weather-aware rolls), divert toward nearby secondary outposts, or ransack the vacant structures and physically march back home.
-
-Night Owl & Schedule-Aware Caravaning:
-- Circadian and schedule-tab awareness replaces the hardcoded 22:00–06:00 caravan sleep lock.
-- Pure Night Owl squads sleep during the day (11:00–18:00) and march through the night with zero optical darkness penalties.
-- Mixed squads march by majority shift while keeping camp watch—granting 24/7 daytime visibility.
-- Custom rest shifts and force-marching can be configured directly in the colonist Schedule tab.
-
-Pack Animal Cargo & Roadside Trading:
-- Trade cargo and provisions are carried in pack animal inventories across all battle maps and transits (eliminating carpet floor-dumping).
-- Barter with friendly travelling merchants directly on the road without duplicating stock upon colony arrival.
-- Trader loss lifecycle: surviving escort guards execute tactical withdrawals if their merchant falls in battle.
-
-Central Contact Registry & Operations Archive:
-- Persistent WorldComponent tracking all active, engaged, retreating, and resolved planetary contacts.
-- Live query service providing deep roster breakdowns (human combatants, mechanoids, beasts of burden, carried armament, provisions).
-- Historical operations archive preserving up to 150 resolved missions with headcounts, casualty tracking, and outcome classifications.
-
-Fixes & Performance:
-- Removed hardcoded fallback colony names ("the colony", "their stronghold"); letters and inspect strings dynamically query custom settlement names.
-- Resolved save-time dangling map references and cross-reference warnings on de-initialised battlefields.
-- Zero-allocation hot-path collision loops and in-place vertex color updates for silky-smooth 60 FPS Geoscape panning.
+[h2]v0.3.0 — Milestone 1.2: Ground Interception, Forward Ambush & Evacuated Colony Hierarchy[/h2]
+[list]
+[*] [b]Tactical Ground Interception & Forward Ambush:[/b]
+    [list]
+    [*] Intercept approaching hostile incursions directly on the global hex grid before they reach your colony.
+    [*] Right-click commands on detected incursions: [i]Intercept & Engage[/i], [i]Hail & Trade[/i], or [i]Warn Away / Turn Back[/i].
+    [*] Forward ambush encounters: catch raiders unaware in stalking ambushes, or launch surprise night raids while columns are camped asleep.
+    [*] Dynamic pursuit tracking: intercepting caravans calculate predictive pursuit vectors and update course in real time.
+    [/list]
+[*] [b]Retreat Lifecycle, Pursuit & Kidnap Recovery:[/b]
+    [list]
+    [*] Fleeing raiders physically retreat across the world map back to their home base with 1:1 wounds, carried loot, and captive colonists intact.
+    [*] Overland physiology: wounded marchers bleed, heal, self-tend with carried medicine, or suffer exhaustion during transit.
+    [*] Rescue captured colonists by intercepting the retreating kidnapper column before it reaches home territory—or mount a base assault on their fortress to liberate prisoners from settlement incarceration!
+    [*] Threat-aware tactical retreats: fleeing colonists evaluate visible enemies, turrets, and fire exposure across all map boundaries to pick the safest evacuation corridor.
+    [/list]
+[*] [b]Evacuated Colony Hierarchy & Track Pursuit:[/b]
+    [list]
+    [*] Hostile forces reaching an evacuated player base or abandoned settlement no longer abruptly disperse.
+    [*] 3-tier tactical decision hierarchy: raiders search for tracks to hot-pursue fleeing player caravans (tech/weather-aware rolls), divert toward nearby secondary outposts, or ransack the vacant structures and physically march back home.
+    [/list]
+[*] [b]Night Owl & Schedule-Aware Caravaning:[/b]
+    [list]
+    [*] Circadian and schedule-tab awareness replaces the hardcoded 22:00–06:00 caravan sleep lock.
+    [*] Pure Night Owl squads sleep during the day (11:00–18:00) and march through the night with zero optical darkness penalties.
+    [*] Mixed squads march by majority shift while keeping camp watch—granting 24/7 daytime visibility.
+    [*] Custom rest shifts and force-marching can be configured directly in the colonist [i]Schedule[/i] tab.
+    [/list]
+[*] [b]Pack Animal Cargo & Roadside Trading:[/b]
+    [list]
+    [*] Trade cargo and provisions are carried in pack animal inventories across all battle maps and transits (eliminating carpet floor-dumping).
+    [*] Barter with friendly travelling merchants directly on the road without duplicating stock upon colony arrival.
+    [*] Trader loss lifecycle: surviving escort guards execute tactical withdrawals if their merchant falls in battle.
+    [/list]
+[*] [b]Central Contact Registry & Operations Archive:[/b]
+    [list]
+    [*] Persistent WorldComponent tracking all active, engaged, retreating, and resolved planetary contacts.
+    [*] Live query service providing deep roster breakdowns (human combatants, mechanoids, beasts of burden, carried armament, provisions).
+    [*] Historical operations archive preserving up to 150 resolved missions with headcounts, casualty tracking, and outcome classifications.
+    [/list]
+[*] [b]Fixes & Performance:[/b]
+    [list]
+    [*] Removed hardcoded fallback colony names ("the colony", "their stronghold"); letters and inspect strings dynamically query custom settlement names.
+    [*] Resolved save-time dangling map references and cross-reference warnings on de-initialised battlefields.
+    [*] Zero-allocation hot-path collision loops and in-place vertex color updates for silky-smooth 60 FPS Geoscape panning.
+    [/list]
+[/list]
