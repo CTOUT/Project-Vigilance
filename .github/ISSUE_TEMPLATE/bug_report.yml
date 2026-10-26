@@ -5,8 +5,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for reporting an issue! Please provide as much context as possible so we can diagnose and resolve it promptly.
-        If you are playtesting specific scenarios, you can also reference the [Milestone 1.2 Test Plan](../blob/main/docs/milestone_1_2_test_plan.md).
+        ### Reporting a Defect or Unexpected Behaviour
+        Thank you for helping test **Project Vigilance**! Please provide as much context as possible so we can diagnose and resolve issues promptly.
+
+        > 📋 **Consult the Test Plan Documentation First:**
+        > Please review the **[Milestone 1.2 Verification & Test Plan](../blob/main/docs/milestone_1_2_test_plan.md)**.
+        > The test plan outlines the intended behavior, triggers, and expected outcomes across all tactical scenarios (ambushes, pursuits, retreats, trading, and base assaults). Checking the test plan helps confirm whether the behavior observed is an intentional design mechanic or a defect.
+        >
+        > 💡 *If you are submitting structured test pass/fail results or general playtest feedback, please use the **[Playtest Verification & Test Case Report](new?template=playtest_report.yml)** template instead.*
 
   - type: dropdown
     id: severity
@@ -53,8 +59,9 @@ body:
     id: test_case_id
     attributes:
       label: Test Case Reference (Optional)
-      description: If this occurred while running a scenario from the test plan, specify the Test Case ID (e.g. TC-02, TC-16).
-      placeholder: "e.g. TC-02.4"
+      description: |
+        If this issue occurred during or relates to a specific scenario from the [Milestone 1.2 Test Plan](../blob/main/docs/milestone_1_2_test_plan.md), specify the Test Case ID (e.g. `TC-02.4`, `TC-05`, `TC-16`).
+      placeholder: "e.g. TC-02.4 (Tactical Retreat & Animal Sweep)"
 
   - type: textarea
     id: description
@@ -80,7 +87,9 @@ body:
     id: expected
     attributes:
       label: Expected Behaviour
-      description: What did you expect to happen instead?
+      description: |
+        What did you expect to happen instead?
+        (Tip: Refer to the expected behavior outlined in the [Milestone 1.2 Test Plan](../blob/main/docs/milestone_1_2_test_plan.md) if evaluating a specific scenario).
     validations:
       required: true
 
@@ -129,6 +138,8 @@ body:
     attributes:
       label: Pre-Submission Checklist
       options:
+        - label: I have reviewed the [Milestone 1.2 Test Plan](../blob/main/docs/milestone_1_2_test_plan.md) or documentation to check expected system behaviour.
+          required: false
         - label: I have searched existing issues to ensure this is not a duplicate.
           required: true
         - label: I am running the latest build/release of Project Vigilance.
