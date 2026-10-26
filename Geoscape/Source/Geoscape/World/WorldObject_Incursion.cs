@@ -94,6 +94,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public bool IsEngagedInTacticalMap { get => isEngagedInTacticalMap; set => isEngagedInTacticalMap = value; }
     public Caravan? PursuitTargetCaravan => pursuitTargetCaravan;
     public bool IsPursuingCaravan => pursuitTargetCaravanId > 0;
+    public int PursuitTargetCaravanId => pursuitTargetCaravanId;
 
     public void SetPursuitTarget(Caravan targetCaravan, List<PlanetTile> initialPath)
     {
@@ -1514,7 +1515,17 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 {
                     if (pursuitTargetCaravan.Tile != destinationTile)
                     {
-                        if (IncursionOriginResolver.TryBuildPath(Tile, pursuitTargetCaravan.Tile, out var updatedPursuitPath))
+                        List<PlanetTile>? updatedPursuitPath = null;
+                        if (IncursionOriginResolver.TryBuildPath(Tile, pursuitTargetCaravan.Tile, out var calculatedPath))
+                        {
+                            updatedPursuitPath = calculatedPath;
+                        }
+                        else if (Find.WorldGrid.IsNeighborOrSame(Tile, pursuitTargetCaravan.Tile))
+                        {
+                            updatedPursuitPath = new List<PlanetTile> { Tile, pursuitTargetCaravan.Tile };
+                        }
+
+                        if (updatedPursuitPath != null && updatedPursuitPath.Count > 0)
                         {
                             pathTiles = updatedPursuitPath;
                             currentPathIndex = 0;
@@ -1641,163 +1652,154 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
         bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
 
-        // 1. Check for collision with an active player Camp or Settlement or Battlefield on this tile
-        if (true)
+        // 1. Check for player caravans on the world map FIRST
+        // If player pawns are in a caravan on this hex (e.g. evacuated outside the colony or marching),
+        // engaging the live mobile force always takes priority over inspecting vacant buildings!
+        if (!isRetreating || Tile != originTile)
         {
-            Map? tileMap = Current.Game?.FindMap(Tile);
-            MapParent? mapParent = Find.WorldObjects?.MapParentAt(Tile);
-
-            if (tileMap != null && !tileMap.IsPocketMap && tileMap.mapPawns != null && tileMap.mapPawns.AnyFreeColonistSpawned)
+            var worldCaravans = Find.WorldObjects?.Caravans;
+            if (worldCaravans != null && worldCaravans.Count > 0)
             {
-                var ambushComp = tileMap.GetComponent<MapComponent_OverlandAmbush>();
-                bool alreadyEngaged = this.IsEngagedInTacticalMap || (ambushComp != null && ambushComp.HasTrackedIncursion(this));
-
-                if (!alreadyEngaged)
+                // Clean up any caravans no longer on this tile that are not on active cooldown
+                metCaravanIds.RemoveWhere(id =>
                 {
-                    if (tileMap.IsPlayerHome)
+                    var cv = worldCaravans.FirstOrDefault(c => c.ID == id);
+                    return cv == null || cv.Tile != Tile;
+                });
+
+                // 1a. Dynamic pursuit tracking: caravans with intercept actions targeted at this incursion
+                for (int i = 0; i < worldCaravans.Count; i++)
+                {
+                    Caravan c = worldCaravans[i];
+                    if (c == null || !c.Spawned || c.Faction != Faction.OfPlayer)
                     {
-                        if (isHostile && !isRetreating)
+                        continue;
+                    }
+
+                    if (c.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion interceptAction && interceptAction.TargetIncursion == this)
+                    {
+                        // Reached same tile -> execute interception immediately
+                        if (c.Tile == Tile)
                         {
-                            IncursionInterceptionUtility.ExecuteCampOrSettlementAssault(tileMap, this);
+                            IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
                             return;
                         }
-                        else if (!isHostile)
+
+                        // Head-on shared-edge crossing:
+                        // If the caravan is on our immediate next tile and either waiting for us at the border
+                        // or marching directly into our current tile while we march into theirs, engage where the icons meet!
+                        PlanetTile nextTile = NextPathTile;
+                        if (nextTile.Valid && nextTile != Tile && c.Tile == nextTile)
                         {
-                            int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
-                            if (!metCaravanIds.Contains(mapId))
+                            bool caravanMovingIntoUs = c.pather is { Moving: true } && c.pather.nextTile == Tile;
+                            float caravanProgress = caravanMovingIntoUs
+                                ? 1f - Mathf.Clamp01(c.pather.nextTileCostLeft / Mathf.Max(1f, c.pather.nextTileCostTotal))
+                                : 0f;
+
+                            if ((caravanMovingIntoUs && (tileProgress + caravanProgress) >= 0.95f) ||
+                                (!caravanMovingIntoUs && tileProgress >= 0.85f))
                             {
-                                metCaravanIds.Add(mapId);
-                                IncursionInterceptionUtility.ExecuteFriendlyCampOrSettlementVisit(tileMap, this);
+                                AdvancePathTile();
+                                IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
+                                return;
                             }
                         }
+
+                        // Dynamic pursuit tracking: plot X-COM lead intercept tile along incursion heading
+                        var sensoryManager = Find.World?.GetComponent<SensoryManager>();
+                        bool hasVision = sensoryManager != null && sensoryManager.HasActiveVision(Tile);
+                        if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact || hasVision)
+                        {
+                            PlanetTile targetTile = GetInterceptTargetTile(c);
+                            if (c.pather.Destination != targetTile)
+                            {
+                                c.pather.StartPath(targetTile, interceptAction, resetPauseStatus: false);
+                            }
+                        }
+                        else if (c.pather.Destination != Tile && c.pather.Destination != NextPathTile)
+                        {
+                            IncursionInterceptionUtility.CheckContactLost(c, this);
+                        }
                     }
-                    else
+                }
+
+                // 1b. Direct tile collision: caravans occupying this hex
+                var caravansOnTile = worldCaravans
+                    .Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == Tile &&
+                                !(c.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion intercept && intercept.TargetIncursion == this))
+                    .ToList();
+
+                if (caravansOnTile.Count > 0)
+                {
+                    var eligibleCaravans = caravansOnTile
+                        .Where(c => !metCaravanIds.Contains(c.ID) && !IsCaravanOnCooldown(c.ID))
+                        .ToList();
+
+                    if (eligibleCaravans.Count > 0)
                     {
-                        // Temporary camp or CaravansBattlefield: Transit across the battlescape!
+                        if (!isHostile)
+                        {
+                            IncursionInterceptionUtility.ExecuteFriendlyInterception(eligibleCaravans, this);
+                        }
+                        else
+                        {
+                            IncursionInterceptionUtility.ExecuteHostileInterception(eligibleCaravans, this, isAmbush: true);
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+
+        // 2. Check for collision with an active player Camp or Settlement or Battlefield on this tile
+        Map? tileMap = Current.Game?.FindMap(Tile);
+        MapParent? mapParent = Find.WorldObjects?.MapParentAt(Tile);
+
+        if (tileMap != null && !tileMap.IsPocketMap && tileMap.mapPawns != null && tileMap.mapPawns.AnyFreeColonistSpawned)
+        {
+            var ambushComp = tileMap.GetComponent<MapComponent_OverlandAmbush>();
+            bool alreadyEngaged = this.IsEngagedInTacticalMap || (ambushComp != null && ambushComp.HasTrackedIncursion(this));
+
+            if (!alreadyEngaged)
+            {
+                if (tileMap.IsPlayerHome)
+                {
+                    if (isHostile && !isRetreating && !isTurningBack)
+                    {
+                        IncursionInterceptionUtility.ExecuteCampOrSettlementAssault(tileMap, this);
+                        return;
+                    }
+                    else if (!isHostile)
+                    {
                         int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
                         if (!metCaravanIds.Contains(mapId))
                         {
                             metCaravanIds.Add(mapId);
-                            IncursionInterceptionUtility.ExecuteBattlescapeTransit(tileMap, this);
-                            return;
+                            IncursionInterceptionUtility.ExecuteFriendlyCampOrSettlementVisit(tileMap, this);
                         }
                     }
                 }
-            }
-            else if (mapParent is Settlement settlement && settlement.Faction == Faction.OfPlayer)
-            {
-                if (isHostile && !isRetreating)
+                else
                 {
-                    destinationTile = Tile;
-                    IncursionArrivalManager.ExecuteArrival(this);
-                    return;
-                }
-            }
-        }
-
-        // 2. Check for player caravans on the world map
-        var worldCaravans = Find.WorldObjects?.Caravans;
-        if (worldCaravans == null || worldCaravans.Count == 0)
-        {
-            return;
-        }
-
-        // Clean up any caravans no longer on this tile that are not on active cooldown
-        metCaravanIds.RemoveWhere(id =>
-        {
-            var cv = worldCaravans.FirstOrDefault(c => c.ID == id);
-            return cv == null || cv.Tile != Tile;
-        });
-
-        // 2a. Dynamic pursuit tracking: caravans with intercept actions targeted at this incursion
-        for (int i = 0; i < worldCaravans.Count; i++)
-        {
-            Caravan c = worldCaravans[i];
-            if (c == null || !c.Spawned || c.Faction != Faction.OfPlayer)
-            {
-                continue;
-            }
-
-            if (c.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion interceptAction && interceptAction.TargetIncursion == this)
-            {
-                // Reached same tile -> execute interception immediately
-                if (c.Tile == Tile)
-                {
-                    IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
-                    return;
-                }
-
-                // Head-on shared-edge crossing:
-                // If the caravan is on our immediate next tile and either waiting for us at the border
-                // or marching directly into our current tile while we march into theirs, engage where the icons meet!
-                PlanetTile nextTile = NextPathTile;
-                if (nextTile.Valid && nextTile != Tile && c.Tile == nextTile)
-                {
-                    bool caravanMovingIntoUs = c.pather is { Moving: true } && c.pather.nextTile == Tile;
-                    float caravanProgress = caravanMovingIntoUs
-                        ? 1f - Mathf.Clamp01(c.pather.nextTileCostLeft / Mathf.Max(1f, c.pather.nextTileCostTotal))
-                        : 0f;
-
-                    if ((caravanMovingIntoUs && (tileProgress + caravanProgress) >= 0.95f) ||
-                        (!caravanMovingIntoUs && tileProgress >= 0.85f))
+                    // Temporary camp or CaravansBattlefield: Transit across the battlescape!
+                    int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
+                    if (!metCaravanIds.Contains(mapId))
                     {
-                        AdvancePathTile();
-                        IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
+                        metCaravanIds.Add(mapId);
+                        IncursionInterceptionUtility.ExecuteBattlescapeTransit(tileMap, this);
                         return;
                     }
                 }
-
-                // Dynamic pursuit tracking: plot X-COM lead intercept tile along incursion heading
-                var sensoryManager = Find.World?.GetComponent<SensoryManager>();
-                bool hasVision = sensoryManager != null && sensoryManager.HasActiveVision(Tile);
-                if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact || hasVision)
-                {
-                    PlanetTile targetTile = GetInterceptTargetTile(c);
-                    if (c.pather.Destination != targetTile)
-                    {
-                        c.pather.StartPath(targetTile, interceptAction, resetPauseStatus: false);
-                    }
-                }
-                else if (c.pather.Destination != Tile && c.pather.Destination != NextPathTile)
-                {
-                    IncursionInterceptionUtility.CheckContactLost(c, this);
-                }
             }
         }
-
-        // 2b. Direct tile collision: caravans occupying this hex
-        if (isRetreating && Tile == originTile)
+        else if (mapParent is Settlement settlement && settlement.Faction == Faction.OfPlayer)
         {
-            return;
-        }
-
-        var caravansOnTile = worldCaravans
-            .Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == Tile &&
-                        !(c.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion intercept && intercept.TargetIncursion == this))
-            .ToList();
-
-        if (caravansOnTile.Count == 0)
-        {
-            return;
-        }
-
-        // Filter out caravans that have already met or are on encounter cooldown
-        var eligibleCaravans = caravansOnTile
-            .Where(c => !metCaravanIds.Contains(c.ID) && !IsCaravanOnCooldown(c.ID))
-            .ToList();
-
-        if (eligibleCaravans.Count == 0)
-        {
-            return;
-        }
-
-        if (!isHostile)
-        {
-            IncursionInterceptionUtility.ExecuteFriendlyInterception(eligibleCaravans, this);
-        }
-        else
-        {
-            IncursionInterceptionUtility.ExecuteHostileInterception(eligibleCaravans, this, isAmbush: true);
+            if (isHostile && !isRetreating && !isTurningBack && !IsPursuingCaravan)
+            {
+                destinationTile = Tile;
+                IncursionArrivalManager.ExecuteArrival(this);
+                return;
+            }
         }
     }
 

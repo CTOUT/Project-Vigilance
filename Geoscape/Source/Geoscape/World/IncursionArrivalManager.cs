@@ -21,17 +21,59 @@ public static class IncursionArrivalManager
 
     public static bool ExecuteArrival(WorldObject_Incursion incursion)
     {
-        if (incursion.PursuitTargetCaravan != null && incursion.PursuitTargetCaravan.Spawned && incursion.PursuitTargetCaravan.Tile == incursion.Tile)
+        if (incursion.IsPursuingCaravan)
         {
-            Caravan targetCaravan = incursion.PursuitTargetCaravan;
+            Caravan? targetCaravan = incursion.PursuitTargetCaravan ??
+                                     Find.WorldObjects?.Caravans?.FirstOrDefault(c => c.ID == incursion.PursuitTargetCaravanId);
+
+            if (targetCaravan != null && targetCaravan.Spawned)
+            {
+                if (targetCaravan.Tile == incursion.Tile)
+                {
+                    incursion.ClearPursuitTarget();
+                    Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) caught up with pursued caravan {targetCaravan.LabelCap} at tile {incursion.Tile}. Executing hostile interception.");
+                    IncursionInterceptionUtility.ExecuteInterception(targetCaravan, incursion, isAmbush: true);
+                    return true;
+                }
+
+                // Re-plot pursuit path to current caravan position
+                List<PlanetTile>? newPursuitPath = null;
+                if (IncursionOriginResolver.TryBuildPath(incursion.Tile, targetCaravan.Tile, out var calculatedPath))
+                {
+                    newPursuitPath = calculatedPath;
+                }
+                else if (Find.WorldGrid.IsNeighborOrSame(incursion.Tile, targetCaravan.Tile))
+                {
+                    newPursuitPath = new List<PlanetTile> { incursion.Tile, targetCaravan.Tile };
+                }
+
+                if (newPursuitPath != null && newPursuitPath.Count > 0)
+                {
+                    incursion.SetPursuitTarget(targetCaravan, newPursuitPath);
+                    Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} reached waypoint and continues pursuing {targetCaravan.LabelCap} to tile {targetCaravan.Tile}.");
+                    return false;
+                }
+            }
+
+            // Target caravan was lost, disbanded, or unpathable
+            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) lost pursuit target caravan. Reversing course.");
             incursion.ClearPursuitTarget();
-            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) caught up with pursued caravan {targetCaravan.LabelCap} at tile {incursion.Tile}. Executing hostile interception.");
-            IncursionInterceptionUtility.ExecuteInterception(targetCaravan, incursion, isAmbush: true);
-            return true;
+            incursion.ReverseCourse("lost pursuit target caravan");
+            return false;
         }
 
         if (incursion.IsRetreating)
         {
+            bool hasActivePath = incursion.PathTiles != null && incursion.PathTiles.Count > 1;
+            bool reachedEndOfPath = incursion.PathTiles != null && incursion.PathTiles.Count > 0 && incursion.CurrentPathIndex >= incursion.PathTiles.Count - 1;
+            bool atDestinationTile = incursion.DestinationTile.Valid && incursion.Tile == incursion.DestinationTile;
+            bool reachedDest = hasActivePath ? reachedEndOfPath : atDestinationTile;
+
+            if (!reachedDest)
+            {
+                return false;
+            }
+
             string fName = incursion.Faction?.Name ?? "enemy forces";
             if (incursion.IsTradeMissionAborted)
             {
@@ -82,6 +124,16 @@ public static class IncursionArrivalManager
 
         if (incursion.IsTurningBack)
         {
+            bool hasActivePath = incursion.PathTiles != null && incursion.PathTiles.Count > 1;
+            bool reachedEndOfPath = incursion.PathTiles != null && incursion.PathTiles.Count > 0 && incursion.CurrentPathIndex >= incursion.PathTiles.Count - 1;
+            bool atDestinationTile = incursion.DestinationTile.Valid && incursion.Tile == incursion.DestinationTile;
+            bool reachedDest = hasActivePath ? reachedEndOfPath : atDestinationTile;
+
+            if (!reachedDest)
+            {
+                return false;
+            }
+
             string groupDesc = incursion.GetIdentifiedGroupLabel();
             bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
             string fName = incursion.Faction?.Name ?? (isHostile ? "enemy forces" : "peaceful travellers");
@@ -284,24 +336,48 @@ public static class IncursionArrivalManager
         string groupDesc = incursion.GetIdentifiedGroupLabel();
         string settlementLabel = (targetMap?.Parent?.LabelCap) ?? (arrivalTile.Valid ? $"the site at tile {arrivalTile}" : "the abandoned site");
 
+        PlanetTile currentIncursionTile = incursion.Tile.Valid ? incursion.Tile : arrivalTile;
+
         // -------------------------------------------------------------------------
         // Priority 1: Hot Pursuit of Evacuating / Nearby Player Caravans
         // -------------------------------------------------------------------------
         if (TryFindEvacuatingCaravanTracks(incursion, arrivalTile, targetMap, out Caravan? targetCaravan, out float calculatedChance))
         {
-            if (targetCaravan != null && IncursionOriginResolver.TryBuildPath(arrivalTile, targetCaravan.Tile, out var pursuitPath))
+            if (targetCaravan != null)
             {
-                float dist = Find.WorldGrid.ApproxDistanceInTiles(arrivalTile, targetCaravan.Tile);
-                incursion.SetPursuitTarget(targetCaravan, pursuitPath);
+                float dist = Find.WorldGrid.ApproxDistanceInTiles(currentIncursionTile, targetCaravan.Tile);
 
-                string title = "Overland Pursuit: " + incursion.LabelCap;
-                string text = $"The {groupDesc} from {fName} arrived at {settlementLabel} and found no defenders present.\n\n" +
-                              $"However, their scouts discovered fresh overland tracks ({calculatedChance:P0} tracking certainty) and have set off in hot pursuit of your caravan ({targetCaravan.LabelCap})!\n\n" +
-                              $"The pursuers are {dist:F1} hexes behind. Prepare your caravan for interception or attempt to outpace them.";
+                // If on same tile or right outside (< 0.25 hexes), intercept immediately
+                if (dist < 0.25f || targetCaravan.Tile == currentIncursionTile || targetCaravan.Tile == arrivalTile)
+                {
+                    Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) discovered caravan {targetCaravan.LabelCap} on the same tile ({currentIncursionTile}). Intercepting immediately.");
+                    IncursionInterceptionUtility.ExecuteInterception(targetCaravan, incursion, isAmbush: true);
+                    return true;
+                }
 
-                Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, incursion);
-                Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) discovered tracks ({calculatedChance:P0}) and initiated hot pursuit of {targetCaravan.LabelCap} ({dist:F1} hexes away).");
-                return false;
+                List<PlanetTile>? pursuitPath = null;
+                if (IncursionOriginResolver.TryBuildPath(currentIncursionTile, targetCaravan.Tile, out var calculatedPath))
+                {
+                    pursuitPath = calculatedPath;
+                }
+                else if (Find.WorldGrid.IsNeighborOrSame(currentIncursionTile, targetCaravan.Tile))
+                {
+                    pursuitPath = new List<PlanetTile> { currentIncursionTile, targetCaravan.Tile };
+                }
+
+                if (pursuitPath != null && pursuitPath.Count > 0)
+                {
+                    incursion.SetPursuitTarget(targetCaravan, pursuitPath);
+
+                    string title = "Overland Pursuit: " + incursion.LabelCap;
+                    string text = $"The {groupDesc} from {fName} arrived at {settlementLabel} and found no defenders present.\n\n" +
+                                  $"However, their scouts discovered fresh overland tracks ({calculatedChance:P0} tracking certainty) and have set off in hot pursuit of your caravan ({targetCaravan.LabelCap})!\n\n" +
+                                  $"The pursuers are {dist:F1} hexes behind. Prepare your caravan for interception or attempt to outpace them.";
+
+                    Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, incursion);
+                    Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) discovered tracks ({calculatedChance:P0}) and initiated hot pursuit of {targetCaravan.LabelCap} ({dist:F1} hexes away).");
+                    return false;
+                }
             }
         }
 
@@ -322,7 +398,7 @@ public static class IncursionArrivalManager
             string title = "Hostile Force Diverting: " + incursion.LabelCap;
             string text = $"The {groupDesc} from {fName} arrived at {settlementLabel} and found it undefended.\n\n" +
                           $"Spotting your nearby settlement at {secondaryTarget.LabelCap} ({dist:F0} hexes away), the warband has altered course to attack it instead!\n\n" +
-                          $"Prepare your defenses at {secondaryTarget.LabelCap}.";
+                          $"Prepare your defences at {secondaryTarget.LabelCap}.";
 
             Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, incursion);
             Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({incursion.Label}) diverted to secondary target {secondaryTarget.LabelCap} ({dist:F0} hexes away).");
@@ -377,6 +453,15 @@ public static class IncursionArrivalManager
         var bestCandidate = candidates[0];
         Caravan candidateCaravan = bestCandidate.Caravan;
         float dist = bestCandidate.Distance;
+
+        // If the caravan is on the same tile or immediately adjacent gate (< 0.25 hexes), tracking is 100% certain
+        if (candidateCaravan.Tile == arrivalTile || dist < 0.25f)
+        {
+            calculatedChance = 1.0f;
+            targetCaravan = candidateCaravan;
+            Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} arrived at settlement and directly spotted caravan {candidateCaravan.LabelCap} on the same tile ({dist:F1} hexes).");
+            return true;
+        }
 
         // Base Tracking Chance by Faction Tech Level
         float baseChance = 0.50f;
