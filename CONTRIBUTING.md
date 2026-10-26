@@ -15,7 +15,7 @@ This project is built around a decoupled, modular architecture:
 Open a GitHub issue and include:
 
 - RimWorld version and active DLCs (Royalty, Ideology, Biotech, Anomaly).
-- Mod load order / HugsLib log (if applicable).
+- Mod load order / player log (Player.log or in-game log link).
 - Steps to reproduce the issue.
 - Relevant stack traces from player logs.
 
