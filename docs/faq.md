@@ -63,3 +63,17 @@ Answers to common community inquiries regarding compatibility, design philosophy
 > The primary target for Project Vigilance is **RimWorld 1.7 (Waylith Engine)** running on **.NET 10**, leveraging the modern runtime for zero-allocation pathfinding and high TPS performance.
 >
 > A **1.6 backport** targeting the legacy .NET Framework runtime is currently under evaluation based on community interest. Progress on backport feasibility can be tracked in [TODO.md](../TODO.md).
+
+---
+
+### 6. Radar Infrastructure & Multi-Dish Interferometry
+
+**Q: Why doesn't building more radars in my settlement increase my maximum detection range?**
+
+> **Detection radius is constrained primarily by transmission power and planetary line-of-sight limitations; additional dishes improve resolution rather than raw detection distance.**
+>
+> On a spherical planet, ground radar cannot see through planetary curvature without orbital relays or forward outposts. Instead, clustering secondary dishes functions as an **interferometer** (synthetic aperture array), which expands your angular resolution:
+>
+> - **Identification Ring Expansion:** Your inner identification horizon ($R_{id}$) surges outward from ~40% to ~70% (2 dishes) and ~92% (3 dishes) of your envelope, revealing attacking faction emblems and threat ratings much earlier.
+> - **Faster Pulse Cadence:** Sweep intervals accelerate from `250 ticks` (~4.1s) down to `150 ticks` and `75 ticks`.
+> - **Fail-Safe Redundancy:** If a mortar strike or electrical fault destroys your primary dish, secondary dishes immediately maintain uninterrupted coverage.

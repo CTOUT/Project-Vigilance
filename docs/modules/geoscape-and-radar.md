@@ -43,6 +43,10 @@ When multiple radar installations operate on the same colony map:
 5. **Fail-Safe Redundancy:** If mortar shells, electrical faults (`Zzzt!`), or solar flares destroy or de-power the primary array, secondary dishes instantly maintain uninterrupted coverage.
 6. **Visual Representation on the Globe:** `WorldDrawLayer_RadarCoverage` renders both the outer glowing boundary ring ($R_{detect}$) and a subtle dashed/pulsing inner ring ($R_{id}$). Players visually see the inner identification ring expand outward as secondary dishes are built.
 
+> [!NOTE]
+> **Why doesn't building more radars increase my maximum detection range?**
+> Detection radius is constrained primarily by transmission power and planetary line-of-sight limitations; additional dishes improve resolution rather than raw detection distance. By expanding the interferometric baseline, multiple dishes allow the colony to resolve fine telemetry and identify hostile forces much earlier within its existing envelope, rather than pushing microwave beams through planetary curvature.
+
 #### 2.1.2 SIGINT Console vs. Alien Hyper-Wave Decoder
 
 To strictly preserve **Rule 1 (Zero Thematic Hardcoding in Frameworks)**:
