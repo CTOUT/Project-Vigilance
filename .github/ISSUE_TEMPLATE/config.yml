@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Milestone 1.2 Verification & Test Plan
+    url: https://github.com/CTOUT/Project-Vigilance/blob/main/docs/milestone_1_2_test_plan.md
+    about: Read the complete step-by-step test procedures, test matrix, and expected behaviours for Milestone 1.2.
   - name: GitHub Discussions
     url: https://github.com/CTOUT/Project-Vigilance/discussions
     about: Ask questions, discuss playtesting strategy, and share ideas.

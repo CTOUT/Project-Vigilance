@@ -6,6 +6,20 @@ body:
     attributes:
       value: |
         Thank you for reporting an issue! Please provide as much context as possible so we can diagnose and resolve it promptly.
+        If you are playtesting specific scenarios, you can also reference the [Milestone 1.2 Test Plan](../blob/main/docs/milestone_1_2_test_plan.md).
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity / Impact
+      description: How severely does this issue impact gameplay?
+      options:
+        - "Crash to Desktop / Freeze / Infinite Error Loop (Blocker)"
+        - "Major Gameplay Block (Mechanic Broken / Pawns Stranded / Faction Corrupted)"
+        - "Minor Gameplay Issue (Odd AI Behaviour / Visual Glitch / Text Typo)"
+        - "Balance / Tuning / Quality of Life Friction"
+    validations:
+      required: true
 
   - type: dropdown
     id: module
@@ -13,14 +27,34 @@ body:
       label: Affected Module / Component
       description: Which part of Project Vigilance is affected?
       options:
-        - "Overland Incursions (World Transit & Routing)"
-        - "Multi-Vector Staging & Wave Spawns"
-        - "World Map Rendering & Iconology"
-        - "Mod Settings & Configuration"
-        - "Save / Load (Scribe State Serialization)"
-        - "Other"
+        - "Ground Interception & Dynamic Pursuit (TC-01, TC-02)"
+        - "Overland Ambush & Marching Column Stealth (TC-02)"
+        - "Tactical Disengage, Retreat & Animal/Mech Sweep (TC-02.4)"
+        - "Night Camp Ambush & Night-Owl Caravans (TC-03)"
+        - "X-COM Contact Lost Dialog & Navigation (TC-04)"
+        - "Roadside Encounters & Trade Cargo Lifecycle (TC-05)"
+        - "Threat-Gated Warn Away / Turn Back (TC-06)"
+        - "Raid Retreat & 1:1 Pawn Fidelity (TC-07)"
+        - "Overland Physiology (Bleeding, Tending, Sleep) (TC-08)"
+        - "Hostage Recovery in Pursuit (TC-09)"
+        - "Settlement Incarceration & Base Assault Rescue (TC-10)"
+        - "Sensory Radar Overlays, Haze of War & Mod Settings (TC-11)"
+        - "Multi-Incursion Convergence & Multi-Wave Defense (TC-12)"
+        - "Epistemic Discovery & Information Fog (TC-13)"
+        - "Save / Load State Persistence (Scribe) (TC-14)"
+        - "Battlescape Sector Transit & Third-Party Encounters (TC-15)"
+        - "Empty Settlement Tactical Hierarchy & Evacuee Pursuit (TC-16)"
+        - "Contact Registry & Strategic Telemetry (TC-17)"
+        - "Other / Compatibility"
     validations:
       required: true
+
+  - type: input
+    id: test_case_id
+    attributes:
+      label: Test Case Reference (Optional)
+      description: If this occurred while running a scenario from the test plan, specify the Test Case ID (e.g. TC-02, TC-16).
+      placeholder: "e.g. TC-02.4"
 
   - type: textarea
     id: description
@@ -31,13 +65,14 @@ body:
       required: true
 
   - type: textarea
-    id: repro
+    id: reproduction_steps
     attributes:
       label: Steps to Reproduce
       placeholder: |
-        1. Start a new game / load an existing save.
-        2. Wait for a raid or trigger via debug actions.
-        3. Observe ...
+        1. Form a caravan with colonists and a pet.
+        2. Intercept an incoming hostile incursion on tile X.
+        3. Order retreat to edge.
+        4. Observe ...
     validations:
       required: true
 
@@ -50,15 +85,27 @@ body:
       required: true
 
   - type: textarea
+    id: game_context
+    attributes:
+      label: In-Game Operational Context
+      description: Details about the map, tile, day/night, incursion type, faction, or squad members involved.
+      placeholder: |
+        - Tile Biome / Surface: (e.g. Temperate Forest, Mountainous road)
+        - Time of Day: (e.g. 14:00 daytime / 02:00 local night)
+        - Incursion Faction & Status: (e.g. Pirate Warband [Contact-1], Retreating)
+        - Caravan Squad: (e.g. 3 colonists, 1 dog, 2 muffalo)
+
+  - type: textarea
     id: environment
     attributes:
-      label: Environment & Modlist
+      label: Environment & Active Mods
       description: Game version, active DLCs, and any relevant companion mods.
       placeholder: |
         RimWorld Version: 1.7 (Waylith Engine)
+        Project Vigilance Version:
         DLCs Active: Royalty / Ideology / Biotech / Anomaly / Odyssey
         Harmony Version:
-        Key Mods:
+        Other Active Mods:
     validations:
       required: true
 
@@ -66,8 +113,16 @@ body:
     id: logs
     attributes:
       label: Error Log / Stacktrace
-      description: Paste relevant errors from Player.log or the in-game debug console.
+      description: |
+        Paste relevant errors from the in-game debug console (~) or Player.log.
+        (Windows path: `%USERPROFILE%\AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\Player.log`)
       render: shell
+
+  - type: textarea
+    id: media_and_saves
+    attributes:
+      label: Screenshots / Save File (Optional)
+      description: Drag and drop screenshots or link a save file (Google Drive, Dropbox, GitHub attachment).
 
   - type: checkboxes
     id: checklist
@@ -76,5 +131,7 @@ body:
       options:
         - label: I have searched existing issues to ensure this is not a duplicate.
           required: true
-        - label: I am using the latest build/release of the mod.
+        - label: I am running the latest build/release of Project Vigilance.
+          required: true
+        - label: I have checked the in-game debug log (~) for red errors and attached them if present.
           required: true

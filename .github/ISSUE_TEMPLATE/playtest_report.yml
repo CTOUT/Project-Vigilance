@@ -1,0 +1,109 @@
+name: Playtest Verification & Test Case Report
+description: Submit structured results, feedback, or findings from running the Milestone 1.2 Test Plan
+labels: ["playtest", "milestone-1.2"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Milestone 1.2 Playtest Feedback & Verification
+        Thank you for playtesting **Project Vigilance (Milestone 1.2: Ground Interception & Tactical Combat)**!
+        Please review the scenarios in the [Milestone 1.2 Test Plan](../blob/main/docs/milestone_1_2_test_plan.md) and record your observations below.
+
+  - type: dropdown
+    id: target_test_case
+    attributes:
+      label: Target Test Case
+      description: Select the specific Test Case from the Milestone 1.2 test matrix being evaluated.
+      options:
+        - "TC-01: Right-Click Float Menus & Dynamic Pursuit"
+        - "TC-02.1: Active Interception Pursuit & Skirmish AI"
+        - "TC-02.2: Stationary Collision (Overland Ambush - Unaware Column)"
+        - "TC-02.3: Hold Fire & Let Them Pass Scouting (1:1 Force Fidelity)"
+        - "TC-02.4: Tactical Disengage, Retreat, Faction Safety & Animal Sweep"
+        - "TC-02.5: Situational Combat Outcome Letters & Reinforcements"
+        - "TC-03: Night Camp Ambush & Night-Owl Caravans"
+        - "TC-04: X-COM Contact Lost Telemetry & Survival Dialog"
+        - "TC-05: Roadside Encounter Dialog & Trade Cargo Lifecycle"
+        - "TC-06: Threat-Gated Warn Away & Goodwill Balance"
+        - "TC-07: Raid Retreat & 1:1 Pawn Fidelity"
+        - "TC-08: Overland Physiological Simulation (Bleeding, Tending, Sleep)"
+        - "TC-09: Hot-Pursuit Kidnap Recovery"
+        - "TC-10: Settlement Incarceration & Base-Assault Rescue"
+        - "TC-11: Tactical Radar Outlines, Haze of War & Mod Settings"
+        - "TC-12: Multi-Incursion Convergence & Independent Group Retreat"
+        - "TC-13: Epistemic Discovery & Information Fog"
+        - "TC-14: Scribe Save/Load & Memory Integrity"
+        - "TC-15: Battlescape Sector Transit & Emergent Encounters"
+        - "TC-16: Empty Settlement Tactical Hierarchy & Evacuee Pursuit"
+        - "TC-17: Contact Registry Lifecycle & Strategic Telemetry"
+        - "General / Free-Form Campaign Playtest"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: test_outcome
+    attributes:
+      label: Test Outcome
+      description: How did the scenario resolve during your playtest?
+      options:
+        - "Passed — Worked Exactly as Documented in the Test Plan"
+        - "Passed with Feedback — Functional, but Needs Balance/QoL Polish"
+        - "Partial Failure — Secondary Glitch or Unexpected Edge Case"
+        - "Failed — Core Mechanic Broken or Desynchronized"
+        - "Blocker — Crash, Infinite Loop, or Unrecoverable Error"
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed_behavior
+    attributes:
+      label: Observed Behaviour
+      description: What happened during the test scenario?
+      placeholder: |
+        Describe the sequence of events from triggering or meeting the incursion to resolution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: deviation_from_spec
+    attributes:
+      label: Deviation from Test Plan Spec (If applicable)
+      description: If the behaviour differed from the expected steps in the test plan, explain how.
+      placeholder: |
+        Expected: ...
+        Actual: ...
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Playtest Context & Environment
+      description: Game setup, incursion status, time of day, and environment.
+      placeholder: |
+        - Mod Version:
+        - Active DLCs: (Royalty / Ideology / Biotech / Anomaly / Odyssey)
+        - Day/Night & Tile:
+        - Squad / Caravan Composition:
+        - Enemy Faction & Incursion Status:
+
+  - type: textarea
+    id: logs_or_errors
+    attributes:
+      label: Debug Logs / Console Output (If any)
+      description: Paste any errors, warnings, or debug messages from the console (~) or Player.log.
+      render: shell
+
+  - type: textarea
+    id: suggestions_and_feel
+    attributes:
+      label: Gameplay Impressions & Feedback
+      description: How did the encounter feel? Any balance, UI, or pacing suggestions?
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Verification Checklist
+      options:
+        - label: I am using the latest build of Project Vigilance.
+          required: true
+        - label: I monitored the debug log (~) during the encounter.
+          required: true
