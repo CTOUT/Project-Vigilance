@@ -37,7 +37,7 @@
 
 ---
 
-### Milestone 1.2: Ground Interception & Forward Ambush (Completed)
+### Milestone 1.2: Ground Interception & Forward Ambush (Shipped in v0.3.0)
 
 - [x] **Field Interception & Forward Ambush:** Allow player caravans (and rapid-response transports) to intercept approaching incursions on the global hex grid, generating an encounter map where raiders can be engaged, ambushed, or routed before reaching the colony. Right-click float menus (`Intercept`, `Hail & Trade`, `Warn Away / Turn Back`), dynamic target pursuit tracking, and X-COM "Contact Lost" telemetry dialog. Night camp ambush advantages and Night-Owl trait bonuses.
 - [x] **Night Owl & Schedule-Aware Caravan Rest:** Replace hardcoded 22:00–06:00 player caravan rest lock with circadian and `Pawn_TimetableTracker` evaluation (`Caravan_NightResting_Patch`, `CaravanNightRestUtility_LeftRestTicksAt_Patch`). All-Night-Owl (or majority Night-Owl) squads automatically camp during daytime (11:00–18:00) and march through the night; mixed squads follow the majority shift; explicit `Sleep` or `Work` schedule assignments allow custom rest shifts or force-marching.
