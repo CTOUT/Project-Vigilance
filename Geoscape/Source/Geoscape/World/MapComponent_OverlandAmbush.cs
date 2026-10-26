@@ -397,6 +397,18 @@ public class MapComponent_OverlandAmbush : MapComponent
                         record.incursion.IsEngagedInTacticalMap = false;
                         record.incursion.IsIdentified = true;
                         record.incursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
+                        record.incursion.MarkMapMet(map.Parent?.ID ?? map.uniqueID);
+
+                        int mapCaravanCooldown = Find.TickManager.TicksGame + 15000;
+                        var localCaravans = Find.WorldObjects?.Caravans?.Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == map.Tile);
+                        if (localCaravans != null)
+                        {
+                            foreach (var c in localCaravans)
+                            {
+                                record.incursion.MarkCaravanMet(c.ID);
+                                record.incursion.SetCaravanCooldown(c.ID, mapCaravanCooldown);
+                            }
+                        }
 
                         if (record.capturedColonists.Count > 0)
                         {
@@ -447,6 +459,18 @@ public class MapComponent_OverlandAmbush : MapComponent
                             sourceIncursion.IsEngagedInTacticalMap = false;
                             sourceIncursion.IsIdentified = true;
                             sourceIncursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
+                            sourceIncursion.MarkMapMet(map.Parent?.ID ?? map.uniqueID);
+
+                            int mapCaravanCooldown = Find.TickManager.TicksGame + 15000;
+                            var localCaravans = Find.WorldObjects?.Caravans?.Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == map.Tile);
+                            if (localCaravans != null)
+                            {
+                                foreach (var c in localCaravans)
+                                {
+                                    sourceIncursion.MarkCaravanMet(c.ID);
+                                    sourceIncursion.SetCaravanCooldown(c.ID, mapCaravanCooldown);
+                                }
+                            }
 
                             if (capturedColonists.Count > 0)
                             {

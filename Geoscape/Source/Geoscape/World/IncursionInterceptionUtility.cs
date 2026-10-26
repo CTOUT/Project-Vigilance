@@ -183,9 +183,12 @@ public static class IncursionInterceptionUtility
         Map battleMap = CaravanIncidentUtility.SetupCaravanAttackMap(caravan, enemies, sendLetterIfRelatedPawns: true);
 
         // Immediately lock incursion to tactical engagement so world ticks do not trigger duplicate transit
+        incursion.MarkCaravanMet(caravan.ID);
+        incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 15000);
         incursion.IsEngagedInTacticalMap = true;
         if (battleMap != null)
         {
+            incursion.MarkMapMet(battleMap.Parent?.ID ?? battleMap.uniqueID);
             var ambushComp = battleMap.GetComponent<MapComponent_OverlandAmbush>();
             ambushComp?.RegisterIncursion(incursion, enemies, markAmbushSprung: false);
         }
@@ -1245,6 +1248,7 @@ public static class IncursionInterceptionUtility
         }
 
         // 6. Register into MapComponent_OverlandAmbush with isTransitOnly = true
+        incursion.MarkMapMet(map.Parent?.ID ?? map.uniqueID);
         incursion.IsEngagedInTacticalMap = true;
         var ambushComp = map.GetComponent<MapComponent_OverlandAmbush>();
         if (ambushComp != null)

@@ -48,6 +48,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private bool isTurningBack = false;
     private bool hasBeenWarnedAway = false;
     private HashSet<int> metCaravanIds = new();
+    private HashSet<int> metMapIds = new();
     private Dictionary<int, int> caravanCooldowns = new();
     private bool isRetreating = false;
     private bool isTradeMissionAborted = false;
@@ -80,6 +81,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public bool HasMetCaravan(int caravanId) => metCaravanIds.Contains(caravanId);
     public void MarkCaravanMet(int caravanId) => metCaravanIds.Add(caravanId);
     public void ResetCaravanMet(int caravanId) => metCaravanIds.Remove(caravanId);
+    public bool HasMetMap(int mapId) => metMapIds.Contains(mapId);
+    public void MarkMapMet(int mapId) => metMapIds.Add(mapId);
+    public void ResetMapMet(int mapId) => metMapIds.Remove(mapId);
     public bool IsCaravanOnCooldown(int caravanId)
     {
         return caravanCooldowns != null &&
@@ -1284,6 +1288,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         {
             metCaravanIds = new HashSet<int>();
         }
+        Scribe_Collections.Look(ref metMapIds, "metMapIds", LookMode.Value);
+        if (metMapIds == null)
+        {
+            metMapIds = new HashSet<int>();
+        }
         Scribe_Collections.Look(ref caravanCooldowns, "caravanCooldowns", LookMode.Value, LookMode.Value);
         if (caravanCooldowns == null)
         {
@@ -1741,7 +1750,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                         {
                             IncursionInterceptionUtility.ExecuteFriendlyInterception(eligibleCaravans, this);
                         }
-                        else
+                        else if (!isRetreating && !isTurningBack)
                         {
                             IncursionInterceptionUtility.ExecuteHostileInterception(eligibleCaravans, this, isAmbush: true);
                         }
@@ -1758,37 +1767,33 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         if (tileMap != null && !tileMap.IsPocketMap && tileMap.mapPawns != null && tileMap.mapPawns.AnyFreeColonistSpawned)
         {
             var ambushComp = tileMap.GetComponent<MapComponent_OverlandAmbush>();
-            bool alreadyEngaged = this.IsEngagedInTacticalMap || (ambushComp != null && ambushComp.HasTrackedIncursion(this));
+            int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
 
-            if (!alreadyEngaged)
+            bool alreadyHandledByMap = this.IsEngagedInTacticalMap ||
+                                       metMapIds.Contains(mapId) ||
+                                       (ambushComp != null && (ambushComp.HasTrackedIncursion(this) || ambushComp.Engagements.Any(e => e.incursion == this)));
+
+            if (!alreadyHandledByMap && !isRetreating && !isTurningBack && !IsPursuingCaravan)
             {
+                metMapIds.Add(mapId);
+
                 if (tileMap.IsPlayerHome)
                 {
-                    if (isHostile && !isRetreating && !isTurningBack)
+                    if (isHostile)
                     {
                         IncursionInterceptionUtility.ExecuteCampOrSettlementAssault(tileMap, this);
                         return;
                     }
-                    else if (!isHostile)
+                    else
                     {
-                        int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
-                        if (!metCaravanIds.Contains(mapId))
-                        {
-                            metCaravanIds.Add(mapId);
-                            IncursionInterceptionUtility.ExecuteFriendlyCampOrSettlementVisit(tileMap, this);
-                        }
+                        IncursionInterceptionUtility.ExecuteFriendlyCampOrSettlementVisit(tileMap, this);
                     }
                 }
                 else
                 {
                     // Temporary camp or CaravansBattlefield: Transit across the battlescape!
-                    int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
-                    if (!metCaravanIds.Contains(mapId))
-                    {
-                        metCaravanIds.Add(mapId);
-                        IncursionInterceptionUtility.ExecuteBattlescapeTransit(tileMap, this);
-                        return;
-                    }
+                    IncursionInterceptionUtility.ExecuteBattlescapeTransit(tileMap, this);
+                    return;
                 }
             }
         }
