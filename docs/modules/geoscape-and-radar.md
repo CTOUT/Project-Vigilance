@@ -18,23 +18,30 @@ Radar and sensor facilities can be constructed at player colonies or deployed as
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Lookout Watchtower** | Neolithic / Medieval | Building | **8 hexes** | 0 W (Unpowered, Manned) | Tier 2 (*Contact*) | Visual horizon extension; detects overland movement blips. |
 | **Early-Warning Radar Dome** | Industrial | Building | **14 hexes** | 350 W / 750 W | Tier 2 (*Contact*) | Weatherproof radome microwave dish; detects overland blips, speed, and heading. |
-| **Phased Radar Array** | Spacer | Building | **26 hexes** | 800 W / 1,800 W | Tier 3 (*Classified*) | Steerable electronically scanned array; identifies attacking faction insignia and broad force size. |
+| **Phased Radar Array** | Spacer | Building | **24 hexes** ($1,801$ tiles) | 800 W / 1,800 W | Tier 3 (*Classified*) | Steerable electronically scanned array; identifies attacking faction insignia and broad force size. |
 | **SIGINT Decryption Console** | Ultra | Facility Linker (`CompFacility`) | *Attached to Array* | 700 W / 1,400 W | **Upgrades to Tier 4 (*Analysed*)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. |
 | **Oceanic Sonar Array** | Industrial | Building | **18 hexes (Water)** | 500 W / 1,200 W | Coastal / Ocean | Shoreline hydrophone array monitoring maritime transit and aquatic incursions. |
 | **Listening Post (World Outpost)** | Industrial / Spacer | WorldObject | **10 hexes** | Standalone Solar | Tier 2 (*Contact*) | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. |
 
-#### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Redundancy)
+#### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Identification Expansion)
 
 When multiple radar installations operate on the same colony map:
-1. **Primary Sensor Designation:** The highest-tier radar structure acts as the **Primary Array**, projecting 100% of its base detection radius.
-2. **Interferometric Baseline Expansion:** Additional active, powered radar dishes on the same map function as a synthetic aperture array, providing diminishing returns:
-   - **2nd Dish:** +20% radius boost (`Mathf.RoundToInt(baseRadius * 0.20f)`: **+5 hexes** on a 26-hex Phased Array $\rightarrow$ **31 hexes**).
-   - **3rd Dish:** +10% radius boost (`Mathf.RoundToInt(baseRadius * 0.10f)`: **+3 hexes** on a 26-hex Phased Array $\rightarrow$ **34 hexes** total).
-   - **Subsequent Dishes:** +0% additional range (hard cap at +30% maximum boost).
-3. **Discrete Integer Hex Policy:** In RimWorld's discrete hexagonal `WorldGrid`, fractional radii (`0.x`) are avoided. All radii and bonuses are rounded to whole integer hexes using `Mathf.RoundToInt`, ensuring that each tile is deterministically 100% inside or outside coverage.
-4. **Power & Resource Trade-Off:** Each secondary dish draws its full standby and active power requirements (e.g. three Phased Arrays draw 2,400 W standby / 5,400 W active!), demanding dedicated power grids.
-5. **Fail-Safe Redundancy:** If a mortar strike, electrical fault (`Zzzt!`), or solar flare disables the primary dish, secondary dishes instantly maintain uninterrupted sensory coverage without the colony going blind.
-6. **Configurable Balancing:** Players can choose between *Diminishing Interferometry (+30% Max)* [Default] and *Strict One-Per-Settlement Limit* via Mod Settings.
+1. **Centred Hexagonal Geometry:** In RimWorld's `WorldGrid`, distance is measured in discrete concentric ring steps $n$ from the central tile. The total number of tiles enclosed within radius $n$ follows the centred hexagonal number formula:
+   $$\text{Total Tiles} = 1 + 3n(n+1)$$
+   *(e.g., $n=8 \rightarrow 217$ tiles; $n=14 \rightarrow 631$ tiles; $n=24 \rightarrow 1,801$ tiles).*
+2. **The Physical Role of Synthetic Aperture Interferometry:** In real-world radar physics, clustering antennas into an interferometer does not push radio waves arbitrarily further across the horizon; it drastically sharpens **angular resolution** ($\theta \approx \lambda / B$).
+3. **Identification Ring ($R_{id}$) Expansion (Dual-Ring Model):**
+   - The maximum detection radius $R_{detect}$ remains stable at $24$ rings ($1,801$ tiles), providing an outer boundary where incoming incursions register as **amber blips** (Contact Tier — speed and heading known, faction hidden).
+   - Adding secondary dishes expands the inner **Identification / Classification Horizon ($R_{id}$)** outward toward the perimeter:
+     - **1 Dish (Baseline):** $R_{detect} = 24$ rings; $R_{id} = 10$ rings (~40% radius, $331$ tiles). Long-range warning blip; faction identified only when forces draw close.
+     - **2 Dishes (+Interferometry):** $R_{detect} = 24$ rings; $R_{id} = 17$ rings (~70% radius, $919$ tiles). High-resolution synthetic aperture resolves faction insignia and force size much earlier.
+     - **3 Dishes (+Full Aperture):** $R_{detect} = 24$ rings; $R_{id} = 22$ rings (~92% radius, $1,519$ tiles). Near-instant classification across almost the entire radar envelope.
+4. **Temporal Resolution (Sweep Cadence):**
+   - **1 Dish:** Sweeps every `250 ticks` (~4.1s) in discrete pulses.
+   - **2 Dishes:** Interleaved sweeps every `150 ticks` (~2.5s).
+   - **3 Dishes:** High-frequency tracking every `75 ticks` (~1.2s).
+5. **Fail-Safe Redundancy:** If mortar shells, electrical faults (`Zzzt!`), or solar flares destroy or de-power the primary array, secondary dishes instantly maintain uninterrupted coverage.
+6. **Visual Representation on the Globe:** `WorldDrawLayer_RadarCoverage` renders both the outer glowing boundary ring ($R_{detect}$) and a subtle dashed/pulsing inner ring ($R_{id}$). Players visually see the inner identification ring expand outward as secondary dishes are built.
 
 #### 2.1.2 SIGINT Console vs. Alien Hyper-Wave Decoder
 

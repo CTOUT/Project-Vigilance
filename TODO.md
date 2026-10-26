@@ -7,11 +7,11 @@
 - [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
 - [ ] **Colony Technological Radar Infrastructure:**
   - `CompProperties_Radar` and `CompRadar` with dynamic standby vs active power scaling (`standbyPowerDraw` / `activePowerDraw`).
-  - **Multi-Dish Settlement Stacking (Interferometry & Redundancy):** Primary array gives 100% base radius; secondary dishes provide diminishing radius boosts (+20% 2nd dish, +10% 3rd dish, capped at +30% maximum boost) with discrete integer hex rounding (`Mathf.RoundToInt`). Fail-safe redundancy ensures uninterrupted coverage if one dish is disabled or breaks down.
+  - **Multi-Dish Settlement Stacking (Interferometry & Identification Expansion):** Centred hexagonal geometry ($\text{Total} = 1 + 3n(n+1)$). Maximum detection radius $R_{detect}$ stays stable (e.g. 24 rings, $1,801$ tiles), while secondary dishes expand the inner **Identification / Classification Horizon ($R_{id}$)** outward from ~40% (10 rings) $\rightarrow$ ~70% (17 rings) $\rightarrow$ ~92% (22 rings), accelerates sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and provides fail-safe redundancy.
   - **Sensory Building Defs & Research Projects:**
     - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 hexes, unpowered/manned, Contact Tier).
     - `Geoscape_RadarSmall` (Industrial Early-Warning Dome, 14 hexes, 350W/750W, Contact Tier).
-    - `Geoscape_RadarLarge` (Spacer Phased Array, 26 hexes, 800W/1,800W, Classified Tier).
+    - `Geoscape_RadarLarge` (Spacer Phased Array, 24 hexes [$1,801$ tiles], 800W/1,800W, Classified Tier).
     - `Geoscape_SigintConsole` (Ultra SIGINT Decryption Console, `CompFacility` linkable, 700W/1,400W, upgrades Phased Array to Tier 4 Analysed).
     - `Geoscape_SonarArray` (Industrial Coastal Hydrophone Station, 18 hexes water/coast).
 - [ ] **Lightweight Geoscape Outposts & World Map Strategic Context Actions:**
