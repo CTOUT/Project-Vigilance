@@ -810,7 +810,10 @@ public static class IncursionInterceptionUtility
 
         string groupDesc = incursion.GetIdentifiedGroupLabel();
         string factionName = incursion.Faction?.Name ?? "peaceful travellers";
-        string originDesc = incursion.OriginTile.Valid ? $"their origin at tile {incursion.OriginTile}" : "their home territory";
+        Settlement? originSettlement = Find.WorldObjects?.SettlementAt(incursion.OriginTile);
+        string originDesc = originSettlement != null
+            ? originSettlement.LabelCap
+            : (incursion.OriginTile.Valid ? $"their origin at tile {incursion.OriginTile.tileId}" : "their home territory");
 
         incursion.MarkWarnedAway();
         incursion.ReverseCourse("warned of danger by player");

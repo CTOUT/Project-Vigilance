@@ -55,7 +55,7 @@ public static class SettlementUtility_Attack_Patch
         if (livingCaptives.Count > 0)
         {
             string names = string.Join(", ", livingCaptives.Select(c => c.LabelShort));
-            Messages.Message($"RESCUE MISSION: Captured colonist(s) ({names}) are incarcerated inside this stronghold! Secure them during the assault.", settlement, MessageTypeDefOf.PositiveEvent);
+            Messages.Message($"RESCUE MISSION: Captured colonist(s) ({names}) are incarcerated inside {settlement.LabelCap}! Secure them during the assault.", settlement, MessageTypeDefOf.PositiveEvent);
         }
         IncursionRetreatManager.RemoveIncarceratedColonistsAt(settlement.Tile);
     }

@@ -14,7 +14,7 @@ public class IncursionRetreatManager : WorldComponent
     public class RetreatBatch : IExposable
     {
         public PlanetTile originTile;
-        public string settlementName = "the colony";
+        public string settlementName = string.Empty;
         public Faction? faction;
         public List<Pawn> fleeingPawns = new();
         public List<Pawn> kidnappedColonists = new();
@@ -28,7 +28,7 @@ public class IncursionRetreatManager : WorldComponent
             {
                 originTile = (PlanetTile)tileId;
             }
-            Scribe_Values.Look(ref settlementName, "settlementName", "the colony");
+            Scribe_Values.Look(ref settlementName, "settlementName", string.Empty);
             Scribe_References.Look(ref faction, "faction");
             Scribe_Collections.Look(ref fleeingPawns, "fleeingPawns", LookMode.Reference);
             Scribe_Collections.Look(ref kidnappedColonists, "kidnappedColonists", LookMode.Reference);
@@ -113,7 +113,10 @@ public class IncursionRetreatManager : WorldComponent
     {
         Faction faction = pawn.Faction;
         PlanetTile mapTile = map.Tile;
-        string mapLabel = map.Parent?.LabelCap ?? "the colony";
+        string mapLabel = map.Parent?.LabelCap ??
+                          Find.WorldObjects?.SettlementAt(mapTile)?.LabelCap ??
+                          Find.WorldObjects?.MapParentAt(mapTile)?.LabelCap ??
+                          (map.IsPlayerHome ? "your colony" : $"settlement at tile {mapTile.tileId}");
 
         RetreatBatch? batch = activeBatches.FirstOrDefault(b => b.originTile == mapTile && b.faction == faction);
 
@@ -266,10 +269,17 @@ public class IncursionRetreatManager : WorldComponent
         // Dispatch alert letter to the player
         string contactLabel = incursion.LabelCap;
         string factionName = batch.faction.Name;
-        string settlementName = batch.settlementName;
-        string destName = destinationTile.Valid && destinationTile.Layer != null
-            ? "their stronghold"
-            : "their territory";
+        string settlementName = !string.IsNullOrWhiteSpace(batch.settlementName)
+            ? batch.settlementName
+            : (Find.WorldObjects?.SettlementAt(originTile)?.LabelCap ??
+               Find.WorldObjects?.MapParentAt(originTile)?.LabelCap ??
+               (Find.Maps != null && Find.Maps.Any(m => m.Tile == originTile && m.IsPlayerHome) ? "your colony" : $"settlement at tile {originTile.tileId}"));
+
+        Settlement? destSettlement = Find.WorldObjects?.SettlementAt(destinationTile);
+        string destName = destSettlement != null
+            ? destSettlement.LabelCap
+            : (Find.WorldObjects?.MapParentAt(destinationTile)?.LabelCap ??
+               (destinationTile.Valid ? $"stronghold at tile {destinationTile.tileId}" : "their territory"));
 
         if (batch.kidnappedColonists.Count > 0)
         {
@@ -277,7 +287,7 @@ public class IncursionRetreatManager : WorldComponent
             string title = "Kidnappers in Retreat: " + contactLabel;
             string text = $"Forces from {factionName} have fled {settlementName} carrying captured colonist(s): {captivesList}!\n\n" +
                           $"They are retreating overland towards {destName} as {contactLabel}.\n\n" +
-                          $"Dispatch a rapid-response pursuit force immediately to intercept them before they reach the enemy stronghold.";
+                          $"Dispatch a rapid-response pursuit force immediately to intercept them before they reach {destName}.";
 
             Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.ThreatBig, incursion);
         }

@@ -203,7 +203,9 @@ public static class IncursionArrivalManager
         // neither friendly visitors nor hostile raids with requireColonistsPresent can engage.
         if (!hasConsciousColonists)
         {
-            string settlementName = targetMap.Parent?.LabelCap ?? "the settlement";
+            string settlementName = targetMap.Parent?.LabelCap ??
+                                    Find.WorldObjects?.SettlementAt(targetMap.Tile)?.LabelCap ??
+                                    (targetMap.IsPlayerHome ? "your colony" : $"settlement at tile {targetMap.Tile.tileId}");
             string groupDesc = incursion.GetIdentifiedGroupLabel();
             string fName = incursion.Faction?.Name ?? (isHostileToPlayer ? "enemy forces" : "peaceful travellers");
 
@@ -230,7 +232,8 @@ public static class IncursionArrivalManager
 
         if (isHostileToPlayer && (hasPreGeneratedPawns || isConvertedNeutralIncident))
         {
-            Log.Message($"[Project Vigilance] Hostile incursion {incursion.TrackingId} ({incursion.Label}) arrived at {targetMap.Parent?.LabelCap ?? "settlement"}. Executing direct settlement assault.");
+            string arrivalTargetName = targetMap.Parent?.LabelCap ?? Find.WorldObjects?.SettlementAt(targetMap.Tile)?.LabelCap ?? $"tile {targetMap.Tile.tileId}";
+            Log.Message($"[Project Vigilance] Hostile incursion {incursion.TrackingId} ({incursion.Label}) arrived at {arrivalTargetName}. Executing direct settlement assault.");
             IncursionInterceptionUtility.ExecuteCampOrSettlementAssault(targetMap, incursion);
             return true;
         }
@@ -268,7 +271,9 @@ public static class IncursionArrivalManager
             }
             else if (!success)
             {
-                string settlementName = targetMap.Parent?.LabelCap ?? "the settlement";
+                string settlementName = targetMap.Parent?.LabelCap ??
+                                        Find.WorldObjects?.SettlementAt(targetMap.Tile)?.LabelCap ??
+                                        (targetMap.IsPlayerHome ? "your colony" : $"settlement at tile {targetMap.Tile.tileId}");
                 string groupDesc = incursion.GetIdentifiedGroupLabel();
                 string fName = incursion.Faction?.Name ?? (isHostileToPlayer ? "enemy forces" : "approaching force");
                 string failMsg = incursion.GroupKind == IncursionGroupKind.HostileWarband

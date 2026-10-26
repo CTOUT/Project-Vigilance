@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Hardcoded Settlement & Stronghold Name Removal (`IncursionRetreatManager`, `IncursionArrivalManager`, `WorldObject_Incursion`, `MapComponent_OverlandAmbush`, `SettlementUtility_Attack_Patch`):**
+  - Eliminated hardcoded fallback strings (e.g. `"the colony"`, `"their stronghold"`, `"Colony territory"`, `"Hostile Warband"`, `"enemy forces"`, and `"the settlement"`) across letters, inspect panes, and tactical encounter records.
+  - Dynamically queries world objects (`Find.WorldObjects.SettlementAt`, `MapParentAt`) to accurately reflect custom player colony names, multiple settlements, enemy strongholds (e.g. "Norwich Outpost" instead of generic "their stronghold"), and specific tile coordinates.
 - **Save-Time Dangling Map Reference Elimination in Fleeing Raider Batches (`IncursionRetreatManager.RetreatBatch`):**
   - Resolved a save-time error where `IncursionRetreatManager.RetreatBatch` held a strong reference to `Map` via `Scribe_References.Look(ref map, "map")`. If raiders fled a temporary encounter map or `CaravansBattlefield` that was deinited before the 25-second batch timeout expired, saving the game triggered red errors from RimWorld's `DebugLoadIDsSavingErrorsChecker`.
   - Replaced `Map map` with `PlanetTile originTile` and `string settlementName`, completely eliminating dangling Map pointers and sanitizing dead or destroyed pawns prior to saving.

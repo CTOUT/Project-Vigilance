@@ -1109,7 +1109,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private void DispatchContactLetter(ISensorProvider sensor)
     {
         Map? targetMap = Current.Game.FindMap(destinationTile);
-        string targetName = targetMap?.Parent?.LabelCap ?? "Colony territory";
+        string targetName = targetMap?.Parent?.LabelCap ??
+                            Find.WorldObjects?.SettlementAt(destinationTile)?.LabelCap ??
+                            Find.WorldObjects?.MapParentAt(destinationTile)?.LabelCap ??
+                            (destinationTile.Valid ? $"territory at tile {destinationTile.tileId}" : "colony territory");
 
         string title = SensoryNarrativeUtility.GetContactLetterTitle(sensor, trackingId);
         string text = SensoryNarrativeUtility.GetContactLetterBody(sensor, targetName, speedTilesPerDay, trackingId);
@@ -1120,7 +1123,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private void DispatchClassifiedLetter(ISensorProvider sensor)
     {
         Map? targetMap = Current.Game.FindMap(destinationTile);
-        string targetName = targetMap?.Parent?.LabelCap ?? "Colony territory";
+        string targetName = targetMap?.Parent?.LabelCap ??
+                            Find.WorldObjects?.SettlementAt(destinationTile)?.LabelCap ??
+                            Find.WorldObjects?.MapParentAt(destinationTile)?.LabelCap ??
+                            (destinationTile.Valid ? $"territory at tile {destinationTile.tileId}" : "colony territory");
 
         float actualRemainingTiles = Math.Max(0f, (pathTiles.Count - currentPathIndex) - tileProgress);
         float remainingHours = (actualRemainingTiles / Math.Max(0.1f, speedTilesPerDay)) * 24f;
@@ -2171,7 +2177,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             {
                 return $"{label.CapitalizeFirst()}\nStatus: Retreating ({survivorCount} survivors){captiveStr}\nSpeed: ~{speedTilesPerDay:F0} hexes/day";
             }
-            return $"{label.CapitalizeFirst()} ({factionName})\nStatus: Retreating ({survivorCount} survivors){captiveStr}\nDestination: Tile {destinationTile}";
+            Settlement? destSettlement = Find.WorldObjects?.SettlementAt(destinationTile);
+            string destDesc = destSettlement != null ? $"{destSettlement.LabelCap} (Tile {destinationTile.tileId})" : $"Tile {destinationTile.tileId}";
+            return $"{label.CapitalizeFirst()} ({factionName})\nStatus: Retreating ({survivorCount} survivors){captiveStr}\nDestination: {destDesc}";
         }
 
         bool isMechanoid = Faction != null && (Faction.def == FactionDefOf.Mechanoid || Faction.def.defName.Contains("Mechanoid"));
@@ -2197,7 +2205,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             {
                 return $"{label.CapitalizeFirst()}\nStatus: Returning home\nSpeed: ~{speedTilesPerDay:F0} hexes/day";
             }
-            return $"{label.CapitalizeFirst()} ({factionName})\nStatus: Returning home\nDestination: Tile {destinationTile}\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
+            Settlement? destSettlement = Find.WorldObjects?.SettlementAt(destinationTile);
+            string destDesc = destSettlement != null ? $"{destSettlement.LabelCap} (Tile {destinationTile.tileId})" : $"Tile {destinationTile.tileId}";
+            return $"{label.CapitalizeFirst()} ({factionName})\nStatus: Returning home\nDestination: {destDesc}\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
         }
 
         if (departureDelayTicks > 0)
@@ -2245,7 +2255,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         Map? targetMap = Current.Game.FindMap(destinationTile);
         if (targetMap == null || !Find.Maps.Contains(targetMap))
         {
-            return $"{label.CapitalizeFirst()} ({factionName})\nTarget settlement is abandoned\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
+            Settlement? targetSettlement = Find.WorldObjects?.SettlementAt(destinationTile);
+            if (targetSettlement == null || targetSettlement.Faction == null)
+            {
+                return $"{label.CapitalizeFirst()} ({factionName})\nTarget settlement is abandoned\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
+            }
         }
 
         return $"{label.CapitalizeFirst()} ({factionName})\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
@@ -2261,19 +2275,24 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             return SensoryNarrativeUtility.GetContactDescription();
         }
 
+        string targetName = Current.Game?.FindMap(destinationTile)?.Parent?.LabelCap ??
+                            Find.WorldObjects?.SettlementAt(destinationTile)?.LabelCap ??
+                            Find.WorldObjects?.MapParentAt(destinationTile)?.LabelCap ??
+                            (destinationTile.Valid ? $"territory at tile {destinationTile.tileId}" : "colony territory");
+
         switch (GroupKind)
         {
             case IncursionGroupKind.HostileWarband:
-                return $"A hostile warband from {Faction?.Name ?? "an unknown enemy faction"} traversing the planetary surface towards colony territory.";
+                return $"A hostile warband from {Faction?.Name ?? "an unknown enemy faction"} traversing the planetary surface towards {targetName}.";
             case IncursionGroupKind.TradeCaravan:
                 if (isTradeMissionAborted)
                 {
                     return $"A surviving merchant group from {Faction?.Name ?? "a friendly faction"} returning to base after losing their head merchant.";
                 }
                 string traderDetail = TraderKind != null ? $" ({TraderKind.label})" : string.Empty;
-                return $"A merchant trade caravan{traderDetail} from {Faction?.Name ?? "a friendly faction"} travelling with trade goods and pack animals.";
+                return $"A merchant trade caravan{traderDetail} from {Faction?.Name ?? "a friendly faction"} travelling towards {targetName} with trade goods and pack animals.";
             case IncursionGroupKind.Visitors:
-                return $"A party of visitors from {Faction?.Name ?? "a friendly faction"} travelling to socialise and visit your settlement.";
+                return $"A party of visitors from {Faction?.Name ?? "a friendly faction"} travelling to socialise and visit {targetName}.";
             case IncursionGroupKind.Travelers:
                 return $"A group of travellers from {Faction?.Name ?? "a neutral faction"} passing peacefully through the region.";
             case IncursionGroupKind.TributeCollector:
@@ -2283,7 +2302,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             case IncursionGroupKind.Beggars:
                 return "A group of impoverished travellers in desperate need of charity and aid.";
             case IncursionGroupKind.AlliedReinforcements:
-                return $"An allied military force from {Faction?.Name ?? "an allied faction"} marching to reinforce your colony.";
+                return $"An allied military force from {Faction?.Name ?? "an allied faction"} marching to reinforce {targetName}.";
             default:
                 return $"A travelling party from {Faction?.Name ?? "an unknown faction"} traversing the planetary surface.";
         }

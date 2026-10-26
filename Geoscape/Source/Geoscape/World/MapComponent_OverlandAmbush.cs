@@ -15,7 +15,8 @@ public class IncursionEngagementRecord : IExposable
     public WorldObject_Incursion? incursion;
     public int trackingId;
     public Faction? faction;
-    public string contactLabel = "Hostile Warband";
+    public string contactLabel = string.Empty;
+    public string ContactLabel => incursion?.LabelCap ?? (!string.IsNullOrEmpty(contactLabel) ? contactLabel : "Contact");
     public List<Pawn> trackedPawns = new();
     public List<Pawn> escapedPawns = new();
     public List<Pawn> capturedColonists = new();
@@ -40,7 +41,7 @@ public class IncursionEngagementRecord : IExposable
         Scribe_References.Look(ref incursion, "incursion");
         Scribe_Values.Look(ref trackingId, "trackingId", 0);
         Scribe_References.Look(ref faction, "faction");
-        Scribe_Values.Look(ref contactLabel, "contactLabel", "Hostile Warband");
+        Scribe_Values.Look(ref contactLabel, "contactLabel", string.Empty);
         Scribe_Collections.Look(ref trackedPawns, "trackedPawns", LookMode.Reference);
         Scribe_Collections.Look(ref escapedPawns, "escapedPawns", LookMode.Reference);
         Scribe_Collections.Look(ref capturedColonists, "capturedColonists", LookMode.Reference);
@@ -52,7 +53,8 @@ public class IncursionEngagementRecord : IExposable
 
 public class GuestCohortRecord : IExposable
 {
-    public string groupLabel = "Visiting Party";
+    public string groupLabel = string.Empty;
+    public string GroupLabel => !string.IsNullOrEmpty(groupLabel) ? groupLabel : (faction != null ? $"{faction.Name} Cohort" : "Visiting Group");
     public Faction? faction;
     public List<Pawn> pawns = new();
     public bool hasDeparted;
@@ -69,7 +71,7 @@ public class GuestCohortRecord : IExposable
 
     public void ExposeData()
     {
-        Scribe_Values.Look(ref groupLabel, "groupLabel", "Visiting Party");
+        Scribe_Values.Look(ref groupLabel, "groupLabel", string.Empty);
         Scribe_References.Look(ref faction, "faction");
         Scribe_Collections.Look(ref pawns, "pawns", LookMode.Reference);
         Scribe_Values.Look(ref hasDeparted, "hasDeparted", false);
@@ -81,8 +83,8 @@ public class MapComponent_OverlandAmbush : MapComponent
     private bool isActive;
     private bool ambushSprung;
     private Faction? enemyFaction;
-    private string contactName = "Hostile Warband";
-    private string factionName = "enemy forces";
+    private string contactName = string.Empty;
+    private string factionName = string.Empty;
     private List<Pawn> trackedEnemies = new();
     private List<Pawn> allEnemies = new();
     private Lord? travelLord;
@@ -106,8 +108,8 @@ public class MapComponent_OverlandAmbush : MapComponent
     public List<IncursionEngagementRecord> Engagements => engagements;
     public List<GuestCohortRecord> GuestCohorts => guestCohorts;
     public WorldObject_Incursion? SourceIncursion => engagements.FirstOrDefault(e => !e.isDisengaged)?.incursion ?? sourceIncursion;
-    public string ContactName => contactName;
-    public string FactionName => factionName;
+    public string ContactName => SourceIncursion?.LabelCap ?? (!string.IsNullOrEmpty(contactName) ? contactName : "Approaching Force");
+    public string FactionName => SourceIncursion?.Faction?.Name ?? enemyFaction?.Name ?? (!string.IsNullOrEmpty(factionName) ? factionName : "unknown forces");
     public List<Pawn> GetLivingEnemies() => allEnemies.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
     public List<Pawn> EscapedHostiles => escapedHostiles;
     public List<Pawn> CapturedColonists => capturedColonists;
@@ -131,14 +133,14 @@ public class MapComponent_OverlandAmbush : MapComponent
                         .Where(p => p != null && !p.Dead && !p.Destroyed)
                         .Distinct()
                         .ToList();
-                    yield return (record.incursion, living, record.capturedColonists, record.contactLabel);
+                    yield return (record.incursion, living, record.capturedColonists, record.ContactLabel);
                 }
             }
         }
         else if (sourceIncursion != null && sourceIncursion.Spawned)
         {
             var living = GetLivingEnemies();
-            yield return (sourceIncursion, living, null, contactName);
+            yield return (sourceIncursion, living, null, ContactName);
         }
     }
 
@@ -147,8 +149,9 @@ public class MapComponent_OverlandAmbush : MapComponent
         if (cohortPawns == null) return;
         var list = cohortPawns.Where(p => p != null).Distinct().ToList();
         if (list.Count == 0) return;
-        guestCohorts.Add(new GuestCohortRecord(label, f, list));
-        Log.Message($"[Project Vigilance] Registered independent guest cohort '{label}' ({list.Count} pawns, Faction: {f?.Name ?? "Neutral"}) to overland map.");
+        var cohort = new GuestCohortRecord(label, f, list);
+        guestCohorts.Add(cohort);
+        Log.Message($"[Project Vigilance] Registered independent guest cohort '{cohort.GroupLabel}' ({list.Count} pawns, Faction: {f?.Name ?? "Neutral"}) to overland map.");
     }
 
     public bool HasTrackedIncursionFor(Pawn raider)
@@ -1255,8 +1258,8 @@ public class MapComponent_OverlandAmbush : MapComponent
         Scribe_Values.Look(ref isActive, "isActive", false);
         Scribe_Values.Look(ref ambushSprung, "ambushSprung", false);
         Scribe_References.Look(ref enemyFaction, "enemyFaction");
-        Scribe_Values.Look(ref contactName, "contactName", "Hostile Warband");
-        Scribe_Values.Look(ref factionName, "factionName", "enemy forces");
+        Scribe_Values.Look(ref contactName, "contactName", string.Empty);
+        Scribe_Values.Look(ref factionName, "factionName", string.Empty);
         Scribe_Collections.Look(ref trackedEnemies, "trackedEnemies", LookMode.Reference);
         Scribe_Collections.Look(ref allEnemies, "allEnemies", LookMode.Reference);
         Scribe_References.Look(ref travelLord, "travelLord");
