@@ -26,9 +26,11 @@ public class ConcealedSiteRecord : IExposable
     {
         worldObjectId = wo.ID;
         tile = wo.Tile;
-        siteLabel = wo.LabelCap ?? string.Empty;
+        siteLabel = HazeReconnaissanceManager.GetSafeSiteLabel(wo);
         suppressedLetter = letter;
-        concealedAtTick = Find.TickManager?.TicksGame ?? 0;
+        concealedAtTick = (Current.Game != null && Current.ProgramState == ProgramState.Playing)
+            ? (Find.TickManager?.TicksGame ?? 0)
+            : 0;
     }
 
     public void ExposeData()
@@ -53,7 +55,12 @@ public class HazeReconnaissanceManager : WorldComponent
     private readonly List<int> tmpUncoveredIds = new();
     private bool isDeliveringSuppressedLetter;
 
-    public static HazeReconnaissanceManager? Instance => Find.World?.GetComponent<HazeReconnaissanceManager>();
+    private static HazeReconnaissanceManager? testInstance;
+    public static HazeReconnaissanceManager? Instance
+    {
+        get => testInstance ?? Find.World?.GetComponent<HazeReconnaissanceManager>();
+        set => testInstance = value;
+    }
 
     public IReadOnlyDictionary<int, ConcealedSiteRecord> ConcealedSites => concealedSites;
 
@@ -73,14 +80,34 @@ public class HazeReconnaissanceManager : WorldComponent
         return concealedSites.Values.Any(r => r.tile == tile);
     }
 
+    public static string GetSafeSiteLabel(WorldObject? wo)
+    {
+        if (wo == null) return "Site";
+        try
+        {
+            return wo.LabelCap ?? wo.def?.label ?? "Site";
+        }
+        catch
+        {
+            return wo.def?.label ?? "Site";
+        }
+    }
+
     public static bool IsDynamicSite(WorldObject wo)
     {
         if (wo == null) return false;
+        if (wo is Settlement || wo is WorldObject_ListeningPost || wo is WorldObject_Incursion || wo is Caravan)
+        {
+            return false;
+        }
         if (wo is Site) return true;
         if (wo.GetComponent<TimeoutComp>() != null) return true;
-        if (wo.def != null && (wo.def.saved || wo.def.defName.Contains("Site") || wo.def.defName.Contains("Camp")))
+        if (wo.def != null && (wo.def.defName.Contains("Site") ||
+                               wo.def.defName.Contains("Camp") ||
+                               wo.def.defName.Contains("Outpost") ||
+                               wo.def.defName.Contains("WorkSite")))
         {
-            return !(wo is Settlement);
+            return true;
         }
         return false;
     }
@@ -118,7 +145,7 @@ public class HazeReconnaissanceManager : WorldComponent
         if (!concealedSites.ContainsKey(wo.ID))
         {
             concealedSites[wo.ID] = new ConcealedSiteRecord(wo, letter);
-            Log.Message($"[Project Vigilance] Concealed dynamic site '{wo.LabelCap}' at tile {wo.Tile} in unmonitored Haze. Suspending timeout clock.");
+            Log.Message($"[Project Vigilance] Concealed dynamic site '{GetSafeSiteLabel(wo)}' at tile {wo.Tile} in unmonitored Haze. Suspending timeout clock.");
         }
         else if (letter != null && concealedSites[wo.ID].suppressedLetter == null)
         {
@@ -164,14 +191,14 @@ public class HazeReconnaissanceManager : WorldComponent
                         {
                             rec.suppressedLetter = letter;
                         }
-                        Log.Message($"[Project Vigilance] Suppressed announcement letter '{letter.Label}' for concealed site '{wo.LabelCap}'.");
+                        Log.Message($"[Project Vigilance] Suppressed announcement letter '{letter.Label}' for concealed site '{GetSafeSiteLabel(wo)}'.");
                         return true;
                     }
 
                     if (!sensory.IsExplored(wo.Tile) && IsDynamicSite(wo))
                     {
                         RegisterConcealedSite(wo, letter);
-                        Log.Message($"[Project Vigilance] Suppressed announcement letter '{letter.Label}' and concealed dynamic site '{wo.LabelCap}'.");
+                        Log.Message($"[Project Vigilance] Suppressed announcement letter '{letter.Label}' and concealed dynamic site '{GetSafeSiteLabel(wo)}'.");
                         return true;
                     }
                 }
@@ -202,7 +229,17 @@ public class HazeReconnaissanceManager : WorldComponent
                         if (wo.Faction != Faction.OfPlayer && !sensory.IsExplored(wo.Tile) && IsDynamicSite(wo))
                         {
                             RegisterConcealedSite(wo, letter);
-                            Log.Message($"[Project Vigilance] Suppressed quest announcement letter '{letter.Label}' for quest target '{wo.LabelCap}'.");
+                            Log.Message($"[Project Vigilance] Suppressed quest announcement letter '{letter.Label}' for quest target '{GetSafeSiteLabel(wo)}'.");
+                            return true;
+                        }
+                    }
+                    else if (target.Tile.Valid && !sensory.IsExplored(target.Tile))
+                    {
+                        WorldObject? siteAtTile = Find.WorldObjects?.AllWorldObjects.FirstOrDefault(o => o.Tile == target.Tile && IsDynamicSite(o) && o.Faction != Faction.OfPlayer);
+                        if (siteAtTile != null)
+                        {
+                            RegisterConcealedSite(siteAtTile, letter);
+                            Log.Message($"[Project Vigilance] Suppressed quest announcement letter '{letter.Label}' for site at unexplored tile {target.Tile}.");
                             return true;
                         }
                     }
@@ -213,14 +250,21 @@ public class HazeReconnaissanceManager : WorldComponent
         return false;
     }
 
-    public bool UncoverSite(WorldObject wo)
+    public void Notify_WorldObjectRemoved(WorldObject wo)
+    {
+        if (wo == null) return;
+        concealedSites.Remove(wo.ID);
+    }
+
+    public bool UncoverSite(WorldObject wo, bool suppressDiscoveryLetter = false)
     {
         if (wo == null) return false;
 
         if (concealedSites.TryGetValue(wo.ID, out var record))
         {
             concealedSites.Remove(wo.ID);
-            Log.Message($"[Project Vigilance] Uncovered dynamic site '{wo.LabelCap}' at tile {wo.Tile}. Resuming timeout clock and dispatching discovery letter.");
+            string safeLabel = GetSafeSiteLabel(wo);
+            Log.Message($"[Project Vigilance] Uncovered dynamic site '{safeLabel}' at tile {wo.Tile}. Resuming timeout clock and dispatching discovery letter.");
 
             isDeliveringSuppressedLetter = true;
             try
@@ -229,7 +273,7 @@ public class HazeReconnaissanceManager : WorldComponent
                 {
                     Find.LetterStack.ReceiveLetter(record.suppressedLetter);
                 }
-                else
+                else if (!suppressDiscoveryLetter)
                 {
                     DispatchDiscoveryLetter(wo);
                 }
@@ -252,8 +296,9 @@ public class HazeReconnaissanceManager : WorldComponent
             return;
         }
 
-        TaggedString title = $"Site Discovered: {wo.LabelCap}";
-        TaggedString body = $"Our reconnaissance has uncovered an active {wo.Label} at hex {wo.Tile.tileId}.\n\nIt is now charted on the planetary map.";
+        string safeLabel = GetSafeSiteLabel(wo);
+        TaggedString title = $"Site Discovered: {safeLabel}";
+        TaggedString body = $"Our reconnaissance has uncovered an active {safeLabel} at hex {wo.Tile.tileId}.\n\nIt is now charted on the planetary map.";
         Find.LetterStack.ReceiveLetter(title, body, LetterDefOf.PositiveEvent, new GlobalTargetInfo(wo));
     }
 
@@ -294,7 +339,7 @@ public class HazeReconnaissanceManager : WorldComponent
     {
         base.WorldComponentTick();
 
-        if (Find.TickManager.TicksGame % SensoryManager.SweepIntervalTicks == 0)
+        if (Current.Game != null && Find.TickManager != null && Find.TickManager.TicksGame % SensoryManager.SweepIntervalTicks == 0)
         {
             CheckUncoveredSites();
         }

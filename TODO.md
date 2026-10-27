@@ -28,11 +28,15 @@
   - **Automated Unit Testing & Verification (`Geoscape.Tests`):** Full MSTest suite validating radii scaling, capped relay vantage, full beacon vantage, and 75% salvage economics. Zero compilation warnings on .NET 10 / Waylith.
 - [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) with `DeepProfiler` telemetry (.NET 10 / Waylith) and a $\le 1.0\text{ ms}$ / 0-byte GC performance budget.
 - [ ] Build Oceanic Sonar detection layer for water hexes (`tile.WaterCovered`).
-- [ ] Two-Stage Early Warning Dispatcher: generate advance warning alerts and reveal telemetry based on radar tier.
-- [ ] **Concealed Dynamic Sites & Reconnaissance in the Haze:**
-  - **Haze Concealment for Dynamic Camps:** When storyteller/quests spawn work sites, hunting camps, bandit outposts, or pirate forward staging bases in unmonitored sectors (Haze), suppress instant global announcement letters and map markers until an active player sensor or scout caravan enters visual range. Extend/suspend timeout timers while hidden.
-  - **Breadcrumb Rumours & Traveller Intelligence:** Visiting trade caravans, friendly guests, or allied patrols arriving at player settlements can share intelligence on unmapped sites they encountered en route (_"We passed a hostile logging camp about 5 hexes north-west"_), creating narrative reconnaissance leads and map reveals.
-  - **Forward Staging Ground Detection:** Hostile raid preparations can establish temporary forward staging camps in the Haze that can be pre-emptively raided or dispersed before the main assault launches.
+- [x] **Two-Stage Early Warning Dispatcher & Non-Peeking Escalation:**
+  - `EarlyWarningDispatcher`: Stage 1 Outer Boundary Alert (`LetterDefOf.ThreatSmall` / `PV_TacticalEncounter_ThreatSmall`, amber pulsing contact blip, masked faction & threat points, hidden path) and Stage 2 Identification Threshold (`LetterDefOf.ThreatBig` hostile / `LetterDefOf.PositiveEvent` friendly caravan, red/cyan blip with faction crest, Model B+ terrain masking gating).
+  - Identification preservation and direct high-spec detection bypass without alert replay.
+- [x] **Concealed Dynamic Sites & Reconnaissance in the Haze (`HazeReconnaissanceManager`):**
+  - **Haze Concealment for Dynamic Camps:** Dynamic world sites (work sites, logging/mining camps, bandit camps, quests) in unmonitored Haze sectors have announcement letters suppressed until uncovered by radar sweeps, scout caravans, or rumours.
+  - **Quest Timeout Clock Suspension:** Harmony prefix on `TimeoutComp.CompTickInterval` suspending timeout countdown while site is concealed in Haze so quests do not expire invisibly.
+  - **Breadcrumb Rumours & Traveller Intelligence (`BreadcrumbRumourUtility`):** Arriving friendly trade caravans or visitors share intelligence on unmapped sites (_"Travellers from the [Faction] report sighting an active [Site Type] [X] hexes to the [Direction]."_), uncovering target hexes on the Geoscape.
+  - **Automated Unit Testing & Verification (`Geoscape.Tests`):** Full MSTest suite (41/41 tests passing) covering alert dispatching, stage escalation, Harmony patch targets, TimeoutComp suspension, and 8-cardinal compass calculations.
+- [ ] **Forward Staging Ground Detection:** Hostile raid preparations can establish temporary forward staging camps in the Haze that can be pre-emptively raided or dispersed before the main assault launches.
 - [ ] **Dynamic Inter-Faction Encounters (Deferred from Milestone 1.2):**
   - **Tile-Bucketed Incursion Collisions ($O(M)$):** Evaluate collisions on `TickRare` using tile buckets (`Dictionary<int, List<WorldObject_Incursion>>`), triggering algebraic background skirmishes when non-allied incursions occupy identical tiles.
   - **Encounter Aftermath Sites:** Spawn salvageable wreckage sites on the world map following skirmishes.

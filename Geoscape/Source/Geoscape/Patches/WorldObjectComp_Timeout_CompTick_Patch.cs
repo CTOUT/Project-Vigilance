@@ -8,7 +8,7 @@ namespace ProjectVigilance.Geoscape.Patches;
 /// Suspends TimeoutComp countdown while a dynamic site remains concealed
 /// in the unmonitored Haze of War so quests and dynamic camps do not invisibly expire before being uncovered.
 /// </summary>
-[HarmonyPatch(typeof(TimeoutComp), nameof(TimeoutComp.CompTick))]
+[HarmonyPatch(typeof(TimeoutComp), nameof(TimeoutComp.CompTickInterval))]
 public static class TimeoutComp_CompTick_Patch
 {
     public static bool Prefix(TimeoutComp __instance)

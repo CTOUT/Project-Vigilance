@@ -270,59 +270,77 @@ public sealed class EarlyWarningDispatcherTests
     public void TerrainMaskingGating_MountainousTile_GatedAtContactTierUntilExit()
     {
         // Scenario: Target is inside R_id (e.g. 5 steps <= 10 steps), but target is in Mountainous terrain.
-        // SensoryTerrainUtility.IsTargetMasked gating model check:
+        // SensoryTerrainUtility.EvaluateSensorTier gating check:
         // Sensor without penetration holds target at Contact.
         // Sensor with penetration resolves to Classified.
 
-        // Arrange
-        bool isTargetMasked = true; // Mountainous
-        int idSteps = 10;
-        int travDist = 5;
+        var standardSensor = new MockSensorProvider
+        {
+            IdentificationRadiusInTiles = 10,
+            MaxIntelligenceTier = IntelligenceTier.Classified,
+            PenetratesTerrainMasking = false
+        };
 
-        // Act 1: Standard sensor without penetration
-        bool standardPenetrates = false;
-        IntelligenceTier standardTier;
-        if (idSteps > 0 && travDist <= idSteps)
+        var spacerSensor = new MockSensorProvider
         {
-            if (isTargetMasked && !standardPenetrates)
-            {
-                standardTier = IntelligenceTier.Contact;
-            }
-            else
-            {
-                standardTier = IntelligenceTier.Classified;
-            }
-        }
-        else
-        {
-            standardTier = IntelligenceTier.Contact;
-        }
+            IdentificationRadiusInTiles = 10,
+            MaxIntelligenceTier = IntelligenceTier.Classified,
+            PenetratesTerrainMasking = true
+        };
+
+        // Act 1: Standard sensor against masked target at travDist = 5 <= 10
+        IntelligenceTier standardTier = SensoryTerrainUtility.EvaluateSensorTier(standardSensor, travDist: 5, isTargetMasked: true);
 
         // Assert 1: Held at Contact
         Assert.AreEqual(IntelligenceTier.Contact, standardTier,
             "Incursion in Mountainous terrain must be gated at Contact tier without penetration.");
 
-        // Act 2: Spacer / SIGINT sensor with penetration
-        bool spacerPenetrates = true;
-        IntelligenceTier spacerTier;
-        if (idSteps > 0 && travDist <= idSteps)
-        {
-            if (isTargetMasked && !spacerPenetrates)
-            {
-                spacerTier = IntelligenceTier.Contact;
-            }
-            else
-            {
-                spacerTier = IntelligenceTier.Classified;
-            }
-        }
-        else
-        {
-            spacerTier = IntelligenceTier.Contact;
-        }
+        // Act 2: Spacer / SIGINT sensor against masked target at travDist = 5 <= 10
+        IntelligenceTier spacerTier = SensoryTerrainUtility.EvaluateSensorTier(spacerSensor, travDist: 5, isTargetMasked: true);
 
         // Assert 2: Resolves to Classified
         Assert.AreEqual(IntelligenceTier.Classified, spacerTier,
             "Sensor with penetration must resolve to Classified despite Mountainous terrain.");
+    }
+
+    [TestMethod]
+    public void ProcessDetection_OnceClassified_PreservesIsIdentifiedWhenDemotedToContactZone()
+    {
+        // Scenario: Incursion enters R_id and becomes Classified/Identified.
+        // It later moves into a sector where the strongest sensor only covers Contact tier.
+        // It must NOT lose its identified status (faction crest, red blip).
+
+        var incursion = new WorldObject_Incursion();
+        var sensor = new MockSensorProvider();
+
+        // 1. Initial detection at Contact
+        EarlyWarningDispatcher.ProcessDetection(incursion, sensor, IntelligenceTier.Contact);
+        Assert.IsFalse(incursion.IsIdentified);
+
+        // 2. Escalates to Classified
+        EarlyWarningDispatcher.ProcessDetection(incursion, sensor, IntelligenceTier.Classified);
+        Assert.IsTrue(incursion.IsIdentified);
+        Assert.IsTrue(incursion.HasDispatchedClassifiedAlert);
+
+        // 3. Moves to a sector where only Contact tier applies
+        EarlyWarningDispatcher.ProcessDetection(incursion, sensor, IntelligenceTier.Contact);
+        Assert.IsTrue(incursion.IsIdentified, "Incursion must preserve IsIdentified once classified.");
+    }
+
+    [TestMethod]
+    public void SendIncursionLetter_FallbackVanillaDefs_DoesNotThrowInvalidCastException()
+    {
+        // Scenario: PV_LetterDefOf defs are missing/unloaded; fallback to vanilla LetterDefOf
+        var incursion = new WorldObject_Incursion();
+
+        // Dispatches event without throwing InvalidCastException
+        EarlyWarningDispatcher.SendIncursionLetter(
+            incursion,
+            "Test Alert",
+            "Test text",
+            LetterDefOf.ThreatSmall,
+            destinationMap: null,
+            targetName: "Colony"
+        );
     }
 }

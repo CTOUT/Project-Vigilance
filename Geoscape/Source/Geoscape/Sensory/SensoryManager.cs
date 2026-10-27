@@ -381,24 +381,8 @@ public class SensoryManager : WorldComponent
                     // preventing advancement beyond Contact tier unless scanned by a sensor that penetrates masking.
                     bool isTargetMasked = SensoryTerrainUtility.IsTargetMasked(target.CurrentTile);
 
-                    // Close range (within identification radius, step <= idSteps): Full sensor tier (e.g. Classified) unless masked
-                    // Outer range: Generic blip (Contact)
-                    IntelligenceTier tier;
-                    if (idSteps > 0 && travDist <= idSteps)
-                    {
-                        if (isTargetMasked && !sensor.PenetratesTerrainMasking)
-                        {
-                            tier = (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : sensor.MaxIntelligenceTier;
-                        }
-                        else
-                        {
-                            tier = sensor.MaxIntelligenceTier;
-                        }
-                    }
-                    else
-                    {
-                        tier = (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : IntelligenceTier.Suspected;
-                    }
+                    // Evaluate resulting intelligence tier based on identification radius, terrain masking, and sensor capabilities
+                    IntelligenceTier tier = SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist, isTargetMasked);
 
                     if (tier > bestTier)
                     {

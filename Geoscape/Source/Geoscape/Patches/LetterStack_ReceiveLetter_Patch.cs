@@ -8,7 +8,7 @@ namespace ProjectVigilance.Geoscape.Patches;
 /// Harmony patch intercepting instant global announcement letters for dynamic world sites
 /// spawned in unmonitored Haze tiles, deferring notification until uncovered by radar or reconnaissance.
 /// </summary>
-[HarmonyPatch(typeof(LetterStack), nameof(LetterStack.ReceiveLetter), typeof(Letter), typeof(string), typeof(int))]
+[HarmonyPatch(typeof(LetterStack), nameof(LetterStack.ReceiveLetter), typeof(Letter), typeof(string), typeof(int), typeof(bool))]
 public static class LetterStack_ReceiveLetter_Patch
 {
     public static bool Prefix(Letter let)

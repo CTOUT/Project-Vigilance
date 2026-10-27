@@ -21,18 +21,10 @@ public static class BreadcrumbRumourUtility
 
     /// <summary>
     /// Computes an 8-way compass direction ("north", "northeast", "east", etc.)
-    /// from origin tile to destination tile on the spherical planetary grid.
+    /// from origin coordinates to destination coordinates on the spherical planetary grid.
     /// </summary>
-    public static string GetCompassDirection(PlanetTile fromTile, PlanetTile toTile)
+    public static string GetCompassDirection(Vector2 fromLatLong, Vector2 toLatLong)
     {
-        if (!fromTile.Valid || !toTile.Valid || Find.World?.grid == null)
-        {
-            return "nearby";
-        }
-
-        Vector2 fromLatLong = Find.WorldGrid.LongLatOf(fromTile);
-        Vector2 toLatLong = Find.WorldGrid.LongLatOf(toTile);
-
         float dLat = toLatLong.y - fromLatLong.y;
         float dLon = toLatLong.x - fromLatLong.x;
 
@@ -54,6 +46,31 @@ public static class BreadcrumbRumourUtility
             >= -112.5f and < -67.5f => "west",
             _ => "northwest"
         };
+    }
+
+    /// <summary>
+    /// Computes an 8-way compass direction ("north", "northeast", "east", etc.)
+    /// from origin tile to destination tile on the spherical planetary grid.
+    /// </summary>
+    public static string GetCompassDirection(PlanetTile fromTile, PlanetTile toTile)
+    {
+        if (!fromTile.Valid || !toTile.Valid || Find.World?.grid == null)
+        {
+            return "nearby";
+        }
+
+        Vector2 fromLatLong = Find.WorldGrid.LongLatOf(fromTile);
+        Vector2 toLatLong = Find.WorldGrid.LongLatOf(toTile);
+        return GetCompassDirection(fromLatLong, toLatLong);
+    }
+
+    /// <summary>
+    /// Formats the rumour narrative body text according to the specification:
+    /// "Travellers from the [Faction] report sighting an active [Site Type] [X] hexes to the [Direction]."
+    /// </summary>
+    public static TaggedString FormatRumourBody(string factionName, string siteType, int hexDist, string direction)
+    {
+        return $"Travellers from the {factionName} report sighting an active {siteType} {hexDist} hexes to the {direction}.\n\nThe location has been charted on your planetary map.";
     }
 
     /// <summary>
@@ -91,16 +108,17 @@ public static class BreadcrumbRumourUtility
 
         OnRumourShared?.Invoke(travellerFaction, targetSite, hexDist, direction);
 
+        // Uncover the site FIRST in HazeReconnaissanceManager, suppressing the generic
+        // "Our reconnaissance has uncovered..." letter since this rumour IS the announcement!
+        HazeReconnaissanceManager.Instance?.UncoverSite(targetSite, suppressDiscoveryLetter: true);
+
         // Reveal the target hex on the Geoscape
         SensoryManager.Instance?.MarkSurroundingTilesExplored(targetSite.Tile, 1f);
-
-        // Uncover the site if it was concealed in HazeReconnaissanceManager
-        HazeReconnaissanceManager.Instance?.UncoverSite(targetSite);
 
         if (Current.ProgramState == ProgramState.Playing && Find.LetterStack != null)
         {
             TaggedString title = $"Traveller Intelligence: {targetSite.LabelCap}";
-            TaggedString text = $"Travellers from the {factionName} report sighting an active {siteType} {hexDist} hexes to the {direction}.\n\nThe location has been charted on your planetary map.";
+            TaggedString text = FormatRumourBody(factionName, siteType, hexDist, direction);
             Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.PositiveEvent, new GlobalTargetInfo(targetSite.Tile));
         }
 

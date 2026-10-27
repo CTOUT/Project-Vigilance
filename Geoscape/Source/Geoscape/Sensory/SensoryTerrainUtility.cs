@@ -60,5 +60,30 @@ public static class SensoryTerrainUtility
 
         return tileData.hilliness == Hilliness.Mountainous || tileData.hilliness == Hilliness.Impassable;
     }
+
+    /// <summary>
+    /// Evaluates the resulting intelligence tier granted by a sensor against a target
+    /// at a given traversal ring distance, accounting for identification radius,
+    /// tactical terrain masking, and penetration capabilities.
+    /// </summary>
+    public static IntelligenceTier EvaluateSensorTier(ISensorProvider sensor, int travDist, bool isTargetMasked)
+    {
+        int idSteps = sensor.IdentificationRadiusInTiles;
+        if (idSteps > 0 && travDist <= idSteps)
+        {
+            if (isTargetMasked && !sensor.PenetratesTerrainMasking)
+            {
+                return (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact)
+                    ? IntelligenceTier.Contact
+                    : sensor.MaxIntelligenceTier;
+            }
+
+            return sensor.MaxIntelligenceTier;
+        }
+
+        return (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact)
+            ? IntelligenceTier.Contact
+            : IntelligenceTier.Suspected;
+    }
 }
 

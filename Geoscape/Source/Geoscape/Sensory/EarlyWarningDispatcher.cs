@@ -24,6 +24,11 @@ public static class EarlyWarningDispatcher
     {
         if (incursion == null) return;
 
+        if (incursion.HasDispatchedClassifiedAlert && newTier < incursion.CurrentIntelligenceTier)
+        {
+            newTier = incursion.CurrentIntelligenceTier;
+        }
+
         incursion.CurrentIntelligenceTier = newTier;
 
         if (newTier >= IntelligenceTier.Contact && incursion.TrackingId <= 0)
@@ -37,7 +42,7 @@ public static class EarlyWarningDispatcher
         {
             incursion.IsIdentified = true;
         }
-        else
+        else if (!incursion.HasDispatchedClassifiedAlert)
         {
             incursion.IsIdentified = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient);
         }
@@ -261,20 +266,33 @@ public static class EarlyWarningDispatcher
             return;
         }
 
-        var letter = (ChoiceLetter_TacticalEncounter)LetterMaker.MakeLetter(choiceDef);
-        letter.label = title;
-        letter.text = text;
-        letter.targetWorldObject = incursion;
-        letter.targetTile = incursion.Tile;
-        letter.worldButtonLabel = "Go to Contact (Geoscape)";
-        letter.lookTargets = new GlobalTargetInfo(incursion);
-
-        if (destinationMap != null && destinationMap.Index >= 0)
+        Letter letterObj = LetterMaker.MakeLetter(choiceDef);
+        if (letterObj is ChoiceLetter_TacticalEncounter letter)
         {
-            letter.battleMap = destinationMap;
-            letter.battleButtonLabel = $"Go inside {targetName} (Defenses)";
-        }
+            letter.label = title;
+            letter.text = text;
+            letter.targetWorldObject = incursion;
+            letter.targetTile = incursion.Tile;
+            letter.worldButtonLabel = "Go to Contact (Geoscape)";
+            letter.lookTargets = new GlobalTargetInfo(incursion);
 
-        Find.LetterStack.ReceiveLetter(letter);
+            if (destinationMap != null && destinationMap.Index >= 0)
+            {
+                letter.battleMap = destinationMap;
+                letter.battleButtonLabel = $"Go inside {targetName} (Defenses)";
+            }
+
+            Find.LetterStack.ReceiveLetter(letter);
+        }
+        else
+        {
+            letterObj.Label = title;
+            if (letterObj is ChoiceLetter choiceLetter)
+            {
+                choiceLetter.Text = text;
+            }
+            letterObj.lookTargets = new GlobalTargetInfo(incursion);
+            Find.LetterStack.ReceiveLetter(letterObj);
+        }
     }
 }
