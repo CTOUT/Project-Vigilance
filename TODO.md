@@ -7,7 +7,7 @@
 - [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
 - [ ] **Colony Technological Radar Infrastructure:**
   - `CompProperties_Radar` and `CompRadar` with dynamic standby vs active power scaling (`standbyPowerDraw` / `activePowerDraw`).
-  - **Multi-Dish Settlement Stacking (Interferometry & Identification Expansion):** Centred hexagonal geometry ($\text{Total} = 1 + 3n(n+1)$). Maximum detection radius $R_{detect}$ stays stable (e.g. 24 rings, $1,801$ tiles), while secondary dishes expand the inner **Identification / Classification Horizon ($R_{id}$)** outward from ~40% (10 rings) $\rightarrow$ ~70% (17 rings) $\rightarrow$ ~92% (22 rings), accelerates sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and provides fail-safe redundancy.
+  - **Multi-Dish Settlement Stacking (Interferometry & Identification Expansion):** Centred hexagonal geometry ($\text{Total} = 1 + 3n(n+1)$). Maximum detection radius $R_{detect}$ stays stable (e.g. 24 rings, $1,801$ tiles), while secondary dishes expand the inner **Identification / Classification Horizon ($R\_{id}$)** outward from ~40% (10 rings) $\rightarrow$ ~70% (17 rings) $\rightarrow$ ~92% (22 rings), accelerates sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and provides fail-safe redundancy.
   - **Sensory Building Defs & Research Projects:**
     - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 hexes, unpowered/manned, Contact Tier).
     - `Geoscape_RadarSmall` (Industrial Early-Warning Dome, 14 hexes, 350W/750W, Contact Tier).
@@ -17,9 +17,9 @@
 - [ ] **Lightweight Geoscape Outposts & World Map Strategic Context Actions:**
   - `WorldObject_ListeningPost` (Zero-TPS global entity, automated solar relay vs manned lookout garrison).
   - **Civilization-Style Right-Click Hex Interaction (`FloatMenuMakerWorld`):**
-    - *"Dispatch Expedition Here..."* (pre-populates and locks destination tile in `Dialog_FormCaravan`).
-    - *"Establish Outpost / Relay Here..."* (instant deploy if caravan on tile; prompts outpost kit caravan from settlement if remote).
-    - *"Reclaim Garrison / Dismantle / Repair"* actions on existing outposts.
+    - _"Dispatch Expedition Here..."_ (pre-populates and locks destination tile in `Dialog_FormCaravan`).
+    - _"Establish Outpost / Relay Here..."_ (instant deploy if caravan on tile; prompts outpost kit caravan from settlement if remote).
+    - _"Reclaim Garrison / Dismantle / Repair"_ actions on existing outposts.
   - Outpost vulnerability & sabotage events from passing hostile incursions.
 - [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) for efficient spatial distance checks.
 - [ ] Build Oceanic Sonar detection layer for water hexes.

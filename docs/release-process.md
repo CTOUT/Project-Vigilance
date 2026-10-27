@@ -35,15 +35,15 @@ Before creating a release, ensure all items in the target milestone are complete
 
 Update version numbers across the following files (or run `scripts/prepare-release.ps1 -Version X.Y.Z`):
 
-| File | Target Property / Location |
-| :--- | :--- |
-| [`package.json`](../package.json) | `"version": "X.Y.Z"` |
-| [`Geoscape/Source/Geoscape/Geoscape.csproj`](../Geoscape/Source/Geoscape/Geoscape.csproj) | `<Version>`, `<AssemblyVersion>`, `<FileVersion>` |
-| [`Geoscape/Source/Geoscape/GeoscapeSettings.cs`](../Geoscape/Source/Geoscape/GeoscapeSettings.cs) | In-game active module string |
-| [`CHANGELOG.md`](../CHANGELOG.md) | Convert `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` and add footer compare links |
-| [`TODO.md`](../TODO.md) | Move shipped milestone items to `## Completed Milestones` and prune active roadmap |
-| [`README.md`](../README.md) & [`Geoscape/README.md`](../Geoscape/README.md) | Release badge (`Release-vX.Y.Z`) and playtest header links |
-| [`scripts/package-release.ps1`](../scripts/package-release.ps1) | Default `$Version = 'X.Y.Z'` |
+| File                                                                                              | Target Property / Location                                                            |
+| :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------ |
+| [`package.json`](../package.json)                                                                 | `"version": "X.Y.Z"`                                                                  |
+| [`Geoscape/Source/Geoscape/Geoscape.csproj`](../Geoscape/Source/Geoscape/Geoscape.csproj)         | `<Version>`, `<AssemblyVersion>`, `<FileVersion>`                                     |
+| [`Geoscape/Source/Geoscape/GeoscapeSettings.cs`](../Geoscape/Source/Geoscape/GeoscapeSettings.cs) | In-game active module string                                                          |
+| [`CHANGELOG.md`](../CHANGELOG.md)                                                                 | Convert `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` and add footer compare links |
+| [`TODO.md`](../TODO.md)                                                                           | Move shipped milestone items to `## Completed Milestones` and prune active roadmap    |
+| [`README.md`](../README.md) & [`Geoscape/README.md`](../Geoscape/README.md)                       | Release badge (`Release-vX.Y.Z`) and playtest header links                            |
+| [`scripts/package-release.ps1`](../scripts/package-release.ps1)                                   | Default `$Version = 'X.Y.Z'`                                                          |
 
 ---
 
@@ -74,6 +74,7 @@ $ErrorActionPreference = 'Stop'
 ```
 
 This pipeline will:
+
 1. Rebuild the release DLL (`Geoscape.dll`).
 2. Run `npm run spellcheck`.
 3. Create a clean distribution staging directory and ZIP archive: `dist/ProjectVigilance-OverlandIncursions-vX.Y.Z.zip`.
@@ -85,6 +86,7 @@ This pipeline will:
 ## 6. Git Commit, Tag & GitHub Release
 
 1. **Commit and Push on `main`:**
+
    ```powershell
    git add -A
    git commit -m "chore(release): prepare vX.Y.Z"
@@ -92,6 +94,7 @@ This pipeline will:
    ```
 
 2. **Create and Push Annotated Git Tag:**
+
    ```powershell
    git tag -a vX.Y.Z -m "Release vX.Y.Z: <Milestone Title>"
    git push origin vX.Y.Z
