@@ -127,9 +127,10 @@ public class ScoutHorizonSensor : ISensorProvider
     {
         get
         {
-            float baseRadius = isColony
+            int vantageBonus = SensoryTerrainUtility.GetVantageBonus(SensorTile);
+            float baseRadius = (isColony
                 ? GeoscapeMod.Settings.colonyScoutRadius
-                : GeoscapeMod.Settings.caravanScoutRadius;
+                : GeoscapeMod.Settings.caravanScoutRadius) + vantageBonus;
 
             if (!GeoscapeMod.Settings.enableNighttimeSensoryReduction)
             {
@@ -228,6 +229,12 @@ public class ScoutHorizonSensor : ISensorProvider
     }
 
     public IntelligenceTier MaxIntelligenceTier => IntelligenceTier.Classified;
+
+    public int IdentificationRadiusInTiles => DetectionRadiusInTiles > 0f ? Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles * 0.45f)) : 0;
+
+    public bool PenetratesTerrainMasking => false;
+
+    public bool IsOceanicSonar => false;
 
     public bool IsSensorActive
     {

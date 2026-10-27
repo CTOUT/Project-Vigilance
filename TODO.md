@@ -5,7 +5,7 @@
 ### Milestone 1.3: Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters
 
 - [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
-- [ ] **Colony Technological Radar Infrastructure:**
+- [x] **Colony Technological Radar Infrastructure:**
   - `CompProperties_Radar` and `CompRadar` with dynamic standby vs active power scaling (`standbyPowerDraw` / `activePowerDraw`) and explicit integer ring fields (`detectionRadius = 24`, `identificationRadiusDish1 = 10`, `identificationRadiusDish2 = 17`, `identificationRadiusDish3 = 22`).
   - **Multi-Dish Settlement Stacking (Interferometry & Identification Expansion):** Traversal ring distance (Ring 0 = origin, each ring $n$ adds $6 \times n$ tiles). Maximum detection radius $R_{detect}$ stays stable at **24 rings**, while secondary dishes expand the inner **Identification / Classification Horizon ($R_{id}$)** outward from 10 rings (~40%) $\rightarrow$ 17 rings (~70%) $\rightarrow$ 22 rings (~92%), accelerates sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and provides fail-safe redundancy.
   - **Sensor Terrain Model (Locked Model B+: "Vantage & Masking"):**
@@ -18,6 +18,7 @@
     - `Geoscape_RadarLarge` (Spacer Phased Array, 24 rings, 800W/1,800W, Classified Tier).
     - `Geoscape_SigintConsole` (Ultra SIGINT Decryption Console, `CompFacility` linkable, 700W/1,400W, upgrades Phased Array to Tier 4 Analysed; penetrates terrain masking).
     - `Geoscape_SonarArray` (Industrial Coastal Hydrophone Station, 18 rings water/coast; future note: bathymetry/depth).
+  - **Automated Unit Testing & Verification (`Geoscape.Tests`):** Full MSTest test suite verifying `CompProperties_Radar` validation rules, multi-dish interferometry progression, and terrain masking gating. Zero compilation errors or warnings on .NET 10 / Waylith.
 - [ ] **Lightweight Geoscape Outposts & World Map Strategic Context Actions:**
   - `WorldObject_ListeningPost` (Zero-TPS global entity, 100% unmanned, automated solar relay vs medieval stone beacon; no WorldPawns garrisons).
   - **Civilization-Style Right-Click Hex Interaction (`FloatMenuMakerWorld`):**

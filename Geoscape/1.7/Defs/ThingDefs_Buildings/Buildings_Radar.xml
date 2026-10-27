@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <!-- ==================== Lookout Watchtower (Neolithic / Medieval) ==================== -->
+  <ThingDef ParentName="BuildingBase">
+    <defName>Geoscape_LookoutTower</defName>
+    <label>lookout watchtower</label>
+    <description>An elevated observation watchtower constructed from timber or dressed stone. Stationed spotters scan the surrounding horizon, providing early detection of approaching world-map incursions. Elevated topography grants significant vantage range bonuses.</description>
+    <graphicData>
+      <texPath>Things/Building/Furniture/SteleLarge</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>(2, 2)</drawSize>
+      <shadowData>
+        <volume>(1.8, 1.8, 1.8)</volume>
+      </shadowData>
+    </graphicData>
+    <uiIconScale>0.85</uiIconScale>
+    <size>(2, 2)</size>
+    <rotatable>false</rotatable>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>PassThroughOnly</passability>
+    <castEdgeShadows>true</castEdgeShadows>
+    <fillPercent>0.5</fillPercent>
+    <designationCategory>Security</designationCategory>
+    <terrainAffordanceNeeded>Light</terrainAffordanceNeeded>
+    <techLevel>Medieval</techLevel>
+    <statBases>
+      <MaxHitPoints>250</MaxHitPoints>
+      <WorkToBuild>1400</WorkToBuild>
+      <Flammability>0.8</Flammability>
+      <Mass>80</Mass>
+    </statBases>
+    <stuffCategories>
+      <li>Woody</li>
+      <li>Stony</li>
+    </stuffCategories>
+    <costStuffCount>120</costStuffCount>
+    <comps>
+      <li Class="ProjectVigilance.Geoscape.Sensory.CompProperties_Radar">
+        <detectionRadius>8</detectionRadius>
+        <identificationRadiusDish1>4</identificationRadiusDish1>
+        <identificationRadiusDish2>4</identificationRadiusDish2>
+        <identificationRadiusDish3>4</identificationRadiusDish3>
+        <standbyPowerDraw>0</standbyPowerDraw>
+        <activePowerDraw>0</activePowerDraw>
+        <receivesVantageBonus>true</receivesVantageBonus>
+        <penetratesTerrainMasking>false</penetratesTerrainMasking>
+        <isOceanicSonar>false</isOceanicSonar>
+        <maxIntelligenceTier>Contact</maxIntelligenceTier>
+        <radarLabel>Lookout Watchtower</radarLabel>
+      </li>
+    </comps>
+    <building>
+      <destroySound>BuildingDestroyed_Wood_Big</destroySound>
+    </building>
+  </ThingDef>
+
+  <!-- ==================== Early-Warning Radar Dome (Industrial) ==================== -->
+  <ThingDef ParentName="BuildingBase">
+    <defName>Geoscape_RadarSmall</defName>
+    <label>early-warning radar dome</label>
+    <description>A rotating microwave parabolic transceiver housed inside a weatherproof fiberglass radome. Sweeps overland travel corridors out to 14 planetary traversal rings, detecting raids, caravans, and visitors as amber contact blips with heading telemetry.</description>
+    <graphicData>
+      <texPath>Things/Building/Misc/GroundPenetratingScanner</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>(3, 3)</drawSize>
+      <shadowData>
+        <volume>(2.6, 1.2, 2.6)</volume>
+      </shadowData>
+    </graphicData>
+    <uiIconScale>0.85</uiIconScale>
+    <size>(3, 3)</size>
+    <rotatable>false</rotatable>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>Impassable</passability>
+    <castEdgeShadows>true</castEdgeShadows>
+    <fillPercent>0.65</fillPercent>
+    <designationCategory>Security</designationCategory>
+    <terrainAffordanceNeeded>Heavy</terrainAffordanceNeeded>
+    <techLevel>Industrial</techLevel>
+    <researchPrerequisites>
+      <li>Geoscape_EarlyWarningRadar</li>
+    </researchPrerequisites>
+    <statBases>
+      <MaxHitPoints>350</MaxHitPoints>
+      <WorkToBuild>2600</WorkToBuild>
+      <Flammability>0.4</Flammability>
+      <Mass>120</Mass>
+    </statBases>
+    <costList>
+      <Steel>175</Steel>
+      <ComponentIndustrial>4</ComponentIndustrial>
+    </costList>
+    <comps>
+      <li Class="CompProperties_Power">
+        <compClass>CompPowerTrader</compClass>
+        <basePowerConsumption>350</basePowerConsumption>
+        <shortCircuitInRain>false</shortCircuitInRain>
+      </li>
+      <li Class="CompProperties_Flickable"/>
+      <li Class="CompProperties_Breakdownable"/>
+      <li Class="ProjectVigilance.Geoscape.Sensory.CompProperties_Radar">
+        <detectionRadius>14</detectionRadius>
+        <identificationRadiusDish1>6</identificationRadiusDish1>
+        <identificationRadiusDish2>6</identificationRadiusDish2>
+        <identificationRadiusDish3>6</identificationRadiusDish3>
+        <standbyPowerDraw>350</standbyPowerDraw>
+        <activePowerDraw>750</activePowerDraw>
+        <receivesVantageBonus>false</receivesVantageBonus>
+        <penetratesTerrainMasking>false</penetratesTerrainMasking>
+        <isOceanicSonar>false</isOceanicSonar>
+        <maxIntelligenceTier>Contact</maxIntelligenceTier>
+        <radarLabel>Early-Warning Radar Dome</radarLabel>
+      </li>
+    </comps>
+    <building>
+      <destroySound>BuildingDestroyed_Metal_Big</destroySound>
+    </building>
+  </ThingDef>
+
+  <!-- ==================== Phased Radar Array (Spacer) ==================== -->
+  <ThingDef ParentName="BuildingBase">
+    <defName>Geoscape_RadarLarge</defName>
+    <label>phased radar array</label>
+    <description>A massive steerable active electronically scanned array (AESA) station. Tracks approaching incursions across 24 planetary traversal rings. Operating multiple dishes on the same grid creates synthetic aperture interferometry, expanding the inner identification horizon (10 -> 17 -> 22 rings) and accelerating sweep frequency.</description>
+    <graphicData>
+      <texPath>Things/Building/Misc/LongRangeMineralScanner</texPath>
+      <graphicClass>Graphic_Multi</graphicClass>
+      <drawSize>(4, 4)</drawSize>
+      <shadowData>
+        <volume>(3.6, 1.4, 3.6)</volume>
+      </shadowData>
+    </graphicData>
+    <uiIconScale>0.80</uiIconScale>
+    <size>(4, 4)</size>
+    <rotatable>true</rotatable>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>Impassable</passability>
+    <castEdgeShadows>true</castEdgeShadows>
+    <fillPercent>0.80</fillPercent>
+    <designationCategory>Security</designationCategory>
+    <terrainAffordanceNeeded>Heavy</terrainAffordanceNeeded>
+    <techLevel>Spacer</techLevel>
+    <researchPrerequisites>
+      <li>Geoscape_PhasedRadarArrays</li>
+    </researchPrerequisites>
+    <statBases>
+      <MaxHitPoints>550</MaxHitPoints>
+      <WorkToBuild>4800</WorkToBuild>
+      <Flammability>0.2</Flammability>
+      <Mass>250</Mass>
+    </statBases>
+    <costList>
+      <Steel>350</Steel>
+      <Plasteel>40</Plasteel>
+      <ComponentIndustrial>8</ComponentIndustrial>
+      <ComponentSpacer>2</ComponentSpacer>
+    </costList>
+    <comps>
+      <li Class="CompProperties_Power">
+        <compClass>CompPowerTrader</compClass>
+        <basePowerConsumption>800</basePowerConsumption>
+        <shortCircuitInRain>false</shortCircuitInRain>
+      </li>
+      <li Class="CompProperties_Flickable"/>
+      <li Class="CompProperties_Breakdownable"/>
+      <li Class="CompProperties_AffectedByFacilities">
+        <linkableFacilities>
+          <li>Geoscape_SigintConsole</li>
+        </linkableFacilities>
+      </li>
+      <li Class="ProjectVigilance.Geoscape.Sensory.CompProperties_Radar">
+        <detectionRadius>24</detectionRadius>
+        <identificationRadiusDish1>10</identificationRadiusDish1>
+        <identificationRadiusDish2>17</identificationRadiusDish2>
+        <identificationRadiusDish3>22</identificationRadiusDish3>
+        <standbyPowerDraw>800</standbyPowerDraw>
+        <activePowerDraw>1800</activePowerDraw>
+        <receivesVantageBonus>false</receivesVantageBonus>
+        <penetratesTerrainMasking>false</penetratesTerrainMasking>
+        <isOceanicSonar>false</isOceanicSonar>
+        <maxIntelligenceTier>Classified</maxIntelligenceTier>
+        <radarLabel>Phased Radar Array</radarLabel>
+      </li>
+    </comps>
+    <building>
+      <destroySound>BuildingDestroyed_Metal_Big</destroySound>
+    </building>
+  </ThingDef>
+
+  <!-- ==================== SIGINT Decryption Console (Ultra) ==================== -->
+  <ThingDef ParentName="BuildingBase">
+    <defName>Geoscape_SigintConsole</defName>
+    <label>SIGINT decryption console</label>
+    <description>An advanced signals intelligence mainframe that links directly to an adjacent phased radar array. Intercepts and deciphers enemy tactical radio traffic, upgrading detection intelligence to Tier 4 (Analysed) with exact unit headcounts and equipment manifests, while penetrating mountain terrain masking.</description>
+    <graphicData>
+      <texPath>Things/Building/Misc/CommsConsole</texPath>
+      <graphicClass>Graphic_Multi</graphicClass>
+      <drawSize>(3, 2)</drawSize>
+    </graphicData>
+    <uiIconScale>0.90</uiIconScale>
+    <size>(3, 2)</size>
+    <rotatable>true</rotatable>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>PassThroughOnly</passability>
+    <castEdgeShadows>true</castEdgeShadows>
+    <fillPercent>0.5</fillPercent>
+    <designationCategory>Security</designationCategory>
+    <terrainAffordanceNeeded>Medium</terrainAffordanceNeeded>
+    <techLevel>Ultra</techLevel>
+    <researchPrerequisites>
+      <li>Geoscape_SignalsIntelligence</li>
+    </researchPrerequisites>
+    <statBases>
+      <MaxHitPoints>250</MaxHitPoints>
+      <WorkToBuild>3200</WorkToBuild>
+      <Flammability>0.3</Flammability>
+      <Mass>75</Mass>
+    </statBases>
+    <costList>
+      <Steel>120</Steel>
+      <Plasteel>50</Plasteel>
+      <Gold>20</Gold>
+      <ComponentSpacer>4</ComponentSpacer>
+    </costList>
+    <comps>
+      <li Class="CompProperties_Power">
+        <compClass>CompPowerTrader</compClass>
+        <basePowerConsumption>700</basePowerConsumption>
+        <shortCircuitInRain>true</shortCircuitInRain>
+      </li>
+      <li Class="CompProperties_Flickable"/>
+      <li Class="CompProperties_Breakdownable"/>
+      <li Class="CompProperties_Facility">
+        <maxSimultaneous>1</maxSimultaneous>
+        <maxDistance>5.9</maxDistance>
+      </li>
+    </comps>
+    <placeWorkers>
+      <li>PlaceWorker_ShowFacilitiesConnections</li>
+    </placeWorkers>
+    <building>
+      <destroySound>BuildingDestroyed_Metal_Medium</destroySound>
+    </building>
+  </ThingDef>
+
+  <!-- ==================== Coastal Sonar Station (Industrial) ==================== -->
+  <ThingDef ParentName="BuildingBase">
+    <defName>Geoscape_SonarArray</defName>
+    <label>coastal sonar station</label>
+    <description>A shoreline passive and active acoustic hydrophone station. Sweeps maritime and coastal sectors up to 18 traversal rings, providing early detection of waterborne raiders, naval incursions, and aquatic hazards. Operates strictly over water-covered tiles.</description>
+    <graphicData>
+      <texPath>Things/Building/Misc/MoisturePump</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>(3, 3)</drawSize>
+      <shadowData>
+        <volume>(2.4, 1.0, 2.4)</volume>
+      </shadowData>
+    </graphicData>
+    <uiIconScale>0.85</uiIconScale>
+    <size>(3, 3)</size>
+    <rotatable>false</rotatable>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>Impassable</passability>
+    <castEdgeShadows>true</castEdgeShadows>
+    <fillPercent>0.60</fillPercent>
+    <designationCategory>Security</designationCategory>
+    <terrainAffordanceNeeded>Heavy</terrainAffordanceNeeded>
+    <techLevel>Industrial</techLevel>
+    <researchPrerequisites>
+      <li>Geoscape_EarlyWarningRadar</li>
+    </researchPrerequisites>
+    <statBases>
+      <MaxHitPoints>350</MaxHitPoints>
+      <WorkToBuild>2800</WorkToBuild>
+      <Flammability>0.3</Flammability>
+      <Mass>140</Mass>
+    </statBases>
+    <costList>
+      <Steel>200</Steel>
+      <ComponentIndustrial>5</ComponentIndustrial>
+    </costList>
+    <comps>
+      <li Class="CompProperties_Power">
+        <compClass>CompPowerTrader</compClass>
+        <basePowerConsumption>500</basePowerConsumption>
+        <shortCircuitInRain>false</shortCircuitInRain>
+      </li>
+      <li Class="CompProperties_Flickable"/>
+      <li Class="CompProperties_Breakdownable"/>
+      <li Class="ProjectVigilance.Geoscape.Sensory.CompProperties_Radar">
+        <detectionRadius>18</detectionRadius>
+        <identificationRadiusDish1>8</identificationRadiusDish1>
+        <identificationRadiusDish2>8</identificationRadiusDish2>
+        <identificationRadiusDish3>8</identificationRadiusDish3>
+        <standbyPowerDraw>500</standbyPowerDraw>
+        <activePowerDraw>1200</activePowerDraw>
+        <receivesVantageBonus>false</receivesVantageBonus>
+        <penetratesTerrainMasking>false</penetratesTerrainMasking>
+        <isOceanicSonar>true</isOceanicSonar>
+        <maxIntelligenceTier>Contact</maxIntelligenceTier>
+        <radarLabel>Coastal Sonar Station</radarLabel>
+      </li>
+    </comps>
+    <building>
+      <destroySound>BuildingDestroyed_Metal_Big</destroySound>
+    </building>
+  </ThingDef>
+
+</Defs>

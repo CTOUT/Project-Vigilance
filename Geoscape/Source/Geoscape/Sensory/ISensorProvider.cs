@@ -1,4 +1,5 @@
 using RimWorld.Planet;
+using UnityEngine;
 
 namespace ProjectVigilance.Geoscape.Sensory;
 
@@ -28,6 +29,12 @@ public interface ISensorProvider
     float DetectionRadiusInTiles { get; }
 
     /// <summary>
+    /// Maximum optical/electronic classification and identification radius in WorldGrid hex tiles.
+    /// Within this inner horizon, targets are identified up to MaxIntelligenceTier.
+    /// </summary>
+    int IdentificationRadiusInTiles => DetectionRadiusInTiles > 0f ? Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles * 0.45f)) : 0;
+
+    /// <summary>
     /// The highest intelligence tier this sensor can resolve (e.g. basic lookouts can only provide Contact/Classified, whereas radar decoders can provide Analysed).
     /// </summary>
     IntelligenceTier MaxIntelligenceTier { get; }
@@ -48,6 +55,16 @@ public interface ISensorProvider
     /// rather than biological lookouts, watchtowers, or field scouts.
     /// </summary>
     bool IsTechnological => false;
+
+    /// <summary>
+    /// Indicates whether this sensor can penetrate terrain masking (e.g. mountain shadows or deep canyons).
+    /// </summary>
+    bool PenetratesTerrainMasking => false;
+
+    /// <summary>
+    /// Indicates whether this sensor is an oceanic sonar or hydrophone system.
+    /// </summary>
+    bool IsOceanicSonar => false;
 
     /// <summary>
     /// Evaluates whether this sensor can detect the specified target.

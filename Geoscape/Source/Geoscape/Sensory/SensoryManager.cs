@@ -127,6 +127,8 @@ public class SensoryManager : WorldComponent
         }
     }
 
+    public IReadOnlyCollection<IDetectableTarget> ActiveTargets => activeTargets;
+
     public int NextContactTrackingId => nextContactTrackingId;
 
     /// <summary>
@@ -148,14 +150,15 @@ public class SensoryManager : WorldComponent
         if (sensor != null && !customSensors.Contains(sensor))
         {
             customSensors.Add(sensor);
+            WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         }
     }
 
     public void DeregisterSensor(ISensorProvider sensor)
     {
-        if (sensor != null)
+        if (sensor != null && customSensors.Remove(sensor))
         {
-            customSensors.Remove(sensor);
+            WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         }
     }
 
@@ -353,14 +356,32 @@ public class SensoryManager : WorldComponent
                 if (sensor.CanDetect(target))
                 {
                     int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
-                    int idSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles * 0.45f));
+                    int idSteps = sensor.IdentificationRadiusInTiles;
                     int travDist = Find.WorldGrid.TraversalDistanceBetween(sensor.SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps);
 
-                    // Close range (within 45% of detection radius, step <= idSteps): Full sensor tier (e.g. Classified)
+                    // Model B+ Tactical Terrain Masking:
+                    // Incursions in Mountainous/Impassable tiles are masked by rugged valleys and canyons,
+                    // preventing advancement beyond Contact tier unless scanned by a sensor that penetrates masking.
+                    bool isTargetMasked = SensoryTerrainUtility.IsTargetMasked(target.CurrentTile);
+
+                    // Close range (within identification radius, step <= idSteps): Full sensor tier (e.g. Classified) unless masked
                     // Outer range: Generic blip (Contact)
-                    IntelligenceTier tier = (travDist <= idSteps)
-                        ? sensor.MaxIntelligenceTier
-                        : (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact ? IntelligenceTier.Contact : IntelligenceTier.Suspected);
+                    IntelligenceTier tier;
+                    if (idSteps > 0 && travDist <= idSteps)
+                    {
+                        if (isTargetMasked && !sensor.PenetratesTerrainMasking)
+                        {
+                            tier = (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : sensor.MaxIntelligenceTier;
+                        }
+                        else
+                        {
+                            tier = sensor.MaxIntelligenceTier;
+                        }
+                    }
+                    else
+                    {
+                        tier = (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : IntelligenceTier.Suspected;
+                    }
 
                     if (tier > bestTier)
                     {
@@ -504,7 +525,7 @@ public class SensoryManager : WorldComponent
             PlanetTile centerTile = sensor.SensorTile;
             float radius = sensor.DetectionRadiusInTiles;
             int radiusSteps = Mathf.Max(1, Mathf.RoundToInt(radius));
-            int idRadiusSteps = Mathf.Max(1, Mathf.RoundToInt(radius * 0.45f));
+            int idRadiusSteps = sensor.IdentificationRadiusInTiles;
 
             FloodFillTopological(
                 centerTile,
@@ -512,7 +533,7 @@ public class SensoryManager : WorldComponent
                 (t, step) =>
                 {
                     outTiles.Add(t);
-                    if (outIdentifiedTiles != null && step <= idRadiusSteps)
+                    if (outIdentifiedTiles != null && idRadiusSteps > 0 && step <= idRadiusSteps)
                     {
                         outIdentifiedTiles.Add(t);
                     }
