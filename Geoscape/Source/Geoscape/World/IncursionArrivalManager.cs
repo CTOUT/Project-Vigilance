@@ -257,6 +257,14 @@ public static class IncursionArrivalManager
                     : (incursion.GroupKind == IncursionGroupKind.TradeCaravan ? "TradedAtColony" : "VisitedColony");
                 ContactRegistry.Instance?.DeregisterContact(incursion, arrivalOutcome);
 
+                // Friendly trade caravans or visitors share intelligence about unmapped sites they passed
+                if (!isHostileToPlayer && (incursion.GroupKind == IncursionGroupKind.TradeCaravan ||
+                                           incursion.GroupKind == IncursionGroupKind.Visitors ||
+                                           incursion.GroupKind == IncursionGroupKind.Travelers))
+                {
+                    BreadcrumbRumourUtility.TryShareTravellerRumour(incursion.Faction, incursion.DestinationTile, incursion);
+                }
+
                 if (GeoscapeMod.Settings.resetThreatCooldownOnArrival &&
                     incursion.IncidentDef.category == IncidentCategoryDefOf.ThreatBig &&
                     targetMap.storyState != null)

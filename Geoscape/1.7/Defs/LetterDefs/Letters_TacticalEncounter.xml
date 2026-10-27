@@ -12,6 +12,16 @@
   </LetterDef>
 
   <LetterDef>
+    <defName>PV_TacticalEncounter_ThreatSmall</defName>
+    <letterClass>ProjectVigilance.Geoscape.World.ChoiceLetter_TacticalEncounter</letterClass>
+    <color>(235, 175, 75)</color>
+    <flashColor>(255, 200, 100)</flashColor>
+    <flashInterval>45</flashInterval>
+    <bounce>true</bounce>
+    <arriveSound>LetterArrive_BadUrgent</arriveSound>
+  </LetterDef>
+
+  <LetterDef>
     <defName>PV_TacticalEncounter_Positive</defName>
     <letterClass>ProjectVigilance.Geoscape.World.ChoiceLetter_TacticalEncounter</letterClass>
     <color>(120, 176, 216)</color>

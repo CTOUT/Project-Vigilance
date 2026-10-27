@@ -7,6 +7,7 @@ namespace ProjectVigilance.Geoscape.World;
 public static class PV_LetterDefOf
 {
     public static LetterDef PV_TacticalEncounter_Threat = null!;
+    public static LetterDef PV_TacticalEncounter_ThreatSmall = null!;
     public static LetterDef PV_TacticalEncounter_Positive = null!;
     public static LetterDef PV_TacticalEncounter_Neutral = null!;
 

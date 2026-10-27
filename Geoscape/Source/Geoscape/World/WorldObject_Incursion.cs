@@ -72,6 +72,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public int DepartureDelayTicks => departureDelayTicks;
     public bool IsMobilizing => departureDelayTicks > 0;
     public int TrackingId { get => trackingId; set => trackingId = value; }
+    public bool HasDispatchedContactAlert { get => hasDispatchedContactAlert; set => hasDispatchedContactAlert = value; }
+    public bool HasDispatchedClassifiedAlert { get => hasDispatchedClassifiedAlert; set => hasDispatchedClassifiedAlert = value; }
     public Pawn? TraderPawn { get => traderPawn; set => traderPawn = value; }
     public TraderKindDef? ExplicitTraderKind { get => explicitTraderKind; set => explicitTraderKind = value; }
     public bool IsTradeMissionAborted => isTradeMissionAborted;
@@ -426,7 +428,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public void UpdateSampledPosition()
     {
-        lastSampledDrawPos = TrueDrawPos;
+        if (Find.World?.grid != null)
+        {
+            lastSampledDrawPos = TrueDrawPos;
+        }
     }
 
     private static Texture2D? cachedCaravanExpandingIcon;
@@ -645,6 +650,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
     }
 
+    private IncursionGroupKind? explicitGroupKind;
+    public void SetExplicitGroupKind(IncursionGroupKind kind) => explicitGroupKind = kind;
+
     /// <summary>
     /// Resolves the specific tactical kind of this incursion based on incident parameters and defs.
     /// Distinguishes between trade caravans, social visitors, passing travellers, tribute collectors, and hostile warbands.
@@ -653,6 +661,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         get
         {
+            if (explicitGroupKind.HasValue)
+            {
+                return explicitGroupKind.Value;
+            }
+
             if (IsHostileToPlayer)
             {
                 return IncursionGroupKind.HostileWarband;
@@ -1032,237 +1045,22 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public void OnDetected(ISensorProvider sensor, IntelligenceTier newTier)
     {
-        intelligenceTier = newTier;
-
-        if (newTier >= IntelligenceTier.Contact && trackingId <= 0)
-        {
-            trackingId = ContactRegistry.Instance?.AllocateTrackingId() ??
-                         SensoryManager.Instance?.AllocateContactTrackingId() ?? 1;
-            ContactRegistry.Instance?.RegisterContact(this);
-        }
-
-        if (newTier >= IntelligenceTier.Classified)
-        {
-            isIdentified = true;
-        }
-        else
-        {
-            isIdentified = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient);
-        }
-
-        UpdateSampledPosition();
-
-        if (GeoscapeMod.Settings.enableEarlyWarningLetters)
-        {
-            // If immediately detected at Classified+ (e.g. adjacent spawn or high-spec sensor),
-            // bypass the vague Contact blip alert and directly issue the detailed identification alert.
-            if (newTier >= IntelligenceTier.Classified)
-            {
-                if (!hasDispatchedClassifiedAlert)
-                {
-                    hasDispatchedContactAlert = true;
-                    hasDispatchedClassifiedAlert = true;
-                    DispatchClassifiedLetter(sensor);
-                }
-            }
-            else if (newTier >= IntelligenceTier.Contact && !hasDispatchedContactAlert)
-            {
-                hasDispatchedContactAlert = true;
-                DispatchContactLetter(sensor);
-            }
-        }
+        EarlyWarningDispatcher.ProcessDetection(this, sensor, newTier);
     }
 
-    private void SendIncursionLetter(TaggedString title, TaggedString text, LetterDef def, Map? destinationMap, string targetName)
+    public void DispatchContactLetter(ISensorProvider sensor)
     {
-        LetterDef choiceDef;
-        if (def == LetterDefOf.ThreatBig || def == LetterDefOf.ThreatSmall)
-        {
-            choiceDef = PV_LetterDefOf.PV_TacticalEncounter_Threat ?? LetterDefOf.ThreatBig;
-        }
-        else if (def == LetterDefOf.PositiveEvent)
-        {
-            choiceDef = PV_LetterDefOf.PV_TacticalEncounter_Positive ?? LetterDefOf.PositiveEvent;
-        }
-        else
-        {
-            choiceDef = PV_LetterDefOf.PV_TacticalEncounter_Neutral ?? LetterDefOf.NeutralEvent;
-        }
-
-        var letter = (ChoiceLetter_TacticalEncounter)LetterMaker.MakeLetter(choiceDef);
-        letter.label = title;
-        letter.text = text;
-        letter.targetWorldObject = this;
-        letter.targetTile = Tile;
-        letter.worldButtonLabel = "Go to Contact (Geoscape)";
-        letter.lookTargets = new GlobalTargetInfo(this);
-
-        if (destinationMap != null && destinationMap.Index >= 0)
-        {
-            letter.battleMap = destinationMap;
-            letter.battleButtonLabel = $"Go inside {targetName} (Defenses)";
-        }
-
-        Find.LetterStack.ReceiveLetter(letter);
+        EarlyWarningDispatcher.DispatchContactLetter(this, sensor);
     }
 
-    private void DispatchContactLetter(ISensorProvider sensor)
+    public void DispatchClassifiedLetter(ISensorProvider sensor)
     {
-        Map? targetMap = Current.Game.FindMap(destinationTile);
-        string targetName = targetMap?.Parent?.LabelCap ??
-                            Find.WorldObjects?.SettlementAt(destinationTile)?.LabelCap ??
-                            Find.WorldObjects?.MapParentAt(destinationTile)?.LabelCap ??
-                            (destinationTile.Valid ? $"territory at tile {destinationTile.tileId}" : "colony territory");
-
-        string title = SensoryNarrativeUtility.GetContactLetterTitle(sensor, trackingId);
-        string text = SensoryNarrativeUtility.GetContactLetterBody(sensor, targetName, speedTilesPerDay, trackingId);
-
-        SendIncursionLetter(title, text, LetterDefOf.ThreatSmall, targetMap, targetName);
+        EarlyWarningDispatcher.DispatchClassifiedLetter(this, sensor);
     }
 
-    private void DispatchClassifiedLetter(ISensorProvider sensor)
+    public void SendIncursionLetter(TaggedString title, TaggedString text, LetterDef def, Map? destinationMap, string targetName)
     {
-        Map? targetMap = Current.Game.FindMap(destinationTile);
-        string targetName = targetMap?.Parent?.LabelCap ??
-                            Find.WorldObjects?.SettlementAt(destinationTile)?.LabelCap ??
-                            Find.WorldObjects?.MapParentAt(destinationTile)?.LabelCap ??
-                            (destinationTile.Valid ? $"territory at tile {destinationTile.tileId}" : "colony territory");
-
-        float actualRemainingTiles = Math.Max(0f, (pathTiles.Count - currentPathIndex) - tileProgress);
-        float remainingHours = (actualRemainingTiles / Math.Max(0.1f, speedTilesPerDay)) * 24f;
-
-        string factionStr = Faction?.Name ?? "Unknown Faction";
-        string attrLine = SensoryNarrativeUtility.GetAttributionLine(sensor);
-        string idPrefix = trackingId > 0
-            ? (SensoryNarrativeUtility.IsLowTech ? $"Strangers #{trackingId} Classified: " : $"Contact-{trackingId} Classified: ")
-            : string.Empty;
-        string contactName = trackingId > 0
-            ? (SensoryNarrativeUtility.IsLowTech ? $"strangers #{trackingId}" : $"Contact-{trackingId}")
-            : "the approaching contact";
-
-        switch (GroupKind)
-        {
-            case IncursionGroupKind.HostileWarband:
-                {
-                    string title = $"{idPrefix}Hostile Incursion ({factionStr})";
-                    string closingAdvice = SensoryNarrativeUtility.GetHostileClosingAdvice(sensor);
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a hostile warband from {factionStr} marching towards {targetName}.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  $"{closingAdvice}";
-
-                    SendIncursionLetter(title, text, LetterDefOf.ThreatBig, targetMap, targetName);
-                    break;
-                }
-
-            case IncursionGroupKind.TradeCaravan:
-                {
-                    string traderDetail = incidentParms?.traderKind != null ? $" ({incidentParms.traderKind.label})" : string.Empty;
-                    string title = $"{idPrefix}Approaching Trade Caravan ({factionStr})";
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a friendly trade caravan{traderDetail} from {factionStr} heading towards {targetName}.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  "They are bringing goods and silver to trade. Prepare your negotiators, silver stores, and trade stockpiles for their arrival.";
-
-                    SendIncursionLetter(title, text, LetterDefOf.PositiveEvent, targetMap, targetName);
-                    break;
-                }
-
-            case IncursionGroupKind.Visitors:
-                {
-                    string title = $"{idPrefix}Approaching Visitors ({factionStr})";
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a party of visitors from {factionStr} travelling towards {targetName}.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  "They are visiting to socialise and relax. They are not a merchant caravan, though individual visitors may carry personal items to barter. Ensure your colony has a hospitable social space and spare guest accommodations.";
-
-                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
-                    break;
-                }
-
-            case IncursionGroupKind.Travelers:
-                {
-                    string title = $"{idPrefix}Travellers Passing Near ({factionStr})";
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a group of travellers from {factionStr} moving through the region near {targetName}.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  "They are simply passing through your territory and do not intend to visit, stay, or trade.";
-
-                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
-                    break;
-                }
-
-            case IncursionGroupKind.TributeCollector:
-                {
-                    string title = $"{idPrefix}Royal Tribute Collector ({factionStr})";
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a royal tribute collector from {factionStr} heading towards {targetName}.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  "They seek offerings of gold or enslaved prisoners in exchange for royal favour and honour.";
-
-                    SendIncursionLetter(title, text, LetterDefOf.PositiveEvent, targetMap, targetName);
-                    break;
-                }
-
-            case IncursionGroupKind.Pilgrims:
-                {
-                    string title = $"{idPrefix}Approaching Pilgrims ({factionStr})";
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a group of pilgrims from {factionStr} travelling towards {targetName}.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  "They are travelling to venerate sacred relics or holy sites at your settlement.";
-
-                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
-                    break;
-                }
-
-            case IncursionGroupKind.Beggars:
-                {
-                    string title = $"{idPrefix}Approaching Beggars ({factionStr})";
-                    string beggarsDetail = SensoryNarrativeUtility.GetBeggarsIntentDescription();
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} is an impoverished group travelling towards {targetName}.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  $"{beggarsDetail}";
-
-                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
-                    break;
-                }
-
-            case IncursionGroupKind.AlliedReinforcements:
-                {
-                    string title = $"{idPrefix}Allied Reinforcements ({factionStr})";
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} is an allied military contingent from {factionStr} marching towards {targetName} to reinforce your defences.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  "They are armed and ready to assist against planetary threats.";
-
-                    SendIncursionLetter(title, text, LetterDefOf.PositiveEvent, targetMap, targetName);
-                    break;
-                }
-
-            default:
-                {
-                    string groupType = GetIdentifiedGroupLabel();
-                    string title = $"{idPrefix}Approaching {groupType.CapitalizeFirst()} ({factionStr})";
-                    string text = $"{sensor.SensorLabel} have confirmed that {contactName} ({groupType}) from {factionStr} is heading towards {targetName}.\n\n" +
-                                  $"Target: {targetName}\n" +
-                                  $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
-                                  $"{attrLine}\n\n" +
-                                  "They are approaching peacefully without hostile intent.";
-
-                    SendIncursionLetter(title, text, LetterDefOf.NeutralEvent, targetMap, targetName);
-                    break;
-                }
-        }
+        EarlyWarningDispatcher.SendIncursionLetter(this, title, text, def, destinationMap, targetName);
     }
 
     public override void ExposeData()

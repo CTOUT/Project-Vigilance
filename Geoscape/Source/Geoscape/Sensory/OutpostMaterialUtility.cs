@@ -165,3 +165,4 @@ public static class OutpostMaterialUtility
         TakeWoodOrStone(caravan, SignalBeaconWoodOrStoneCost);
     }
 }
+

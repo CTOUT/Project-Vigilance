@@ -350,6 +350,11 @@ public class SensoryManager : WorldComponent
             WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         }
 
+        if (mode == VisibilityMode.ClassicHazeOfWar)
+        {
+            HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
+        }
+
         // Peacetime Early Exit: If all sensors updated and no targets exist, exit!
         if (activeTargets.Count == 0)
         {
@@ -739,7 +744,12 @@ public class SensoryManager : WorldComponent
         haze.ApplyDirtyColors();
     }
 
-    private void MarkSurroundingTilesExplored(PlanetTile centerTile, float radiusInTiles)
+    public void MarkTileExplored(PlanetTile tile)
+    {
+        MarkSurroundingTilesExplored(tile, 1f);
+    }
+
+    public void MarkSurroundingTilesExplored(PlanetTile centerTile, float radiusInTiles)
     {
         if (!centerTile.Valid || exploredBytes == null)
         {
@@ -822,6 +832,8 @@ public class SensoryManager : WorldComponent
         {
             Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
         }
+
+        HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
     }
 
     /// <summary>

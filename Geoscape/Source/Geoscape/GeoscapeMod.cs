@@ -7,7 +7,12 @@ namespace ProjectVigilance.Geoscape;
 public class GeoscapeMod : Mod
 {
     public const string PackageId = "ProjectVigilance.Geoscape";
-    public static GeoscapeSettings Settings { get; private set; } = null!;
+    private static GeoscapeSettings? settings;
+    public static GeoscapeSettings Settings
+    {
+        get => settings ??= new GeoscapeSettings();
+        set => settings = value;
+    }
 
     public GeoscapeMod(ModContentPack content) : base(content)
     {

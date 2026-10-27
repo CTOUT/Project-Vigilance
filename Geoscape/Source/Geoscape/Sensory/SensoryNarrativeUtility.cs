@@ -77,7 +77,7 @@ public static class SensoryNarrativeUtility
             return trackingId > 0 ? $"Early Warning: Force #{trackingId}" : "Early Warning: Approaching Force";
         }
 
-        return trackingId > 0 ? $"Early Warning: Contact-{trackingId}" : "Early Warning: Unidentified Contact";
+        return trackingId > 0 ? $"Early Warning: Unidentified Contact [Contact-{trackingId}]" : "Early Warning: Unidentified Contact";
     }
 
     /// <summary>
