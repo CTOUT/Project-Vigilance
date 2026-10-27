@@ -6,29 +6,35 @@
 
 - [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
 - [ ] **Colony Technological Radar Infrastructure:**
-  - `CompProperties_Radar` and `CompRadar` with dynamic standby vs active power scaling (`standbyPowerDraw` / `activePowerDraw`).
+  - `CompProperties_Radar` and `CompRadar` with dynamic standby vs active power scaling (`standbyPowerDraw` / `activePowerDraw`) and explicit integer ring fields (`detectionRadius = 24`, `identificationRadiusDish1 = 10`, `identificationRadiusDish2 = 17`, `identificationRadiusDish3 = 22`).
   - **Multi-Dish Settlement Stacking (Interferometry & Identification Expansion):** Traversal ring distance (Ring 0 = origin, each ring $n$ adds $6 \times n$ tiles). Maximum detection radius $R_{detect}$ stays stable at **24 rings**, while secondary dishes expand the inner **Identification / Classification Horizon ($R_{id}$)** outward from 10 rings (~40%) $\rightarrow$ 17 rings (~70%) $\rightarrow$ 22 rings (~92%), accelerates sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and provides fail-safe redundancy.
+  - **Sensor Terrain Model (Locked Model B+: "Vantage & Masking"):**
+    - *Vantage Bonus (Origin Tile):* Optical lookouts gain $+1$ to $+3$ rings on hills/mountains; outposts gain $+1$ to $+2$ rings. High-tech radars retain fixed $R_{detect}$ with $+1$ to $+2$ rings to $R_{id}$.
+    - *Terrain Masking (Target Tile):* Incursions in `Mountainous` tiles delay classification to Contact Tier amber blips until exiting into open terrain. Spacer Phased Array + SIGINT Console penetrates terrain masking.
+    - Zero raycasting; zero radar shadows; zero mesh deformation.
   - **Sensory Building Defs & Research Projects:**
-    - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 rings, unpowered/manned, Contact Tier).
+    - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 rings + vantage, unpowered/manned, Contact Tier).
     - `Geoscape_RadarSmall` (Industrial Early-Warning Dome, 14 rings, 350W/750W, Contact Tier).
     - `Geoscape_RadarLarge` (Spacer Phased Array, 24 rings, 800W/1,800W, Classified Tier).
-    - `Geoscape_SigintConsole` (Ultra SIGINT Decryption Console, `CompFacility` linkable, 700W/1,400W, upgrades Phased Array to Tier 4 Analysed).
-    - `Geoscape_SonarArray` (Industrial Coastal Hydrophone Station, 18 rings water/coast).
+    - `Geoscape_SigintConsole` (Ultra SIGINT Decryption Console, `CompFacility` linkable, 700W/1,400W, upgrades Phased Array to Tier 4 Analysed; penetrates terrain masking).
+    - `Geoscape_SonarArray` (Industrial Coastal Hydrophone Station, 18 rings water/coast; future note: bathymetry/depth).
 - [ ] **Lightweight Geoscape Outposts & World Map Strategic Context Actions:**
-  - `WorldObject_ListeningPost` (Zero-TPS global entity, automated solar relay vs manned lookout garrison).
+  - `WorldObject_ListeningPost` (Zero-TPS global entity, 100% unmanned, automated solar relay vs medieval stone beacon; no WorldPawns garrisons).
   - **Civilization-Style Right-Click Hex Interaction (`FloatMenuMakerWorld`):**
     - _"Dispatch Expedition Here..."_ (pre-populates and locks destination tile in `Dialog_FormCaravan`).
     - _"Establish Outpost / Relay Here..."_ (instant deploy if caravan on tile; prompts outpost kit caravan from settlement if remote).
-    - _"Reclaim Garrison / Dismantle / Repair"_ actions on existing outposts.
+    - _"Dismantle Outpost / Repair Sabotaged Station"_ actions on existing outposts.
   - Outpost vulnerability & sabotage events from passing hostile incursions.
-- [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) for efficient spatial distance checks.
-- [ ] Build Oceanic Sonar detection layer for water hexes.
+- [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) with ProfilerMarker telemetry and a $\le 1.0\text{ ms}$ / 0-byte GC performance budget.
+- [ ] Build Oceanic Sonar detection layer for water hexes (`tile.WaterCovered`).
 - [ ] Two-Stage Early Warning Dispatcher: generate advance warning alerts and reveal telemetry based on radar tier.
 - [ ] **Concealed Dynamic Sites & Reconnaissance in the Haze:**
-  - **Haze Concealment for Dynamic Camps:** When storyteller/quests spawn work sites, hunting camps, bandit outposts, or pirate forward staging bases in unmonitored sectors (Haze), suppress instant global announcement letters and map markers until an active player sensor or scout caravan enters visual range.
+  - **Haze Concealment for Dynamic Camps:** When storyteller/quests spawn work sites, hunting camps, bandit outposts, or pirate forward staging bases in unmonitored sectors (Haze), suppress instant global announcement letters and map markers until an active player sensor or scout caravan enters visual range. Extend/suspend timeout timers while hidden.
   - **Breadcrumb Rumours & Traveller Intelligence:** Visiting trade caravans, friendly guests, or allied patrols arriving at player settlements can share intelligence on unmapped sites they encountered en route (_"We passed a hostile logging camp about 5 hexes north-west"_), creating narrative reconnaissance leads and map reveals.
   - **Forward Staging Ground Detection:** Hostile raid preparations can establish temporary forward staging camps in the Haze that can be pre-emptively raided or dispersed before the main assault launches.
-- [ ] **Dynamic Inter-Faction Encounters (Deferred from Milestone 1.2):** Enable roaming NPC incursions and trade caravans to interact when their routes cross—simulating background skirmishes between warring factions, ambush aftermath sites, and trade rendezvous.
+- [ ] **Dynamic Inter-Faction Encounters (Deferred from Milestone 1.2):**
+  - **Tile-Bucketed Incursion Collisions ($O(M)$):** Evaluate collisions on `TickRare` using tile buckets (`Dictionary<int, List<WorldObject_Incursion>>`), triggering algebraic background skirmishes when non-allied incursions occupy identical tiles.
+  - **Encounter Aftermath Sites:** Spawn salvageable wreckage sites on the world map following skirmishes.
 - [ ] **Simulated Inter-Faction Trade Routes & Storyteller Caravan Encounter Grounding (Deferred from Milestone 1.2):**
   - **Organic Trade Route Network:** Generate physical, persistent NPC trade caravans (`WorldObject_Incursion`) travelling between NPC faction bases, outposts, and allied settlements along planetary roads and mountain passes, establishing organic background commerce rather than solely player-directed traffic.
   - **Grounding Storyteller Caravan Encounters:** Hook abstract storyteller incident events (`IncidentWorker_CaravanMeeting`, `IncidentWorker_CaravanDemand`) into physical world map incursions. When a player caravan meets another group on the road, ground the event in an actual travelling incursion with persistent inventory, pawn rosters, and origin/destination telemetry rather than spawning an ephemeral caravan out of thin air.

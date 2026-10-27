@@ -14,14 +14,14 @@ In vanilla RimWorld, all quest sites, faction bases, and world incidents appear 
 
 Radar and sensor facilities can be constructed at player colonies or deployed as unmanned forward listening posts on the world map:
 
-| Facility Type                      |      Tech Level      |               Type               |  Detection Radius  | Power Draw (Standby / Active) |          Intelligence Tier          | Operational Data Provided                                                                                                                 |
-| :--------------------------------- | :------------------: | :------------------------------: | :----------------: | :---------------------------: | :---------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lookout Watchtower**             | Neolithic / Medieval |             Building             |    **8 rings**     |    0 W (Unpowered, Manned)    |         Tier 2 (_Contact_)          | Visual horizon extension; detects overland movement blips.                                                                                |
-| **Early-Warning Radar Dome**       |      Industrial      |             Building             |    **14 rings**    |         350 W / 750 W         |         Tier 2 (_Contact_)          | Weatherproof radome microwave dish; detects overland blips, speed, and heading.                                                           |
-| **Phased Radar Array**             |        Spacer        |             Building             |    **24 rings**    |        800 W / 1,800 W        |        Tier 3 (_Classified_)        | Steerable electronically scanned array; identifies attacking faction insignia and broad force size.                                       |
-| **SIGINT Decryption Console**      |        Ultra         | Facility Linker (`CompFacility`) | _Attached to Array_ |        700 W / 1,400 W        | **Upgrades to Tier 4 (_Analysed_)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. |
-| **Oceanic Sonar Array**            |      Industrial      |             Building             | **18 rings (Water)** |        500 W / 1,200 W        |           Coastal / Ocean           | Shoreline hydrophone array monitoring maritime transit and aquatic incursions.                                                            |
-| **Listening Post (World Outpost)** | Industrial / Spacer  |           WorldObject            |    **10 rings**    |       Standalone Solar        |         Tier 2 (_Contact_)          | Lightweight zero-TPS global listening post deployed on remote hexes by caravans.                                                          |
+| Facility Type                      |      Tech Level      |               Type               |  Detection Radius ($R_{detect}$)  | Identification Radius ($R_{id}$) | Power Draw (Standby / Active) |          Intelligence Tier          | Operational Data Provided                                                                                                                 |
+| :--------------------------------- | :------------------: | :------------------------------: | :--------------------------------: | :-------------------------------: | :---------------------------: | :---------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lookout Watchtower**             | Neolithic / Medieval |             Building             |    **8 rings** *(+Vantage)*        |              4 rings              |    0 W (Unpowered, Manned)    |         Tier 2 (_Contact_)          | Visual horizon extension; detects overland movement blips. Gains up to +3 rings on hills/mountains.                                      |
+| **Early-Warning Radar Dome**       |      Industrial      |             Building             |            **14 rings**            |              6 rings              |         350 W / 750 W         |         Tier 2 (_Contact_)          | Weatherproof radome microwave dish; detects overland blips, speed, and heading.                                                           |
+| **Phased Radar Array**             |        Spacer        |             Building             |            **24 rings**            |      **10 / 17 / 22 rings**       |        800 W / 1,800 W        |        Tier 3 (_Classified_)        | Steerable electronically scanned array; multi-dish interferometry expands $R_{id}$. Identifies faction crest and broad force size.         |
+| **SIGINT Decryption Console**      |        Ultra         | Facility Linker (`CompFacility`) |        _Attached to Array_         |          _Matches Array_          |        700 W / 1,400 W        | **Upgrades to Tier 4 (_Analysed_)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. Penetrates terrain masking. |
+| **Oceanic Sonar Array**            |      Industrial      |             Building             |        **18 rings (Water)**        |              8 rings              |        500 W / 1,200 W        |           Coastal / Ocean           | Shoreline hydrophone array monitoring maritime transit and aquatic incursions on water tiles (`tile.WaterCovered`).                        |
+| **Listening Post (World Outpost)** | Industrial / Spacer  |           WorldObject            |    **10 rings** *(+Vantage)*       |              5 rings              |       Standalone Solar        |         Tier 2 (_Contact_)          | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. 100% unmanned.                                           |
 
 #### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Identification Expansion)
 
@@ -33,14 +33,14 @@ When multiple radar installations operate on the same colony map:
    - **Ring 2:** adds 12 tiles.
    - **Ring 3:** adds 18 tiles.
    - **Ring 4:** adds 24 tiles.
-   - In general, each successive **Ring $n$ adds exactly $6 \times n$ new tiles**. *(As a geometric consequence, the cumulative total of enclosed tiles within radius $n$ follows the centred hexagonal formula $\text{Total} = 1 + 3n(n+1)$, though gameplay logic operates strictly on discrete traversal ring steps).*
+   - In general, each successive **Ring $n$ adds exactly $6 \times n$ new tiles**. *(As a geometric consequence, the cumulative total of enclosed tiles within radius $n$ follows the centred hexagonal formula $\text{Total} = 1 + 3n(n+1)$, though gameplay logic and balance operate strictly on discrete traversal ring steps).*
 2. **The Physical Role of Synthetic Aperture Interferometry:** In real-world radar physics, clustering antennas into an interferometer does not push radio waves arbitrarily further across the horizon; it drastically sharpens **angular resolution** ($\theta \approx \lambda / B$).
 3. **Identification Ring ($R_{id}$) Expansion (Dual-Ring Model):**
    - The maximum detection radius $R_{detect}$ remains stable at **24 rings**, providing an outer boundary where incoming incursions register as **amber blips** (Contact Tier — speed and heading known, faction hidden).
    - Adding secondary dishes expands the inner **Identification / Classification Horizon ($R_{id}$)** outward toward the perimeter:
-     - **1 Dish (Baseline):** $R_{detect} = 24$ rings; $R_{id} = 10$ rings (~40% radius). Long-range warning blip; faction identified only when forces draw close.
-     - **2 Dishes (+Interferometry):** $R_{detect} = 24$ rings; $R_{id} = 17$ rings (~70% radius). High-resolution synthetic aperture resolves faction insignia and force size much earlier.
-     - **3 Dishes (+Full Aperture):** $R_{detect} = 24$ rings; $R_{id} = 22$ rings (~92% radius). Near-instant classification across almost the entire radar envelope.
+     - **1 Dish (Baseline):** $R_{detect} = 24$ rings; $R_{id} =$ **10 rings** (~40% radius). Long-range warning blip; faction identified only when forces draw close.
+     - **2 Dishes (+Interferometry):** $R_{detect} = 24$ rings; $R_{id} =$ **17 rings** (~70% radius). High-resolution synthetic aperture resolves faction insignia and force size much earlier.
+     - **3 Dishes (+Full Aperture):** $R_{detect} = 24$ rings; $R_{id} =$ **22 rings** (~92% radius). Near-instant classification across almost the entire radar envelope.
 4. **Temporal Resolution (Sweep Cadence):**
    - **1 Dish:** Sweeps every `250 ticks` (~4.1s) in discrete pulses.
    - **2 Dishes:** Interleaved sweeps every `150 ticks` (~2.5s).
@@ -58,6 +58,24 @@ To strictly preserve **Rule 1 (Zero Thematic Hardcoding in Frameworks)**:
 
 - **Module 1 (Generic Framework):** Uses the **Signals Intelligence (SIGINT) Decryption Console**, an indoor electronics console placed adjacent to a Phased Radar Array via RimWorld's native `CompFacility` linking system. It intercepts and decrypts human and mechanoid radio transmissions.
 - **Module 4/5 (Alien Invasion Campaign):** The iconic **Hyper-wave Decoder** is introduced as an alien-tech research project reverse-engineered from downed UFO navigation computers and captive alien leaders. The alien Hyper-wave Decoder tracks cloaked UFO craft, orbital motherships, and subterranean alien bases on a specialized orbital layer.
+
+#### 2.1.3 Sensor Terrain Model (Locked Model B+: "Vantage & Masking")
+
+To make world tile elevation (`tile.elevation`) and topography (`tile.hilliness`) strategically meaningful without the severe CPU overhead and player confusion of world-scale raycasting:
+
+1. **Vantage Bonus (Origin Tile):**
+   - Elevated ground expands the operational envelope of optical and lightweight sensors:
+     - **Lookout Watchtower & Caravan Lookouts:** `Flat` = baseline ($8\text{ rings}$); `SmallHills` = $+1\text{ ring}$ ($9\text{ rings}$); `LargeHills` = $+2\text{ rings}$ ($10\text{ rings}$); `Mountainous` = $+3\text{ rings}$ ($11\text{ rings}$).
+     - **Unmanned Listening Posts:** $+1$ to $+2\text{ rings}$ if deployed on hills or mountains.
+     - **High-Tech Radars (Radomes, Phased Arrays):** Raw detection range ($R_{detect} = 24$) remains fixed by transmission power. Elevated ground grants $+1$ to $+2$ rings to the **Identification Horizon ($R_{id}$)**, reflecting high ground clearing low-altitude ground clutter.
+2. **Tactical Terrain Masking (Target Tile):**
+   - **Detection is Preserved:** Contacts moving through rugged terrain always register within $R_{detect}$ as an **amber Contact blip** with known speed and heading. Terrain never induces a sudden, unfair zero-warning ambush.
+   - **Identification is Gated:** If an incursion's current tile is `Hilliness.Mountainous`, rugged rock walls and deep gorges mask heraldry and scatter radar returns. The contact **cannot advance beyond `IntelligenceTier.Contact`** while inside a Mountainous tile, even if inside the $R_{id}$ ring.
+   - **Emergence Classification:** The moment the incursion exits the mountain chain into Foothills or Plains, immediate classification occurs if within $R_{id}$.
+   - **Spacer Penetration Override:** The **Spacer Phased Radar Array with linked SIGINT Decryption Console** ignores terrain masking, utilizing advanced synthetic aperture processing and tactical radio interception to resolve forces regardless of terrain.
+3. **Technical Boundaries & Future Note:**
+   - **Zero Raycasting:** Line-of-sight raycasting, radar shadows, and mesh deformation across the `WorldGrid` are permanently rejected to preserve 60 FPS globe rendering, zero garbage collection, and intuitive player UX.
+   - **Oceanic Sonar:** Sonar strictly scans water tiles (`tile.WaterCovered == true`). Land tiles completely block sonar propagation. Future milestones may investigate ocean depth, bathymetry, and negative elevation values.
 
 ### 2.2 Planetary Radar Overlays
 
@@ -150,7 +168,6 @@ In vanilla RimWorld, right-clicking empty world tiles is inactive unless a playe
    - **Local Deployment:** If a player caravan is present on the tile and holds required cargo (100 Steel, 4 Components for Automated Relay; 150 Wood/Stone for Watchtower), an immediate 1–2 hour setup task elapses, and the lightweight `WorldObject_ListeningPost` spawns on the hex.
    - **Remote Dispatch:** Prompts to dispatch a construction caravan from the nearest colony, automatically pre-selecting the necessary outpost construction ingredients in the checklist as a preset!
 3. **Existing Outpost Context Options:**
-   - _"Reclaim Garrison"_ (absorbs garrisoned lookouts back into visiting caravan).
    - _"Dismantle Outpost"_ (salvages 75% of construction materials back into caravan).
    - _"Repair Sabotaged Station"_ (repairs stations disabled or vandalized by passing enemy incursions).
 
@@ -158,15 +175,22 @@ In vanilla RimWorld, right-clicking empty world tiles is inactive unless a playe
 
 ## 3. Detection Engine & Performance Design
 
-### 3.1 Performance on the WorldGrid
+### 3.1 Performance on the WorldGrid & Empirical Profiling Requirements
 
-RimWorld's world map can feature up to 100,000+ hex tiles depending on coverage settings (30% to 100%). Running distance calculations for moving objects on every tick will cripple ticks per second (TPS).
+RimWorld's world map can feature up to 100,000+ hex tiles depending on coverage settings (30% to 100%). Running unconstrained distance calculations or pairwise scans for moving objects will cripple ticks per second (TPS).
 
-**Optimisation Strategy:**
+**Optimisation Strategy & Performance Budget:**
 
-1. **Tick Intervals:** Detection checks do not run on `Tick()`. They run on `TickRare()` (every 250 ticks / ~4.1 seconds) or a custom 500-tick pulse cycle.
-2. **Spatial Indexing & Modern .NET 10:** Active radar installations register their tile locations into a spatial hash table. On RimWorld 1.7 (Waylith), distance queries take advantage of `.NET 10` zero-allocation primitives (`ReadOnlySpan<int>`, SIMD distance vectors, and value-type buffers) to evaluate tiles without GC churn.
-3. **Spherical Distance Queries:** Use RimWorld's native `WorldGrid.ApproxDistanceInTiles(tileA, tileB)` or precomputed spherical distance lookups rather than recalculating 3D vector distances from scratch.
+1. **Measurable Execution Budget:** The complete `SensoryManager.DoRadarSweeps` pass must execute in **$\le 1.0\text{ ms}$** total CPU time on `TickRare` (250 ticks / ~4.1 seconds) under a stress scenario of 20 radar installations and 100 active world incursions at 100% world coverage.
+2. **Zero-Allocation Policy:** Exactly **0 bytes** allocated per sweep. All bitsets, candidate lists, and query buffers must be pre-allocated and pooled.
+3. **Unity `ProfilerMarker` Instrumentation:** All sensory and collision passes are wrapped in explicit profiling markers for real-time telemetry:
+   ```csharp
+   private static readonly ProfilerMarker s_RadarSweepMarker = new("ProjectVigilance.RadarSweep");
+   private static readonly ProfilerMarker s_CollisionCheckMarker = new("ProjectVigilance.IncursionCollisions");
+   ```
+4. **Tile-Bucketed Incursion Collisions ($O(M)$):** Inter-faction collision detection completely eliminates $O(M^2)$ pairwise distance scans. On `TickRare`, incursions register their `CurrentTile` into a dictionary bucket (`Dictionary<int, List<WorldObject_Incursion>>`). Collisions trigger strictly when multiple non-allied incursions occupy identical tiles (`incA.CurrentTile == incB.CurrentTile`).
+5. **Spatial Fast-Reject & Modern .NET 10:** Active radar installations register their tile locations into a spatial hash table. On RimWorld 1.7 (Waylith), distance queries take advantage of `.NET 10` zero-allocation primitives (`ReadOnlySpan<int>`, SIMD distance vectors, and value-type buffers) to evaluate tiles without GC churn.
+6. **Spherical Fast-Reject Filter:** Before running graph traversal BFS via `TraversalDistanceBetween`, an instant vector angle check ($\vec{v}_{\text{sensor}} \cdot \vec{v}_{\text{target}} \ge \cos(\theta_{\text{max}})$) rejects targets in opposite hemispheres in single-digit CPU cycles.
 
 ### 3.2 Detection Probability Formula
 

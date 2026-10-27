@@ -77,3 +77,12 @@ Answers to common community inquiries regarding compatibility, design philosophy
 > - **Identification Ring Expansion:** Your inner identification horizon ($R_{id}$) surges outward from 10 rings (~40%) to 17 rings (~70%) and 22 rings (~92%) of your 24-ring envelope, revealing attacking faction emblems and threat ratings much earlier.
 > - **Faster Pulse Cadence:** Sweep intervals accelerate from `250 ticks` (~4.1s) down to `150 ticks` and `75 ticks`.
 > - **Fail-Safe Redundancy:** If a mortar strike or electrical fault destroys your primary dish, secondary dishes immediately maintain uninterrupted coverage.
+
+**Q: Do hills and mountains affect my radars, watchtowers, and early warnings?**
+
+> **Yes, through our "Vantage & Masking" terrain model:**
+>
+> - **Vantage Bonus (Origin Ground):** Building a Lookout Watchtower or forward outpost on high ground organically expands its visual reach: `Flat` gives baseline (8 rings), `Small Hills` gives +1 ring (9 rings), `Large Hills` gives +2 rings (10 rings), and `Mountainous` gives +3 rings (11 rings).
+> - **Terrain Masking (Hostile Ground):** Moving through `Mountainous` tiles delays classification. While an incursion hugs a mountain range, you always receive the **amber Contact blip** (speed and heading known), but attacking faction crests and headcount remain masked until the force exits into open foothills or plains.
+> - **Spacer Tech Override:** Constructing the **SIGINT Decryption Console** adjacent to a **Phased Radar Array** bypasses mountain masking entirely through tactical radio decryption and advanced synthetic aperture processing.
+> - **Zero Clutter:** Terrain never requires confusing line-of-sight raycasting or jagged radar shadow cutouts; the radar boundary remains a clean, intuitive holographic ring.
