@@ -25,7 +25,7 @@
     - _"Establish Outpost / Relay Here..."_ (instant deploy if caravan on tile; prompts outpost kit caravan from settlement if remote).
     - _"Dismantle Outpost / Repair Sabotaged Station"_ actions on existing outposts.
   - Outpost vulnerability & sabotage events from passing hostile incursions.
-- [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) with ProfilerMarker telemetry and a $\le 1.0\text{ ms}$ / 0-byte GC performance budget.
+- [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) with `DeepProfiler` telemetry (.NET 10 / Waylith) and a $\le 1.0\text{ ms}$ / 0-byte GC performance budget.
 - [ ] Build Oceanic Sonar detection layer for water hexes (`tile.WaterCovered`).
 - [ ] Two-Stage Early Warning Dispatcher: generate advance warning alerts and reveal telemetry based on radar tier.
 - [ ] **Concealed Dynamic Sites & Reconnaissance in the Haze:**

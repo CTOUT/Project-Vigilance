@@ -183,11 +183,13 @@ RimWorld's world map can feature up to 100,000+ hex tiles depending on coverage 
 
 1. **Measurable Execution Budget:** The complete `SensoryManager.DoRadarSweeps` pass must execute in **$\le 1.0\text{ ms}$** total CPU time on `TickRare` (250 ticks / ~4.1 seconds) under a stress scenario of 20 radar installations and 100 active world incursions at 100% world coverage.
 2. **Zero-Allocation Policy:** Exactly **0 bytes** allocated per sweep. All bitsets, candidate lists, and query buffers must be pre-allocated and pooled.
-3. **Unity `ProfilerMarker` Instrumentation:** All sensory and collision passes are wrapped in explicit profiling markers for real-time telemetry:
+3. **Waylith & `DeepProfiler` Instrumentation (.NET 10):** All sensory and collision passes are instrumented with RimWorld's native `DeepProfiler` blocks for in-engine diagnostic inspection via the Debug Menu:
    ```csharp
-   private static readonly ProfilerMarker s_RadarSweepMarker = new("ProjectVigilance.RadarSweep");
-   private static readonly ProfilerMarker s_CollisionCheckMarker = new("ProjectVigilance.IncursionCollisions");
+   DeepProfiler.Start("ProjectVigilance.RadarSweep");
+   try { /* sweep logic */ }
+   finally { DeepProfiler.End(); }
    ```
+   For headless stress benchmarks, .NET 10 runtime diagnostic tools (`dotnet-trace`, `System.Diagnostics.Stopwatch`) measure microsecond execution latency and GC allocations.
 4. **Tile-Bucketed Incursion Collisions ($O(M)$):** Inter-faction collision detection completely eliminates $O(M^2)$ pairwise distance scans. On `TickRare`, incursions register their `CurrentTile` into a dictionary bucket (`Dictionary<int, List<WorldObject_Incursion>>`). Collisions trigger strictly when multiple non-allied incursions occupy identical tiles (`incA.CurrentTile == incB.CurrentTile`).
 5. **Spatial Fast-Reject & Modern .NET 10:** Active radar installations register their tile locations into a spatial hash table. On RimWorld 1.7 (Waylith), distance queries take advantage of `.NET 10` zero-allocation primitives (`ReadOnlySpan<int>`, SIMD distance vectors, and value-type buffers) to evaluate tiles without GC churn.
 6. **Spherical Fast-Reject Filter:** Before running graph traversal BFS via `TraversalDistanceBetween`, an instant vector angle check ($\vec{v}_{\text{sensor}} \cdot \vec{v}_{\text{target}} \ge \cos(\theta_{\text{max}})$) rejects targets in opposite hemispheres in single-digit CPU cycles.
