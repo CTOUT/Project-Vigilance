@@ -7,13 +7,13 @@
 - [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
 - [ ] **Colony Technological Radar Infrastructure:**
   - `CompProperties_Radar` and `CompRadar` with dynamic standby vs active power scaling (`standbyPowerDraw` / `activePowerDraw`).
-  - **Multi-Dish Settlement Stacking (Interferometry & Identification Expansion):** Centred hexagonal geometry ($\text{Total} = 1 + 3n(n+1)$). Maximum detection radius $R_{detect}$ stays stable (e.g. 24 rings, $1,801$ tiles), while secondary dishes expand the inner **Identification / Classification Horizon ($R\_{id}$)** outward from ~40% (10 rings) $\rightarrow$ ~70% (17 rings) $\rightarrow$ ~92% (22 rings), accelerates sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and provides fail-safe redundancy.
+  - **Multi-Dish Settlement Stacking (Interferometry & Identification Expansion):** Traversal ring distance (Ring 0 = origin, each ring $n$ adds $6 \times n$ tiles). Maximum detection radius $R_{detect}$ stays stable at **24 rings**, while secondary dishes expand the inner **Identification / Classification Horizon ($R_{id}$)** outward from 10 rings (~40%) $\rightarrow$ 17 rings (~70%) $\rightarrow$ 22 rings (~92%), accelerates sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and provides fail-safe redundancy.
   - **Sensory Building Defs & Research Projects:**
-    - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 hexes, unpowered/manned, Contact Tier).
-    - `Geoscape_RadarSmall` (Industrial Early-Warning Dome, 14 hexes, 350W/750W, Contact Tier).
-    - `Geoscape_RadarLarge` (Spacer Phased Array, 24 hexes [$1,801$ tiles], 800W/1,800W, Classified Tier).
+    - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 rings, unpowered/manned, Contact Tier).
+    - `Geoscape_RadarSmall` (Industrial Early-Warning Dome, 14 rings, 350W/750W, Contact Tier).
+    - `Geoscape_RadarLarge` (Spacer Phased Array, 24 rings, 800W/1,800W, Classified Tier).
     - `Geoscape_SigintConsole` (Ultra SIGINT Decryption Console, `CompFacility` linkable, 700W/1,400W, upgrades Phased Array to Tier 4 Analysed).
-    - `Geoscape_SonarArray` (Industrial Coastal Hydrophone Station, 18 hexes water/coast).
+    - `Geoscape_SonarArray` (Industrial Coastal Hydrophone Station, 18 rings water/coast).
 - [ ] **Lightweight Geoscape Outposts & World Map Strategic Context Actions:**
   - `WorldObject_ListeningPost` (Zero-TPS global entity, automated solar relay vs manned lookout garrison).
   - **Civilization-Style Right-Click Hex Interaction (`FloatMenuMakerWorld`):**
