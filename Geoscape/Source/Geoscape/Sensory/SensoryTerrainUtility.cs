@@ -61,3 +61,4 @@ public static class SensoryTerrainUtility
         return tileData.hilliness == Hilliness.Mountainous || tileData.hilliness == Hilliness.Impassable;
     }
 }
+

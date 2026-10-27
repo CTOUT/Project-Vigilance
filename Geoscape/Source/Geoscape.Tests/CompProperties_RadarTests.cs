@@ -174,3 +174,4 @@ public sealed class CompProperties_RadarTests
         Assert.IsTrue(errors.Any(e => e.Contains("penetratesTerrainMasking requires maxIntelligenceTier to be at least Classified")));
     }
 }
+

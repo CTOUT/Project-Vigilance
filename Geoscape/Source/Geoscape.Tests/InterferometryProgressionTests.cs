@@ -127,3 +127,4 @@ public sealed class InterferometryProgressionTests
         Assert.AreEqual(6, effectiveIdentification, "Baseline 4 + 2 vantage = 6 rings identification.");
     }
 }
+

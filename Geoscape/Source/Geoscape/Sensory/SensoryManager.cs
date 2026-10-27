@@ -210,6 +210,18 @@ public class SensoryManager : WorldComponent
         }
 
         // 3. Registered Custom Sensors (Radar installations, listening posts, etc.)
+        if (Find.WorldObjects?.AllWorldObjects != null)
+        {
+            var all = Find.WorldObjects.AllWorldObjects;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i] is WorldObject_ListeningPost post && post.Spawned && !post.Destroyed && !customSensors.Contains(post))
+                {
+                    customSensors.Add(post);
+                }
+            }
+        }
+
         for (int i = 0; i < customSensors.Count; i++)
         {
             if (customSensors[i].IsSensorActive)

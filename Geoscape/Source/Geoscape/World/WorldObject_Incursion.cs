@@ -1575,6 +1575,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             if (currentPathIndex < pathTiles.Count)
             {
                 Tile = pathTiles[currentPathIndex];
+                CheckOutpostSabotageOnTile(Tile);
             }
             else
             {
@@ -1584,6 +1585,29 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
 
         CheckInterceptionsAndPursuits();
+    }
+
+    private void CheckOutpostSabotageOnTile(PlanetTile tile)
+    {
+        if (Faction == null || !Faction.HostileTo(Faction.OfPlayer))
+        {
+            return;
+        }
+
+        if (Find.WorldObjects?.AllWorldObjects == null)
+        {
+            return;
+        }
+
+        var posts = Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().ToList();
+        for (int i = 0; i < posts.Count; i++)
+        {
+            WorldObject_ListeningPost post = posts[i];
+            if (post.Tile == tile && post.Faction == Faction.OfPlayer && !post.IsSabotaged)
+            {
+                post.Sabotage(Faction);
+            }
+        }
     }
 
     public void ReverseCourse(string? reason = null)

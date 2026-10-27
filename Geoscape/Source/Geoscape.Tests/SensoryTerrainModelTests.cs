@@ -140,3 +140,4 @@ public sealed class SensoryTerrainModelTests
         Assert.AreEqual(IntelligenceTier.Analysed, tier, "Unmasked target inside identification radius resolves full Analysed tier.");
     }
 }
+

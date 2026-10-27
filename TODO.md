@@ -19,13 +19,13 @@
     - `Geoscape_SigintConsole` (Ultra SIGINT Decryption Console, `CompFacility` linkable, 700W/1,400W, upgrades Phased Array to Tier 4 Analysed; penetrates terrain masking).
     - `Geoscape_SonarArray` (Industrial Coastal Hydrophone Station, 18 rings water/coast; future note: bathymetry/depth).
   - **Automated Unit Testing & Verification (`Geoscape.Tests`):** Full MSTest test suite verifying `CompProperties_Radar` validation rules, multi-dish interferometry progression, and terrain masking gating. Zero compilation errors or warnings on .NET 10 / Waylith.
-- [ ] **Lightweight Geoscape Outposts & World Map Strategic Context Actions:**
+- [x] **Lightweight Geoscape Outposts & World Map Strategic Context Actions:**
   - `WorldObject_ListeningPost` (Zero-TPS global entity, 100% unmanned, automated solar relay vs medieval stone beacon; no WorldPawns garrisons).
   - **Civilization-Style Right-Click Hex Interaction (`FloatMenuMakerWorld`):**
-    - _"Dispatch Expedition Here..."_ (pre-populates and locks destination tile in `Dialog_FormCaravan`).
-    - _"Establish Outpost / Relay Here..."_ (instant deploy if caravan on tile; prompts outpost kit caravan from settlement if remote).
-    - _"Dismantle Outpost / Repair Sabotaged Station"_ actions on existing outposts.
+    - _"Establish Automated Listening Post (100 Steel, 4 Components)"_ and _"Construct Signal Beacon (150 Wood/Stone)"_ deployed directly from carried caravan inventory.
+    - _"Dismantle Outpost (Recover 75% Materials)"_ and _"Repair Sabotaged Station"_ actions on existing outposts.
   - Outpost vulnerability & sabotage events from passing hostile incursions.
+  - **Automated Unit Testing & Verification (`Geoscape.Tests`):** Full MSTest suite validating radii scaling, capped relay vantage, full beacon vantage, and 75% salvage economics. Zero compilation warnings on .NET 10 / Waylith.
 - [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) with `DeepProfiler` telemetry (.NET 10 / Waylith) and a $\le 1.0\text{ ms}$ / 0-byte GC performance budget.
 - [ ] Build Oceanic Sonar detection layer for water hexes (`tile.WaterCovered`).
 - [ ] Two-Stage Early Warning Dispatcher: generate advance warning alerts and reveal telemetry based on radar tier.
