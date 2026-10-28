@@ -112,7 +112,7 @@ public class SensoryManager : WorldComponent
         for (int i = 0; i < caravans.Count; i++)
         {
             Caravan c = caravans[i];
-            if (c != null && c.Spawned && c.Faction == Faction.OfPlayer)
+            if (c != null && c.Spawned && c.Faction?.IsPlayer == true)
             {
                 int id = c.ID;
                 if (!lastCaravanTiles.TryGetValue(id, out PlanetTile lastTile) || lastTile != c.Tile)
@@ -223,7 +223,7 @@ public class SensoryManager : WorldComponent
             for (int i = 0; i < caravans.Count; i++)
             {
                 Caravan caravan = caravans[i];
-                if (caravan.Faction == Faction.OfPlayer && caravan.Tile.Valid && caravan.Spawned && !caravan.Destroyed)
+                if (caravan.Faction?.IsPlayer == true && caravan.Tile.Valid && caravan.Spawned && !caravan.Destroyed)
                 {
                     int caravanId = caravan.ID;
                     if (!caravanSensors.TryGetValue(caravanId, out var sensor))

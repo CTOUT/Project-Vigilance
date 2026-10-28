@@ -125,7 +125,7 @@ public class HazeReconnaissanceManager : WorldComponent
 
     public void Notify_WorldObjectSpawned(WorldObject wo)
     {
-        if (wo == null || !wo.Spawned || !wo.Tile.Valid || wo.Faction == Faction.OfPlayer)
+        if (Current.ProgramState != ProgramState.Playing || wo == null || !wo.Spawned || !wo.Tile.Valid || wo.Faction?.IsPlayer == true)
         {
             return;
         }
@@ -191,7 +191,7 @@ public class HazeReconnaissanceManager : WorldComponent
                 if (target.WorldObject != null)
                 {
                     WorldObject wo = target.WorldObject;
-                    if (wo.Faction == Faction.OfPlayer || wo is WorldObject_Incursion)
+                    if (wo.Faction?.IsPlayer == true || wo is WorldObject_Incursion)
                     {
                         continue;
                     }
@@ -215,7 +215,7 @@ public class HazeReconnaissanceManager : WorldComponent
                 }
                 else if (target.Tile.Valid && !sensory.IsExplored(target.Tile))
                 {
-                    WorldObject? siteAtTile = Find.WorldObjects?.AllWorldObjects.FirstOrDefault(o => o.Tile == target.Tile && IsDynamicSite(o) && o.Faction != Faction.OfPlayer);
+                    WorldObject? siteAtTile = Find.WorldObjects?.AllWorldObjects.FirstOrDefault(o => o.Tile == target.Tile && IsDynamicSite(o) && o.Faction?.IsPlayer != true);
                     if (siteAtTile != null)
                     {
                         RegisterConcealedSite(siteAtTile, letter);
@@ -237,7 +237,7 @@ public class HazeReconnaissanceManager : WorldComponent
                     if (target.WorldObject != null)
                     {
                         WorldObject wo = target.WorldObject;
-                        if (wo.Faction != Faction.OfPlayer && !sensory.IsExplored(wo.Tile) && IsDynamicSite(wo))
+                        if (wo.Faction?.IsPlayer != true && !sensory.IsExplored(wo.Tile) && IsDynamicSite(wo))
                         {
                             RegisterConcealedSite(wo, letter);
                             Log.Message($"[Project Vigilance] Suppressed quest announcement letter '{letter.Label}' for quest target '{GetSafeSiteLabel(wo)}'.");
@@ -246,7 +246,7 @@ public class HazeReconnaissanceManager : WorldComponent
                     }
                     else if (target.Tile.Valid && !sensory.IsExplored(target.Tile))
                     {
-                        WorldObject? siteAtTile = Find.WorldObjects?.AllWorldObjects.FirstOrDefault(o => o.Tile == target.Tile && IsDynamicSite(o) && o.Faction != Faction.OfPlayer);
+                        WorldObject? siteAtTile = Find.WorldObjects?.AllWorldObjects.FirstOrDefault(o => o.Tile == target.Tile && IsDynamicSite(o) && o.Faction?.IsPlayer != true);
                         if (siteAtTile != null)
                         {
                             RegisterConcealedSite(siteAtTile, letter);

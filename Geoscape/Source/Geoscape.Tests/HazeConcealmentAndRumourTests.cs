@@ -168,6 +168,16 @@ public sealed class HazeConcealmentAndRumourTests
     }
 
     [TestMethod]
+    public void WorldObject_SpawnSetup_ConcealmentPatch_DuringWorldGen_DoesNotThrowOrQueryPlayerFaction()
+    {
+        // During world generation or when no player faction is registered yet, SpawnSetup must not query Faction.OfPlayer
+        var settlement = new Settlement { ID = 54321 };
+        
+        // Act & Assert: Invoking Postfix must complete cleanly without throwing an exception or querying Faction.OfPlayer
+        ProjectVigilance.Geoscape.Patches.WorldObject_SpawnSetup_ConcealmentPatch.Postfix(settlement);
+    }
+
+    [TestMethod]
     public void CheckUncoveredSites_PurgesStaleSitesWhenDestroyedOrUnspawned()
     {
         var manager = new HazeReconnaissanceManager(null!);

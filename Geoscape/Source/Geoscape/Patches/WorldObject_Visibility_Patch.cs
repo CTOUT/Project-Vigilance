@@ -29,7 +29,7 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            if (wo.Faction == Faction.OfPlayer)
+            if (wo.Faction?.IsPlayer == true)
             {
                 return;
             }
@@ -54,7 +54,7 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            if (worldObject.Faction == Faction.OfPlayer)
+            if (worldObject.Faction?.IsPlayer == true)
             {
                 return;
             }
@@ -76,7 +76,7 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            if (worldObject.Faction == Faction.OfPlayer)
+            if (worldObject.Faction?.IsPlayer == true)
             {
                 return;
             }
@@ -190,7 +190,7 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            if (__instance.Faction == Faction.OfPlayer)
+            if (__instance.Faction?.IsPlayer == true)
             {
                 return;
             }
@@ -212,7 +212,7 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            if (o.Faction == Faction.OfPlayer)
+            if (o.Faction?.IsPlayer == true)
             {
                 return;
             }
@@ -243,7 +243,7 @@ public static class WorldObject_Visibility_Patch
             for (int i = __result.Count - 1; i >= 0; i--)
             {
                 WorldObject wo = __result[i];
-                if (wo.Faction != Faction.OfPlayer && !sensory.IsExplored(wo.Tile))
+                if (wo.Faction?.IsPlayer != true && !sensory.IsExplored(wo.Tile))
                 {
                     __result.RemoveAt(i);
                 }
@@ -277,7 +277,7 @@ public static class WorldObject_Visibility_Patch
 
             if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
-                if (obj.Faction != Faction.OfPlayer && SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(obj.Tile))
+                if (obj.Faction?.IsPlayer != true && SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(obj.Tile))
                 {
                     return false;
                 }
@@ -318,7 +318,7 @@ public static class WorldObject_Visibility_Patch
                     continue;
                 }
 
-                if (isClassicHaze && obj.Faction != Faction.OfPlayer && sensory != null && !sensory.IsExplored(obj.Tile))
+                if (isClassicHaze && obj.Faction?.IsPlayer != true && sensory != null && !sensory.IsExplored(obj.Tile))
                 {
                     continue;
                 }

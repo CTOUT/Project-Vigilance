@@ -1,6 +1,7 @@
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
+using Verse;
 using ProjectVigilance.Geoscape.Sensory;
 
 namespace ProjectVigilance.Geoscape.Patches;
@@ -14,7 +15,7 @@ public static class WorldObject_SpawnSetup_ConcealmentPatch
 {
     public static void Postfix(WorldObject __instance)
     {
-        if (__instance == null || __instance.Faction == Faction.OfPlayer)
+        if (Current.ProgramState != ProgramState.Playing || __instance == null || __instance.Faction?.IsPlayer == true)
         {
             return;
         }

@@ -139,7 +139,7 @@ public static class BreadcrumbRumourUtility
             for (int i = 0; i < allObjects.Count; i++)
             {
                 WorldObject wo = allObjects[i];
-                if (wo.Spawned && wo.Tile.Valid && wo.Faction != Faction.OfPlayer && !sensory.IsExplored(wo.Tile) && HazeReconnaissanceManager.IsDynamicSite(wo))
+                if (wo.Spawned && wo.Tile.Valid && wo.Faction?.IsPlayer != true && !sensory.IsExplored(wo.Tile) && HazeReconnaissanceManager.IsDynamicSite(wo))
                 {
                     for (int p = 0; p < incursion.PathTiles.Count; p++)
                     {
@@ -159,7 +159,7 @@ public static class BreadcrumbRumourUtility
         for (int i = 0; i < allObjects.Count; i++)
         {
             WorldObject wo = allObjects[i];
-            if (wo.Spawned && wo.Tile.Valid && wo.Faction != Faction.OfPlayer && !sensory.IsExplored(wo.Tile) && HazeReconnaissanceManager.IsDynamicSite(wo))
+            if (wo.Spawned && wo.Tile.Valid && wo.Faction?.IsPlayer != true && !sensory.IsExplored(wo.Tile) && HazeReconnaissanceManager.IsDynamicSite(wo))
             {
                 int dist = Find.WorldGrid.TraversalDistanceBetween(settlementTile, wo.Tile, passImpassable: true, maxDist: 40);
                 if (dist > 0 && dist < minDistance)
