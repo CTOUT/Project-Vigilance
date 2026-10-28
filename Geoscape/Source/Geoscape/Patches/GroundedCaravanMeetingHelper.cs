@@ -104,7 +104,7 @@ public static class GroundedCaravanMeetingHelper
             {
                 bool matchesHostility = isHostile
                     ? (inc.Faction != null && inc.Faction.HostileTo(Faction.OfPlayer))
-                    : (inc.Faction == null || !inc.Faction.HostileTo(Faction.OfPlayer));
+                    : (inc.Faction != null && !inc.Faction.HostileTo(Faction.OfPlayer));
 
                 if (matchesHostility)
                 {
@@ -150,6 +150,26 @@ public static class GroundedCaravanMeetingHelper
         }
 
         if (faction == null) return null;
+        parms.faction = faction;
+
+        if (groupKind == IncursionGroupKind.TradeCaravan)
+        {
+            if (parms.traderKind == null && faction.def?.caravanTraderKinds != null && faction.def.caravanTraderKinds.Count > 0)
+            {
+                parms.traderKind = faction.def.caravanTraderKinds.RandomElement();
+            }
+            if (parms.points <= 0f)
+            {
+                parms.points = Math.Max(650f, StorytellerUtility.DefaultThreatPointsNow(Find.World));
+            }
+        }
+        else if (isHostile)
+        {
+            if (parms.points <= 0f)
+            {
+                parms.points = Math.Max(400f, StorytellerUtility.DefaultThreatPointsNow(Find.World));
+            }
+        }
 
         string defName = (!isHostile && groupKind == IncursionGroupKind.TradeCaravan)
             ? "Vigilance_Caravan"
@@ -229,6 +249,8 @@ public static class GroundedCaravanMeetingHelper
         int pathIdx = routePath.IndexOf(currentTile);
 
         var incursion = (WorldObject_Incursion)WorldObjectMaker.MakeWorldObject(def);
+        incursion.SetFaction(faction);
+        incursion.SetExplicitGroupKind(groupKind);
         var incidentDef = isHostile ? IncidentDefOf.RaidEnemy : IncidentDefOf.TraderCaravanArrival;
         incursion.SetupIncursion(incidentDef, parms, originTile, destinationTile, routePath, speed);
         incursion.Tile = currentTile;

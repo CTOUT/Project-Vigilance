@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- **4X Context Dispatch & Queued Outpost Construction (`CaravanExpeditionUtility`, `CaravanArrivalAction_ConstructOutpost`, `WorldSelector_HandleWorldClicks_Patch`):**
+  - **Colony Right-Click Geoscape Dispatching:** Selecting a player colony on the Geoscape and right-clicking any explored, passable hex brings up a 4X-style contextual dispatch menu (`Form caravan to Tile {tile}`, `Dispatch Construction Expedition: Automated Listening Post`, `Dispatch Construction Expedition: Signal Beacon`).
+  - **Automated Supply Pre-allocation:** Dispatched construction expeditions automatically pre-allocate the exact required construction materials (100 Steel + 4 Components for Automated Relays, or 150 Wood/Stone blocks for Signal Beacons) directly into `Dialog_FormCaravan` item transfer list, locking the route planner destination to the chosen hex.
+  - **Autonomous Arrival Execution (`CaravanArrivalAction_ConstructOutpost`):** Dispatched caravans automatically construct and activate their listening post or signal beacon upon arrival at the destination hex, displaying clear status progression (`travelling to establish automated listening post`) during transit.
+  - **Distant Caravan Right-Click Orders (`FloatMenuMakerWorld_ChoicesAtFor_Patch`):** Selecting an active caravan and right-clicking any distant hex offers immediate choices to move or travel and construct outposts upon arrival.
+- **Incursion Faction & Encounter Dialogue Fixes (`GroundedCaravanMeetingHelper`, `IncursionInterceptionUtility`, `WorldObject_Incursion`):**
+  - Guaranteed robust non-null faction assignment for grounded storyteller caravan events, resolving `Tried to generate pawn kinds with null faction`.
+  - Explicit group kind synchronization (`incursion.SetExplicitGroupKind(groupKind)`), eliminating contradictory encounter dialogues where friendly traders and travellers were mistakenly presented as "hostile warbands".
 - **Waylith Native `DeepProfiler` Instrumentation & Telemetry (`SensoryManager`, `InterFactionEncounterManager`):**
   - Native RimWorld / Waylith `Verse.DeepProfiler.Start` and `Verse.DeepProfiler.End` instrumentation blocks wrapping all core geoscape sensory passes:
     - `ProjectVigilance.PerformSensorySweep`: complete 250-tick sensory sweep execution.

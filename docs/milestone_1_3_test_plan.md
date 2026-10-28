@@ -195,34 +195,37 @@ _Objective: Validate 3D native mesh rendering, boundary rings, holographic honey
 
 _Objective: Validate zero-TPS unmanned outposts, right-click caravan construction, incursion sabotage, repair, and salvage economics._
 
-#### 5.1 Caravan Right-Click Deployment & Material Tracking
+#### 5.1 4X Colony Dispatch, Queued Construction & Material Tracking
 
-1. Form a player caravan from your colony with 2 colonists and pack animals carrying:
-   - 200 Steel
-   - 10 Components
-   - 300 Wood
-   - 300 Granite Blocks (or any stone blocks)
-2. Move the caravan 10–15 tiles away from the colony onto a strategic world hex (e.g. a mountain pass or road choke point).
-3. While the caravan is stationed on the tile, **Right-Click** the current hex:
+##### 5.1.1 Colony Right-Click Geoscape Dispatching
+1. Select your Colony Settlement on the Geoscape globe.
+2. **Right-Click** any explored, passable hex 8–15 tiles away:
    - **Verify Context Menu:** The following options appear:
-     - `Establish Automated Listening Post (100 Steel, 4 Components)`
-     - `Construct Signal Beacon (150 Wood/Stone)`
-4. Select `Establish Automated Listening Post`:
-   - **Verify Material Deduction:** Caravan inventory immediately deducts exactly 100 Steel and 4 Components.
-   - **Verify World Object Spawn:** A new world entity **Automated Listening Post** spawns on the hex.
-   - **Verify Sensor Envelope:** A 12-ring sensory detection perimeter ($R_{detect} = 12$, $R_{id} = 5$ baseline) appears around the outpost on the world map.
-   - **Zero-TPS & Pawn Integrity Check:**
-     - Inspect the outpost: verify it is 100% unmanned (no colonist roster).
-     - Check `WorldPawns` in Dev Console: verify zero colonists were transferred to world pawns.
-     - Verify no tactical colony map or background ticking map was created.
-5. In a separate hex, right-click with the caravan and select `Construct Signal Beacon`:
-   - If caravan holds both wood and stone, verify prompt or menu item specifies the material chosen.
-   - Select stone blocks (e.g. Granite blocks):
-     - **Verify Material Deduction:** Exactly 150 Granite blocks are deducted.
-     - **Verify Material Tracking (`stuffDef`):** Inspect the spawned Signal Beacon on the World Map:
-       - **Label:** Displays `Granite blocks Signal Beacon`.
-       - **Inspect String:** Displays `Type: Signal Beacon (Granite blocks)`.
-       - **Sensor Envelope:** A 6-ring detection perimeter ($R_{detect} = 6$, $R_{id} = 3$ baseline) appears on the world map.
+     - `Form caravan to Tile [TileID]`
+     - `Dispatch Construction Expedition: Automated Listening Post (100 Steel, 4 Components)`
+     - `Dispatch Construction Expedition: Signal Beacon (150 Wood/Stone)`
+3. Select `Dispatch Construction Expedition: Automated Listening Post`:
+   - **Verify Dialog Open:** Vanilla's `Dialog_FormCaravan` opens with the destination route locked to the target hex.
+   - **Verify Automated Pre-allocation:** In the Items tab, exactly 100 Steel and 4 Components are automatically pre-selected.
+   - **Verify Notification:** A confirmation message indicates supplies have been pre-allocated.
+4. Select 1 colonist and sufficient travel provisions, then click **Accept**:
+   - Once the colonists exit the map boundary, inspect the caravan on the world map.
+   - **Verify Caravan Status:** Status displays `travelling to establish automated listening post`.
+   - Fast-forward time until the caravan reaches the destination hex.
+   - **Verify Autonomous Deployment:** Upon stepping onto the hex, the caravan automatically consumes the 100 Steel and 4 Components, spawning an **Automated Listening Post** without requiring manual context menu interaction!
+
+##### 5.1.2 Distant Caravan Right-Click Orders & Local Deployment
+1. With an active player caravan selected on the Geoscape carrying building materials:
+2. **Right-Click** a distant passable hex:
+   - **Verify Context Menu:** Options appear:
+     - `Move to Tile [TileID]`
+     - `Travel and deploy Automated Listening Post (100 Steel, 4 Components)`
+     - `Travel and construct Signal Beacon (150 Wood/Stone)`
+3. Select `Travel and construct Signal Beacon (150 Granite blocks)`:
+   - Caravan marches to the hex, displaying `travelling to construct signal beacon (Granite blocks)`.
+   - Upon arrival, the Signal Beacon deploys automatically with material tracking (`Granite blocks Signal Beacon`).
+4. While a caravan is stationed on a hex without an outpost, **Right-Click** its current hex:
+   - **Verify Local Deployment:** Provides immediate local deployment options (`Establish Automated Listening Post` / `Construct Signal Beacon`).
 
 #### 5.2 Hostile Incursion Traversal & Sabotage
 

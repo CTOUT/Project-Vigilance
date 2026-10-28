@@ -176,7 +176,7 @@ public static class OutpostMaterialUtility
             return false;
         }
 
-        if (def == ThingDefOf.WoodLog)
+        if (def == ThingDefOf.WoodLog || def.defName == "WoodLog")
         {
             return true;
         }

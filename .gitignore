@@ -5,6 +5,9 @@ dist/
 Build/
 Output/
 
+# Temporary reference material
+references/
+
 # IDE and Editor artefacts
 .vs/
 .vscode/*

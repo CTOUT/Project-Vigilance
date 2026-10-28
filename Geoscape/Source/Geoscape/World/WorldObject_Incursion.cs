@@ -996,6 +996,18 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         {
             SetFaction(parms.faction);
         }
+        else if (Faction == null)
+        {
+            bool isRaid = def == IncidentDefOf.RaidEnemy || (def?.defName.Contains("Raid") == true);
+            Faction? fallback = isRaid
+                ? Find.FactionManager?.AllFactions?.FirstOrDefault(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden)
+                : Find.FactionManager?.AllFactions?.FirstOrDefault(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden);
+            if (fallback != null)
+            {
+                parms.faction = fallback;
+                SetFaction(fallback);
+            }
+        }
 
         if (parms.traderKind != null)
         {

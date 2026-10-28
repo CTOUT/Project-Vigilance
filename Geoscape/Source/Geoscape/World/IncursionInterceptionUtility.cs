@@ -72,7 +72,13 @@ public static class IncursionInterceptionUtility
         }
         if (baseParms.faction == null)
         {
-            baseParms.faction = incursion.Faction;
+            baseParms.faction = incursion.Faction ?? (isTrader || isVisitorOrTraveler
+                ? Find.FactionManager?.AllFactions?.FirstOrDefault(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden)
+                : Find.FactionManager?.AllFactions?.FirstOrDefault(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden));
+            if (incursion.Faction == null && baseParms.faction != null)
+            {
+                incursion.SetFaction(baseParms.faction);
+            }
         }
 
         PawnGroupKindDef groupKind = isTrader
