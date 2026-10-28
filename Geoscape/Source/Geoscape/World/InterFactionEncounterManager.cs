@@ -130,12 +130,13 @@ public class InterFactionEncounterManager : WorldComponent
     /// </summary>
     public void IndexAllIncursions()
     {
-        if (IncursionProviderOverride != null)
+        var overrideList = IncursionProviderOverride;
+        if (overrideList != null)
         {
-            for (int i = 0; i < IncursionProviderOverride.Count; i++)
+            for (int i = 0; i < overrideList.Count; i++)
             {
-                var inc = IncursionProviderOverride[i];
-                if ((Find.World == null || inc.Spawned) && !inc.Destroyed && !inc.IsEngagedInTacticalMap)
+                var inc = overrideList[i];
+                if (inc != null && (Find.World == null || inc.Spawned) && !inc.Destroyed && !inc.IsEngagedInTacticalMap)
                 {
                     IndexIncursion(inc);
                 }

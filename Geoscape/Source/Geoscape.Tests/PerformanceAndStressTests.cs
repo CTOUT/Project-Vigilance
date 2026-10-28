@@ -16,6 +16,7 @@ namespace Geoscape.Tests;
 /// - Waylith DeepProfiler native instrumentation validation.
 /// </summary>
 [TestClass]
+[DoNotParallelize]
 public sealed class PerformanceAndStressTests
 {
     [TestInitialize]
@@ -84,7 +85,7 @@ public sealed class PerformanceAndStressTests
         sensoryManager.PerformSensorySweep();
 
         // JIT warm-up passes to ensure all call sites are compiled before measuring
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 30; i++)
         {
             sensoryManager.PerformSensorySweep();
         }
@@ -135,7 +136,7 @@ public sealed class PerformanceAndStressTests
         encounterManager.CheckInterFactionCollisions();
 
         // JIT warm-up passes
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 30; i++)
         {
             encounterManager.CheckInterFactionCollisions();
         }
