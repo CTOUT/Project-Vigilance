@@ -8,7 +8,7 @@
     <description>An elevated observation watchtower constructed from timber or dressed stone. Provides passive optical scanning of the surrounding horizon for early detection of approaching world-map incursions. Elevated topography grants significant vantage range bonuses.</description>
     <graphicData>
       <texPath>Things/Building/Furniture/SteleLarge</texPath>
-      <graphicClass>Graphic_Single</graphicClass>
+      <graphicClass>Graphic_Random</graphicClass>
       <drawSize>(2, 2)</drawSize>
       <shadowData>
         <volume>(1.8, 1.8, 1.8)</volume>
@@ -74,7 +74,7 @@
     <altitudeLayer>Building</altitudeLayer>
     <passability>Impassable</passability>
     <castEdgeShadows>true</castEdgeShadows>
-    <fillPercent>0.65</fillPercent>
+    <fillPercent>1.0</fillPercent>
     <designationCategory>Security</designationCategory>
     <terrainAffordanceNeeded>Heavy</terrainAffordanceNeeded>
     <techLevel>Industrial</techLevel>
@@ -137,7 +137,7 @@
     <altitudeLayer>Building</altitudeLayer>
     <passability>Impassable</passability>
     <castEdgeShadows>true</castEdgeShadows>
-    <fillPercent>0.80</fillPercent>
+    <fillPercent>1.0</fillPercent>
     <designationCategory>Security</designationCategory>
     <terrainAffordanceNeeded>Heavy</terrainAffordanceNeeded>
     <techLevel>Spacer</techLevel>
@@ -263,7 +263,7 @@
     <altitudeLayer>Building</altitudeLayer>
     <passability>Impassable</passability>
     <castEdgeShadows>true</castEdgeShadows>
-    <fillPercent>0.60</fillPercent>
+    <fillPercent>1.0</fillPercent>
     <designationCategory>Security</designationCategory>
     <terrainAffordanceNeeded>Heavy</terrainAffordanceNeeded>
     <techLevel>Industrial</techLevel>
