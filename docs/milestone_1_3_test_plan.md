@@ -10,7 +10,7 @@ It covers multi-dish radar interferometry, dynamic power scaling, Model B+ terra
 
 | Test Case | Feature Under Test                                  | Expected Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Status             | Primary Screen / Tool                     |
 | :-------- | :-------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------- | :---------------------------------------- |
-| **TC-01** | Multi-Dish Radar & Interferometry Progression       | • 1 Dish: $R_{detect} = 24$ rings, $R_{id} = 10$ rings, 250-tick sweep cadence.<br>• 2 Dishes: $R_{detect} = 24$ rings, $R_{id} = 17$ rings, 150-tick cadence.<br>• 3 Dishes: $R_{detect} = 24$ rings, $R_{id} = 22$ rings, 75-tick cadence.<br>• Dynamic power scaling: 800W standby $\rightarrow$ 1,800W active when tracking targets.<br>• Redundancy: cutting power to any dish gracefully falls back to the lower tier.                                                                                                               | **Ready for Test** | Colony Map / Power Grid / World Map       |
+| **TC-01** | Multi-Dish Radar & Interferometry Progression       | • 1 Dish: $R_{detect} = 24$ rings, $R_{id} = 10$ rings, locked 250-tick sweep cadence.<br>• 2 Dishes: $R_{detect} = 24$ rings, $R_{id} = 17$ rings (locked 250-tick cadence).<br>• 3 Dishes: $R_{detect} = 24$ rings, $R_{id} = 22$ rings (locked 250-tick cadence).<br>• Dynamic power scaling: 800W standby $\rightarrow$ 1,800W active when tracking targets.<br>• Redundancy: cutting power to any dish gracefully falls back to the lower tier.                                                                                       | **Ready for Test** | Colony Map / Power Grid / World Map       |
 | **TC-02** | Model B+ Vantage & Mountain Masking                 | • Origin Vantage: Lookouts gain $+1$ to $+3$ rings on hills/mountains; high-tech radars gain $+1$ to $+2$ rings to $R_{id}$.<br>• Target Terrain Masking: Incursions in `Mountainous` hexes remain held at Contact tier (amber blip) even within $R_{id}$.<br>• Terrain Exit: Moving into open plains immediately elevates to Classified/Analysed.<br>• SIGINT Console: Linked facility penetrates terrain masking and unlocks Tier 4 Analysed telemetry.                                                                                  | **Ready for Test** | World Map / Inspector / Dev Console       |
 | **TC-03** | Oceanic Hydrophone Sonar Station                    | • Coastal sonar array (`Geoscape_SonarArray`) restricts acoustic tracking strictly to water-covered hexes (`tile.WaterCovered`).<br>• Adjacent overland hexes within the 18-ring envelope remain completely unmonitored.                                                                                                                                                                                                                                                                                                                   | **Ready for Test** | Colony Map / World Map / Coastal Tile     |
 | **TC-04** | Tactical Radar Overlay & Globe UX                   | • Native 3D mesh overlay renders glowing perimeter boundary rings and hexagonal holographic honeycomb grid on the globe.<br>• Configurable display modes: `Boundary & Grid`, `Boundary Only`, `None`.<br>• 5 color palettes: Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White.<br>• Inward distance fade and dynamic sensor movement updates.                                                                                                                                                               | **Ready for Test** | World Map / Mod Settings                  |
@@ -47,7 +47,7 @@ It covers multi-dish radar interferometry, dynamic power scaling, Model B+ terra
 
 ### Test 1: Multi-Dish Radar Construction & Interferometry Stacking (`TC-01`)
 
-_Objective: Validate multi-dish interferometry progression, sweep cadence acceleration, dynamic power scaling, and fail-safe redundancy._
+_Objective: Validate multi-dish interferometry progression, locked 250-tick sweep cadence, dynamic power scaling, and fail-safe redundancy._
 
 #### 1.1 Single Dish Baseline
 
@@ -71,7 +71,7 @@ _Objective: Validate multi-dish interferometry progression, sweep cadence accele
      - `Interferometry: 2 Dishes Linked (Sync Tier 2)`
      - `Detection Radius: 24 rings (Fixed)`
      - `Identification Horizon: 17 rings (~70% coverage)`
-     - `Sweep Cadence: 150 ticks (~2.5s)`
+     - `Sweep Cadence: 250 ticks (~4.1s, locked)`
 3. Switch to the World Map:
    - **Verify:** The inner identification boundary ring expands outward from 10 rings to 17 rings.
 
@@ -83,7 +83,7 @@ _Objective: Validate multi-dish interferometry progression, sweep cadence accele
      - `Interferometry: 3 Dishes Linked (Sync Tier 3 - Maximum)`
      - `Detection Radius: 24 rings (Fixed)`
      - `Identification Horizon: 22 rings (~92% coverage)`
-     - `Sweep Cadence: 75 ticks (~1.25s)`
+     - `Sweep Cadence: 250 ticks (~4.1s, locked)`
 3. Switch to the World Map:
    - **Verify:** The inner identification horizon ring expands to 22 rings, almost matching the outer perimeter.
 
@@ -95,10 +95,10 @@ _Objective: Validate multi-dish interferometry progression, sweep cadence accele
 3. As the incursion enters the 24-ring detection perimeter:
    - **Verify:** Power consumption dynamically scales from 800W to **1,800W active** per dish.
 4. While the target is being tracked, select Dish 3 and cut power (flick switch off or deconstruct a power conduit):
-   - **Verify:** The colony radar array immediately and gracefully degrades to Tier 2 ($R_{id} = 17$ rings, 150-tick cadence).
+   - **Verify:** The colony radar array immediately and gracefully degrades to Tier 2 ($R_{id} = 17$ rings, locked 250-tick cadence).
    - **Verify:** No null-reference exceptions or UI glitches occur in the debug log (`~`).
 5. Reconnect power to Dish 3:
-   - **Verify:** The array restores Tier 3 synchronisation ($R_{id} = 22$ rings, 75-tick cadence) on the very next sweep.
+   - **Verify:** The array restores Tier 3 synchronisation ($R_{id} = 22$ rings, locked 250-tick cadence) on the very next sweep.
 
 ---
 

@@ -18,6 +18,7 @@ public class CompRadar : ThingComp, ISensorProvider
     private CompPowerTrader? cachedPowerTrader;
     private int cachedTrackedCount;
     private int cachedVantageBonus;
+    private int lastTrackedUpdateTick = -1;
 
     public CompProperties_Radar Props => (CompProperties_Radar)props;
 
@@ -203,8 +204,9 @@ public class CompRadar : ThingComp, ISensorProvider
         }
     }
 
-    public bool CanDetect(IDetectableTarget target)
+    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
     {
+        distance = -1;
         if (!IsSensorActive || !SensorTile.Valid || !target.CurrentTile.Valid)
         {
             return false;
@@ -225,18 +227,22 @@ public class CompRadar : ThingComp, ISensorProvider
         }
 
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        if (SensoryManager.DistanceCalculationOverride != null)
+        int d = SensoryManager.DistanceCalculationOverride != null
+            ? SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps)
+            : (Find.World?.grid != null
+                ? Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
+                : Math.Abs(SensorTile.tileId - target.CurrentTile.tileId));
+
+        if (d <= maxSteps)
         {
-            return SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps) <= maxSteps;
+            distance = d;
+            return true;
         }
 
-        if (Find.World?.grid != null)
-        {
-            return Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps) <= maxSteps;
-        }
-
-        return Math.Abs(SensorTile.tileId - target.CurrentTile.tileId) <= maxSteps;
+        return false;
     }
+
+    public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
 
     #endregion
 
@@ -254,6 +260,12 @@ public class CompRadar : ThingComp, ISensorProvider
             return 0;
         }
 
+        int currentTick = (Current.Game != null && Find.TickManager != null) ? Find.TickManager.TicksGame : -1;
+        if (currentTick >= 0 && lastTrackedUpdateTick == currentTick)
+        {
+            return cachedTrackedCount;
+        }
+
         SensoryManager? sensory = SensoryManager.Instance;
         if (sensory != null)
         {
@@ -261,6 +273,7 @@ public class CompRadar : ThingComp, ISensorProvider
             if (targets == null || targets.Count == 0)
             {
                 cachedTrackedCount = 0;
+                lastTrackedUpdateTick = currentTick;
                 return 0;
             }
 
@@ -279,6 +292,7 @@ public class CompRadar : ThingComp, ISensorProvider
             }
 
             cachedTrackedCount = count;
+            lastTrackedUpdateTick = currentTick;
             return count;
         }
 
@@ -295,10 +309,12 @@ public class CompRadar : ThingComp, ISensorProvider
             }
 
             cachedTrackedCount = count;
+            lastTrackedUpdateTick = currentTick;
             return count;
         }
 
         cachedTrackedCount = 0;
+        lastTrackedUpdateTick = currentTick;
         return 0;
     }
 

@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Streamlined world context actions: Right-click hex to construct outposts from carried caravan inventory, dismantle for 75% material recovery, or repair sabotaged stations.
 - **Colony Technological Radar Infrastructure & Dual-Ring Interferometry (`CompRadar`, `CompProperties_Radar`):**
   - Explicit integer traversal rings across 5 sensory building tiers (Lookout Watchtower, Small Radar Dome, Phased Radar Array, SIGINT Decryption Console, Coastal Sonar Station).
-  - Multi-dish interferometry: Fixed $R_{detect} = 24\text{ rings}$, synthetic aperture expanding $R_{id} = 10 \rightarrow 17 \rightarrow 22\text{ rings}$, accelerating sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and providing fail-safe redundancy.
+  - Multi-dish interferometry: Fixed $R_{detect} = 24\text{ rings}$, synthetic aperture expanding $R_{id} = 10 \rightarrow 17 \rightarrow 22\text{ rings}$ at a locked 250-tick sweep cadence, and providing fail-safe redundancy.
   - Dynamic standby vs active power scaling (350W/750W, 800W/1,800W, 700W/1,400W).
   - Model B+ "Vantage & Masking": High ground grants origin vantage bonuses (+1 to +3 rings); Mountainous terrain delays target classification until exiting into plains or decrypted by Spacer Phased Array + SIGINT.
 - **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):**

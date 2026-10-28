@@ -9,12 +9,16 @@ using Verse;
 namespace Geoscape.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class HazeConcealmentAndRumourTests
 {
     [TestCleanup]
     public void Cleanup()
     {
         HazeReconnaissanceManager.Instance = null;
+        HazeReconnaissanceManager.WorldObjectLookupOverride = null;
+        SensoryManager.Instance = null;
+        SensoryManager.IsExploredOverride = null;
     }
 
     [TestMethod]
@@ -95,10 +99,12 @@ public sealed class HazeConcealmentAndRumourTests
         var patch1 = typeof(ProjectVigilance.Geoscape.Patches.LetterStack_ReceiveLetter_Patch);
         var patch2 = typeof(ProjectVigilance.Geoscape.Patches.TimeoutComp_CompTick_Patch);
         var patch3 = typeof(ProjectVigilance.Geoscape.Patches.WorldObject_SpawnSetup_ConcealmentPatch);
+        var patch4 = typeof(ProjectVigilance.Geoscape.Patches.WorldObject_PostRemove_Patch);
 
         harmony.CreateClassProcessor(patch1).Patch();
         harmony.CreateClassProcessor(patch2).Patch();
         harmony.CreateClassProcessor(patch3).Patch();
+        harmony.CreateClassProcessor(patch4).Patch();
     }
 
     [TestMethod]
@@ -145,5 +151,67 @@ public sealed class HazeConcealmentAndRumourTests
         bool uncovered = manager.UncoverSite(site, suppressDiscoveryLetter: true);
         Assert.IsTrue(uncovered);
         Assert.IsFalse(manager.IsSiteConcealed(site));
+    }
+
+    [TestMethod]
+    public void WorldObject_PostRemove_RemovesConcealedSiteFromHazeReconnaissanceManager()
+    {
+        var manager = new HazeReconnaissanceManager(null!);
+        HazeReconnaissanceManager.Instance = manager;
+
+        var site = new Site { ID = 9922 };
+        manager.RegisterConcealedSite(site);
+        Assert.IsTrue(manager.IsSiteConcealed(site));
+
+        ProjectVigilance.Geoscape.Patches.WorldObject_PostRemove_Patch.Postfix(site);
+        Assert.IsFalse(manager.IsSiteConcealed(site), "PostRemove must purge the site from concealedSites.");
+    }
+
+    [TestMethod]
+    public void CheckUncoveredSites_PurgesStaleSitesWhenDestroyedOrUnspawned()
+    {
+        var manager = new HazeReconnaissanceManager(null!);
+        HazeReconnaissanceManager.Instance = manager;
+        var sensory = new SensoryManager(null!);
+        SensoryManager.Instance = sensory;
+
+        var siteSpawned = new Site { ID = 8844 };
+        HarmonyLib.Traverse.Create(siteSpawned).Field("spawned").SetValue(true);
+
+        var siteDestroyed = new Site { ID = 8845 };
+        HarmonyLib.Traverse.Create(siteDestroyed).Field("spawned").SetValue(true);
+        HarmonyLib.Traverse.Create(siteDestroyed).Field("destroyed").SetValue(true);
+
+        var siteMissing = new Site { ID = 8846 };
+
+        manager.RegisterConcealedSite(siteSpawned);
+        manager.RegisterConcealedSite(siteDestroyed);
+        manager.RegisterConcealedSite(siteMissing);
+
+        Assert.IsTrue(manager.IsSiteConcealed(siteSpawned));
+        Assert.IsTrue(manager.IsSiteConcealed(siteDestroyed));
+        Assert.IsTrue(manager.IsSiteConcealed(siteMissing));
+
+        // Provide lookup override: 8844 is spawned, 8845 is destroyed, 8846 is null (missing/despawned)
+        HazeReconnaissanceManager.WorldObjectLookupOverride = id => id switch
+        {
+            8844 => siteSpawned,
+            8845 => siteDestroyed,
+            _ => null
+        };
+        SensoryManager.IsExploredOverride = _ => false;
+
+        // Act: Run CheckUncoveredSites while tile is unexplored
+        manager.CheckUncoveredSites();
+
+        // 8845 (destroyed) and 8846 (missing) must be purged from concealedSites
+        Assert.IsTrue(manager.IsSiteConcealed(siteSpawned), "Spawned non-destroyed site on unexplored tile must remain concealed.");
+        Assert.IsFalse(manager.IsSiteConcealed(siteDestroyed), "Destroyed site must be purged from concealedSites.");
+        Assert.IsFalse(manager.IsSiteConcealed(siteMissing), "Despawned/missing site must be purged from concealedSites.");
+
+        // When explored, spawned site should be uncovered
+        SensoryManager.IsExploredOverride = _ => true;
+        manager.CheckUncoveredSites();
+        Assert.IsFalse(manager.IsSiteConcealed(siteSpawned), "Site must be uncovered when sensory explores its tile.");
     }
 }

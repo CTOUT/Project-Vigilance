@@ -86,12 +86,63 @@ public static class OutpostMaterialUtility
         return total;
     }
 
-    public static void TakeWoodOrStone(Caravan caravan, int count)
+    public static List<ThingDef> GetAvailableBeaconMaterials(Caravan caravan)
+    {
+        var result = new List<ThingDef>();
+        if (caravan == null) return result;
+
+        List<Thing> items = CaravanInventoryUtility.AllInventoryItems(caravan);
+        for (int i = 0; i < items.Count; i++)
+        {
+            ThingDef def = items[i].def;
+            if (IsWoodOrStone(def) && !result.Contains(def))
+            {
+                result.Add(def);
+            }
+        }
+        return result;
+    }
+
+    public static ThingDef? FindDominantMaterial(Caravan caravan, int minCount)
+    {
+        if (caravan == null) return null;
+
+        List<Thing> items = CaravanInventoryUtility.AllInventoryItems(caravan);
+        var counts = new Dictionary<ThingDef, int>();
+        for (int i = 0; i < items.Count; i++)
+        {
+            Thing t = items[i];
+            if (IsWoodOrStone(t.def))
+            {
+                counts.TryGetValue(t.def, out int c);
+                c += t.stackCount;
+                if (c >= minCount)
+                {
+                    return t.def;
+                }
+                counts[t.def] = c;
+            }
+        }
+        return null;
+    }
+
+    public static ThingDef? TakeWoodOrStone(Caravan caravan, int count)
     {
         if (caravan == null || count <= 0)
         {
-            return;
+            return null;
         }
+
+        ThingDef? dominant = FindDominantMaterial(caravan, count);
+        if (dominant != null)
+        {
+            TakeItem(caravan, dominant, count);
+            return dominant;
+        }
+
+        ThingDef? primaryDef = null;
+        int maxTaken = 0;
+        var takenPerDef = new Dictionary<ThingDef, int>();
 
         int remaining = count;
         CaravanInventoryUtility.TakeThings(caravan, t =>
@@ -100,10 +151,22 @@ public static class OutpostMaterialUtility
             {
                 int toTake = Mathf.Min(remaining, t.stackCount);
                 remaining -= toTake;
+
+                takenPerDef.TryGetValue(t.def, out int current);
+                int newTotal = current + toTake;
+                takenPerDef[t.def] = newTotal;
+                if (newTotal > maxTaken)
+                {
+                    maxTaken = newTotal;
+                    primaryDef = t.def;
+                }
+
                 return toTake;
             }
             return 0;
         });
+
+        return primaryDef ?? ThingDefOf.WoodLog;
     }
 
     public static bool IsWoodOrStone(ThingDef def)
@@ -160,9 +223,15 @@ public static class OutpostMaterialUtility
         TakeItem(caravan, ThingDefOf.ComponentIndustrial, AutomatedRelayComponentCost);
     }
 
-    public static void ConsumeSignalBeaconDeployment(Caravan caravan)
+    public static ThingDef? ConsumeSignalBeaconDeployment(Caravan caravan, ThingDef? specificMaterial = null)
     {
-        TakeWoodOrStone(caravan, SignalBeaconWoodOrStoneCost);
+        if (specificMaterial != null)
+        {
+            TakeItem(caravan, specificMaterial, SignalBeaconWoodOrStoneCost);
+            return specificMaterial;
+        }
+
+        return TakeWoodOrStone(caravan, SignalBeaconWoodOrStoneCost);
     }
 }
 

@@ -22,7 +22,7 @@ Radar and sensor facilities can be constructed at player colonies or deployed as
 | **SIGINT Decryption Console**       |        Ultra         | Facility Linker (`CompFacility`) |       _Attached to Array_       |         _Matches Array_          |          700 W / 1,400 W          | **Upgrades to Tier 4 (_Analysed_)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. Penetrates terrain masking. |
 | **Coastal Sonar Station**           |      Industrial      |             Building             |      **18 rings (Water)**       |             8 rings              |          500 W / 1,200 W          |           Coastal / Ocean           | Shoreline hydrophone array monitoring maritime transit and aquatic incursions on water tiles (`tile.WaterCovered`).                                                   |
 | **Listening Post: Automated Relay** | Industrial / Spacer  |           WorldObject            |    **12 rings** _(+Vantage)_    |             5 rings              |         Standalone Solar          |         Tier 2 (_Contact_)          | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. 100% unmanned. Capped vantage (+1 to +2 rings).                                      |
-| **Listening Post: Signal Beacon**   | Neolithic / Medieval |           WorldObject            |    **6 rings** _(+Vantage)_     |             2 rings              |          0 W (Unpowered)          |         Tier 2 (_Contact_)          | Unmanned timber or stone signal beacon deployed by caravans. Full optical vantage (+1 to +3 rings on high ground).                                                    |
+| **Listening Post: Signal Beacon**   | Neolithic / Medieval |           WorldObject            |    **6 rings** _(+Vantage)_     |             3 rings              |          0 W (Unpowered)          |         Tier 2 (_Contact_)          | Unmanned timber or stone signal beacon deployed by caravans. Full optical vantage (+1 to +3 rings on high ground).                                                    |
 
 #### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Identification Expansion)
 
@@ -43,9 +43,7 @@ When multiple radar installations operate on the same colony map:
      - **2 Dishes (+Interferometry):** $R_{detect} = 24$ rings; $R_{id} =$ **17 rings** (~70% radius). High-resolution synthetic aperture resolves faction insignia and force size much earlier.
      - **3 Dishes (+Full Aperture):** $R_{detect} = 24$ rings; $R_{id} =$ **22 rings** (~92% radius). Near-instant classification across almost the entire radar envelope.
 4. **Temporal Resolution (Sweep Cadence):**
-   - **1 Dish:** Sweeps every `250 ticks` (~4.1s) in discrete pulses.
-   - **2 Dishes:** Interleaved sweeps every `150 ticks` (~2.5s).
-   - **3 Dishes:** High-frequency tracking every `75 ticks` (~1.2s).
+   - Radar sweeps operate on a locked `250-tick` cadence (~4.1s) across all installations. Adding secondary dishes expands the inner identification horizon (10 -> 17 -> 22 rings) without accelerating the sweep cadence, preserving deterministic performance and zero-TPS stability.
 5. **Fail-Safe Redundancy:** If mortar shells, electrical faults (`Zzzt!`), or solar flares destroy or de-power the primary array, secondary dishes instantly maintain uninterrupted coverage.
 6. **Visual Representation on the Globe:** `WorldDrawLayer_RadarCoverage` renders both the outer glowing boundary ring ($R_{detect}$) and a subtle dashed/pulsing inner ring ($R_{id}$). Players visually see the inner identification ring expand outward as secondary dishes are built.
 

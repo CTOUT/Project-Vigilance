@@ -46,7 +46,7 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.SensoryRadar;
     private static readonly Vector2[] scrollPositions = new Vector2[4];
-    private static readonly float[] tabHeights = { 860f, 520f, 560f, 480f };
+    private static readonly float[] tabHeights = { 860f, 520f, 660f, 480f };
 
     public Color EffectiveRadarColor
     {
@@ -335,9 +335,9 @@ public class GeoscapeSettings : ModSettings
 
                 bool prevShowId = showIdentificationHorizon;
                 listing.CheckboxLabeled(
-                    "Show Identification Horizon (45% optical range)",
+                    "Show Identification Horizon",
                     ref showIdentificationHorizon,
-                    "Renders a concentric tactical horizon ring at 45% radar radius marking the transition where unknown contact blips ('Spotted') are optically classified into full faction, weapon, and raid intelligence ('Identified').");
+                    "Renders an inner concentric tactical horizon ring marking the transition where contact tracks are classified into faction and force intelligence. Expanded outward across discrete integer traversal rings by multi-dish radar interferometry.");
                 if (prevShowId != showIdentificationHorizon)
                 {
                     NotifyRadarVisualsChanged();
@@ -422,15 +422,17 @@ public class GeoscapeSettings : ModSettings
         Text.Font = GameFont.Small;
         listing.GapLine();
 
-        Rect infoRect = listing.GetRect(130f);
+        Rect infoRect = listing.GetRect(190f);
         Widgets.DrawBoxSolid(infoRect, new Color(0.12f, 0.15f, 0.20f, 0.6f));
         Widgets.DrawBox(infoRect);
         Rect textRect = infoRect.ContractedBy(8f);
 
-        string infoText = "Project Vigilance models information warfare. Threats beyond sensor envelopes are completely unknown. When contacts enter detection range:\n\n" +
-                          "• Tier 0 (Undetected): The incursion is shrouded in the planetary fog of war. Zero tactical knowledge.\n" +
-                          "• Tier 1 (Contact / Spotted): An unclassified blip [Contact-X / #X]. Range and velocity vector known; faction, threat points, and force makeup hidden.\n" +
-                          "• Tier 2 (Classified / Identified): Revealed upon crossing the 45% Optical Identification Horizon or scouted in the field by player scouts.";
+        string infoText = "Project Vigilance models information warfare. Threats evolve across a locked 5-tier intelligence architecture as sensor telemetry deepens:\n\n" +
+                          "• Undetected: Shrouded in planetary fog of war. Zero tactical awareness.\n" +
+                          "• Suspected: Distant cues from smoke columns, traveller rumours, or acoustic anomalies.\n" +
+                          "• Contact: Radar track or lookout visual. Planetary position, velocity vector, and heading known.\n" +
+                          "• Classified: Faction identity and force size revealed within discrete identification rings (expanded via multi-dish interferometry).\n" +
+                          "• Analysed: Full tactical breakdown (pawn headcounts, weaponry, target colony, ETA) via linked SIGINT decryption or field interception.";
 
         Widgets.Label(textRect, infoText);
 

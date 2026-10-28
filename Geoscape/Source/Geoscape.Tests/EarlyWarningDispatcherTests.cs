@@ -22,8 +22,20 @@ public class MockSensorProvider : ISensorProvider
     public bool IsOceanicSonar { get; set; } = false;
     public string SensorLabel { get; set; } = "Early-Warning Radar";
     public WorldObject? Source { get; set; } = null;
+    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
+    {
+        if (SensoryManager.DistanceCalculationOverride != null && SensorTile.Valid && target.CurrentTile.Valid)
+        {
+            int maxSteps = (int)DetectionRadiusInTiles;
+            distance = SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps);
+            return distance <= maxSteps;
+        }
 
-    public bool CanDetect(IDetectableTarget target) => true;
+        distance = 1;
+        return true;
+    }
+
+    public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
 }
 
 [TestClass]

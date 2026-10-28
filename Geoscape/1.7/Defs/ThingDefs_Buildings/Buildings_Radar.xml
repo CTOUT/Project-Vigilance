@@ -122,7 +122,7 @@
   <ThingDef ParentName="BuildingBase">
     <defName>Geoscape_RadarLarge</defName>
     <label>phased radar array</label>
-    <description>A massive steerable active electronically scanned array (AESA) station. Tracks approaching incursions across 24 planetary traversal rings. Operating multiple dishes on the same grid creates synthetic aperture interferometry, expanding the inner identification horizon (10 -> 17 -> 22 rings) and accelerating sweep frequency.</description>
+    <description>A massive steerable active electronically scanned array (AESA) station. Tracks approaching incursions across 24 planetary traversal rings. Operating multiple dishes on the same grid creates synthetic aperture interferometry, expanding the inner identification horizon (10 -> 17 -> 22 rings) at a locked 250-tick sweep cadence.</description>
     <graphicData>
       <texPath>Things/Building/Misc/LongRangeMineralScanner</texPath>
       <graphicClass>Graphic_Multi</graphicClass>

@@ -24,6 +24,18 @@ public class SensoryManager : WorldComponent
     /// </summary>
     public static Func<PlanetTile, PlanetTile, int, int>? DistanceCalculationOverride { get; set; }
 
+    [ThreadStatic]
+    private static Func<PlanetTile, bool>? isExploredOverride;
+
+    /// <summary>
+    /// Optional override for tile exploration status in test / benchmark scenarios where WorldGrid is uninitialized.
+    /// </summary>
+    public static Func<PlanetTile, bool>? IsExploredOverride
+    {
+        get => isExploredOverride;
+        set => isExploredOverride = value;
+    }
+
     private readonly List<ISensorProvider> customSensors = new(64);
     private readonly Dictionary<int, ScoutHorizonSensor> colonySensors = new(32);
     private readonly Dictionary<int, ScoutHorizonSensor> caravanSensors = new(32);
@@ -42,7 +54,13 @@ public class SensoryManager : WorldComponent
     private byte[]? exploredBytes;
     private int nextContactTrackingId = 1;
 
-    public static SensoryManager? Instance => Find.World?.GetComponent<SensoryManager>();
+    [ThreadStatic]
+    private static SensoryManager? testInstance;
+    public static SensoryManager? Instance
+    {
+        get => testInstance ?? Find.World?.GetComponent<SensoryManager>();
+        set => testInstance = value;
+    }
 
     public SensoryManager(RimWorld.Planet.World world) : base(world)
     {
@@ -401,15 +419,8 @@ public class SensoryManager : WorldComponent
                     for (int i = 0; i < activeSensors.Count; i++)
                     {
                         ISensorProvider sensor = activeSensors[i];
-                        if (sensor.CanDetect(target))
+                        if (sensor.TryGetDetectionDistance(target, out int travDist))
                         {
-                            int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
-                            int travDist = DistanceCalculationOverride != null
-                                ? DistanceCalculationOverride(sensor.SensorTile, targetTile, maxSteps)
-                                : (Find.World?.grid != null
-                                    ? Find.World.grid.TraversalDistanceBetween(sensor.SensorTile, targetTile, passImpassable: true, maxDist: maxSteps)
-                                    : Math.Abs(sensor.SensorTile.tileId - targetTile.tileId));
-
                             // Evaluate resulting intelligence tier based on identification radius, terrain masking, and sensor capabilities
                             IntelligenceTier tier = SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist, isTargetMasked);
 
@@ -623,6 +634,11 @@ public class SensoryManager : WorldComponent
 
     public bool IsExplored(PlanetTile tile)
     {
+        if (isExploredOverride != null)
+        {
+            return isExploredOverride(tile);
+        }
+
         if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;

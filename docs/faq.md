@@ -74,8 +74,7 @@ Answers to common community inquiries regarding compatibility, design philosophy
 >
 > On a spherical planet, ground radar cannot see through planetary curvature without orbital relays or forward outposts. Instead, clustering secondary dishes functions as an **interferometer** (synthetic aperture array), which expands your angular resolution:
 >
-> - **Identification Ring Expansion:** Your inner identification horizon ($R_{id}$) surges outward from 10 rings (~40%) to 17 rings (~70%) and 22 rings (~92%) of your 24-ring envelope, revealing attacking faction emblems and threat ratings much earlier.
-> - **Faster Pulse Cadence:** Sweep intervals accelerate from `250 ticks` (~4.1s) down to `150 ticks` and `75 ticks`.
+> - **Identification Ring Expansion:** Your inner identification horizon ($R_{id}$) surges outward from 10 rings (~40%) to 17 rings (~70%) and 22 rings (~92%) of your 24-ring envelope at a locked 250-tick sweep cadence, revealing attacking faction emblems and threat ratings much earlier.
 > - **Fail-Safe Redundancy:** If a mortar strike or electrical fault destroys your primary dish, secondary dishes immediately maintain uninterrupted coverage.
 
 **Q: Do hills and mountains affect my radars, watchtowers, and early warnings?**

@@ -36,6 +36,8 @@ public sealed class PerformanceAndStressTests
     public void Cleanup()
     {
         SensoryManager.DistanceCalculationOverride = null;
+        SensoryManager.IsExploredOverride = null;
+        SensoryManager.Instance = null;
         InterFactionEncounterManager.IncursionProviderOverride = null;
         SensoryTerrainUtility.TargetMaskedOverride = null;
         SensoryTerrainUtility.VantageBonusOverride = null;

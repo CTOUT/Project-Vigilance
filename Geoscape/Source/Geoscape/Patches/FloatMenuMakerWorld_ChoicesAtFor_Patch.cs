@@ -65,28 +65,60 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
 
                 // 2. Construct Signal Beacon (150 Wood/Stone)
                 bool canAffordBeacon = OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out string missingBeacon);
-                string beaconLabel = canAffordBeacon
-                    ? "Construct Signal Beacon (150 Wood/Stone)"
-                    : $"Construct Signal Beacon ({missingBeacon})";
-
-                __result.Add(new FloatMenuOption(beaconLabel, () =>
+                if (!canAffordBeacon)
                 {
-                    if (OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _))
+                    __result.Add(new FloatMenuOption($"Construct Signal Beacon ({missingBeacon})", null, MenuOptionPriority.Default)
                     {
-                        OutpostMaterialUtility.ConsumeSignalBeaconDeployment(caravan);
-                        var def = DefDatabase<WorldObjectDef>.GetNamed("Vigilance_ListeningPost_Beacon");
-                        var post = (WorldObject_ListeningPost)WorldObjectMaker.MakeWorldObject(def);
-                        post.Tile = clickedTile;
-                        post.SetFaction(Faction.OfPlayer);
-                        post.Kind = ListeningPostKind.SignalBeacon;
-                        Find.WorldObjects?.Add(post);
-                        Messages.Message("Signal beacon constructed and scanning the sector.", MessageTypeDefOf.PositiveEvent, false);
-                    }
-                }, MenuOptionPriority.Default)
+                        Disabled = true
+                    });
+                }
+                else
                 {
-                    Disabled = !canAffordBeacon
-                });
+                    List<ThingDef> materials = OutpostMaterialUtility.GetAvailableBeaconMaterials(caravan);
+                    List<ThingDef> completeMaterials = materials.Where(m => OutpostMaterialUtility.CountItem(caravan, m) >= OutpostMaterialUtility.SignalBeaconWoodOrStoneCost).ToList();
+
+                    if (completeMaterials.Count > 0)
+                    {
+                        for (int m = 0; m < completeMaterials.Count; m++)
+                        {
+                            ThingDef mat = completeMaterials[m];
+                            string beaconLabel = $"Construct Signal Beacon (150 {mat.LabelCap})";
+                            __result.Add(new FloatMenuOption(beaconLabel, () =>
+                            {
+                                if (OutpostMaterialUtility.CountItem(caravan, mat) >= OutpostMaterialUtility.SignalBeaconWoodOrStoneCost)
+                                {
+                                    ThingDef? consumed = OutpostMaterialUtility.ConsumeSignalBeaconDeployment(caravan, mat);
+                                    DeployBeacon(clickedTile, consumed ?? mat);
+                                }
+                            }, MenuOptionPriority.Default));
+                        }
+                    }
+                    else
+                    {
+                        string beaconLabel = "Construct Signal Beacon (150 Wood/Stone)";
+                        __result.Add(new FloatMenuOption(beaconLabel, () =>
+                        {
+                            if (OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _))
+                            {
+                                ThingDef? consumed = OutpostMaterialUtility.ConsumeSignalBeaconDeployment(caravan);
+                                DeployBeacon(clickedTile, consumed ?? ThingDefOf.WoodLog);
+                            }
+                        }, MenuOptionPriority.Default));
+                    }
+                }
             }
         }
+    }
+
+    private static void DeployBeacon(PlanetTile tile, ThingDef materialDef)
+    {
+        var def = DefDatabase<WorldObjectDef>.GetNamed("Vigilance_ListeningPost_Beacon");
+        var post = (WorldObject_ListeningPost)WorldObjectMaker.MakeWorldObject(def);
+        post.Tile = tile;
+        post.SetFaction(Faction.OfPlayer);
+        post.Kind = ListeningPostKind.SignalBeacon;
+        post.stuffDef = materialDef;
+        Find.WorldObjects?.Add(post);
+        Messages.Message($"Signal beacon ({materialDef.LabelCap}) constructed and scanning the sector.", MessageTypeDefOf.PositiveEvent, false);
     }
 }

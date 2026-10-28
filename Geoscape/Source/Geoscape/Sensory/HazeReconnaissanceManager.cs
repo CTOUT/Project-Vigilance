@@ -52,14 +52,24 @@ public class ConcealedSiteRecord : IExposable
 public class HazeReconnaissanceManager : WorldComponent
 {
     private Dictionary<int, ConcealedSiteRecord> concealedSites = new();
-    private readonly List<int> tmpUncoveredIds = new();
+    private readonly List<WorldObject> tmpUncoveredObjects = new();
+    private readonly List<int> tmpStaleIds = new();
     private bool isDeliveringSuppressedLetter;
 
+    [ThreadStatic]
     private static HazeReconnaissanceManager? testInstance;
     public static HazeReconnaissanceManager? Instance
     {
         get => testInstance ?? Find.World?.GetComponent<HazeReconnaissanceManager>();
         set => testInstance = value;
+    }
+
+    [ThreadStatic]
+    private static Func<int, WorldObject?>? worldObjectLookupOverride;
+    public static Func<int, WorldObject?>? WorldObjectLookupOverride
+    {
+        get => worldObjectLookupOverride;
+        set => worldObjectLookupOverride = value;
     }
 
     public IReadOnlyDictionary<int, ConcealedSiteRecord> ConcealedSites => concealedSites;
@@ -303,6 +313,28 @@ public class HazeReconnaissanceManager : WorldComponent
         Find.LetterStack.ReceiveLetter(title, body, LetterDefOf.PositiveEvent, new GlobalTargetInfo(wo));
     }
 
+    public static WorldObject? FindWorldObjectById(int id)
+    {
+        if (worldObjectLookupOverride != null)
+        {
+            return worldObjectLookupOverride(id);
+        }
+
+        var allObjects = Find.World?.worldObjects?.AllWorldObjects;
+        if (allObjects == null) return null;
+
+        for (int i = 0; i < allObjects.Count; i++)
+        {
+            WorldObject obj = allObjects[i];
+            if (obj != null && obj.ID == id)
+            {
+                return obj;
+            }
+        }
+
+        return null;
+    }
+
     public void CheckUncoveredSites()
     {
         SensoryManager? sensory = SensoryManager.Instance;
@@ -311,28 +343,42 @@ public class HazeReconnaissanceManager : WorldComponent
             return;
         }
 
-        tmpUncoveredIds.Clear();
+        bool hasWorldObjects = Find.World?.worldObjects != null;
+        if (worldObjectLookupOverride == null && !hasWorldObjects)
+        {
+            return;
+        }
+
+        tmpUncoveredObjects.Clear();
+        tmpStaleIds.Clear();
+
         foreach (var kvp in concealedSites)
         {
+            WorldObject? wo = FindWorldObjectById(kvp.Key);
+            bool isSpawned = hasWorldObjects
+                ? wo?.Spawned == true
+                : (wo != null && (HarmonyLib.Traverse.Create(wo).Field("spawned").GetValue<bool?>() ?? true));
+
+            if (wo == null || wo.Destroyed || !isSpawned)
+            {
+                tmpStaleIds.Add(kvp.Key);
+                continue;
+            }
+
             if (sensory.IsExplored(kvp.Value.tile))
             {
-                tmpUncoveredIds.Add(kvp.Key);
+                tmpUncoveredObjects.Add(wo);
             }
         }
 
-        for (int i = 0; i < tmpUncoveredIds.Count; i++)
+        for (int i = 0; i < tmpStaleIds.Count; i++)
         {
-            int id = tmpUncoveredIds[i];
-            WorldObject? wo = Find.WorldObjects?.AllWorldObjects.FirstOrDefault(o => o.ID == id);
-            if (wo != null && wo.Spawned)
-            {
-                UncoverSite(wo);
-            }
-            else
-            {
-                // Site was destroyed or despawned while concealed
-                concealedSites.Remove(id);
-            }
+            concealedSites.Remove(tmpStaleIds[i]);
+        }
+
+        for (int i = 0; i < tmpUncoveredObjects.Count; i++)
+        {
+            UncoverSite(tmpUncoveredObjects[i]);
         }
     }
 

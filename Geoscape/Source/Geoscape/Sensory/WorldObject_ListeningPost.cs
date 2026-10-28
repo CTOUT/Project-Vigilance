@@ -29,6 +29,13 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     private bool isSabotaged = false;
     private int cachedVantageBonus = 0;
     private string? customName = null;
+    public ThingDef? stuffDef = null;
+
+    public ThingDef? StuffDef
+    {
+        get => stuffDef;
+        set => stuffDef = value;
+    }
 
     public ListeningPostKind Kind
     {
@@ -53,7 +60,16 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     public override string Label
     {
-        get => customName ?? base.Label;
+        get
+        {
+            if (customName != null) return customName;
+            string baseLabel = def != null ? base.Label : (kind == ListeningPostKind.AutomatedRelay ? "Automated Sensor Relay" : "Signal Beacon");
+            if (kind == ListeningPostKind.SignalBeacon && stuffDef != null)
+            {
+                return $"{stuffDef.label} {baseLabel}";
+            }
+            return baseLabel;
+        }
     }
 
     #region ISensorProvider Implementation
@@ -120,8 +136,9 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     public bool IsOceanicSonar => false;
 
-    public bool CanDetect(IDetectableTarget target)
+    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
     {
+        distance = -1;
         if (!IsSensorActive || !SensorTile.Valid || !target.CurrentTile.Valid)
         {
             return false;
@@ -133,18 +150,22 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         }
 
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        if (SensoryManager.DistanceCalculationOverride != null)
+        int d = SensoryManager.DistanceCalculationOverride != null
+            ? SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps)
+            : (Find.World?.grid != null
+                ? Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
+                : Math.Abs(SensorTile.tileId - target.CurrentTile.tileId));
+
+        if (d <= maxSteps)
         {
-            return SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps) <= maxSteps;
+            distance = d;
+            return true;
         }
 
-        if (Find.World?.grid != null)
-        {
-            return Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps) <= maxSteps;
-        }
-
-        return Math.Abs(SensorTile.tileId - target.CurrentTile.tileId) <= maxSteps;
+        return false;
     }
+
+    public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
 
     #endregion
 
@@ -172,6 +193,7 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         Scribe_Values.Look(ref isSabotaged, "isSabotaged", false);
         Scribe_Values.Look(ref customName, "customName");
         Scribe_Values.Look(ref cachedVantageBonus, "cachedVantageBonus", 0);
+        Scribe_Defs.Look(ref stuffDef, "stuffDef");
     }
 
     #endregion
@@ -211,26 +233,13 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             return false;
         }
 
-        if (kind == ListeningPostKind.AutomatedRelay)
+        if (!HasRepairMaterials(caravan, out string missingDesc))
         {
-            if (!HasRepairMaterials(caravan, out string missingDesc))
-            {
-                Messages.Message($"Cannot repair {LabelCap}: {missingDesc}", MessageTypeDefOf.RejectInput, false);
-                return false;
-            }
-
-            ConsumeRepairMaterials(caravan);
+            Messages.Message($"Cannot repair {LabelCap}: {missingDesc}", MessageTypeDefOf.RejectInput, false);
+            return false;
         }
-        else
-        {
-            if (!HasRepairMaterials(caravan, out string missingDesc))
-            {
-                Messages.Message($"Cannot repair {LabelCap}: {missingDesc}", MessageTypeDefOf.RejectInput, false);
-                return false;
-            }
 
-            ConsumeRepairMaterials(caravan);
-        }
+        ConsumeRepairMaterials(caravan);
 
         isSabotaged = false;
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
@@ -257,10 +266,18 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         }
         else
         {
-            // Initial: 150 Wood/Stone -> 75% salvage: 112 Wood
-            Thing wood = ThingMaker.MakeThing(ThingDefOf.WoodLog);
-            wood.stackCount = 112;
-            CaravanInventoryUtility.GiveThing(caravan, wood);
+            // Initial: 150 Wood/Stone -> 75% salvage: 112 items
+            ThingDef refundDef = stuffDef ?? ThingDefOf.WoodLog;
+            int remaining = 112;
+            int stackLimit = Mathf.Max(1, refundDef.stackLimit);
+            while (remaining > 0)
+            {
+                Thing salvaged = ThingMaker.MakeThing(refundDef);
+                int countToTake = Mathf.Min(remaining, stackLimit);
+                salvaged.stackCount = countToTake;
+                remaining -= countToTake;
+                CaravanInventoryUtility.GiveThing(caravan, salvaged);
+            }
         }
 
         Messages.Message($"{LabelCap} dismantled. Salvaged materials recovered into caravan inventory.", MessageTypeDefOf.TaskCompletion, false);
@@ -317,13 +334,24 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     public override string GetInspectString()
     {
         var sb = new StringBuilder();
-        string baseStr = base.GetInspectString();
+        string? baseStr = null;
+        try
+        {
+            baseStr = base.GetInspectString();
+        }
+        catch
+        {
+            // Unit test harnesses without Verse.ModsConfig / RimWorld game paths
+        }
+
         if (!string.IsNullOrEmpty(baseStr))
         {
             sb.AppendLine(baseStr);
         }
 
-        string typeLabel = kind == ListeningPostKind.AutomatedRelay ? "Automated Sensor Relay" : "Signal Beacon";
+        string typeLabel = kind == ListeningPostKind.AutomatedRelay
+            ? "Automated Sensor Relay"
+            : (stuffDef != null ? $"Signal Beacon ({stuffDef.LabelCap})" : "Signal Beacon");
         sb.AppendLine($"Type: {typeLabel}");
 
         if (isSabotaged)

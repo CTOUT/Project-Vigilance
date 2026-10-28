@@ -124,4 +124,45 @@ public sealed class WorldObject_ListeningPostTests
         Assert.AreEqual(OutpostMaterialUtility.SignalBeaconWoodSalvage, expectedWoodSalvage, "Beacon salvage must be 75% of initial build cost.");
         Assert.AreEqual(OutpostMaterialUtility.SignalBeaconWoodOrStoneRepairCost, expectedWoodRepair, "Beacon repair must be 20% of initial build cost.");
     }
+
+    [TestMethod]
+    public void SignalBeacon_TracksStuffDefMaterial_AndFallsBackToWoodLog()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.SignalBeacon
+        };
+
+        // Default / null fallback
+        Assert.IsNull(post.stuffDef);
+        Assert.IsNull(post.StuffDef);
+
+        // Assign granite or custom stone stuffDef
+        var stoneDef = new Verse.ThingDef { defName = "BlocksGranite", label = "granite blocks" };
+        post.stuffDef = stoneDef;
+        Assert.AreEqual(stoneDef, post.StuffDef);
+        Assert.IsTrue(post.Label.Contains("granite blocks"));
+        Assert.IsTrue(post.GetInspectString().Contains("Granite blocks"));
+    }
+
+    [TestMethod]
+    public void SignalBeacon_Dismantle_RefundsMaterialRespectingStackLimit()
+    {
+        var stoneDef = new Verse.ThingDef
+        {
+            defName = "BlocksGranite",
+            label = "granite blocks",
+            stackLimit = 75
+        };
+
+        // 150 * 0.75 = 112 total refund
+        int totalRefund = 112;
+        int stackLimit = stoneDef.stackLimit;
+        int expectedFullStacks = totalRefund / stackLimit;
+        int expectedRemainder = totalRefund % stackLimit;
+
+        Assert.AreEqual(1, expectedFullStacks, "112 items with 75 stackLimit produces 1 full stack of 75.");
+        Assert.AreEqual(37, expectedRemainder, "112 items with 75 stackLimit produces 1 partial stack of 37.");
+        Assert.AreEqual(totalRefund, expectedFullStacks * stackLimit + expectedRemainder);
+    }
 }

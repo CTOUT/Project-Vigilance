@@ -74,7 +74,7 @@ public class ScoutHorizonSensor : ISensorProvider
                         }
 
                         return SensoryNarrativeUtility.IsLowTech
-                            ? $"{parentObject.LabelCap} {nightType}"
+                            ? $"{parentObject.LabelCap} Night Watchers"
                             : $"{parentObject.LabelCap} {nightType}";
                     }
                 }
@@ -329,8 +329,9 @@ public class ScoutHorizonSensor : ISensorProvider
         }
     }
 
-    public bool CanDetect(IDetectableTarget target)
+    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
     {
+        distance = -1;
         if (!IsSensorActive || !SensorTile.Valid || !target.CurrentTile.Valid)
         {
             return false;
@@ -342,16 +343,20 @@ public class ScoutHorizonSensor : ISensorProvider
         }
 
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        if (SensoryManager.DistanceCalculationOverride != null)
+        int d = SensoryManager.DistanceCalculationOverride != null
+            ? SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps)
+            : (Find.World?.grid != null
+                ? Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
+                : Math.Abs(SensorTile.tileId - target.CurrentTile.tileId));
+
+        if (d <= maxSteps)
         {
-            return SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps) <= maxSteps;
+            distance = d;
+            return true;
         }
 
-        if (Find.World?.grid != null)
-        {
-            return Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps) <= maxSteps;
-        }
-
-        return Math.Abs(SensorTile.tileId - target.CurrentTile.tileId) <= maxSteps;
+        return false;
     }
+
+    public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
 }
