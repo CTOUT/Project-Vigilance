@@ -139,5 +139,50 @@ public sealed class SensoryTerrainModelTests
         // Assert
         Assert.AreEqual(IntelligenceTier.Analysed, tier, "Unmasked target inside identification radius resolves full Analysed tier.");
     }
+
+    [TestMethod]
+    public void GetIdentificationVantageBonus_ExplicitIntegerMapping_ReturnsExpectedRings()
+    {
+        // Assert explicit integer ring steps without float math
+        Assert.AreEqual(0, SensoryTerrainUtility.GetIdentificationVantageBonus(0), "Flat terrain gives +0 ID rings.");
+        Assert.AreEqual(1, SensoryTerrainUtility.GetIdentificationVantageBonus(1), "Small hills (+1 vantage) gives +1 ID ring.");
+        Assert.AreEqual(1, SensoryTerrainUtility.GetIdentificationVantageBonus(2), "Large hills (+2 vantage) gives +1 ID ring.");
+        Assert.AreEqual(2, SensoryTerrainUtility.GetIdentificationVantageBonus(3), "Mountainous (+3 vantage) gives +2 ID rings.");
+        Assert.AreEqual(2, SensoryTerrainUtility.GetIdentificationVantageBonus(4), "Impassable peaks give +2 ID rings.");
+    }
+
+    [TestMethod]
+    public void OpticalAndRadarSensors_NormalizedIntegerRadii_MatchModelBPlusSpecifications()
+    {
+        // 1. High-Tech Radar with 1 Dish (baseline 10) on various terrains
+        int baseId1Dish = 10;
+        int flatRadarId = baseId1Dish + SensoryTerrainUtility.GetIdentificationVantageBonus(0);
+        int hillsRadarId = baseId1Dish + SensoryTerrainUtility.GetIdentificationVantageBonus(1);
+        int mtnRadarId = baseId1Dish + SensoryTerrainUtility.GetIdentificationVantageBonus(3);
+        Assert.AreEqual(10, flatRadarId, "1-dish radar on flat terrain gives 10 rings ID.");
+        Assert.AreEqual(11, hillsRadarId, "1-dish radar on hills gives 11 rings ID.");
+        Assert.AreEqual(12, mtnRadarId, "1-dish radar on mountains gives 12 rings ID.");
+
+        // 2. High-Tech Radar with 3 Dishes (baseline 22) capped by detection (24)
+        int baseId3Dishes = 22;
+        int mtn3DishId = System.Math.Min(24, baseId3Dishes + SensoryTerrainUtility.GetIdentificationVantageBonus(3));
+        Assert.AreEqual(24, mtn3DishId, "3-dish radar with vantage reaches maximum 24 detection boundary.");
+
+        // 3. Signal Beacon (baseline 3 ID) with optical vantage
+        int flatBeaconId = 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(0);
+        int hillsBeaconId = 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(1);
+        int mtnBeaconId = 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(3);
+        Assert.AreEqual(3, flatBeaconId, "Signal beacon baseline is 3 rings ID.");
+        Assert.AreEqual(4, hillsBeaconId, "Signal beacon on hills is 4 rings ID.");
+        Assert.AreEqual(5, mtnBeaconId, "Signal beacon on mountains is 5 rings ID.");
+
+        // 4. Scout Horizon Colony Lookouts (baseline 2 ID)
+        int flatColonyId = 2 + SensoryTerrainUtility.GetIdentificationVantageBonus(0);
+        int hillsColonyId = 2 + SensoryTerrainUtility.GetIdentificationVantageBonus(2);
+        int mtnColonyId = 2 + SensoryTerrainUtility.GetIdentificationVantageBonus(3);
+        Assert.AreEqual(2, flatColonyId, "Colony lookouts on flat terrain gives 2 rings ID.");
+        Assert.AreEqual(3, hillsColonyId, "Colony lookouts on large hills gives 3 rings ID.");
+        Assert.AreEqual(4, mtnColonyId, "Colony lookouts on mountains gives 4 rings ID.");
+    }
 }
 

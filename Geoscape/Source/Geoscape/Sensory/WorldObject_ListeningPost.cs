@@ -94,13 +94,14 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
                 return 0;
             }
 
-            float det = DetectionRadiusInTiles;
             if (kind == ListeningPostKind.AutomatedRelay)
             {
-                return Mathf.Max(1, Mathf.RoundToInt(det * 0.42f)); // ~5-6 rings
+                // Automated Relay: 5 rings baseline, +1 ring on elevated ground (Large Hills / Mountains)
+                return 5 + (cachedVantageBonus >= 2 ? 1 : 0);
             }
 
-            return Mathf.Max(1, Mathf.CeilToInt(det * 0.50f)); // ~3-5 rings
+            // Signal Beacon: 3 rings baseline + optical vantage bonus (+1 for hills, +2 for mountains)
+            return 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(cachedVantageBonus);
         }
     }
 

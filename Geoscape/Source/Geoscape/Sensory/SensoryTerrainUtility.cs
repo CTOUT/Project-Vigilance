@@ -56,6 +56,23 @@ public static class SensoryTerrainUtility
     }
 
     /// <summary>
+    /// Calculates the radial traversal-ring identification vantage bonus granted to sensors
+    /// stationed on elevated topography.
+    /// Flat: +0 rings (baseline).
+    /// SmallHills / LargeHills: +1 ring.
+    /// Mountainous / Impassable: +2 rings.
+    /// </summary>
+    public static int GetIdentificationVantageBonus(int vantageBonus)
+    {
+        return vantageBonus switch
+        {
+            >= 3 => 2,
+            >= 1 => 1,
+            _ => 0
+        };
+    }
+
+    /// <summary>
     /// Evaluates whether a target tile provides tactical terrain masking against identification.
     /// Incursions travelling through rugged Mountainous or Impassable terrain navigate deep valleys
     /// and canyons, delaying full optical/electronic classification until they exit into foothills or plains,

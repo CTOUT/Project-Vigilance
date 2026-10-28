@@ -24,7 +24,7 @@ public sealed class InterferometryProgressionTests
 
         if (props.receivesVantageBonus && vantageBonus > 0)
         {
-            baseId += (vantageBonus + 1) / 2;
+            baseId += SensoryTerrainUtility.GetIdentificationVantageBonus(vantageBonus);
         }
 
         int maxDetection = props.detectionRadius + (props.receivesVantageBonus ? vantageBonus : 0);

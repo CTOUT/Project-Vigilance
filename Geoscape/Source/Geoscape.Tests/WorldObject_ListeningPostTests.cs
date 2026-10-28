@@ -18,13 +18,13 @@ public sealed class WorldObject_ListeningPostTests
         {
             int bonus = vantageBonus > 0 ? Mathf.Min(2, vantageBonus) : 0;
             float det = 12f + bonus;
-            int id = Mathf.Max(1, Mathf.RoundToInt(det * 0.42f));
+            int id = 5 + (bonus >= 2 ? 1 : 0);
             return (det, id);
         }
         else
         {
             float det = 6f + vantageBonus;
-            int id = Mathf.Max(1, Mathf.CeilToInt(det * 0.50f));
+            int id = 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(vantageBonus);
             return (det, id);
         }
     }

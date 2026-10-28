@@ -196,7 +196,7 @@ public class CompRadar : ThingComp, ISensorProvider
 
             if (Props.receivesVantageBonus && cachedVantageBonus > 0)
             {
-                baseId += Mathf.CeilToInt(cachedVantageBonus * 0.5f);
+                baseId += SensoryTerrainUtility.GetIdentificationVantageBonus(cachedVantageBonus);
             }
 
             return Mathf.Min(baseId, Mathf.RoundToInt(DetectionRadiusInTiles));
