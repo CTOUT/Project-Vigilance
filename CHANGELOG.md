@@ -38,13 +38,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Conceals dynamic quest and bandit camps spawned in unmonitored Haze sectors, suppressing instant global announcement letters until uncovered by radar sweeps, scout caravans, or rumours.
   - Suspends quest expiration timers (`TimeoutComp`) while sites remain concealed in the Haze so quests do not expire invisibly.
   - Breadcrumb rumour intelligence: Visiting trade caravans and travellers share reconnaissance on unmapped camps with 8-cardinal compass bearings.
+  - Robust site despawn and removal lifecycle (`WorldObject.PostRemove` & `CheckUncoveredSites`): Intercepts dynamic sites cancelled, expired, or destroyed while concealed in the Haze, purging them from memory and preventing save-game bloat and missing cross-reference serialization errors.
 - **Lightweight Geoscape Outposts (`WorldObject_ListeningPost`, `FloatMenuMakerWorld`):**
   - Lightweight, 100% unmanned, zero-TPS planetary outposts (`AutomatedRelay` and `SignalBeacon`) deployed directly onto world hexes without creating tactical maps or storing colonists in `WorldPawns`.
   - Streamlined world context actions: Right-click hex to construct outposts from carried caravan inventory, dismantle for 75% material recovery, or repair sabotaged stations.
+  - Material tracking and stack-limit partitioning: Tracks specific consumed construction materials (`stuffDef`) on Signal Beacons (Wood vs Stone blocks), dynamically updating labels and inspect panes. Dismantling refunds 75% of the exact material type (112 items), cleanly partitioned into valid item stacks respecting `stackLimit` (e.g. 75 + 37 items) to eliminate infinite wood transmutation and engine stack-overflow glitches.
 - **Colony Technological Radar Infrastructure & Dual-Ring Interferometry (`CompRadar`, `CompProperties_Radar`):**
   - Explicit integer traversal rings across 5 sensory building tiers (Lookout Watchtower, Small Radar Dome, Phased Radar Array, SIGINT Decryption Console, Coastal Sonar Station).
   - Multi-dish interferometry: Fixed $R_{detect} = 24\text{ rings}$, synthetic aperture expanding $R_{id} = 10 \rightarrow 17 \rightarrow 22\text{ rings}$ at a locked 250-tick sweep cadence, and providing fail-safe redundancy.
   - Dynamic standby vs active power scaling (350W/750W, 800W/1,800W, 700W/1,400W).
+  - Single-pass traversal optimization: Unified `ISensorProvider.TryGetDetectionDistance(target, out int distance)` evaluates planetary reach and step distance in a single BFS pass, eliminating redundant graph queries per sensor/target pair on the sweep hot path.
   - Model B+ "Vantage & Masking": High ground grants origin vantage bonuses (+1 to +3 rings); Mountainous terrain delays target classification until exiting into plains or decrypted by Spacer Phased Array + SIGINT.
 - **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):**
   - GPU-instanced 3D mesh rendering dual-ring holographic perimeters and hexagonal honeycomb grid over active sensor envelopes with 5 tactical color palettes and background dimming.

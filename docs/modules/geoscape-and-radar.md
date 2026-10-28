@@ -165,10 +165,11 @@ In vanilla RimWorld, right-clicking empty world tiles is inactive unless a playe
    - Automatically opens vanilla's `Dialog_FormCaravan` with the destination tile **pre-populated and locked** to the clicked hex.
 2. **"Establish Outpost / Relay Here...":**
    - **Local Deployment:** If a player caravan is present on the tile and holds required cargo (100 Steel, 4 Components for Automated Relay; 150 Wood/Stone for Signal Beacon), an immediate 1–2 hour setup task elapses, and the lightweight `WorldObject_ListeningPost` spawns on the hex.
+   - **Material Tracking (`stuffDef`):** For Signal Beacons, the specific construction material consumed (e.g. `WoodLog`, `BlocksGranite`, `BlocksSlate`) is permanently recorded and serialized on the outpost via `Scribe_Defs.Look`. The outpost label and inspect pane dynamically reflect the material (e.g. `Granite blocks Signal Beacon`).
    - **Remote Dispatch:** Prompts to dispatch a construction caravan from the nearest colony, automatically pre-selecting the necessary outpost construction ingredients in the checklist as a preset!
 3. **Existing Outpost Context Options:**
-   - _"Dismantle Outpost"_ (salvages 75% of construction materials back into caravan).
-   - _"Repair Sabotaged Station"_ (restores sabotaged stations disabled by passing enemy incursions for 25% of original construction materials).
+   - _"Dismantle Outpost"_ (salvages 75% of construction materials back into caravan inventory). For Signal Beacons, 112 items of the matching `stuffDef` are refunded (preventing infinite stone-to-wood transmutation) and cleanly partitioned into valid item stacks respecting `stackLimit` (e.g. 75 + 37 items) to eliminate engine stack-overflow glitches.
+   - _"Repair Sabotaged Station"_ (restores sabotaged stations disabled by passing enemy incursions for 25% of original construction materials: 25 Steel + 1 Component for relays, or 38 Wood/Stone for beacons).
 
 ---
 
@@ -192,6 +193,7 @@ RimWorld's world map can feature up to 100,000+ hex tiles depending on coverage 
 4. **Tile-Bucketed Incursion Collisions ($O(M)$):** Inter-faction collision detection completely eliminates $O(M^2)$ pairwise distance scans. On `TickRare`, incursions register their `CurrentTile` into a dictionary bucket (`Dictionary<int, List<WorldObject_Incursion>>`). Collisions trigger strictly when multiple non-allied incursions occupy identical tiles (`incA.CurrentTile == incB.CurrentTile`).
 5. **Spatial Fast-Reject & Modern .NET 10:** Active radar installations register their tile locations into a spatial hash table. On RimWorld 1.7 (Waylith), distance queries take advantage of `.NET 10` zero-allocation primitives (`ReadOnlySpan<int>`, SIMD distance vectors, and value-type buffers) to evaluate tiles without GC churn.
 6. **Spherical Fast-Reject Filter:** Before running graph traversal BFS via `TraversalDistanceBetween`, an instant vector angle check ($\vec{v}_{\text{sensor}} \cdot \vec{v}_{\text{target}} \ge \cos(\theta_{\text{max}})$) rejects targets in opposite hemispheres in single-digit CPU cycles.
+7. **Single-Pass Traversal Distance Resolution (`TryGetDetectionDistance`):** Rather than evaluating `CanDetect` and then running a second graph traversal BFS to determine traversal distance for tier scoring, `ISensorProvider.TryGetDetectionDistance(target, out int distance)` evaluates planetary reach and outputs the exact traversal step distance in a single pass, eliminating redundant graph calculations on the 250-tick sweep hot path.
 
 ### 3.2 Detection Probability Formula
 
@@ -596,3 +598,15 @@ Project Vigilance implements an overland trade caravan architecture:
    - The 3D globe mesh geometry (vertices, normals, triangles) is generated once during startup using a time-sliced coroutine yielding every 3ms.
    - Sector exploration and active vision state transitions update GPU vertex colors in-place (`LayerSubMesh.FinalizeMesh(MeshParts.Colors)`) in $\approx 0.05$ ms with zero garbage collection allocations.
    - Explicitly clears `subMesh.finalized = false` prior to color buffer uploads, preventing false-positive log warnings.
+
+### 6.10 Dynamic Site Reconnaissance, Haze Concealment & Expired Site Lifecycle Management
+
+1. **Epistemic Quest & Incident Concealment (`HazeReconnaissanceManager`):**
+   - Dynamic quest and incident sites (logging camps, bandit work sites, hunting lodges, prisoner compounds) spawned in unmonitored sectors of the Haze of War have their announcement letters suppressed and their world markers hidden until active vision (radar dish, colony lookout, mobile caravan, or forward listening post) charts the tile.
+2. **Quest Timeout Clock Suspension (`WorldObjectComp_Timeout_CompTick_Patch`):**
+   - Vanilla quest expiration timers (`TimeoutComp`) are frozen while a site remains concealed in the Haze. Quests will not expire invisibly before the player has had an opportunity to discover or hear rumours about them. The timer resumes ticking down normally once the site is uncovered.
+3. **Breadcrumb Rumours (`BreadcrumbRumourUtility`):**
+   - Arriving trade caravans and visiting parties share situational rumours pointing toward concealed sites, uncovering the target tile and providing an 8-cardinal compass heading.
+4. **Robust Despawn & Removal Lifecycle Hooking (`WorldObject_PostRemove_Patch`):**
+   - To eliminate save-game bloat and missing cross-reference errors, a Harmony postfix on `WorldObject.PostRemove` intercepts dynamic sites that are cancelled, expired, or destroyed while concealed in the Haze, calling `Notify_WorldObjectRemoved`.
+   - On every 250-tick sweep, `HazeReconnaissanceManager.CheckUncoveredSites()` also validates that cached entries are still spawned and not destroyed, preventing stale `ConcealedSiteRecord` references and suppressed letters with complex `LookTargets` from leaking into save files.

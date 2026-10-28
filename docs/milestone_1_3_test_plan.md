@@ -8,19 +8,19 @@ It covers multi-dish radar interferometry, dynamic power scaling, Model B+ terra
 
 ## Test Matrix Overview
 
-| Test Case | Feature Under Test                                  | Expected Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Status             | Primary Screen / Tool                     |
-| :-------- | :-------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------- | :---------------------------------------- |
-| **TC-01** | Multi-Dish Radar & Interferometry Progression       | • 1 Dish: $R_{detect} = 24$ rings, $R_{id} = 10$ rings, locked 250-tick sweep cadence.<br>• 2 Dishes: $R_{detect} = 24$ rings, $R_{id} = 17$ rings (locked 250-tick cadence).<br>• 3 Dishes: $R_{detect} = 24$ rings, $R_{id} = 22$ rings (locked 250-tick cadence).<br>• Dynamic power scaling: 800W standby $\rightarrow$ 1,800W active when tracking targets.<br>• Redundancy: cutting power to any dish gracefully falls back to the lower tier.                                                                                       | **Ready for Test** | Colony Map / Power Grid / World Map       |
-| **TC-02** | Model B+ Vantage & Mountain Masking                 | • Origin Vantage: Lookouts gain $+1$ to $+3$ rings on hills/mountains; high-tech radars gain $+1$ to $+2$ rings to $R_{id}$.<br>• Target Terrain Masking: Incursions in `Mountainous` hexes remain held at Contact tier (amber blip) even within $R_{id}$.<br>• Terrain Exit: Moving into open plains immediately elevates to Classified/Analysed.<br>• SIGINT Console: Linked facility penetrates terrain masking and unlocks Tier 4 Analysed telemetry.                                                                                  | **Ready for Test** | World Map / Inspector / Dev Console       |
-| **TC-03** | Oceanic Hydrophone Sonar Station                    | • Coastal sonar array (`Geoscape_SonarArray`) restricts acoustic tracking strictly to water-covered hexes (`tile.WaterCovered`).<br>• Adjacent overland hexes within the 18-ring envelope remain completely unmonitored.                                                                                                                                                                                                                                                                                                                   | **Ready for Test** | Colony Map / World Map / Coastal Tile     |
-| **TC-04** | Tactical Radar Overlay & Globe UX                   | • Native 3D mesh overlay renders glowing perimeter boundary rings and hexagonal holographic honeycomb grid on the globe.<br>• Configurable display modes: `Boundary & Grid`, `Boundary Only`, `None`.<br>• 5 color palettes: Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White.<br>• Inward distance fade and dynamic sensor movement updates.                                                                                                                                                               | **Ready for Test** | World Map / Mod Settings                  |
-| **TC-05** | Lightweight Geoscape Outposts & Context Actions     | • Caravan right-click context menu on world hex: `Establish Automated Listening Post` (100 Steel, 4 Components) and `Construct Signal Beacon` (150 Wood/Stone).<br>• Zero-TPS execution: 100% unmanned, no `WorldPawns`, no map generated.<br>• Incursion Sabotage: Hostile warband traversing outpost hex sabotages it, knocking sensor offline and dispatching alert letter.<br>• Caravan right-click repair (25% materials) and dismantle (75% material recovery).                                                                      | **Ready for Test** | World Map / Caravan Float Menu            |
-| **TC-06** | Two-Stage Early Warning & Non-Peeking Escalation    | • Stage 1 ($R_{detect}$ boundary crossing): Amber alert letter (`ThreatSmall`), pulsing amber blip, masked faction, concealed threat points, hidden path.<br>• Stage 2 ($R_{id}$ boundary crossing): Red alert letter (`ThreatBig` hostile / `PositiveEvent` friendly), faction crest, known destination path.<br>• Direct high-spec entry: Incursions spawning within $R_{id}$ trigger Stage 2 directly without replaying Stage 1.<br>• Classification preservation: Re-entering mountainous masking does not regress known intelligence. | **Ready for Test** | World Map / Letter Stack / Inspector      |
-| **TC-07** | Haze Reconnaissance, Dynamic Camps & Rumours        | • Dynamic quest sites and bandit camps in unmonitored Haze sectors have announcement letters suppressed.<br>• Quest timeout clocks (`TimeoutComp`) are frozen while concealed so quests do not expire invisibly.<br>• Uncovering site via radar or scout caravan triggers deferred discovery letter and resumes timeout clock.<br>• Friendly caravan arrival dispatches Breadcrumb Rumour letter with 8-cardinal compass heading, uncovering target hex.                                                                                   | **Ready for Test** | World Map / Letter Stack / Quest Tab      |
-| **TC-08** | Inter-Faction Collisions & Background Skirmishes    | • $O(M)$ tile-bucketed collision detection on `TickRare` (250 ticks).<br>• Hostile vs hostile/neutral collisions resolve purely algebraically without loading a tactical map.<br>• Clashes dispatch notification letter and spawn persistent `WorldObject_EncounterAftermath` at clash hex.<br>• Caravan arrival action `Scavenge Aftermath` cleanly transfers trade cargo and survivor pawns.<br>• 15,000-tick skirmish cooldown prevents repeat collision churn.                                                                         | **Ready for Test** | World Map / Letter Stack / Caravan Action |
-| **TC-09** | Grounded Storyteller Caravan Encounters             | • Storyteller caravan meetings and extortion incidents are grounded into physical `WorldObject_Incursion` entities marching on contiguous multi-leg routes (`origin -> current -> destination`).<br>• Extortion demand dialog delays item deduction until player explicitly confirms acceptance.<br>• Caravans continue overland march across the globe post-encounter.                                                                                                                                                                    | **Ready for Test** | World Map / Dialog / Dev Incident         |
-| **TC-10** | Waylith DeepProfiler & Zero-Allocation Verification | • Dev Mode DeepProfiler reveals native `ProjectVigilance.PerformSensorySweep`, `ProjectVigilance.SensorySweep.VisionUpdates`, `ProjectVigilance.InterFactionCollisions`, and `ProjectVigilance.SkirmishResolution` markers.<br>• Verification of $\le 1.0\text{ ms}$ execution budget and 0-byte GC allocation during steady-state `TickRare`.                                                                                                                                                                                             | **Ready for Test** | Dev Actions Menu / Deep Profiler          |
-| **TC-11** | Scribe Save/Load & Outpost Removal Resilience       | • Saving and loading with active radars, outposts, incursions, aftermath sites, and concealed haze sites produces 0 Scribe errors and 0 duplicate IDs.<br>• Deleting an outpost via dev tools or external mod leaves no dangling references; next sweep clears entry cleanly.                                                                                                                                                                                                                                                              | **Ready for Test** | Save/Load Menu / Debug Log                |
+| Test Case | Feature Under Test                                  | Expected Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Status             | Primary Screen / Tool                     |
+| :-------- | :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------- | :---------------------------------------- |
+| **TC-01** | Multi-Dish Radar & Interferometry Progression       | • 1 Dish: $R_{detect} = 24$ rings, $R_{id} = 10$ rings, locked 250-tick sweep cadence.<br>• 2 Dishes: $R_{detect} = 24$ rings, $R_{id} = 17$ rings (locked 250-tick cadence).<br>• 3 Dishes: $R_{detect} = 24$ rings, $R_{id} = 22$ rings (locked 250-tick cadence).<br>• Dynamic power scaling: 800W standby $\rightarrow$ 1,800W active when tracking targets.<br>• Redundancy: cutting power to any dish gracefully falls back to the lower tier.                                                                                                                                                                                                                                                                                            | **Ready for Test** | Colony Map / Power Grid / World Map       |
+| **TC-02** | Model B+ Vantage & Mountain Masking                 | • Origin Vantage: Lookouts gain $+1$ to $+3$ rings on hills/mountains; high-tech radars gain $+1$ to $+2$ rings to $R_{id}$.<br>• Target Terrain Masking: Incursions in `Mountainous` hexes remain held at Contact tier (amber blip) even within $R_{id}$.<br>• Terrain Exit: Moving into open plains immediately elevates to Classified/Analysed.<br>• SIGINT Console: Linked facility penetrates terrain masking and unlocks Tier 4 Analysed telemetry.                                                                                                                                                                                                                                                                                       | **Ready for Test** | World Map / Inspector / Dev Console       |
+| **TC-03** | Oceanic Hydrophone Sonar Station                    | • Coastal sonar array (`Geoscape_SonarArray`) restricts acoustic tracking strictly to water-covered hexes (`tile.WaterCovered`).<br>• Adjacent overland hexes within the 18-ring envelope remain completely unmonitored.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | **Ready for Test** | Colony Map / World Map / Coastal Tile     |
+| **TC-04** | Tactical Radar Overlay & Globe UX                   | • Native 3D mesh overlay renders glowing perimeter boundary rings and hexagonal holographic honeycomb grid on the globe.<br>• Configurable display modes: `Boundary & Grid`, `Boundary Only`, `None`.<br>• 5 color palettes: Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White.<br>• Inward distance fade and dynamic sensor movement updates.                                                                                                                                                                                                                                                                                                                                                                    | **Ready for Test** | World Map / Mod Settings                  |
+| **TC-05** | Lightweight Geoscape Outposts & Context Actions     | • Caravan right-click context menu on world hex: `Establish Automated Listening Post` (100 Steel, 4 Components) and `Construct Signal Beacon` (150 Wood/Stone).<br>• Material Tracking: Tracks specific consumed material (`stuffDef`), updating world label (e.g. `Granite blocks Signal Beacon`) and inspect string.<br>• Zero-TPS execution: 100% unmanned, no `WorldPawns`, no map generated.<br>• Incursion Sabotage: Hostile warband traversing outpost hex sabotages it, knocking sensor offline and dispatching alert letter.<br>• Caravan right-click repair (25% materials) and dismantle (75% material recovery, partitioned into valid stacks respecting `stackLimit`, e.g. 75 + 37 items, preventing infinite wood transmutation). | **Ready for Test** | World Map / Caravan Float Menu            |
+| **TC-06** | Two-Stage Early Warning & Non-Peeking Escalation    | • Stage 1 ($R_{detect}$ boundary crossing): Amber alert letter (`ThreatSmall`), pulsing amber blip, masked faction, concealed threat points, hidden path.<br>• Stage 2 ($R_{id}$ boundary crossing): Red alert letter (`ThreatBig` hostile / `PositiveEvent` friendly), faction crest, known destination path.<br>• Direct high-spec entry: Incursions spawning within $R_{id}$ trigger Stage 2 directly without replaying Stage 1.<br>• Classification preservation: Re-entering mountainous masking does not regress known intelligence.                                                                                                                                                                                                      | **Ready for Test** | World Map / Letter Stack / Inspector      |
+| **TC-07** | Haze Reconnaissance, Dynamic Camps & Rumours        | • Dynamic quest sites and bandit camps in unmonitored Haze sectors have announcement letters suppressed.<br>• Quest timeout clocks (`TimeoutComp`) are frozen while concealed so quests do not expire invisibly.<br>• Uncovering site via radar or scout caravan triggers deferred discovery letter and resumes timeout clock.<br>• Friendly caravan arrival dispatches Breadcrumb Rumour letter with 8-cardinal compass heading, uncovering target hex.<br>• Expired / Despawned Site Auto-Purge: Despawned or expired dynamic sites are automatically intercepted by Harmony patch on `WorldObject.PostRemove` and purged on the next sweep pass, preventing unbounded save game bloat.                                                       | **Ready for Test** | World Map / Letter Stack / Quest Tab      |
+| **TC-08** | Inter-Faction Collisions & Background Skirmishes    | • $O(M)$ tile-bucketed collision detection on `TickRare` (250 ticks).<br>• Hostile vs hostile/neutral collisions resolve purely algebraically without loading a tactical map.<br>• Clashes dispatch notification letter and spawn persistent `WorldObject_EncounterAftermath` at clash hex.<br>• Caravan arrival action `Scavenge Aftermath` cleanly transfers trade cargo and survivor pawns.<br>• 15,000-tick skirmish cooldown prevents repeat collision churn.                                                                                                                                                                                                                                                                              | **Ready for Test** | World Map / Letter Stack / Caravan Action |
+| **TC-09** | Grounded Storyteller Caravan Encounters             | • Storyteller caravan meetings and extortion incidents are grounded into physical `WorldObject_Incursion` entities marching on contiguous multi-leg routes (`origin -> current -> destination`).<br>• Extortion demand dialog delays item deduction until player explicitly confirms acceptance.<br>• Caravans continue overland march across the globe post-encounter.                                                                                                                                                                                                                                                                                                                                                                         | **Ready for Test** | World Map / Dialog / Dev Incident         |
+| **TC-10** | Waylith DeepProfiler & Zero-Allocation Verification | • Dev Mode DeepProfiler reveals native `ProjectVigilance.PerformSensorySweep`, `ProjectVigilance.SensorySweep.VisionUpdates`, `ProjectVigilance.InterFactionCollisions`, and `ProjectVigilance.SkirmishResolution` markers.<br>• Single-Pass Traversal: Unified `TryGetDetectionDistance(target, out int distance)` eliminates redundant graph traversals per sensor/target pair on the sweep hot path.<br>• Verification of $\le 1.0\text{ ms}$ execution budget and 0-byte GC allocation during steady-state `TickRare`.                                                                                                                                                                                                                      | **Ready for Test** | Dev Actions Menu / Deep Profiler          |
+| **TC-11** | Scribe Save/Load & Outpost Removal Resilience       | • Saving and loading with active radars, outposts, incursions, aftermath sites, and concealed haze sites produces 0 Scribe errors and 0 duplicate IDs.<br>• Deleting an outpost via dev tools or external mod leaves no dangling references; next sweep clears entry cleanly.<br>• Outpost `stuffDef` is serialized via `Scribe_Defs.Look`, maintaining construction material fidelity across saves.<br>• Expired or despawned dynamic sites leave zero dangling `ConcealedSiteRecord` entries upon save/load.                                                                                                                                                                                                                                  | **Ready for Test** | Save/Load Menu / Debug Log                |
 
 ---
 
@@ -195,12 +195,13 @@ _Objective: Validate 3D native mesh rendering, boundary rings, holographic honey
 
 _Objective: Validate zero-TPS unmanned outposts, right-click caravan construction, incursion sabotage, repair, and salvage economics._
 
-#### 5.1 Caravan Right-Click Deployment
+#### 5.1 Caravan Right-Click Deployment & Material Tracking
 
 1. Form a player caravan from your colony with 2 colonists and pack animals carrying:
    - 200 Steel
    - 10 Components
    - 300 Wood
+   - 300 Granite Blocks (or any stone blocks)
 2. Move the caravan 10–15 tiles away from the colony onto a strategic world hex (e.g. a mountain pass or road choke point).
 3. While the caravan is stationed on the tile, **Right-Click** the current hex:
    - **Verify Context Menu:** The following options appear:
@@ -209,11 +210,19 @@ _Objective: Validate zero-TPS unmanned outposts, right-click caravan constructio
 4. Select `Establish Automated Listening Post`:
    - **Verify Material Deduction:** Caravan inventory immediately deducts exactly 100 Steel and 4 Components.
    - **Verify World Object Spawn:** A new world entity **Automated Listening Post** spawns on the hex.
-   - **Verify Sensor Envelope:** A 12-ring sensory detection perimeter (or 6-ring for Signal Beacon) immediately appears around the outpost on the world map.
+   - **Verify Sensor Envelope:** A 12-ring sensory detection perimeter ($R_{detect} = 12$, $R_{id} = 5$ baseline) appears around the outpost on the world map.
    - **Zero-TPS & Pawn Integrity Check:**
      - Inspect the outpost: verify it is 100% unmanned (no colonist roster).
      - Check `WorldPawns` in Dev Console: verify zero colonists were transferred to world pawns.
      - Verify no tactical colony map or background ticking map was created.
+5. In a separate hex, right-click with the caravan and select `Construct Signal Beacon`:
+   - If caravan holds both wood and stone, verify prompt or menu item specifies the material chosen.
+   - Select stone blocks (e.g. Granite blocks):
+     - **Verify Material Deduction:** Exactly 150 Granite blocks are deducted.
+     - **Verify Material Tracking (`stuffDef`):** Inspect the spawned Signal Beacon on the World Map:
+       - **Label:** Displays `Granite blocks Signal Beacon`.
+       - **Inspect String:** Displays `Type: Signal Beacon (Granite blocks)`.
+       - **Sensor Envelope:** A 6-ring detection perimeter ($R_{detect} = 6$, $R_{id} = 3$ baseline) appears on the world map.
 
 #### 5.2 Hostile Incursion Traversal & Sabotage
 
@@ -227,21 +236,25 @@ _Objective: Validate zero-TPS unmanned outposts, right-click caravan constructio
    - **Verify Sensor Shutdown:** The outpost's sensory envelope collapses and disappears from the world map.
    - **Verify Outpost State:** Selecting the outpost displays status: `SABOTAGED (Sensor Offline - Requires Repairs)`.
 
-#### 5.3 Field Repair & Dismantle Operations
+#### 5.3 Field Repair & Dismantle Operations (Material Refund & Stack Partitioning)
 
 1. Order your caravan to march to the sabotaged outpost tile.
-2. Ensure the caravan carries repair materials (at least 25 Steel and 1 Component).
+2. Ensure the caravan carries repair materials (at least 25 Steel and 1 Component for relays, or 38 Wood/Stone for beacons).
 3. Right-click the sabotaged outpost:
-   - **Verify Context Option:** `Repair Sabotaged Station (25 Steel, 1 Component)`.
+   - **Verify Context Option:** `Repair Sabotaged Station (25 Steel, 1 Component)` or matching beacon repair cost.
 4. Click `Repair Sabotaged Station`:
-   - **Verify:** 25 Steel and 1 Component are deducted from caravan inventory.
+   - **Verify:** Repair materials are deducted from caravan inventory.
    - **Verify:** Outpost status restores to `Operational`.
    - **Verify:** Sensory envelope reappears on the world map immediately.
 5. Right-click the operational outpost:
    - **Verify Context Option:** `Dismantle Outpost (Recover 75% Materials)`.
 6. Click `Dismantle Outpost`:
-   - **Verify:** The outpost is removed from the world map.
-   - **Verify Salvage Economics:** Exactly 75 Steel and 3 Components (75% of construction cost) are added to the caravan's inventory.
+   - **Verify Outpost Removal:** The outpost is removed from the world map.
+   - **Automated Relay Salvage:** Exactly 75 Steel and 3 Components (75% of construction cost) are added to caravan inventory.
+   - **Signal Beacon Salvage & Transmutation Prevention:**
+     - For a beacon built with Granite blocks: caravan receives **112 Granite blocks** (75% of 150), **NOT wood logs**.
+     - **Stack-Limit Partitioning:** Inspect the caravan's inventory: verify the 112 stone items are split into **two valid item stacks** (one full stack of 75, one stack of 37) respecting `stackLimit`, with zero `Tried to spawn Thing with stackCount > stackLimit` errors in the debug log.
+     - For a beacon built with Wood logs: verify it recovers 112 Wood logs (split into stacks of 75 and 37).
 
 ---
 
@@ -328,6 +341,19 @@ _Objective: Validate dynamic site concealment, quest timeout suspension in the H
      > _"Travellers from [Faction Name] report sighting an active [Site Type] approximately [X] hexes to the [Direction] (Compass: [e.g. North-West])."_
    - **Verify Target Reveal:** The referenced world hex on the Geoscape is uncovered, revealing the previously concealed site.
 
+#### 7.4 Expired / Despawned Site Auto-Purge Lifecycle (`WorldObject.PostRemove`)
+
+1. Spawn a dynamic quest site in an unmonitored Haze sector (confirming it is registered in `concealedSites` with its announcement letter suppressed).
+2. Without revealing the site on the world map, destroy or despawn it via Dev Mode:
+   - Select the site via Dev console or debug action: `Debug Actions Menu → Destroy object` (or cancel/fail the quest via Quest tab).
+3. **Verify Immediate Purge via `WorldObject_PostRemove_Patch`:**
+   - The Harmony patch intercepting `WorldObject.PostRemove` executes immediately, calling `HazeReconnaissanceManager.Notify_WorldObjectRemoved`.
+   - The site ID is cleanly purged from `concealedSites`.
+4. Fast-forward time past the next 250-tick `TickRare` sweep:
+   - In `CheckUncoveredSites()`, verify no null reference exceptions or warnings are thrown.
+5. Save and reload the game:
+   - Verify zero orphaned `ConcealedSiteRecord` entries, dangling `suppressedLetter` references, or missing object cross-reference warnings appear in the console.
+
 ---
 
 ### Test 8: Inter-Faction Collisions, Background Skirmishes & Persistent Aftermath (`TC-08`)
@@ -404,7 +430,7 @@ _Objective: Validate grounded storyteller caravan meetings, persistent multi-leg
 
 ### Test 10: Waylith DeepProfiler & Zero-Allocation Verification (`TC-10`)
 
-_Objective: Validate that sensory sweeps and collision passes execute within the $\le 1.0\text{ ms}$ budget and generate zero GC allocations during steady state._
+_Objective: Validate that sensory sweeps and collision passes execute within the $\le 1.0\text{ ms}$ budget, use single-pass traversal distance resolution, and generate zero GC allocations during steady state._
 
 1. Settle a world with at least 3 player colonies/outposts equipped with active radars.
 2. Spawn 10–15 concurrent travelling incursions across the globe.
@@ -418,6 +444,7 @@ _Objective: Validate that sensory sweeps and collision passes execute within the
      - `ProjectVigilance.SensorySweep.TargetEvaluations`
      - `ProjectVigilance.InterFactionCollisions`
      - `ProjectVigilance.SkirmishResolution`
+   - **Single-Pass Traversal Optimization:** Confirm `TryGetDetectionDistance(target, out int distance)` resolves both detection capability and traversal step distance in a single unified BFS pass without duplicate graph queries per sensor/target pair.
    - **Verify Execution Time:** The total sensory sweep time averages **$\le 0.3\text{ ms}$** and peaks well below the **$1.0\text{ ms}$** budget.
    - **Verify Zero Allocation:** Steady-state ticks (when no new world objects are spawning/despawning) show **0 B allocated** during `TickRare`.
 
@@ -425,13 +452,14 @@ _Objective: Validate that sensory sweeps and collision passes execute within the
 
 ### Test 11: Scribe Save / Load & Outpost Removal Resilience (`TC-11`)
 
-_Objective: Validate 100% Scribe serialization integrity and defensive null handling._
+_Objective: Validate 100% Scribe serialization integrity, material fidelity, and defensive null handling._
 
 #### 11.1 Comprehensive Save / Load Cycle
 
 1. Set up a complex game state with:
    - 2 colonies with triple-dish Phased Arrays and SIGINT consoles.
    - 2 deployed automated listening posts (1 operational, 1 sabotaged).
+   - 2 deployed signal beacons (1 built with Wood, 1 built with Granite blocks).
    - 3 active travelling incursions (1 at Stage 1, 1 at Stage 2, 1 traversing mountains).
    - 1 concealed dynamic camp in the Haze.
    - 1 persistent `WorldObject_EncounterAftermath` site.
@@ -443,9 +471,10 @@ _Objective: Validate 100% Scribe serialization integrity and defensive null hand
      - **0 Scribe duplicate ID errors.**
      - **0 null-reference exceptions.**
      - **0 missing comp errors.**
-6. **Verify State Restoration:**
+6. **Verify State Restoration & Material Fidelity:**
    - Multi-dish interferometry links re-establish immediately.
    - Sabotaged outpost retains its sabotaged status.
+   - The Granite Signal Beacon retains its `stuffDef` (`BlocksGranite`), label (`Granite blocks Signal Beacon`), and inspect string.
    - Stage 2 classified incursions retain their faction crests and tracking IDs.
    - Concealed camp remains concealed in the Haze with frozen timeout clock.
    - Aftermath site retains its cargo and survivor pawns.
@@ -463,14 +492,14 @@ _Objective: Validate 100% Scribe serialization integrity and defensive null hand
 
 ## In-Game Verification Sign-Off Checklist
 
-- [ ] **TC-01:** Multi-dish radar interferometry progression ($10 \rightarrow 17 \rightarrow 22$ rings) and dynamic power scaling verified.
+- [ ] **TC-01:** Multi-dish radar interferometry progression ($10 \rightarrow 17 \rightarrow 22$ rings), locked 250-tick cadence, and dynamic power scaling verified.
 - [ ] **TC-02:** Model B+ origin vantage bonuses, target mountain masking, and SIGINT penetration verified.
 - [ ] **TC-03:** Coastal hydrophone sonar array aquatic hex restriction verified.
 - [ ] **TC-04:** 3D holographic honeycomb mesh and boundary rings verified across display styles and color palettes.
-- [ ] **TC-05:** Zero-TPS listening post deployment, hostile sabotage, repair, and 75% dismantle salvage verified.
+- [ ] **TC-05:** Zero-TPS listening post deployment, stuffDef material tracking, stack-partitioned dismantle salvage (75 + 37 items), hostile sabotage, and repair verified.
 - [ ] **TC-06:** Two-stage early warning non-peeking escalation and direct entry bypass verified.
-- [ ] **TC-07:** Concealed dynamic camps in Haze, quest timeout freeze, and breadcrumb rumours verified.
+- [ ] **TC-07:** Concealed dynamic camps in Haze, quest timeout freeze, breadcrumb rumours, and PostRemove despawn auto-purge verified.
 - [ ] **TC-08:** $O(M)$ tile-bucketed collisions, algebraic background skirmishes, and aftermath scavenging verified.
 - [ ] **TC-09:** Grounded storyteller caravan encounters and extortion demand item safety verified.
-- [ ] **TC-10:** Native Waylith DeepProfiler execution budget ($\le 1.0\text{ ms}$) and zero-allocation hot path verified.
-- [ ] **TC-11:** Scribe save/load persistence and defensive outpost removal resilience verified.
+- [ ] **TC-10:** Native Waylith DeepProfiler execution budget ($\le 1.0\text{ ms}$), single-pass traversal resolution, and zero-allocation hot path verified.
+- [ ] **TC-11:** Scribe save/load persistence, stuffDef material serialization, and defensive outpost removal resilience verified.
