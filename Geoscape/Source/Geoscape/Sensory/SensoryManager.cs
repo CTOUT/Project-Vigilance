@@ -17,17 +17,24 @@ public class SensoryManager : WorldComponent
 {
     public const int SweepIntervalTicks = 250; // ~4.16 seconds (realistic radar rotation / visual sweep rate)
 
-    private readonly List<ISensorProvider> customSensors = new();
-    private readonly Dictionary<int, ScoutHorizonSensor> colonySensors = new();
-    private readonly Dictionary<int, ScoutHorizonSensor> caravanSensors = new();
-    private readonly HashSet<IDetectableTarget> activeTargets = new();
-    private readonly Dictionary<PlanetTile, int> stationaryExploredRadius = new();
-    private readonly Dictionary<int, PlanetTile> lastCaravanTiles = new();
-    private readonly Dictionary<int, (PlanetTile tile, float radius)> lastActiveSensorStates = new();
-    private readonly List<ISensorProvider> activeSensorsCache = new();
-    private readonly HashSet<int> currentActiveVisionTileIds = new();
-    private readonly HashSet<PlanetTile> tmpActiveVisionTiles = new();
-    private readonly HashSet<int> newActiveVisionTileIds = new();
+    private static readonly Predicate<IDetectableTarget> StaleTargetPredicate = static t => t is WorldObject wo && (wo.Destroyed || (Find.World != null && !wo.Spawned));
+
+    /// <summary>
+    /// Optional override for world distance calculation in test / benchmark scenarios where WorldGrid is uninitialized.
+    /// </summary>
+    public static Func<PlanetTile, PlanetTile, int, int>? DistanceCalculationOverride { get; set; }
+
+    private readonly List<ISensorProvider> customSensors = new(64);
+    private readonly Dictionary<int, ScoutHorizonSensor> colonySensors = new(32);
+    private readonly Dictionary<int, ScoutHorizonSensor> caravanSensors = new(32);
+    private readonly HashSet<IDetectableTarget> activeTargets = new(128);
+    private readonly Dictionary<int, int> stationaryExploredRadius = new(64);
+    private readonly Dictionary<int, PlanetTile> lastCaravanTiles = new(32);
+    private readonly Dictionary<int, (PlanetTile tile, float radius)> lastActiveSensorStates = new(128);
+    private readonly List<ISensorProvider> activeSensorsCache = new(128);
+    private readonly HashSet<int> currentActiveVisionTileIds = new(256);
+    private readonly HashSet<PlanetTile> tmpActiveVisionTiles = new(256);
+    private readonly HashSet<int> newActiveVisionTileIds = new(256);
     private readonly List<PlanetTile> tmpNeighbors = new(6);
     private readonly Queue<(PlanetTile tile, int step)> bfsQueue = new(128);
     private readonly HashSet<int> bfsVisitedTileIds = new(128);
@@ -53,9 +60,9 @@ public class SensoryManager : WorldComponent
         EnsureExploredArray();
         PerformSensorySweep();
 
-        if (Find.WorldGrid?.Surface != null)
+        if (Find.World?.grid?.Surface != null)
         {
-            Patches.PlanetLayer_InitializeLayer_Patch.EnsureLayersAttached(Find.WorldGrid.Surface);
+            Patches.PlanetLayer_InitializeLayer_Patch.EnsureLayersAttached(Find.World.grid.Surface);
             WorldDrawLayer_HazeOfWar.Instance?.RegenerateNow();
             WorldDrawLayer_RadarCoverage.Instance?.RegenerateNow();
         }
@@ -80,7 +87,7 @@ public class SensoryManager : WorldComponent
 
     private void CheckPlayerCaravanMovement()
     {
-        var caravans = Find.WorldObjects?.Caravans;
+        var caravans = Find.World?.worldObjects?.Caravans;
         if (caravans == null || caravans.Count == 0) return;
 
         bool anyMoved = false;
@@ -169,8 +176,10 @@ public class SensoryManager : WorldComponent
         // 1. Natural Colony & Camp Scout Horizons (Settlements, Camps, and Outposts with active maps)
         if (Find.Maps != null)
         {
-            foreach (Map map in Find.Maps)
+            var maps = Find.Maps;
+            for (int i = 0; i < maps.Count; i++)
             {
+                Map map = maps[i];
                 if (map.Parent != null && map.Parent.Tile.Valid &&
                     (map.IsPlayerHome || (map.Parent.Faction == Faction.OfPlayer) || (map.mapPawns != null && map.mapPawns.AnyFreeColonistSpawned)))
                 {
@@ -189,10 +198,12 @@ public class SensoryManager : WorldComponent
         }
 
         // 2. Natural Caravan Lookouts (Player caravans)
-        if (Find.WorldObjects?.Caravans != null)
+        var caravans = Find.World?.worldObjects?.Caravans;
+        if (caravans != null)
         {
-            foreach (Caravan caravan in Find.WorldObjects.Caravans)
+            for (int i = 0; i < caravans.Count; i++)
             {
+                Caravan caravan = caravans[i];
                 if (caravan.Faction == Faction.OfPlayer && caravan.Tile.Valid && caravan.Spawned && !caravan.Destroyed)
                 {
                     int caravanId = caravan.ID;
@@ -210,12 +221,12 @@ public class SensoryManager : WorldComponent
         }
 
         // 3. Registered Custom Sensors (Radar installations, listening posts, etc.)
-        if (Find.WorldObjects?.AllWorldObjects != null)
+        if (Find.World?.worldObjects?.AllWorldObjects != null)
         {
-            var all = Find.WorldObjects.AllWorldObjects;
+            var all = Find.World.worldObjects.AllWorldObjects;
             for (int i = 0; i < all.Count; i++)
             {
-                if (all[i] is WorldObject_ListeningPost post && post.Spawned && !post.Destroyed && !customSensors.Contains(post))
+                if (all[i] is WorldObject_ListeningPost post && (Find.World == null || post.Spawned) && !post.Destroyed && !customSensors.Contains(post))
                 {
                     customSensors.Add(post);
                 }
@@ -235,198 +246,221 @@ public class SensoryManager : WorldComponent
 
     public void PerformSensorySweep()
     {
-        VisibilityMode mode = GeoscapeMod.Settings.visibilityMode;
-
-        // Clean up stale targets or populate if empty
-        activeTargets.RemoveWhere(t => t is WorldObject wo && (wo.Destroyed || !wo.Spawned));
-        if (activeTargets.Count == 0 && Find.WorldObjects?.AllWorldObjects != null)
+        DeepProfiler.Start("ProjectVigilance.PerformSensorySweep");
+        try
         {
-            foreach (WorldObject wo in Find.WorldObjects.AllWorldObjects)
-            {
-                if (wo is IDetectableTarget target && !wo.Destroyed && wo.Spawned)
-                {
-                    activeTargets.Add(target);
-                }
-            }
-        }
+            VisibilityMode mode = GeoscapeMod.Settings.visibilityMode;
 
-        // Omniscient Mode: bypass all fog and radar requirements
-        if (mode == VisibilityMode.Omniscient)
-        {
-            if (activeTargets.Count > 0)
+            // Clean up stale targets or populate if empty
+            activeTargets.RemoveWhere(StaleTargetPredicate);
+            if (activeTargets.Count == 0 && Find.World?.worldObjects?.AllWorldObjects != null)
             {
-                foreach (IDetectableTarget target in activeTargets)
+                var all = Find.World.worldObjects.AllWorldObjects;
+                for (int i = 0; i < all.Count; i++)
                 {
-                    if (target.CurrentIntelligenceTier != IntelligenceTier.Analysed)
+                    WorldObject wo = all[i];
+                    if (wo is IDetectableTarget target && !wo.Destroyed && (Find.World == null || wo.Spawned))
                     {
-                        target.CurrentIntelligenceTier = IntelligenceTier.Analysed;
+                        activeTargets.Add(target);
                     }
-                    target.UpdateSampledPosition();
                 }
             }
-            return;
-        }
 
-        IReadOnlyList<ISensorProvider> activeSensors = GetActiveSensors();
-        bool sensorsChanged = false;
-
-        if (activeSensors.Count != lastActiveSensorStates.Count)
-        {
-            sensorsChanged = true;
-        }
-
-        for (int i = 0; i < activeSensors.Count; i++)
-        {
-            ISensorProvider sensor = activeSensors[i];
-            if (!sensor.SensorTile.Valid)
+            // Omniscient Mode: bypass all fog and radar requirements
+            if (mode == VisibilityMode.Omniscient)
             {
-                continue;
+                if (activeTargets.Count > 0)
+                {
+                    foreach (IDetectableTarget target in activeTargets)
+                    {
+                        if (target.CurrentIntelligenceTier != IntelligenceTier.Analysed)
+                        {
+                            target.CurrentIntelligenceTier = IntelligenceTier.Analysed;
+                        }
+                        target.UpdateSampledPosition();
+                    }
+                }
+                return;
             }
 
-            int sensorId = sensor.Source?.ID ?? i;
-            float currentRadius = sensor.DetectionRadiusInTiles;
-            PlanetTile currentTile = sensor.SensorTile;
+            IReadOnlyList<ISensorProvider> activeSensors = GetActiveSensors();
+            bool sensorsChanged = false;
 
-            if (!lastActiveSensorStates.TryGetValue(sensorId, out var prevState) ||
-                prevState.tile != currentTile ||
-                Mathf.Abs(prevState.radius - currentRadius) > 0.05f)
+            if (activeSensors.Count != lastActiveSensorStates.Count)
             {
                 sensorsChanged = true;
             }
 
-            if (mode == VisibilityMode.ClassicHazeOfWar)
+            for (int i = 0; i < activeSensors.Count; i++)
             {
-                EnsureExploredArray();
-                if (sensor.IsStationary)
+                ISensorProvider sensor = activeSensors[i];
+                if (!sensor.SensorTile.Valid)
                 {
-                    // Stationary sensors (colonies, radar towers) only flood-fill once unless radius expanded
-                    int intRadius = Mathf.CeilToInt(currentRadius);
-                    if (!stationaryExploredRadius.TryGetValue(currentTile, out int prevRadius) || prevRadius < intRadius)
-                    {
-                        stationaryExploredRadius[currentTile] = intRadius;
-                        MarkSurroundingTilesExplored(currentTile, currentRadius);
-                        sensorsChanged = true;
-                    }
+                    continue;
                 }
-                else
+
+                int sensorId = sensor.Source?.ID ?? i;
+                float currentRadius = sensor.DetectionRadiusInTiles;
+                PlanetTile currentTile = sensor.SensorTile;
+
+                if (!lastActiveSensorStates.TryGetValue(sensorId, out var prevState) ||
+                    prevState.tile != currentTile ||
+                    Mathf.Abs(prevState.radius - currentRadius) > 0.05f)
                 {
-                    // Mobile sensors (caravans) only flood-fill when moving to a new tile
-                    if (sensor is ScoutHorizonSensor scout && scout.Source is Caravan caravan)
+                    sensorsChanged = true;
+                }
+
+                if (mode == VisibilityMode.ClassicHazeOfWar)
+                {
+                    EnsureExploredArray();
+                    if (sensor.IsStationary)
                     {
-                        int id = caravan.ID;
-                        if (!lastCaravanTiles.TryGetValue(id, out PlanetTile lastTile) || lastTile != caravan.Tile)
+                        // Stationary sensors (colonies, radar towers) only flood-fill once unless radius expanded
+                        int intRadius = Mathf.CeilToInt(currentRadius);
+                        int tileKey = currentTile.tileId;
+                        if (!stationaryExploredRadius.TryGetValue(tileKey, out int prevRadius) || prevRadius < intRadius)
                         {
-                            lastCaravanTiles[id] = caravan.Tile;
-                            MarkSurroundingTilesExplored(caravan.Tile, currentRadius);
+                            stationaryExploredRadius[tileKey] = intRadius;
+                            MarkSurroundingTilesExplored(currentTile, currentRadius);
                             sensorsChanged = true;
                         }
                     }
                     else
                     {
-                        MarkSurroundingTilesExplored(sensor.SensorTile, currentRadius);
-                        sensorsChanged = true;
+                        // Mobile sensors (caravans) only flood-fill when moving to a new tile
+                        if (sensor is ScoutHorizonSensor scout && scout.Source is Caravan caravan)
+                        {
+                            int id = caravan.ID;
+                            if (!lastCaravanTiles.TryGetValue(id, out PlanetTile lastTile) || lastTile != caravan.Tile)
+                            {
+                                lastCaravanTiles[id] = caravan.Tile;
+                                MarkSurroundingTilesExplored(caravan.Tile, currentRadius);
+                                sensorsChanged = true;
+                            }
+                        }
+                        else
+                        {
+                            MarkSurroundingTilesExplored(sensor.SensorTile, currentRadius);
+                            sensorsChanged = true;
+                        }
                     }
                 }
             }
-        }
 
-        if (sensorsChanged)
-        {
-            lastActiveSensorStates.Clear();
-            for (int i = 0; i < activeSensors.Count; i++)
+            if (sensorsChanged)
             {
-                ISensorProvider s = activeSensors[i];
-                if (s.SensorTile.Valid)
+                lastActiveSensorStates.Clear();
+                for (int i = 0; i < activeSensors.Count; i++)
                 {
-                    int id = s.Source?.ID ?? i;
-                    lastActiveSensorStates[id] = (s.SensorTile, s.DetectionRadiusInTiles);
+                    ISensorProvider s = activeSensors[i];
+                    if (s.SensorTile.Valid)
+                    {
+                        int id = s.Source?.ID ?? i;
+                        lastActiveSensorStates[id] = (s.SensorTile, s.DetectionRadiusInTiles);
+                    }
                 }
+
+                if (mode == VisibilityMode.ClassicHazeOfWar)
+                {
+                    UpdateHazeActiveVision();
+                }
+                WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
             }
 
             if (mode == VisibilityMode.ClassicHazeOfWar)
             {
-                UpdateHazeActiveVision();
+                HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
             }
-            WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
-        }
 
-        if (mode == VisibilityMode.ClassicHazeOfWar)
-        {
-            HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
-        }
-
-        // Peacetime Early Exit: If all sensors updated and no targets exist, exit!
-        if (activeTargets.Count == 0)
-        {
-            return;
-        }
-
-        // Evaluate all detectable targets against active sensors
-        foreach (IDetectableTarget target in activeTargets)
-        {
-            IntelligenceTier bestTier = IntelligenceTier.Undetected;
-            ISensorProvider? bestSensor = null;
-
-            for (int i = 0; i < activeSensors.Count; i++)
+            // Peacetime Early Exit: If all sensors updated and no targets exist, exit!
+            if (activeTargets.Count == 0)
             {
-                ISensorProvider sensor = activeSensors[i];
-                if (sensor.CanDetect(target))
+                return;
+            }
+
+            DeepProfiler.Start("ProjectVigilance.SensorySweep.TargetEvaluations");
+            try
+            {
+                // Evaluate all detectable targets against active sensors
+                foreach (IDetectableTarget target in activeTargets)
                 {
-                    int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
-                    int idSteps = sensor.IdentificationRadiusInTiles;
-                    int travDist = Find.WorldGrid.TraversalDistanceBetween(sensor.SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps);
+                    IntelligenceTier bestTier = IntelligenceTier.Undetected;
+                    ISensorProvider? bestSensor = null;
 
-                    // Model B+ Tactical Terrain Masking:
-                    // Incursions in Mountainous/Impassable tiles are masked by rugged valleys and canyons,
-                    // preventing advancement beyond Contact tier unless scanned by a sensor that penetrates masking.
-                    bool isTargetMasked = SensoryTerrainUtility.IsTargetMasked(target.CurrentTile);
-
-                    // Evaluate resulting intelligence tier based on identification radius, terrain masking, and sensor capabilities
-                    IntelligenceTier tier = SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist, isTargetMasked);
-
-                    if (tier > bestTier)
+                    for (int i = 0; i < activeSensors.Count; i++)
                     {
-                        bestTier = tier;
-                        bestSensor = sensor;
+                        ISensorProvider sensor = activeSensors[i];
+                        if (sensor.CanDetect(target))
+                        {
+                            int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
+                            int idSteps = sensor.IdentificationRadiusInTiles;
+                            int travDist = DistanceCalculationOverride != null
+                                ? DistanceCalculationOverride(sensor.SensorTile, target.CurrentTile, maxSteps)
+                                : (Find.World?.grid != null
+                                    ? Find.World.grid.TraversalDistanceBetween(sensor.SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
+                                    : Math.Abs(sensor.SensorTile.tileId - target.CurrentTile.tileId));
+
+                            // Model B+ Tactical Terrain Masking:
+                            // Incursions in Mountainous/Impassable tiles are masked by rugged valleys and canyons,
+                            // preventing advancement beyond Contact tier unless scanned by a sensor that penetrates masking.
+                            bool isTargetMasked = SensoryTerrainUtility.IsTargetMasked(target.CurrentTile);
+
+                            // Evaluate resulting intelligence tier based on identification radius, terrain masking, and sensor capabilities
+                            IntelligenceTier tier = SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist, isTargetMasked);
+
+                            if (tier > bestTier)
+                            {
+                                bestTier = tier;
+                                bestSensor = sensor;
+                            }
+                        }
+                    }
+
+                    // Special persistence: Retreating forces carrying captured player colonists remain actively tracked via colonist distress beacons
+                    if (target is WorldObject_Incursion inc && inc.IsRetreating)
+                    {
+                        if (inc.KidnappedColonists != null && inc.KidnappedColonists.Count > 0)
+                        {
+                            if (bestTier < IntelligenceTier.Classified)
+                            {
+                                bestTier = IntelligenceTier.Classified;
+                            }
+                        }
+                        else
+                        {
+                            // Fleeing raiders retain a contact blip on the geoscape for pursuit
+                            if (bestTier < IntelligenceTier.Contact)
+                            {
+                                bestTier = IntelligenceTier.Contact;
+                            }
+                        }
+                    }
+
+                    if (bestTier > target.CurrentIntelligenceTier)
+                    {
+                        target.OnDetected(bestSensor!, bestTier);
+                    }
+                    else if (bestTier == IntelligenceTier.Undetected && target.CurrentIntelligenceTier != IntelligenceTier.Undetected)
+                    {
+                        // Target has moved into a blind spot / unmonitored sector
+                        target.CurrentIntelligenceTier = IntelligenceTier.Undetected;
+                    }
+
+                    // Discrete radar/sonar jump update on every pulse sweep for detected contacts
+                    if (bestTier >= IntelligenceTier.Contact)
+                    {
+                        target.UpdateSampledPosition();
                     }
                 }
             }
-
-            // Special persistence: Retreating forces carrying captured player colonists remain actively tracked via colonist distress beacons
-            if (target is WorldObject_Incursion inc && inc.IsRetreating)
+            finally
             {
-                if (inc.KidnappedColonists != null && inc.KidnappedColonists.Count > 0)
-                {
-                    if (bestTier < IntelligenceTier.Classified)
-                    {
-                        bestTier = IntelligenceTier.Classified;
-                    }
-                }
-                else
-                {
-                    // Fleeing raiders retain a contact blip on the geoscape for pursuit
-                    if (bestTier < IntelligenceTier.Contact)
-                    {
-                        bestTier = IntelligenceTier.Contact;
-                    }
-                }
+                DeepProfiler.End();
             }
-
-            if (bestTier > target.CurrentIntelligenceTier)
-            {
-                target.OnDetected(bestSensor!, bestTier);
-            }
-            else if (bestTier == IntelligenceTier.Undetected && target.CurrentIntelligenceTier != IntelligenceTier.Undetected)
-            {
-                // Target has moved into a blind spot / unmonitored sector
-                target.CurrentIntelligenceTier = IntelligenceTier.Undetected;
-            }
-
-            // Discrete radar/sonar jump update on every pulse sweep for detected contacts
-            if (bestTier >= IntelligenceTier.Contact)
-            {
-                target.UpdateSampledPosition();
-            }
+        }
+        finally
+        {
+            DeepProfiler.End();
         }
     }
 
@@ -454,7 +488,7 @@ public class SensoryManager : WorldComponent
             if (sensor.SensorTile.Valid && sensor.SensorTile.Layer == tile.Layer)
             {
                 int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
-                if (Find.WorldGrid.TraversalDistanceBetween(sensor.SensorTile, tile, passImpassable: true, maxDist: maxSteps) <= maxSteps)
+                if (Find.World?.grid != null && Find.World.grid.TraversalDistanceBetween(sensor.SensorTile, tile, passImpassable: true, maxDist: maxSteps) <= maxSteps)
                 {
                     return true;
                 }
@@ -644,7 +678,7 @@ public class SensoryManager : WorldComponent
 
         foreach (int tileId in feature.Tiles)
         {
-            Vector3 center = Find.WorldGrid.GetTileCenter(tileId);
+            Vector3 center = Find.World?.grid != null ? Find.World.grid.GetTileCenter(tileId) : Vector3.zero;
             float sqrDist = (center - targetPos).sqrMagnitude;
             if (sqrDist < minSqrDist)
             {
@@ -685,47 +719,55 @@ public class SensoryManager : WorldComponent
 
     private void UpdateHazeActiveVision()
     {
-        var haze = WorldDrawLayer_HazeOfWar.Instance;
-        if (haze == null || !haze.IsGeometryBuilt)
+        DeepProfiler.Start("ProjectVigilance.SensorySweep.VisionUpdates");
+        try
         {
-            haze?.SetDirty();
-            return;
-        }
-
-        tmpActiveVisionTiles.Clear();
-        newActiveVisionTileIds.Clear();
-        PopulateActiveVisionTiles(tmpActiveVisionTiles);
-
-        foreach (PlanetTile pt in tmpActiveVisionTiles)
-        {
-            newActiveVisionTileIds.Add(pt.tileId);
-        }
-
-        // 1. Tiles leaving active vision: restore to Haze (if explored) or Shroud (if unexplored)
-        foreach (int oldTileId in currentActiveVisionTileIds)
-        {
-            if (!newActiveVisionTileIds.Contains(oldTileId))
+            var haze = WorldDrawLayer_HazeOfWar.Instance;
+            if (haze == null || !haze.IsGeometryBuilt)
             {
-                Color32 color = IsTileIdExplored(oldTileId)
-                    ? WorldDrawLayer_HazeOfWar.HazeColor
-                    : WorldDrawLayer_HazeOfWar.ShroudColor;
-                haze.SetTileColor(oldTileId, color);
+                haze?.SetDirty();
+                return;
             }
-        }
 
-        // 2. Tiles entering active vision: set to ClearColor (100% transparent)
-        foreach (int newTileId in newActiveVisionTileIds)
-        {
-            if (!currentActiveVisionTileIds.Contains(newTileId))
+            tmpActiveVisionTiles.Clear();
+            newActiveVisionTileIds.Clear();
+            PopulateActiveVisionTiles(tmpActiveVisionTiles);
+
+            foreach (PlanetTile pt in tmpActiveVisionTiles)
             {
-                haze.SetTileColor(newTileId, WorldDrawLayer_HazeOfWar.ClearColor);
+                newActiveVisionTileIds.Add(pt.tileId);
             }
+
+            // 1. Tiles leaving active vision: restore to Haze (if explored) or Shroud (if unexplored)
+            foreach (int oldTileId in currentActiveVisionTileIds)
+            {
+                if (!newActiveVisionTileIds.Contains(oldTileId))
+                {
+                    Color32 color = IsTileIdExplored(oldTileId)
+                        ? WorldDrawLayer_HazeOfWar.HazeColor
+                        : WorldDrawLayer_HazeOfWar.ShroudColor;
+                    haze.SetTileColor(oldTileId, color);
+                }
+            }
+
+            // 2. Tiles entering active vision: set to ClearColor (100% transparent)
+            foreach (int newTileId in newActiveVisionTileIds)
+            {
+                if (!currentActiveVisionTileIds.Contains(newTileId))
+                {
+                    haze.SetTileColor(newTileId, WorldDrawLayer_HazeOfWar.ClearColor);
+                }
+            }
+
+            currentActiveVisionTileIds.Clear();
+            currentActiveVisionTileIds.UnionWith(newActiveVisionTileIds);
+
+            haze.ApplyDirtyColors();
         }
-
-        currentActiveVisionTileIds.Clear();
-        currentActiveVisionTileIds.UnionWith(newActiveVisionTileIds);
-
-        haze.ApplyDirtyColors();
+        finally
+        {
+            DeepProfiler.End();
+        }
     }
 
     public void MarkTileExplored(PlanetTile tile)
@@ -769,15 +811,15 @@ public class SensoryManager : WorldComponent
                         }
 
                         // Check if an unrevealed world object or settlement was on this tile
-                        if (!revealedAnyObject && Find.WorldObjects != null && Find.WorldObjects.AnyWorldObjectAt(t))
+                        if (!revealedAnyObject && Find.World?.worldObjects != null && Find.World.worldObjects.AnyWorldObjectAt(t))
                         {
                             revealedAnyObject = true;
                         }
 
                         // Check if a landmark or mountain range center was on this tile
-                        if (!revealedAnyFeature && Find.WorldFeatures != null)
+                        if (!revealedAnyFeature && Find.World?.features != null)
                         {
-                            var features = Find.WorldFeatures.features;
+                            var features = Find.World.features.features;
                             for (int f = 0; f < features.Count; f++)
                             {
                                 if (GetFeatureCenterTile(features[f]) == tileId)
@@ -806,15 +848,15 @@ public class SensoryManager : WorldComponent
         }
 
         // Selective dirtying: only notify vanilla layers if an actual object or feature was uncovered
-        if (revealedAnyObject && Find.WorldGrid?.Surface != null)
+        if (revealedAnyObject && Find.World?.grid?.Surface != null)
         {
-            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
+            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
         }
 
-        if (revealedAnyFeature && Find.WorldGrid?.Surface != null)
+        if (revealedAnyFeature && Find.World?.grid?.Surface != null)
         {
-            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
+            Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
         }
 
         HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
@@ -833,19 +875,19 @@ public class SensoryManager : WorldComponent
         PerformSensorySweep();
         WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
-        if (Find.WorldGrid?.Surface != null)
+        if (Find.World?.grid?.Surface != null)
         {
-            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
-            Find.WorldGrid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
+            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
+            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
         }
     }
 
     private void EnsureExploredArray()
     {
-        if (exploredBytes == null && Find.WorldGrid != null)
+        if (exploredBytes == null && Find.World?.grid != null)
         {
-            int totalTiles = Find.WorldGrid.TilesCount;
+            int totalTiles = Find.World.grid.TilesCount;
             exploredBytes = new byte[(totalTiles + 7) / 8];
         }
     }

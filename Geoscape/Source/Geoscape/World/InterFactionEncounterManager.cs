@@ -47,9 +47,9 @@ public class InterFactionEncounterManager : WorldComponent
     public const int CheckIntervalTicks = 250; // Evaluated on TickRare (250 ticks)
     public const int SkirmishCooldownTicks = 15000; // Cooldown after skirmish before engaging again (~6h in-game)
 
-    private readonly Dictionary<int, List<WorldObject_Incursion>> tileBuckets = new(64);
-    private readonly List<List<WorldObject_Incursion>> listPool = new(64);
-    private readonly HashSet<WorldObject_Incursion> engagedThisPass = new(16);
+    private readonly Dictionary<int, List<WorldObject_Incursion>> tileBuckets = new(256);
+    private readonly List<List<WorldObject_Incursion>> listPool = new(256);
+    private readonly HashSet<WorldObject_Incursion> engagedThisPass = new(128);
 
     public static InterFactionEncounterManager? Instance { get; set; }
 
@@ -58,6 +58,10 @@ public class InterFactionEncounterManager : WorldComponent
     public InterFactionEncounterManager(RimWorld.Planet.World world) : base(world)
     {
         Instance = this;
+        for (int i = 0; i < 64; i++)
+        {
+            listPool.Add(new List<WorldObject_Incursion>(4));
+        }
     }
 
     public override void FinalizeInit(bool fromLoad)
@@ -89,10 +93,18 @@ public class InterFactionEncounterManager : WorldComponent
     /// </summary>
     public void CheckInterFactionCollisions()
     {
-        engagedThisPass.Clear();
-        ClearBuckets();
-        IndexAllIncursions();
-        ProcessCollisions();
+        DeepProfiler.Start("ProjectVigilance.InterFactionCollisions");
+        try
+        {
+            engagedThisPass.Clear();
+            ClearBuckets();
+            IndexAllIncursions();
+            ProcessCollisions();
+        }
+        finally
+        {
+            DeepProfiler.End();
+        }
     }
 
     /// <summary>
@@ -109,17 +121,35 @@ public class InterFactionEncounterManager : WorldComponent
     }
 
     /// <summary>
+    /// Optional override for incursion indexing in test / benchmark scenarios where WorldObjects is uninitialized.
+    /// </summary>
+    public static IReadOnlyList<WorldObject_Incursion>? IncursionProviderOverride { get; set; }
+
+    /// <summary>
     /// Indexes all active travelling incursions on the world into tile buckets in O(M) time.
     /// </summary>
     public void IndexAllIncursions()
     {
-        var worldObjects = Find.WorldObjects?.AllWorldObjects;
-        if (worldObjects == null) return;
+        if (IncursionProviderOverride != null)
+        {
+            for (int i = 0; i < IncursionProviderOverride.Count; i++)
+            {
+                var inc = IncursionProviderOverride[i];
+                if ((Find.World == null || inc.Spawned) && !inc.Destroyed && !inc.IsEngagedInTacticalMap)
+                {
+                    IndexIncursion(inc);
+                }
+            }
+            return;
+        }
+
+        if (Find.World?.worldObjects == null) return;
+        var worldObjects = Find.World.worldObjects.AllWorldObjects;
 
         for (int i = 0; i < worldObjects.Count; i++)
         {
             if (worldObjects[i] is WorldObject_Incursion incursion &&
-                incursion.Spawned &&
+                (Find.World == null || incursion.Spawned) &&
                 !incursion.Destroyed &&
                 !incursion.IsEngagedInTacticalMap)
             {
@@ -168,12 +198,12 @@ public class InterFactionEncounterManager : WorldComponent
             for (int i = 0; i < bucket.Count - 1; i++)
             {
                 var incA = bucket[i];
-                if (!incA.Spawned || incA.Destroyed || incA.IsEngagedInTacticalMap || incA.IsSkirmishOnCooldown || engagedThisPass.Contains(incA)) continue;
+                if (incA.Destroyed || incA.IsEngagedInTacticalMap || incA.IsSkirmishOnCooldown || engagedThisPass.Contains(incA) || (Find.World != null && !incA.Spawned)) continue;
 
                 for (int j = i + 1; j < bucket.Count; j++)
                 {
                     var incB = bucket[j];
-                    if (!incB.Spawned || incB.Destroyed || incB.IsEngagedInTacticalMap || incB.IsSkirmishOnCooldown || engagedThisPass.Contains(incB)) continue;
+                    if (incB.Destroyed || incB.IsEngagedInTacticalMap || incB.IsSkirmishOnCooldown || engagedThisPass.Contains(incB) || (Find.World != null && !incB.Spawned)) continue;
 
                     // Collisions trigger strictly when hostile or rival incursions occupy identical tiles
                     if (incA.Faction != null && incB.Faction != null && incA.Faction.HostileTo(incB.Faction))
@@ -193,75 +223,83 @@ public class InterFactionEncounterManager : WorldComponent
     /// </summary>
     public void ExecuteBackgroundSkirmish(WorldObject_Incursion incA, WorldObject_Incursion incB)
     {
-        // Enforce skirmish cooldown on both participants to avoid repeated 250-tick skirmish re-triggers
-        incA.SetSkirmishCooldown(SkirmishCooldownTicks);
-        incB.SetSkirmishCooldown(SkirmishCooldownTicks);
-
-        var dataA = new SkirmishSideData
+        DeepProfiler.Start("ProjectVigilance.SkirmishResolution");
+        try
         {
-            CombatPoints = (incA.IncidentParms?.points > 0) ? incA.IncidentParms.points : 400f,
-            TechLevel = incA.Faction?.def?.techLevel ?? TechLevel.Industrial,
-            FactionName = incA.Faction?.Name ?? "Participant A",
-            IsTradeCaravan = incA.IsUnderlyingTradeCaravan
-        };
+            // Enforce skirmish cooldown on both participants to avoid repeated 250-tick skirmish re-triggers
+            incA.SetSkirmishCooldown(SkirmishCooldownTicks);
+            incB.SetSkirmishCooldown(SkirmishCooldownTicks);
 
-        var dataB = new SkirmishSideData
-        {
-            CombatPoints = (incB.IncidentParms?.points > 0) ? incB.IncidentParms.points : 400f,
-            TechLevel = incB.Faction?.def?.techLevel ?? TechLevel.Industrial,
-            FactionName = incB.Faction?.Name ?? "Participant B",
-            IsTradeCaravan = incB.IsUnderlyingTradeCaravan
-        };
+            var dataA = new SkirmishSideData
+            {
+                CombatPoints = (incA.IncidentParms?.points > 0) ? incA.IncidentParms.points : 400f,
+                TechLevel = incA.Faction?.def?.techLevel ?? TechLevel.Industrial,
+                FactionName = incA.Faction?.Name ?? "Participant A",
+                IsTradeCaravan = incA.IsUnderlyingTradeCaravan
+            };
 
-        var res = ResolveSkirmishAlgebraic(dataA, dataB);
+            var dataB = new SkirmishSideData
+            {
+                CombatPoints = (incB.IncidentParms?.points > 0) ? incB.IncidentParms.points : 400f,
+                TechLevel = incB.Faction?.def?.techLevel ?? TechLevel.Industrial,
+                FactionName = incB.Faction?.Name ?? "Participant B",
+                IsTradeCaravan = incB.IsUnderlyingTradeCaravan
+            };
 
-        WorldObject_Incursion winner = res.SideAWon ? incA : incB;
-        WorldObject_Incursion loser = res.SideAWon ? incB : incA;
-        float winnerRemaining = res.SideAWon ? res.SideARemainingPoints : res.SideBRemainingPoints;
-        float loserRemaining = res.SideAWon ? res.SideBRemainingPoints : res.SideARemainingPoints;
-        float winnerCasualties = res.SideAWon ? res.SideACasualtyFraction : res.SideBCasualtyFraction;
-        float loserCasualties = res.SideAWon ? res.SideBCasualtyFraction : res.SideACasualtyFraction;
-        bool loserDestroyed = res.SideAWon ? res.SideBRoutedOrDestroyed : res.SideARoutedOrDestroyed;
+            var res = ResolveSkirmishAlgebraic(dataA, dataB);
 
-        PlanetTile skirmishTile = incA.Tile;
+            WorldObject_Incursion winner = res.SideAWon ? incA : incB;
+            WorldObject_Incursion loser = res.SideAWon ? incB : incA;
+            float winnerRemaining = res.SideAWon ? res.SideARemainingPoints : res.SideBRemainingPoints;
+            float loserRemaining = res.SideAWon ? res.SideBRemainingPoints : res.SideARemainingPoints;
+            float winnerCasualties = res.SideAWon ? res.SideACasualtyFraction : res.SideBCasualtyFraction;
+            float loserCasualties = res.SideAWon ? res.SideBCasualtyFraction : res.SideACasualtyFraction;
+            bool loserDestroyed = res.SideAWon ? res.SideBRoutedOrDestroyed : res.SideARoutedOrDestroyed;
 
-        // 1. Apply casualties and harvest real casualty pawns directly
-        var winnerCasualtyPawns = winner.ApplySkirmishCasualties(winnerCasualties, winnerRemaining);
-        var loserCasualtyPawns = loser.ApplySkirmishCasualties(loserCasualties, loserRemaining);
+            PlanetTile skirmishTile = incA.Tile;
 
-        List<Pawn> casualties = new(loserCasualtyPawns.Count + winnerCasualtyPawns.Count);
-        casualties.AddRange(loserCasualtyPawns);
-        casualties.AddRange(winnerCasualtyPawns);
+            // 1. Apply casualties and harvest real casualty pawns directly
+            var winnerCasualtyPawns = winner.ApplySkirmishCasualties(winnerCasualties, winnerRemaining);
+            var loserCasualtyPawns = loser.ApplySkirmishCasualties(loserCasualties, loserRemaining);
 
-        // 2. Spawn Encounter Aftermath site on world map BEFORE destroying loser
-        // (Ensures trade stock loot and casualty pawns are salvaged before loser's TradeStock is cleared)
-        SpawnAftermathSite(skirmishTile, winner.Faction, loser.Faction, res, incA, incB, casualties);
+            List<Pawn> casualties = new(loserCasualtyPawns.Count + winnerCasualtyPawns.Count);
+            casualties.AddRange(loserCasualtyPawns);
+            casualties.AddRange(winnerCasualtyPawns);
 
-        // 3. Handle loser outcome: destroyed/wiped out vs retreating
-        if (loserDestroyed)
-        {
-            ContactRegistry.Instance?.Notify_ContactDestroyed(
-                loser,
-                $"Destroyed in skirmish against {winner.Faction?.Name ?? "enemy forces"}");
-            loser.Destroy();
+            // 2. Spawn Encounter Aftermath site on world map BEFORE destroying loser
+            // (Ensures trade stock loot and casualty pawns are salvaged before loser's TradeStock is cleared)
+            SpawnAftermathSite(skirmishTile, winner.Faction, loser.Faction, res, incA, incB, casualties);
+
+            // 3. Handle loser outcome: destroyed/wiped out vs retreating
+            if (loserDestroyed)
+            {
+                ContactRegistry.Instance?.Notify_ContactDestroyed(
+                    loser,
+                    $"Destroyed in skirmish against {winner.Faction?.Name ?? "enemy forces"}");
+                loser.Destroy();
+            }
+            else
+            {
+                loser.ReverseCourse($"routed after defeat against {winner.Faction?.Name ?? "enemy forces"}");
+            }
+
+            // 4. Handle winner outcome: continue march vs retreat from excessive damage
+            if (winnerCasualties >= 0.45f || winner.IsTradeMissionAborted || winnerRemaining < 100f)
+            {
+                winner.ReverseCourse($"retreating after heavy combat casualties against {loser.Faction?.Name ?? "enemy forces"}");
+            }
+            else
+            {
+                winner.AdvancePathTile();
+            }
+
+            // 5. Narrative Geoscape notification if sector is monitored
+            NotifyPlayerOfSkirmish(skirmishTile, winner, loser, res);
         }
-        else
+        finally
         {
-            loser.ReverseCourse($"routed after defeat against {winner.Faction?.Name ?? "enemy forces"}");
+            DeepProfiler.End();
         }
-
-        // 4. Handle winner outcome: continue march vs retreat from excessive damage
-        if (winnerCasualties >= 0.45f || winner.IsTradeMissionAborted || winnerRemaining < 100f)
-        {
-            winner.ReverseCourse($"retreating after heavy combat casualties against {loser.Faction?.Name ?? "enemy forces"}");
-        }
-        else
-        {
-            winner.AdvancePathTile();
-        }
-
-        // 5. Narrative Geoscape notification if sector is monitored
-        NotifyPlayerOfSkirmish(skirmishTile, winner, loser, res);
     }
 
     private void SpawnAftermathSite(

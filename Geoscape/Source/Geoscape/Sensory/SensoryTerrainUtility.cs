@@ -1,4 +1,5 @@
 using RimWorld.Planet;
+using Verse;
 
 namespace ProjectVigilance.Geoscape.Sensory;
 
@@ -9,6 +10,16 @@ namespace ProjectVigilance.Geoscape.Sensory;
 public static class SensoryTerrainUtility
 {
     /// <summary>
+    /// Optional override for target masking evaluation in tests / benchmarks without world grid.
+    /// </summary>
+    public static System.Func<PlanetTile, bool>? TargetMaskedOverride { get; set; }
+
+    /// <summary>
+    /// Optional override for vantage bonus evaluation in tests / benchmarks without world grid.
+    /// </summary>
+    public static System.Func<PlanetTile, int>? VantageBonusOverride { get; set; }
+
+    /// <summary>
     /// Calculates the radial traversal-ring vantage bonus granted to optical or forward sensors
     /// stationed on elevated topography.
     /// Flat: +0 rings (baseline).
@@ -18,7 +29,12 @@ public static class SensoryTerrainUtility
     /// </summary>
     public static int GetVantageBonus(PlanetTile tile)
     {
-        if (!tile.Valid)
+        if (VantageBonusOverride != null)
+        {
+            return VantageBonusOverride(tile);
+        }
+
+        if (!tile.Valid || Find.World?.grid == null)
         {
             return 0;
         }
@@ -47,7 +63,12 @@ public static class SensoryTerrainUtility
     /// </summary>
     public static bool IsTargetMasked(PlanetTile tile)
     {
-        if (!tile.Valid)
+        if (TargetMaskedOverride != null)
+        {
+            return TargetMaskedOverride(tile);
+        }
+
+        if (!tile.Valid || Find.World?.grid == null)
         {
             return false;
         }

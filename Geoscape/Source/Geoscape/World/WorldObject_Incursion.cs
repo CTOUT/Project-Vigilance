@@ -70,6 +70,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public int CurrentPathIndex => currentPathIndex;
     public void SetCurrentPathIndex(int index) => currentPathIndex = Mathf.Clamp(index, 0, Math.Max(0, (pathTiles?.Count ?? 1) - 1));
     public void SetTileRaw(PlanetTile t) => HarmonyLib.Traverse.Create(this).Field("tile").SetValue(t);
+    public void SetSpawnedRaw(bool s) => HarmonyLib.Traverse.Create(this).Field("spawned").SetValue(s);
     public float TileProgress => tileProgress;
     public float SpeedTilesPerDay => speedTilesPerDay;
     public int DepartureDelayTicks => departureDelayTicks;

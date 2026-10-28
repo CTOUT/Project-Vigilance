@@ -26,8 +26,11 @@
     - _"Dismantle Outpost (Recover 75% Materials)"_ and _"Repair Sabotaged Station"_ actions on existing outposts.
   - Outpost vulnerability & sabotage events from passing hostile incursions.
   - **Automated Unit Testing & Verification (`Geoscape.Tests`):** Full MSTest suite validating radii scaling, capped relay vantage, full beacon vantage, and 75% salvage economics. Zero compilation warnings on .NET 10 / Waylith.
-- [ ] Build `RadarPulseHandler` utilizing `TickRare` (250 ticks) with `DeepProfiler` telemetry (.NET 10 / Waylith) and a $\le 1.0\text{ ms}$ / 0-byte GC performance budget.
-- [ ] Build Oceanic Sonar detection layer for water hexes (`tile.WaterCovered`).
+- [x] **Waylith Native DeepProfiler Instrumentation, Zero-Allocation Policy & Performance Benchmarking:**
+  - `Verse.DeepProfiler.Start` / `Verse.DeepProfiler.End` native Waylith profiling blocks wrapping all sensory sweeps (`ProjectVigilance.PerformSensorySweep`), vision updates (`ProjectVigilance.SensorySweep.VisionUpdates`), target evaluations (`ProjectVigilance.SensorySweep.TargetEvaluations`), collision sweeps (`ProjectVigilance.InterFactionCollisions`), and background skirmish resolutions (`ProjectVigilance.SkirmishResolution`).
+  - Strict zero-allocation policy on `TickRare` (250 ticks) with pre-allocated and pooled dictionary buckets, list pools, query lists, and static predicates.
+  - `PerformanceAndStressTests.cs`: comprehensive MSTest benchmark and stress suite simulating high-load scenarios (20 active radar installations and 100 concurrent world incursions) verifying the $\le 1.0\text{ ms}$ execution budget and the strict 0-byte GC allocation rule (`GC.GetAllocatedBytesForCurrentThread()`).
+- [x] **Oceanic Sonar Detection Layer:** Built coastal hydrophone station (`Geoscape_SonarArray`) and `isOceanicSonar` support in `CompProperties_Radar` / `ISensorProvider`, restricting maritime acoustic tracking strictly to water-covered hexes (`tile.WaterCovered`).
 - [x] **Two-Stage Early Warning Dispatcher & Non-Peeking Escalation:**
   - `EarlyWarningDispatcher`: Stage 1 Outer Boundary Alert (`LetterDefOf.ThreatSmall` / `PV_TacticalEncounter_ThreatSmall`, amber pulsing contact blip, masked faction & threat points, hidden path) and Stage 2 Identification Threshold (`LetterDefOf.ThreatBig` hostile / `LetterDefOf.PositiveEvent` friendly caravan, red/cyan blip with faction crest, Model B+ terrain masking gating).
   - Identification preservation and direct high-spec detection bypass without alert replay.
@@ -35,15 +38,16 @@
   - **Haze Concealment for Dynamic Camps:** Dynamic world sites (work sites, logging/mining camps, bandit camps, quests) in unmonitored Haze sectors have announcement letters suppressed until uncovered by radar sweeps, scout caravans, or rumours.
   - **Quest Timeout Clock Suspension:** Harmony prefix on `TimeoutComp.CompTickInterval` suspending timeout countdown while site is concealed in Haze so quests do not expire invisibly.
   - **Breadcrumb Rumours & Traveller Intelligence (`BreadcrumbRumourUtility`):** Arriving friendly trade caravans or visitors share intelligence on unmapped sites (_"Travellers from the [Faction] report sighting an active [Site Type] [X] hexes to the [Direction]."_), uncovering target hexes on the Geoscape.
-  - **Automated Unit Testing & Verification (`Geoscape.Tests`):** Full MSTest suite (41/41 tests passing) covering alert dispatching, stage escalation, Harmony patch targets, TimeoutComp suspension, and 8-cardinal compass calculations.
-- [ ] **Forward Staging Ground Detection:** Hostile raid preparations can establish temporary forward staging camps in the Haze that can be pre-emptively raided or dispersed before the main assault launches.
-- [ ] **Dynamic Inter-Faction Encounters (Deferred from Milestone 1.2):**
-  - **Tile-Bucketed Incursion Collisions ($O(M)$):** Evaluate collisions on `TickRare` using tile buckets (`Dictionary<int, List<WorldObject_Incursion>>`), triggering algebraic background skirmishes when non-allied incursions occupy identical tiles.
-  - **Encounter Aftermath Sites:** Spawn salvageable wreckage sites on the world map following skirmishes.
-- [ ] **Simulated Inter-Faction Trade Routes & Storyteller Caravan Encounter Grounding (Deferred from Milestone 1.2):**
-  - **Organic Trade Route Network:** Generate physical, persistent NPC trade caravans (`WorldObject_Incursion`) travelling between NPC faction bases, outposts, and allied settlements along planetary roads and mountain passes, establishing organic background commerce rather than solely player-directed traffic.
-  - **Grounding Storyteller Caravan Encounters:** Hook abstract storyteller incident events (`IncidentWorker_CaravanMeeting`, `IncidentWorker_CaravanDemand`) into physical world map incursions. When a player caravan meets another group on the road, ground the event in an actual travelling incursion with persistent inventory, pawn rosters, and origin/destination telemetry rather than spawning an ephemeral caravan out of thin air.
-  - **Persistent Traversal & Aftermath:** Following a roadside meeting (trading, paying demands, or moving on), the NPC incursion continues moving along its route toward its destination instead of despawning into the void. Enables hostile raiders to intercept or ambush NPC merchant routes, spawning dynamic distress calls or salvageable aftermath sites.
+  - **Automated Unit Testing & Verification (`Geoscape.Tests`):** Full MSTest suite covering alert dispatching, stage escalation, Harmony patch targets, TimeoutComp suspension, and 8-cardinal compass calculations.
+- [x] **Forward Staging Ground Detection & Concealment:** Dynamic hostile staging camps and bandit outposts spawned in unmonitored Haze sectors remain concealed until charted by active radar sweeps, mobile scout caravans, or friendly traveller rumours.
+- [x] **Dynamic Inter-Faction Encounters (`InterFactionEncounterManager`):**
+  - **Tile-Bucketed Incursion Collisions ($O(M)$):** Evaluates collisions on `TickRare` (250 ticks) using pre-allocated, recycled tile buckets (`Dictionary<int, List<WorldObject_Incursion>>`), triggering algebraic background skirmishes strictly when hostile or rival forces occupy identical tiles.
+  - **Algebraic Background Skirmishes:** Pure algebraic resolution taking into account combat points, tech level multipliers, and tactical variance without spawning a tactical map.
+  - **Encounter Aftermath Sites (`WorldObject_EncounterAftermath`):** Spawns persistent aftermath sites on the world map containing salvageable trade loot and wounded survivor pawns harvested directly from the clash.
+- [x] **Simulated Inter-Faction Trade Routes & Storyteller Caravan Encounter Grounding:**
+  - **Organic Trade Route Network:** Physical, persistent NPC trade caravans (`WorldObject_Incursion`) travel between faction settlements with real cargo, merchant inventories, and overland travel schedules.
+  - **Grounding Storyteller Caravan Encounters:** Harmony patches on `IncidentWorker_CaravanMeeting` and `IncidentWorker_CaravanDemand` via `GroundedCaravanMeetingHelper` ground storyteller encounters into physical, travelling world incursions with persistent pawn rosters and cargo rather than spawning ephemeral pawns.
+  - **Persistent Traversal & Aftermath:** Meeting participants continue marching along their planetary route after interactions, remaining vulnerable to raider ambushes and contributing to living-world emergent events.
 
 ---
 

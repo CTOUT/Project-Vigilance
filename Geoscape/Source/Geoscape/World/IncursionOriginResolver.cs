@@ -29,7 +29,7 @@ public static class IncursionOriginResolver
         path = new List<PlanetTile>();
         speed = GetSpeedForFaction(faction);
 
-        if (!startTile.Valid)
+        if (!startTile.Valid || Find.World?.grid == null)
         {
             return false;
         }
@@ -125,7 +125,7 @@ public static class IncursionOriginResolver
     {
         resultPath = new List<PlanetTile>();
 
-        if (start == dest || !start.Valid || !dest.Valid)
+        if (start == dest || !start.Valid || !dest.Valid || Find.World?.grid == null)
         {
             return false;
         }
@@ -185,9 +185,14 @@ public static class IncursionOriginResolver
     private static bool TryFindWildernessStagingTile(PlanetTile center, out PlanetTile stagingTile)
     {
         stagingTile = PlanetTile.Invalid;
-        var worldGrid = Find.WorldGrid;
+        if (!center.Valid || Find.World?.grid == null)
+        {
+            return false;
+        }
+
+        var worldGrid = Find.World.grid;
         var floodFiller = center.Layer.Filler;
-        if (worldGrid == null || floodFiller == null || !center.Valid)
+        if (worldGrid == null || floodFiller == null)
         {
             return false;
         }

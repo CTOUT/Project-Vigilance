@@ -5,7 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-10-28
+
+### Milestone 1.3: Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters
+
+#### Added
+
+- **Waylith Native `DeepProfiler` Instrumentation & Telemetry (`SensoryManager`, `InterFactionEncounterManager`):**
+  - Native RimWorld / Waylith `Verse.DeepProfiler.Start` and `Verse.DeepProfiler.End` instrumentation blocks wrapping all core geoscape sensory passes:
+    - `ProjectVigilance.PerformSensorySweep`: complete 250-tick sensory sweep execution.
+    - `ProjectVigilance.SensorySweep.VisionUpdates`: active vision transitions, haze vertex updates, and dirty color flushing.
+    - `ProjectVigilance.SensorySweep.TargetEvaluations`: per-contact detection and classification loop against active sensors.
+    - `ProjectVigilance.InterFactionCollisions`: $O(M)$ tile-bucketed collision scans across all active incursions.
+    - `ProjectVigilance.SkirmishResolution`: algebraic overland background skirmish resolution, casualty calculation, and aftermath site generation.
+- **Zero-Allocation Policy & Pre-allocated Pooling:**
+  - Audited and optimized hot paths on `TickRare` (250 ticks) ensuring exactly **0 bytes** allocated per steady-state sweep (`GC.GetAllocatedBytesForCurrentThread()` delta == 0).
+  - Pre-allocated and recycled dictionary buckets (`tileBuckets` capacity 256), incursion list pools (`listPool` capacity 256 with 64 pre-allocated instances), sensor state tracking dictionaries, and cached static predicates (`StaleTargetPredicate`).
+- **Measurable Benchmark & Stress Unit Test Suite (`PerformanceAndStressTests.cs`):**
+  - Simulated high-load planetary stress scenarios with **20 active radar installations** and **100 concurrent world incursions**.
+  - Verified that steady-state sweep execution latency strictly satisfies the **$\le 1.0\text{ ms}$ budget** using `Stopwatch.GetTimestamp()`.
+  - Verified that steady-state sweeps strictly generate **0 bytes of GC allocation** across both sensory passes and tile-bucketed collision sweeps.
+  - Verified zero memory growth across 50 consecutive steady-state tick cycles.
+- **Living World Inter-Faction Encounters (`InterFactionEncounterManager`, `WorldObject_EncounterAftermath`):**
+  - **Tile-Bucketed Incursion Collisions ($O(M)$):** Evaluates collisions on `TickRare` (250 ticks) using pre-allocated tile buckets, completely eliminating $O(M^2)$ pairwise scans and triggering background skirmishes strictly when hostile or rival forces occupy identical tiles.
+  - **Algebraic Background Skirmishes:** Pure algebraic resolution factoring in combat points, tech level multipliers (Animal 0.5x, Neolithic 0.8x, Medieval 1.0x, Industrial 1.25x, Spacer 1.5x, Ultra 1.75x, Archotech 2.0x), and tactical variance without spawning a tactical map.
+  - **Persistent Encounter Aftermath Sites:** Clashes spawn salvageable wreckage sites on the world map containing trade loot and live casualty pawns harvested directly from the defeated force.
+  - **Grounded Storyteller Caravan Encounters (`GroundedCaravanMeetingHelper`):** Harmony patches on `IncidentWorker_CaravanMeeting` and `IncidentWorker_CaravanDemand` grounding abstract storyteller caravan events into physical, travelling `WorldObject_Incursion` entities with persistent pawn rosters, cargo, and travel routes.
+- **Two-Stage Early Warning Dispatcher & Non-Peeking Escalation (`EarlyWarningDispatcher`):**
+  - Stage 1 (Outer Boundary Alert): Dispatches `LetterDefOf.ThreatSmall` upon crossing $R_{detect}$, rendering an amber pulsing blip with masked faction, threat points, and hidden path overlays.
+  - Stage 2 (Identification Threshold): Gated by $R_{id}$ and target terrain masking; escalates hostiles to `LetterDefOf.ThreatBig` (red blip with faction crest, pawn count, weaponry, and ETA) and friendly merchants to `LetterDefOf.PositiveEvent`.
+- **Dynamic Haze Reconnaissance & Camp Concealment (`HazeReconnaissanceManager`, `BreadcrumbRumourUtility`):**
+  - Conceals dynamic quest and bandit camps spawned in unmonitored Haze sectors, suppressing instant global announcement letters until uncovered by radar sweeps, scout caravans, or rumours.
+  - Suspends quest expiration timers (`TimeoutComp`) while sites remain concealed in the Haze so quests do not expire invisibly.
+  - Breadcrumb rumour intelligence: Visiting trade caravans and travellers share reconnaissance on unmapped camps with 8-cardinal compass bearings.
+- **Lightweight Geoscape Outposts (`WorldObject_ListeningPost`, `FloatMenuMakerWorld`):**
+  - Lightweight, 100% unmanned, zero-TPS planetary outposts (`AutomatedRelay` and `SignalBeacon`) deployed directly onto world hexes without creating tactical maps or storing colonists in `WorldPawns`.
+  - Streamlined world context actions: Right-click hex to construct outposts from carried caravan inventory, dismantle for 75% material recovery, or repair sabotaged stations.
+- **Colony Technological Radar Infrastructure & Dual-Ring Interferometry (`CompRadar`, `CompProperties_Radar`):**
+  - Explicit integer traversal rings across 5 sensory building tiers (Lookout Watchtower, Small Radar Dome, Phased Radar Array, SIGINT Decryption Console, Coastal Sonar Station).
+  - Multi-dish interferometry: Fixed $R_{detect} = 24\text{ rings}$, synthetic aperture expanding $R_{id} = 10 \rightarrow 17 \rightarrow 22\text{ rings}$, accelerating sweep cadence (250 ticks $\rightarrow$ 150 ticks $\rightarrow$ 75 ticks), and providing fail-safe redundancy.
+  - Dynamic standby vs active power scaling (350W/750W, 800W/1,800W, 700W/1,400W).
+  - Model B+ "Vantage & Masking": High ground grants origin vantage bonuses (+1 to +3 rings); Mountainous terrain delays target classification until exiting into plains or decrypted by Spacer Phased Array + SIGINT.
+- **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):**
+  - GPU-instanced 3D mesh rendering dual-ring holographic perimeters and hexagonal honeycomb grid over active sensor envelopes with 5 tactical color palettes and background dimming.
 
 ## [0.3.0] - 2026-10-26
 
