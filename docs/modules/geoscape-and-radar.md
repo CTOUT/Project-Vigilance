@@ -14,14 +14,15 @@ In vanilla RimWorld, all quest sites, faction bases, and world incidents appear 
 
 Radar and sensor facilities can be constructed at player colonies or deployed as unmanned forward listening posts on the world map:
 
-| Facility Type                      |      Tech Level      |               Type               | Detection Radius ($R_{detect}$) | Identification Radius ($R_{id}$) | Power Draw (Standby / Active) |          Intelligence Tier          | Operational Data Provided                                                                                                                                             |
-| :--------------------------------- | :------------------: | :------------------------------: | :-----------------------------: | :------------------------------: | :---------------------------: | :---------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Lookout Watchtower**             | Neolithic / Medieval |             Building             |    **8 rings** _(+Vantage)_     |             4 rings              |    0 W (Unpowered, Manned)    |         Tier 2 (_Contact_)          | Visual horizon extension; detects overland movement blips. Gains up to +3 rings on hills/mountains.                                                                   |
-| **Early-Warning Radar Dome**       |      Industrial      |             Building             |          **14 rings**           |             6 rings              |         350 W / 750 W         |         Tier 2 (_Contact_)          | Weatherproof radome microwave dish; detects overland blips, speed, and heading.                                                                                       |
-| **Phased Radar Array**             |        Spacer        |             Building             |          **24 rings**           |      **10 / 17 / 22 rings**      |        800 W / 1,800 W        |        Tier 3 (_Classified_)        | Steerable electronically scanned array; multi-dish interferometry expands $R_{id}$. Identifies faction crest and broad force size.                                    |
-| **SIGINT Decryption Console**      |        Ultra         | Facility Linker (`CompFacility`) |       _Attached to Array_       |         _Matches Array_          |        700 W / 1,400 W        | **Upgrades to Tier 4 (_Analysed_)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. Penetrates terrain masking. |
-| **Oceanic Sonar Array**            |      Industrial      |             Building             |      **18 rings (Water)**       |             8 rings              |        500 W / 1,200 W        |           Coastal / Ocean           | Shoreline hydrophone array monitoring maritime transit and aquatic incursions on water tiles (`tile.WaterCovered`).                                                   |
-| **Listening Post (World Outpost)** | Industrial / Spacer  |           WorldObject            |    **10 rings** _(+Vantage)_    |             5 rings              |       Standalone Solar        |         Tier 2 (_Contact_)          | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. 100% unmanned.                                                                       |
+| Facility Type                       |      Tech Level      |               Type               | Detection Radius ($R_{detect}$) | Identification Radius ($R_{id}$) |   Power Draw (Standby / Active)   |          Intelligence Tier          | Operational Data Provided                                                                                                                                             |
+| :---------------------------------- | :------------------: | :------------------------------: | :-----------------------------: | :------------------------------: | :-------------------------------: | :---------------------------------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lookout Watchtower**              | Neolithic / Medieval |             Building             |    **8 rings** _(+Vantage)_     |             4 rings              | 0 W (Passive Optical Observation) |         Tier 2 (_Contact_)          | Visual horizon extension; detects overland movement blips. Gains up to +3 rings on hills/mountains.                                                                   |
+| **Early-Warning Radar Dome**        |      Industrial      |             Building             |          **14 rings**           |             6 rings              |           350 W / 750 W           |         Tier 2 (_Contact_)          | Weatherproof radome microwave dish; detects overland blips, speed, and heading.                                                                                       |
+| **Phased Radar Array**              |        Spacer        |             Building             |          **24 rings**           |      **10 / 17 / 22 rings**      |          800 W / 1,800 W          |        Tier 3 (_Classified_)        | Steerable electronically scanned array; multi-dish interferometry expands $R_{id}$. Identifies faction crest and broad force size.                                    |
+| **SIGINT Decryption Console**       |        Ultra         | Facility Linker (`CompFacility`) |       _Attached to Array_       |         _Matches Array_          |          700 W / 1,400 W          | **Upgrades to Tier 4 (_Analysed_)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. Penetrates terrain masking. |
+| **Coastal Sonar Station**           |      Industrial      |             Building             |      **18 rings (Water)**       |             8 rings              |          500 W / 1,200 W          |           Coastal / Ocean           | Shoreline hydrophone array monitoring maritime transit and aquatic incursions on water tiles (`tile.WaterCovered`).                                                   |
+| **Listening Post: Automated Relay** | Industrial / Spacer  |           WorldObject            |    **12 rings** _(+Vantage)_    |             5 rings              |         Standalone Solar          |         Tier 2 (_Contact_)          | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. 100% unmanned. Capped vantage (+1 to +2 rings).                                      |
+| **Listening Post: Signal Beacon**   | Neolithic / Medieval |           WorldObject            |    **6 rings** _(+Vantage)_     |             2 rings              |          0 W (Unpowered)          |         Tier 2 (_Contact_)          | Unmanned timber or stone signal beacon deployed by caravans. Full optical vantage (+1 to +3 rings on high ground).                                                    |
 
 #### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Identification Expansion)
 
@@ -113,7 +114,7 @@ Guided by our core design practice—_"You don't know what you don't know: to kn
 | **Tier 0: Undetected** | _Invisible_                   | None. The entity moves across the planetary hex grid silently.                                        | Outside all sensory cones and scout horizons.                                                                        |
 | **Tier 1: Suspected**  | _Narrative Cue / Ripple_      | Rumoured presence or acoustic anomaly. Exact location remains unconfirmed.                            | Scout rumours, forward outpost radio chatter, or regional acoustic cues.                                             |
 | **Tier 2: Contact**    | Generic pulsing marker / blip | Presence, rough heading, coarse speed. Faction emblem and headcount are hidden. Updates discretely.   | Colony Scout Horizon (~5 tiles), roaming caravans (~3 tiles), or small radar perimeter.                              |
-| **Tier 3: Classified** | Faction emblem + category     | Attacking faction identified, broad classification (e.g. _Pirate Warband_, _Mechanoid Strike Fleet_). | Mid-range Radar array, forward listening post, or line-of-sight within 2 hexes.                                      |
+| **Tier 3: Classified** | Faction emblem + category     | Attacking faction identified, broad classification (e.g. _Pirate Warband_, _Mechanoid Strike Fleet_). | Phased Radar Array within $R_{id}$ horizon (10 / 17 / 22 rings), or line-of-sight within 2 hexes.                    |
 | **Tier 4: Analysed**   | Full tactical telemetry       | Exact pawn headcount, siege weaponry breakdown, target colony destination, and live arrival ETA.      | SIGINT decryption console (linked to Phased Array), high-tech intelligence centre, or direct optical reconnaissance. |
 
 #### Two-Stage Early Warning Escalation (Fog-of-War Parity)
@@ -121,11 +122,11 @@ Guided by our core design practice—_"You don't know what you don't know: to kn
 To preserve authentic tactical uncertainty, the engine strictly forbids "faction peeking" when issuing early warnings:
 
 1. **Stage 1: Contact Tier Alert (Outer Horizon):**
-   - When any force crosses the outer detection threshold (e.g. 5 hexes for colony lookouts), an **"Early Warning: Unidentified Contact"** letter is dispatched (`LetterDefOf.ThreatSmall`).
+   - When any force crosses the outer detection threshold $R_{detect}$ (e.g. 24 rings for Phased Arrays, 14 rings for Small Radars, 12 rings for Automated Outposts, or 5 hexes for natural colony lookouts), an **"Early Warning: Unidentified Contact"** letter is dispatched (`LetterDefOf.ThreatSmall`).
    - The force displays as an **amber pulsing blip** on the world map without a faction emblem or projected path line.
    - The player does not know whether the approaching force is a hostile pirate raid, mechanoid swarm, or peaceful trade caravan.
 2. **Stage 2: Classified Tier Confirmation (Close Visual / Reconnaissance):**
-   - When the entity reaches close visual range (within 45% of lookout radius, ~2.2 hexes) or is intercepted in the field by player scout caravans, visual identification succeeds:
+   - When the entity reaches the inner identification threshold $R_{id}$ (e.g. 10 / 17 / 22 rings for Phased Arrays, 6 rings for Small Radars, or ~2.2 hexes for natural lookouts) or is intercepted in the field by player scout caravans, visual identification succeeds (provided the target is not masked by mountainous terrain):
      - **Hostile Force:** Escalates to an urgent **"Hostile Incursion: [Faction]"** letter (`LetterDefOf.ThreatBig`), shifting the map blip to red with full faction insignia and attack path.
      - **Friendly Force:** Dispatches an **"Approaching Caravan: [Faction]"** letter (`LetterDefOf.PositiveEvent`), shifting the map blip to cyan with full trade route projection.
 
@@ -153,7 +154,7 @@ In vanilla RimWorld, right-clicking empty world tiles is inactive unless a playe
  │
  ├── "Establish Outpost / Relay Here..."
  │    ├── (If caravan is on tile): "Deploy Automated Listening Post" (Consumes carried 100 Steel, 4 Comp)
- │    ├── (If caravan is on tile): "Construct Hilltop Watchtower" (Consumes carried 150 Wood/Stone)
+ │    ├── (If caravan is on tile): "Construct Signal Beacon" (Consumes carried 150 Wood/Stone)
  │    └── (If remote tile): "Dispatch Construction Caravan from [Colony]..."
  │         └── Opens Dialog_FormCaravan with destination locked & Outpost Kit pre-selected
  │
@@ -165,11 +166,11 @@ In vanilla RimWorld, right-clicking empty world tiles is inactive unless a playe
    - Presents a list of player settlements or nearby active caravans within range.
    - Automatically opens vanilla's `Dialog_FormCaravan` with the destination tile **pre-populated and locked** to the clicked hex.
 2. **"Establish Outpost / Relay Here...":**
-   - **Local Deployment:** If a player caravan is present on the tile and holds required cargo (100 Steel, 4 Components for Automated Relay; 150 Wood/Stone for Watchtower), an immediate 1–2 hour setup task elapses, and the lightweight `WorldObject_ListeningPost` spawns on the hex.
+   - **Local Deployment:** If a player caravan is present on the tile and holds required cargo (100 Steel, 4 Components for Automated Relay; 150 Wood/Stone for Signal Beacon), an immediate 1–2 hour setup task elapses, and the lightweight `WorldObject_ListeningPost` spawns on the hex.
    - **Remote Dispatch:** Prompts to dispatch a construction caravan from the nearest colony, automatically pre-selecting the necessary outpost construction ingredients in the checklist as a preset!
 3. **Existing Outpost Context Options:**
    - _"Dismantle Outpost"_ (salvages 75% of construction materials back into caravan).
-   - _"Repair Sabotaged Station"_ (repairs stations disabled or vandalized by passing enemy incursions).
+   - _"Repair Sabotaged Station"_ (restores sabotaged stations disabled by passing enemy incursions for 25% of original construction materials).
 
 ---
 
@@ -209,6 +210,9 @@ Where:
   - _Low / Medium:_ 1.0 (standard tracking profile).
   - _High / Stratospheric:_ 1.3 (easily tracked at extreme line-of-sight).
   - _Sub-surface (USO):_ 0.0 for conventional radar; detected only by Oceanic Sonar Arrays.
+
+> [!NOTE]
+> **Milestone 1.3 Scope Annotation:** Overland incursion detection on the planetary grid uses deterministic traversal ring thresholds ($R_{detect}$ and $R_{id}$). The stochastic multi-variable probability formula above is reserved for future high-altitude aerial craft and UFO/USO strategic intercept profiles (Module 2).
 
 ### 3.3 Sampled Radar Tracking vs. Continuous Optical Smoothing
 
@@ -343,8 +347,9 @@ To provide players with a clean, intuitive sensory boundary akin to _Civilizatio
 2. **Visual & Logical Parity:**
    - The outer active vision perimeter (`maxSteps = 5`), the inner optical identification horizon (`maxSteps = 2`), and sensor detection checks (`TraversalDistanceBetween <= maxSteps`) now share the exact same topological metric.
    - Moving contacts transition from Unidentified to Classified the exact instant their blip crosses the visible inner orange perimeter.
-3. **Future Milestone Backlog — Mountainous Line-of-Sight Occlusion:**
-   - _Design Goal:_ In a future update, integrate raycast or Bresenham sightline checks on the globe where impassable mountains, high elevation peaks, or severe weather cells cast **sensory shadows** behind them, blocking ground lookouts and low-tech spotters while high-altitude radar arrays and orbital reconnaissance bypass ground occlusion.
+3. **Locked Model B+ ("Vantage & Masking") Integration:**
+   - Planetary elevation and hilliness integrate cleanly through the locked Model B+ architecture: origin high ground grants vantage bonuses to radius, while mountainous target tiles mask faction heraldry and gate intelligence at Contact tier.
+   - World-scale raycasting, Bresenham sightline sweeps, and sensory shadows are permanently rejected to preserve 60 FPS globe rendering, zero garbage collection, and intuitive player UX.
 
 ---
 
@@ -360,11 +365,11 @@ Moving craft on the world map are represented as custom subclasses of `WorldObje
 4. **Terror Strike:** Deploys a large dreadnought craft directly to a major settlement or colony.
 5. **Sub-surface Cruise (TftD):** Travels through ocean tiles to conduct seabed mapping or launch coastal raids.
 
-### 4.2 Telemetry Reveal Stages
+### 4.2 Telemetry Reveal Stages (5-Tier Alignment)
 
-- **Stage 1 (Unidentified):** Red/amber blip on the world map. Shows only position.
-- **Stage 2 (Tracked):** Shows speed vector, altitude class, estimated size.
-- **Stage 3 (Decoded):** Hyper-wave decoding displays exact craft identity (e.g., _"Small Scout - Sectoid Crew - Researching Mountainous Hex #4128"_).
+- **Tier 2 (Contact):** Amber blip on the world map. Shows coarse position, speed class, and heading.
+- **Tier 3 (Classified):** Shows craft chassis class, propulsion type, and broad mission profile.
+- **Tier 4 (Analysed / Decoded):** Tactical decryption displays exact craft identity (e.g. _"Small Scout - Crew Composition - Mission Objective"_).
 
 ---
 
@@ -442,10 +447,10 @@ When an incident triggers, the system intercepts the event and calculates an app
    - Instead of sudden panic, colonies with radar installations receive actionable advance notice:
      - _"Sensory Alert: Hostile group detected 15 hexes east. Vector heading: Colony. Estimated arrival: 18 hours."_
    - Players can order miners and hunters back inside, seal perimeter blast doors, deploy field traps, and position heavy artillery.
-2. **Telemetry Quality by Radar Tier:**
-   - _Small Radar:_ Detects only an unclassified hostile vector and estimated ETA.
-   - _Large Radar:_ Identifies estimated force size and speed class.
-   - _Hyper-wave Decoder:_ Fully reveals faction identity, pawn count, and equipped armaments (e.g., _"18 Pirates from Broken Skull Clan armed with doomsday launchers and assault rifles"_).
+2. **Telemetry Quality by Radar Tier (Intelligence Progression):**
+   - _Small Radar Dome (Tier 2 Contact):_ Detects an unclassified hostile vector, speed class, and estimated ETA.
+   - _Phased Radar Array (Tier 3 Classified):_ Identifies faction crest, broad force category, and travel destination; multi-dish interferometry expands the identification horizon.
+   - _SIGINT Decryption Console (Tier 4 Analysed):_ Fully reveals faction identity, exact pawn count, equipped armaments, and penetrates mountainous terrain masking.
 3. **Mid-Route Interception (Module 2 Synergy):**
    - Because raiders physically exist as world entities during transit, the player can scramble **Interceptors** or deploy a **Skyranger Strike Team** to ambush and neutralise the raiding force on the world map before they ever reach the home base.
 4. **Standalone Framework Value:**

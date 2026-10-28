@@ -209,7 +209,7 @@ _Objective: Validate zero-TPS unmanned outposts, right-click caravan constructio
 4. Select `Establish Automated Listening Post`:
    - **Verify Material Deduction:** Caravan inventory immediately deducts exactly 100 Steel and 4 Components.
    - **Verify World Object Spawn:** A new world entity **Automated Listening Post** spawns on the hex.
-   - **Verify Sensor Envelope:** An 8-ring sensory detection perimeter immediately appears around the outpost on the world map.
+   - **Verify Sensor Envelope:** A 12-ring sensory detection perimeter (or 6-ring for Signal Beacon) immediately appears around the outpost on the world map.
    - **Zero-TPS & Pawn Integrity Check:**
      - Inspect the outpost: verify it is 100% unmanned (no colonist roster).
      - Check `WorldPawns` in Dev Console: verify zero colonists were transferred to world pawns.

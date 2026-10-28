@@ -13,7 +13,7 @@
     - _Terrain Masking (Target Tile):_ Incursions in `Mountainous` tiles delay classification to Contact Tier amber blips until exiting into open terrain. Spacer Phased Array + SIGINT Console penetrates terrain masking.
     - Zero raycasting; zero radar shadows; zero mesh deformation.
   - **Sensory Building Defs & Research Projects:**
-    - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 rings + vantage, unpowered/manned, Contact Tier).
+    - `Geoscape_LookoutTower` (Neolithic/Medieval, 8 rings + vantage, 0 W passive optical observation, Contact Tier).
     - `Geoscape_RadarSmall` (Industrial Early-Warning Dome, 14 rings, 350W/750W, Contact Tier).
     - `Geoscape_RadarLarge` (Spacer Phased Array, 24 rings, 800W/1,800W, Classified Tier).
     - `Geoscape_SigintConsole` (Ultra SIGINT Decryption Console, `CompFacility` linkable, 700W/1,400W, upgrades Phased Array to Tier 4 Analysed; penetrates terrain masking).

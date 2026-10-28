@@ -5,7 +5,7 @@
   <ThingDef ParentName="BuildingBase">
     <defName>Geoscape_LookoutTower</defName>
     <label>lookout watchtower</label>
-    <description>An elevated observation watchtower constructed from timber or dressed stone. Stationed spotters scan the surrounding horizon, providing early detection of approaching world-map incursions. Elevated topography grants significant vantage range bonuses.</description>
+    <description>An elevated observation watchtower constructed from timber or dressed stone. Provides passive optical scanning of the surrounding horizon for early detection of approaching world-map incursions. Elevated topography grants significant vantage range bonuses.</description>
     <graphicData>
       <texPath>Things/Building/Furniture/SteleLarge</texPath>
       <graphicClass>Graphic_Single</graphicClass>
