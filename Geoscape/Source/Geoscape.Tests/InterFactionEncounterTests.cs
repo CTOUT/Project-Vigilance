@@ -6,6 +6,7 @@ using RimWorld.Planet;
 using Verse;
 using ProjectVigilance.Geoscape.World;
 using ProjectVigilance.Geoscape.Patches;
+using ProjectVigilance.Geoscape.Sensory;
 
 namespace Geoscape.Tests;
 
@@ -243,5 +244,58 @@ public sealed class InterFactionEncounterTests
     {
         // Must not throw exception when passed nulls
         IncursionInterceptionUtility.ExecuteHostileDemand(null!, null!);
+    }
+
+    [TestMethod]
+    public void Incursion_SkirmishCooldown_CanBeSetAndEvaluated()
+    {
+        var inc = new WorldObject_Incursion();
+        Assert.AreEqual(0, inc.SkirmishCooldownExpiry);
+        inc.SetSkirmishCooldown(15000);
+        Assert.IsTrue(inc.SkirmishCooldownExpiry > 0, "Skirmish cooldown expiry must be positive when set.");
+    }
+
+    [TestMethod]
+    public void Incursion_ApplySkirmishCasualties_ReturnsHarvestedPawnsList()
+    {
+        var inc = new WorldObject_Incursion();
+        var casualties = inc.ApplySkirmishCasualties(0.5f, 200f);
+        Assert.IsNotNull(casualties, "ApplySkirmishCasualties must return a non-null list of casualties.");
+        Assert.AreEqual(0, casualties.Count, "Empty committed pawns should yield 0 extracted casualties.");
+    }
+
+    [TestMethod]
+    public void CaravanArrivalAction_ScavengeAftermath_PropertiesAndValidation()
+    {
+        var action = new CaravanArrivalAction_ScavengeAftermath(null!);
+        Assert.AreEqual("Scavenge aftermath", action.Label);
+        Assert.AreEqual("travelling to encounter aftermath", action.ReportString);
+
+        var report = action.StillValid(null!, (PlanetTile)100);
+        Assert.IsFalse(report.Accepted, "StillValid must reject when aftermath object is null or unspawned.");
+    }
+
+    [TestMethod]
+    public void HazeReconnaissanceManager_IsDynamicSite_RecognizesEncounterAftermath()
+    {
+        var aftermath = new WorldObject_EncounterAftermath();
+        bool isDynamic = HazeReconnaissanceManager.IsDynamicSite(aftermath);
+        Assert.IsTrue(isDynamic, "Encounter aftermath sites must be recognized as dynamic sites by HazeReconnaissanceManager.");
+    }
+
+    [TestMethod]
+    public void WorldObject_EncounterAftermath_SetupAftermath_InitializesFactionsAndExpiry()
+    {
+        var aftermath = new WorldObject_EncounterAftermath();
+        var res = new SkirmishResolution
+        {
+            SideAWon = true,
+            SalvageLootValue = 400f,
+            WoundedSurvivorCount = 2
+        };
+
+        aftermath.SetupAftermath(null, null, res, null, null, null);
+        Assert.IsTrue(aftermath.ExpiryTick > 0, "Expiry tick must be scheduled into the future.");
+        Assert.IsNotNull(aftermath.SalvageLoot, "SalvageLoot container must be initialized.");
     }
 }

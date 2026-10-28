@@ -106,9 +106,19 @@ public static class GroundedCaravanMeetingHelper
                     ? (inc.Faction != null && inc.Faction.HostileTo(Faction.OfPlayer))
                     : (inc.Faction == null || !inc.Faction.HostileTo(Faction.OfPlayer));
 
-                if (matchesHostility && inc.Tile == tile)
+                if (matchesHostility)
                 {
-                    return inc;
+                    if (inc.Tile == tile)
+                    {
+                        return inc;
+                    }
+
+                    if (tile.Valid && inc.Tile.Valid && Find.WorldGrid != null &&
+                        Find.WorldGrid.IsNeighbor(inc.Tile, tile))
+                    {
+                        inc.Tile = tile;
+                        return inc;
+                    }
                 }
             }
         }
@@ -152,35 +162,68 @@ public static class GroundedCaravanMeetingHelper
         PlanetTile originTile = currentTile;
         PlanetTile destinationTile = currentTile;
         List<PlanetTile> routePath = new() { currentTile };
-        float speed = 24f;
+        float speed = IncursionOriginResolver.GetSpeedForFaction(faction);
 
         var factionSettlements = Find.WorldObjects?.Settlements?
-            .Where(s => s.Faction == faction && s.Tile != currentTile)
+            .Where(s => s.Faction == faction && s.Tile.Valid && s.Tile.Layer == currentTile.Layer)
+            .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(s.Tile, currentTile))
             .ToList();
 
         if (factionSettlements != null && factionSettlements.Count > 0)
         {
-            var homeBase = factionSettlements.RandomElement();
-            if (isHostile)
+            var homeBase = factionSettlements.FirstOrDefault(s => s.Tile != currentTile) ?? factionSettlements[0];
+            originTile = homeBase.Tile;
+            destinationTile = Find.AnyPlayerHomeMap?.Tile ?? currentTile;
+
+            if (destinationTile == currentTile || destinationTile == originTile)
             {
-                originTile = homeBase.Tile;
-                destinationTile = Find.AnyPlayerHomeMap?.Tile ?? currentTile;
-            }
-            else
-            {
-                originTile = homeBase.Tile;
-                destinationTile = Find.AnyPlayerHomeMap?.Tile ?? currentTile;
+                var otherBases = factionSettlements.Where(s => s.Tile != originTile && s.Tile != currentTile).ToList();
+                if (otherBases.Count > 0)
+                {
+                    destinationTile = otherBases.RandomElement().Tile;
+                }
+                else
+                {
+                    var anyOtherSettlement = Find.WorldObjects?.Settlements?
+                        .FirstOrDefault(s => s.Tile != originTile && s.Tile != currentTile && s.Tile.Layer == currentTile.Layer);
+                    if (anyOtherSettlement != null)
+                    {
+                        destinationTile = anyOtherSettlement.Tile;
+                    }
+                }
             }
 
-            if (IncursionOriginResolver.TryBuildPath(originTile, destinationTile, out var builtPath))
+            // Build two contiguous legs passing through currentTile
+            List<PlanetTile> pathIn = new();
+            List<PlanetTile> pathOut = new();
+            bool hasPathIn = IncursionOriginResolver.TryBuildPath(originTile, currentTile, out pathIn);
+            bool hasPathOut = destinationTile.Valid && destinationTile != currentTile &&
+                              IncursionOriginResolver.TryBuildPath(currentTile, destinationTile, out pathOut);
+
+            if (hasPathIn && hasPathOut)
             {
-                routePath = builtPath;
+                routePath = new List<PlanetTile>(pathIn.Count + pathOut.Count - 1);
+                routePath.AddRange(pathIn);
+                for (int i = 1; i < pathOut.Count; i++)
+                {
+                    routePath.Add(pathOut[i]);
+                }
+            }
+            else if (hasPathOut)
+            {
+                routePath = pathOut;
+                originTile = currentTile;
+            }
+            else if (hasPathIn)
+            {
+                routePath = pathIn;
+                destinationTile = currentTile;
             }
         }
 
         if (!routePath.Contains(currentTile))
         {
-            routePath.Insert(0, currentTile);
+            routePath.Add(currentTile);
         }
 
         int pathIdx = routePath.IndexOf(currentTile);

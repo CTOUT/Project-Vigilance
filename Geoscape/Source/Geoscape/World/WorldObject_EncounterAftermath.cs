@@ -38,11 +38,12 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
         Faction? defeated,
         SkirmishResolution res,
         WorldObject_Incursion? incA = null,
-        WorldObject_Incursion? incB = null)
+        WorldObject_Incursion? incB = null,
+        List<Pawn>? casualties = null)
     {
         victorFaction = victor;
         defeatedFaction = defeated;
-        expiryTick = (Find.TickManager?.TicksGame ?? 0) + 180000; // 3 in-game days
+        expiryTick = (Current.Game?.tickManager?.TicksGame ?? 0) + 180000; // 3 in-game days
 
         // 1. Gather salvageable cargo from participant trade stocks if present
         CollectTradeStockLoot(incA);
@@ -52,7 +53,7 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
         GenerateProceduralSalvage(res);
 
         // 3. Harvest or generate wounded survivors
-        HarvestOrGenerateSurvivors(defeated ?? victor, res.WoundedSurvivorCount, incA, incB);
+        HarvestOrGenerateSurvivors(defeated ?? victor, res.WoundedSurvivorCount, incA, incB, casualties);
     }
 
     private void CollectTradeStockLoot(WorldObject_Incursion? incursion)
@@ -110,18 +111,41 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
         }
     }
 
-    private void HarvestOrGenerateSurvivors(Faction? faction, int count, WorldObject_Incursion? incA, WorldObject_Incursion? incB)
+    private void HarvestOrGenerateSurvivors(
+        Faction? faction,
+        int count,
+        WorldObject_Incursion? incA,
+        WorldObject_Incursion? incB,
+        List<Pawn>? casualties = null)
     {
         if (count <= 0) return;
 
-        // Try extracting casualties from participant incursion rosters
-        ExtractCasualtyPawn(incB);
+        // 1. First prioritize actual casualties harvested from the battle
+        if (casualties != null && casualties.Count > 0)
+        {
+            for (int i = 0; i < casualties.Count && woundedSurvivors.Count < count; i++)
+            {
+                Pawn p = casualties[i];
+                if (p != null && !p.Dead && !p.Destroyed)
+                {
+                    HealthUtility.DamageUntilDowned(p, allowBleedingWounds: true);
+                    EnsureSurvivorInWorldPawns(p);
+                    woundedSurvivors.Add(p);
+                }
+            }
+        }
+
+        // 2. If more are needed, check incursion rosters
+        if (woundedSurvivors.Count < count)
+        {
+            ExtractCasualtyPawn(incB);
+        }
         if (woundedSurvivors.Count < count)
         {
             ExtractCasualtyPawn(incA);
         }
 
-        // If not enough real pawns were committed, generate procedural survivors
+        // 3. Fallback to procedural generation if still needed
         while (woundedSurvivors.Count < count && faction != null)
         {
             PawnKindDef kindDef = faction.RandomPawnKind() ??
@@ -195,6 +219,9 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
         }
     }
 
+    public override MapGeneratorDef MapGeneratorDef =>
+        base.MapGeneratorDef ?? DefDatabase<MapGeneratorDef>.GetNamedSilentFail("CaravanIncident") ?? MapGeneratorDefOf.Encounter;
+
     public override IEnumerable<FloatMenuOption> GetFloatMenuOptions(Caravan caravan)
     {
         foreach (var opt in base.GetFloatMenuOptions(caravan))
@@ -202,12 +229,24 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
             yield return opt;
         }
 
-        if (caravan != null && caravan.IsPlayerControlled && caravan.Spawned && caravan.Tile == Tile)
+        if (caravan == null || !caravan.Spawned || !caravan.IsPlayerControlled)
+        {
+            yield break;
+        }
+
+        if (caravan.Tile == Tile)
         {
             yield return new FloatMenuOption("Scavenge aftermath (Salvage loot & tend survivors)", () =>
             {
                 ScavengeByCaravan(caravan);
             }, MenuOptionPriority.High);
+        }
+        else
+        {
+            yield return new FloatMenuOption("Travel to encounter aftermath", () =>
+            {
+                caravan.pather.StartPath(Tile, new CaravanArrivalAction_ScavengeAftermath(this), true);
+            }, MenuOptionPriority.Default);
         }
     }
 
@@ -243,6 +282,10 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
                 }
 
                 caravan.AddPawn(survivor, addCarriedPawnToWorldPawnsIfAny: false);
+                if (Find.WorldPawns != null)
+                {
+                    Find.WorldPawns.ForcefullyKeptPawns.Remove(survivor);
+                }
                 survivorCount++;
             }
         }
@@ -276,6 +319,10 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
             {
                 GenPlace.TryPlaceThing(item, dropCell, Map, ThingPlaceMode.Near);
             }
+            else
+            {
+                GenPlace.TryPlaceThing(item, center, Map, ThingPlaceMode.Near);
+            }
         }
 
         // Scatter wounded survivors
@@ -287,6 +334,10 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
                 if (CellFinder.TryFindRandomCellNear(center, Map, 10, c => c.Standable(Map), out IntVec3 survivorCell))
                 {
                     GenSpawn.Spawn(survivor, survivorCell, Map);
+                }
+                else
+                {
+                    GenSpawn.Spawn(survivor, center, Map);
                 }
             }
         }
@@ -375,16 +426,28 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
 
     public override void Destroy()
     {
-        if (woundedSurvivors != null && Find.WorldPawns != null)
+        if (woundedSurvivors != null)
         {
             for (int i = 0; i < woundedSurvivors.Count; i++)
             {
                 Pawn p = woundedSurvivors[i];
                 if (p != null)
                 {
-                    Find.WorldPawns.ForcefullyKeptPawns.Remove(p);
+                    if (Find.WorldPawns != null)
+                    {
+                        Find.WorldPawns.ForcefullyKeptPawns.Remove(p);
+                        if (Find.WorldPawns.Contains(p) && !p.Dead)
+                        {
+                            Find.WorldPawns.RemoveAndDiscardPawnViaGC(p);
+                        }
+                    }
+                    else if (!p.Destroyed)
+                    {
+                        p.Destroy();
+                    }
                 }
             }
+            woundedSurvivors.Clear();
         }
         salvageLoot?.ClearAndDestroyContents();
         base.Destroy();

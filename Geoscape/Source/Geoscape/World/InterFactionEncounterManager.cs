@@ -45,9 +45,11 @@ public struct SkirmishResolution
 public class InterFactionEncounterManager : WorldComponent
 {
     public const int CheckIntervalTicks = 250; // Evaluated on TickRare (250 ticks)
+    public const int SkirmishCooldownTicks = 15000; // Cooldown after skirmish before engaging again (~6h in-game)
 
     private readonly Dictionary<int, List<WorldObject_Incursion>> tileBuckets = new(64);
     private readonly List<List<WorldObject_Incursion>> listPool = new(64);
+    private readonly HashSet<WorldObject_Incursion> engagedThisPass = new(16);
 
     public static InterFactionEncounterManager? Instance { get; set; }
 
@@ -68,7 +70,7 @@ public class InterFactionEncounterManager : WorldComponent
     {
         base.WorldComponentTick();
 
-        if (Find.TickManager != null && Find.TickManager.TicksGame % CheckIntervalTicks == 0)
+        if (Current.Game?.tickManager is { } tm && tm.TicksGame % CheckIntervalTicks == 0)
         {
             DeepProfiler.Start("ProjectVigilance.InterFactionEncounters");
             try
@@ -87,6 +89,7 @@ public class InterFactionEncounterManager : WorldComponent
     /// </summary>
     public void CheckInterFactionCollisions()
     {
+        engagedThisPass.Clear();
         ClearBuckets();
         IndexAllIncursions();
         ProcessCollisions();
@@ -165,16 +168,18 @@ public class InterFactionEncounterManager : WorldComponent
             for (int i = 0; i < bucket.Count - 1; i++)
             {
                 var incA = bucket[i];
-                if (!incA.Spawned || incA.Destroyed || incA.IsEngagedInTacticalMap) continue;
+                if (!incA.Spawned || incA.Destroyed || incA.IsEngagedInTacticalMap || incA.IsSkirmishOnCooldown || engagedThisPass.Contains(incA)) continue;
 
                 for (int j = i + 1; j < bucket.Count; j++)
                 {
                     var incB = bucket[j];
-                    if (!incB.Spawned || incB.Destroyed || incB.IsEngagedInTacticalMap) continue;
+                    if (!incB.Spawned || incB.Destroyed || incB.IsEngagedInTacticalMap || incB.IsSkirmishOnCooldown || engagedThisPass.Contains(incB)) continue;
 
                     // Collisions trigger strictly when hostile or rival incursions occupy identical tiles
                     if (incA.Faction != null && incB.Faction != null && incA.Faction.HostileTo(incB.Faction))
                     {
+                        engagedThisPass.Add(incA);
+                        engagedThisPass.Add(incB);
                         ExecuteBackgroundSkirmish(incA, incB);
                         break; // incA engaged, advance to next
                     }
@@ -188,6 +193,10 @@ public class InterFactionEncounterManager : WorldComponent
     /// </summary>
     public void ExecuteBackgroundSkirmish(WorldObject_Incursion incA, WorldObject_Incursion incB)
     {
+        // Enforce skirmish cooldown on both participants to avoid repeated 250-tick skirmish re-triggers
+        incA.SetSkirmishCooldown(SkirmishCooldownTicks);
+        incB.SetSkirmishCooldown(SkirmishCooldownTicks);
+
         var dataA = new SkirmishSideData
         {
             CombatPoints = (incA.IncidentParms?.points > 0) ? incA.IncidentParms.points : 400f,
@@ -216,11 +225,19 @@ public class InterFactionEncounterManager : WorldComponent
 
         PlanetTile skirmishTile = incA.Tile;
 
-        // 1. Apply casualties and updated points
-        winner.ApplySkirmishCasualties(winnerCasualties, winnerRemaining);
-        loser.ApplySkirmishCasualties(loserCasualties, loserRemaining);
+        // 1. Apply casualties and harvest real casualty pawns directly
+        var winnerCasualtyPawns = winner.ApplySkirmishCasualties(winnerCasualties, winnerRemaining);
+        var loserCasualtyPawns = loser.ApplySkirmishCasualties(loserCasualties, loserRemaining);
 
-        // 2. Handle loser outcome: destroyed/wiped out vs retreating
+        List<Pawn> casualties = new(loserCasualtyPawns.Count + winnerCasualtyPawns.Count);
+        casualties.AddRange(loserCasualtyPawns);
+        casualties.AddRange(winnerCasualtyPawns);
+
+        // 2. Spawn Encounter Aftermath site on world map BEFORE destroying loser
+        // (Ensures trade stock loot and casualty pawns are salvaged before loser's TradeStock is cleared)
+        SpawnAftermathSite(skirmishTile, winner.Faction, loser.Faction, res, incA, incB, casualties);
+
+        // 3. Handle loser outcome: destroyed/wiped out vs retreating
         if (loserDestroyed)
         {
             ContactRegistry.Instance?.Notify_ContactDestroyed(
@@ -233,8 +250,8 @@ public class InterFactionEncounterManager : WorldComponent
             loser.ReverseCourse($"routed after defeat against {winner.Faction?.Name ?? "enemy forces"}");
         }
 
-        // 3. Handle winner outcome: continue march vs retreat from excessive damage
-        if (winnerCasualties >= 0.45f || winner.IsTradeMissionAborted)
+        // 4. Handle winner outcome: continue march vs retreat from excessive damage
+        if (winnerCasualties >= 0.45f || winner.IsTradeMissionAborted || winnerRemaining < 100f)
         {
             winner.ReverseCourse($"retreating after heavy combat casualties against {loser.Faction?.Name ?? "enemy forces"}");
         }
@@ -242,9 +259,6 @@ public class InterFactionEncounterManager : WorldComponent
         {
             winner.AdvancePathTile();
         }
-
-        // 4. Spawn Encounter Aftermath site on world map
-        SpawnAftermathSite(skirmishTile, winner.Faction, loser.Faction, res, incA, incB);
 
         // 5. Narrative Geoscape notification if sector is monitored
         NotifyPlayerOfSkirmish(skirmishTile, winner, loser, res);
@@ -256,14 +270,15 @@ public class InterFactionEncounterManager : WorldComponent
         Faction? defeated,
         SkirmishResolution res,
         WorldObject_Incursion incA,
-        WorldObject_Incursion incB)
+        WorldObject_Incursion incB,
+        List<Pawn>? casualties = null)
     {
         var def = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_EncounterAftermath");
         if (def == null) return;
 
         var aftermath = (WorldObject_EncounterAftermath)WorldObjectMaker.MakeWorldObject(def);
         aftermath.Tile = tile;
-        aftermath.SetupAftermath(victor, defeated, res, incA, incB);
+        aftermath.SetupAftermath(victor, defeated, res, incA, incB, casualties);
 
         Find.WorldObjects?.Add(aftermath);
 

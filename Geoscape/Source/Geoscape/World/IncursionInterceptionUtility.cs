@@ -815,7 +815,7 @@ public static class IncursionInterceptionUtility
 
         // Identify candidate goods from caravan inventory to demand
         List<Thing> allItems = CaravanInventoryUtility.AllInventoryItems(caravan);
-        List<Thing> demandCandidates = new();
+        List<(Thing item, int count)> plannedDemands = new();
         float totalDemandValue = 0f;
         float targetValue = Mathf.Clamp(StorytellerUtility.DefaultThreatPointsNow(caravan) * 0.45f, 200f, 600f);
 
@@ -828,9 +828,8 @@ public static class IncursionInterceptionUtility
                 int countToTake = Mathf.Min(t.stackCount, (int)(targetValue / Mathf.Max(0.1f, t.MarketValue)));
                 if (countToTake > 0)
                 {
-                    Thing split = t.SplitOff(countToTake);
-                    demandCandidates.Add(split);
-                    totalDemandValue += countToTake * split.MarketValue;
+                    plannedDemands.Add((t, countToTake));
+                    totalDemandValue += countToTake * t.MarketValue;
                 }
             }
         }
@@ -842,21 +841,21 @@ public static class IncursionInterceptionUtility
             {
                 Thing t = allItems[i];
                 if (t != null && !t.Destroyed && t.stackCount > 0 &&
+                    t.def != ThingDefOf.Silver &&
                     (t.def.IsNutritionGivingIngestible || t is Medicine || t.MarketValue > 20f))
                 {
                     int countToTake = Mathf.Min(t.stackCount, Mathf.CeilToInt((targetValue - totalDemandValue) / Mathf.Max(1f, t.MarketValue)));
                     if (countToTake > 0)
                     {
-                        Thing split = t.SplitOff(countToTake);
-                        demandCandidates.Add(split);
-                        totalDemandValue += countToTake * split.MarketValue;
+                        plannedDemands.Add((t, countToTake));
+                        totalDemandValue += countToTake * t.MarketValue;
                     }
                 }
             }
         }
 
         // If caravan possesses no tribute, hostiles immediately ambush
-        if (demandCandidates.Count == 0)
+        if (plannedDemands.Count == 0)
         {
             if (caravan.pather != null && caravan.pather.Paused)
             {
@@ -867,7 +866,7 @@ public static class IncursionInterceptionUtility
             return;
         }
 
-        string demandSummary = string.Join(", ", demandCandidates.Select(t => $"{t.stackCount}x {t.LabelNoCount}"));
+        string demandSummary = string.Join(", ", plannedDemands.Select(d => $"{d.count}x {d.item.LabelNoCount}"));
 
         DiaNode root = new DiaNode(
             $"CARAVAN EXTORTION DEMAND\n\n" +
@@ -886,9 +885,15 @@ public static class IncursionInterceptionUtility
                 }
 
                 var stock = incursion.GetOrCreateTradeStock();
-                for (int i = 0; i < demandCandidates.Count; i++)
+                for (int i = 0; i < plannedDemands.Count; i++)
                 {
-                    stock.TryAdd(demandCandidates[i], canMergeWithExistingStacks: true);
+                    var (t, count) = plannedDemands[i];
+                    if (t != null && !t.Destroyed && t.stackCount > 0)
+                    {
+                        int actualCount = Mathf.Min(t.stackCount, count);
+                        Thing split = t.SplitOff(actualCount);
+                        stock.TryAdd(split, canMergeWithExistingStacks: true);
+                    }
                 }
 
                 incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 30000);
@@ -912,11 +917,6 @@ public static class IncursionInterceptionUtility
                     caravan.pather.Paused = false;
                 }
 
-                for (int i = 0; i < demandCandidates.Count; i++)
-                {
-                    CaravanInventoryUtility.GiveThing(caravan, demandCandidates[i]);
-                }
-
                 ExecuteHostileInterception(caravan, incursion, isAmbush: false);
             },
             resolveTree = true
@@ -935,11 +935,6 @@ public static class IncursionInterceptionUtility
                 bool success = Rand.Value < 0.40f;
                 if (success)
                 {
-                    for (int i = 0; i < demandCandidates.Count; i++)
-                    {
-                        CaravanInventoryUtility.GiveThing(caravan, demandCandidates[i]);
-                    }
-
                     incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 15000);
                     Messages.Message(
                         $"{caravan.LabelCap} successfully slipped past the blockade and outran {incursionName}!",
@@ -948,11 +943,6 @@ public static class IncursionInterceptionUtility
                 }
                 else
                 {
-                    for (int i = 0; i < demandCandidates.Count; i++)
-                    {
-                        CaravanInventoryUtility.GiveThing(caravan, demandCandidates[i]);
-                    }
-
                     Messages.Message(
                         $"{caravan.LabelCap} failed to evade {incursionName}; the hostiles open fire!",
                         new GlobalTargetInfo(caravan.Tile),
@@ -971,13 +961,6 @@ public static class IncursionInterceptionUtility
                 if (caravan.pather != null && caravan.pather.Paused)
                 {
                     caravan.pather.Paused = false;
-                }
-                for (int i = 0; i < demandCandidates.Count; i++)
-                {
-                    if (!demandCandidates[i].Destroyed)
-                    {
-                        CaravanInventoryUtility.GiveThing(caravan, demandCandidates[i]);
-                    }
                 }
             }
         };

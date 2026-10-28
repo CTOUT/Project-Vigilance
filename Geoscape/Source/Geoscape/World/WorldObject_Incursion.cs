@@ -50,6 +50,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private HashSet<int> metCaravanIds = new();
     private HashSet<int> metMapIds = new();
     private Dictionary<int, int> caravanCooldowns = new();
+    private int skirmishCooldownExpiry = 0;
     private bool isRetreating = false;
     private bool isTradeMissionAborted = false;
     private List<Pawn>? retreatingPawns;
@@ -104,6 +105,14 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public bool IsPursuingCaravan => pursuitTargetCaravanId > 0;
     public int PursuitTargetCaravanId => pursuitTargetCaravanId;
 
+    public bool IsSkirmishOnCooldown => Current.Game?.tickManager is { } tm && tm.TicksGame < skirmishCooldownExpiry;
+    public int SkirmishCooldownExpiry { get => skirmishCooldownExpiry; set => skirmishCooldownExpiry = value; }
+    public void SetSkirmishCooldown(int durationTicks = 15000)
+    {
+        int currentTicks = Current.Game?.tickManager?.TicksGame ?? 0;
+        skirmishCooldownExpiry = currentTicks + durationTicks;
+    }
+
     public void SetCombatPoints(float points)
     {
         if (incidentParms != null)
@@ -112,9 +121,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
     }
 
-    public void ApplySkirmishCasualties(float casualtyFraction, float remainingPoints)
+    public List<Pawn> ApplySkirmishCasualties(float casualtyFraction, float remainingPoints)
     {
         SetCombatPoints(remainingPoints);
+        List<Pawn> casualties = new();
 
         if (committedPawns != null && committedPawns.Count > 0)
         {
@@ -127,9 +137,13 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     int lastIdx = committedPawns.Count - 1;
                     Pawn victim = committedPawns[lastIdx];
                     committedPawns.RemoveAt(lastIdx);
-                    if (victim != null && Find.WorldPawns != null)
+                    if (victim != null)
                     {
-                        Find.WorldPawns.ForcefullyKeptPawns.Remove(victim);
+                        casualties.Add(victim);
+                        if (Find.WorldPawns != null)
+                        {
+                            Find.WorldPawns.ForcefullyKeptPawns.Remove(victim);
+                        }
                     }
                 }
             }
@@ -142,6 +156,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 }
             }
         }
+
+        return casualties;
     }
 
     public void SetPursuitTarget(Caravan targetCaravan, List<PlanetTile> initialPath)
@@ -1147,6 +1163,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         Scribe_Values.Look(ref isRetreating, "isRetreating", false);
         Scribe_Values.Look(ref isTradeMissionAborted, "isTradeMissionAborted", false);
         Scribe_Values.Look(ref isEngagedInTacticalMap, "isEngagedInTacticalMap", false);
+        Scribe_Values.Look(ref skirmishCooldownExpiry, "skirmishCooldownExpiry", 0);
 
         if (Scribe.mode == LoadSaveMode.Saving)
         {

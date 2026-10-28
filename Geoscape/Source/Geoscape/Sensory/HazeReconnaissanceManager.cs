@@ -100,12 +100,13 @@ public class HazeReconnaissanceManager : WorldComponent
         {
             return false;
         }
-        if (wo is Site) return true;
+        if (wo is Site || wo is WorldObject_EncounterAftermath) return true;
         if (wo.GetComponent<TimeoutComp>() != null) return true;
         if (wo.def != null && (wo.def.defName.Contains("Site") ||
                                wo.def.defName.Contains("Camp") ||
                                wo.def.defName.Contains("Outpost") ||
-                               wo.def.defName.Contains("WorkSite")))
+                               wo.def.defName.Contains("WorkSite") ||
+                               wo.def.defName.Contains("Aftermath")))
         {
             return true;
         }
