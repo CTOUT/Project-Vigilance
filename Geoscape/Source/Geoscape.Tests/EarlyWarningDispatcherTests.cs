@@ -21,7 +21,7 @@ public class MockSensorProvider : ISensorProvider
     public bool PenetratesTerrainMasking { get; set; } = false;
     public bool IsOceanicSonar { get; set; } = false;
     public string SensorLabel { get; set; } = "Early-Warning Radar";
-    public WorldObject? Source => null;
+    public WorldObject? Source { get; set; } = null;
 
     public bool CanDetect(IDetectableTarget target) => true;
 }

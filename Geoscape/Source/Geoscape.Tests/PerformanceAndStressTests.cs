@@ -337,4 +337,162 @@ public sealed class PerformanceAndStressTests
         // Executes background skirmish ensuring SkirmishResolution DeepProfiler block executes cleanly
         manager.ExecuteBackgroundSkirmish(incA, incB);
     }
+
+    [TestMethod]
+    public void SensorySweep_MultipleRadarsOnSameSettlement_ReachesSteadyState_ZeroAllocationsAndNoSensorsChangedLoop()
+    {
+        // Arrange: Multiple radar dishes on the SAME colony sharing the same Source WorldObject ID
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        SensoryManager.DistanceCalculationOverride = static (a, b, _) => 5;
+
+        var sensoryManager = new SensoryManager(null!);
+        var sharedSettlementSource = new WorldObject_Incursion();
+        HarmonyLib.Traverse.Create(sharedSettlementSource).Field("id").SetValue(42);
+
+        // 3 radar dishes + 1 colony lookouts sharing the exact same Source (Settlement ID 42)
+        var dish1 = new MockSensorProvider
+        {
+            SensorTile = (PlanetTile)100,
+            DetectionRadiusInTiles = 24f,
+            IdentificationRadiusInTiles = 10,
+            Source = sharedSettlementSource,
+            IsSensorActive = true,
+            IsStationary = true
+        };
+        var dish2 = new MockSensorProvider
+        {
+            SensorTile = (PlanetTile)100,
+            DetectionRadiusInTiles = 24f,
+            IdentificationRadiusInTiles = 17,
+            Source = sharedSettlementSource,
+            IsSensorActive = true,
+            IsStationary = true
+        };
+        var dish3 = new MockSensorProvider
+        {
+            SensorTile = (PlanetTile)100,
+            DetectionRadiusInTiles = 24f,
+            IdentificationRadiusInTiles = 22,
+            Source = sharedSettlementSource,
+            IsSensorActive = true,
+            IsStationary = true
+        };
+        var lookouts = new MockSensorProvider
+        {
+            SensorTile = (PlanetTile)100,
+            DetectionRadiusInTiles = 8f,
+            IdentificationRadiusInTiles = 4,
+            Source = sharedSettlementSource,
+            IsSensorActive = true,
+            IsStationary = true
+        };
+
+        sensoryManager.RegisterSensor(dish1);
+        sensoryManager.RegisterSensor(dish2);
+        sensoryManager.RegisterSensor(dish3);
+        sensoryManager.RegisterSensor(lookouts);
+
+        var inc = new WorldObject_Incursion();
+        inc.SetTileRaw((PlanetTile)105);
+        inc.SetSpawnedRaw(true);
+        sensoryManager.RegisterTarget(inc);
+
+        // Warm up pass: populates lastActiveSensorStates
+        sensoryManager.PerformSensorySweep();
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        // Act: Steady-state pass must not loop into sensorsChanged and must allocate 0 bytes
+        long startAlloc = GC.GetAllocatedBytesForCurrentThread();
+        long startTimestamp = Stopwatch.GetTimestamp();
+
+        sensoryManager.PerformSensorySweep();
+
+        long endTimestamp = Stopwatch.GetTimestamp();
+        long endAlloc = GC.GetAllocatedBytesForCurrentThread();
+
+        long allocated = endAlloc - startAlloc;
+        double elapsedMs = Stopwatch.GetElapsedTime(startTimestamp, endTimestamp).TotalMilliseconds;
+
+        // Assert: All 4 co-located sensors track independently; steady state achieved with 0 allocations
+        Assert.AreEqual(0L, allocated,
+            $"Multi-dish co-located radar sweep must achieve steady-state and allocate 0 bytes. Allocated: {allocated} bytes.");
+        Assert.IsTrue(elapsedMs <= 1.0, $"Multi-dish sweep took {elapsedMs:F4} ms.");
+        Assert.AreEqual(IntelligenceTier.Classified, inc.CurrentIntelligenceTier);
+    }
+
+    [TestMethod]
+    public void SensorySweep_RealListeningPost_CanDetectWithoutNullReferenceException()
+    {
+        SensoryManager.DistanceCalculationOverride = static (a, b, _) => 4;
+
+        var post = new WorldObject_ListeningPost();
+        post.SetTileRaw((PlanetTile)300);
+        post.SetSpawnedRaw(true);
+
+        var inc = new WorldObject_Incursion();
+        inc.SetTileRaw((PlanetTile)302);
+        inc.SetSpawnedRaw(true);
+
+        // Must evaluate CanDetect safely in headless environment without throwing NullReferenceException
+        bool canDetect = post.CanDetect(inc);
+        Assert.IsTrue(canDetect, "Real listening post should detect incursion within radius via DistanceCalculationOverride.");
+    }
+
+    [TestMethod]
+    public void SensorySweep_RealCompRadar_CanDetectWithoutNullReferenceException()
+    {
+        SensoryManager.DistanceCalculationOverride = static (a, b, _) => 6;
+
+        var radarProps = new CompProperties_Radar { detectionRadius = 24 };
+        var compRadar = new CompRadar { props = radarProps };
+
+        var inc = new WorldObject_Incursion();
+        inc.SetTileRaw((PlanetTile)150);
+        inc.SetSpawnedRaw(true);
+
+        // Even unspawned/parentless, CanDetect must return false cleanly without crashing
+        bool canDetectUnspawned = compRadar.CanDetect(inc);
+        Assert.IsFalse(canDetectUnspawned, "Unspawned CompRadar cannot detect.");
+    }
+
+    [TestMethod]
+    public void SensorySweep_TargetEvaluations_AnalysedEarlyExit_ExecutesCorrectly()
+    {
+        SensoryManager.DistanceCalculationOverride = static (a, b, _) => 2;
+        var sensoryManager = new SensoryManager(null!);
+
+        var phasedArrayWithSigint = new MockSensorProvider
+        {
+            SensorTile = (PlanetTile)100,
+            DetectionRadiusInTiles = 24f,
+            IdentificationRadiusInTiles = 22,
+            MaxIntelligenceTier = IntelligenceTier.Analysed,
+            PenetratesTerrainMasking = true,
+            IsSensorActive = true,
+            IsStationary = true
+        };
+        var secondaryDish = new MockSensorProvider
+        {
+            SensorTile = (PlanetTile)100,
+            DetectionRadiusInTiles = 24f,
+            IdentificationRadiusInTiles = 10,
+            MaxIntelligenceTier = IntelligenceTier.Classified,
+            IsSensorActive = true,
+            IsStationary = true
+        };
+
+        sensoryManager.RegisterSensor(phasedArrayWithSigint);
+        sensoryManager.RegisterSensor(secondaryDish);
+
+        var inc = new WorldObject_Incursion();
+        inc.SetTileRaw((PlanetTile)102);
+        inc.SetSpawnedRaw(true);
+        sensoryManager.RegisterTarget(inc);
+
+        sensoryManager.PerformSensorySweep();
+        Assert.AreEqual(IntelligenceTier.Analysed, inc.CurrentIntelligenceTier);
+    }
 }

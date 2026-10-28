@@ -210,7 +210,7 @@ public class CompRadar : ThingComp, ISensorProvider
             return false;
         }
 
-        if (SensorTile.Layer != target.CurrentTile.Layer)
+        if (Find.World?.grid != null && SensorTile.Layer != target.CurrentTile.Layer)
         {
             return false;
         }
@@ -225,7 +225,17 @@ public class CompRadar : ThingComp, ISensorProvider
         }
 
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        return Find.WorldGrid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps) <= maxSteps;
+        if (SensoryManager.DistanceCalculationOverride != null)
+        {
+            return SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps) <= maxSteps;
+        }
+
+        if (Find.World?.grid != null)
+        {
+            return Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps) <= maxSteps;
+        }
+
+        return Math.Abs(SensorTile.tileId - target.CurrentTile.tileId) <= maxSteps;
     }
 
     #endregion

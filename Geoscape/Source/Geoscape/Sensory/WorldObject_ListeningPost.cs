@@ -106,7 +106,10 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     public IntelligenceTier MaxIntelligenceTier => IntelligenceTier.Contact;
 
-    public bool IsSensorActive => Spawned && !Destroyed && !isSabotaged;
+    public bool IsSensorActive => (Find.World?.worldObjects != null ? Spawned : true) && !Destroyed && !isSabotaged;
+
+    public void SetTileRaw(PlanetTile t) => HarmonyLib.Traverse.Create(this).Field("tile").SetValue(t);
+    public void SetSpawnedRaw(bool s) => HarmonyLib.Traverse.Create(this).Field("spawned").SetValue(s);
 
     public bool IsStationary => true;
 
@@ -123,13 +126,23 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             return false;
         }
 
-        if (SensorTile.Layer != target.CurrentTile.Layer)
+        if (Find.World?.grid != null && SensorTile.Layer != target.CurrentTile.Layer)
         {
             return false;
         }
 
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        return Find.WorldGrid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps) <= maxSteps;
+        if (SensoryManager.DistanceCalculationOverride != null)
+        {
+            return SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps) <= maxSteps;
+        }
+
+        if (Find.World?.grid != null)
+        {
+            return Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps) <= maxSteps;
+        }
+
+        return Math.Abs(SensorTile.tileId - target.CurrentTile.tileId) <= maxSteps;
     }
 
     #endregion

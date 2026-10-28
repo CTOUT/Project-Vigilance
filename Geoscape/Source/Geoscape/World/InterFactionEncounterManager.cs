@@ -58,7 +58,7 @@ public class InterFactionEncounterManager : WorldComponent
     public InterFactionEncounterManager(RimWorld.Planet.World world) : base(world)
     {
         Instance = this;
-        for (int i = 0; i < 64; i++)
+        for (int i = 0; i < 256; i++)
         {
             listPool.Add(new List<WorldObject_Incursion>(4));
         }
