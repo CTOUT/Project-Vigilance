@@ -796,6 +796,195 @@ public static class IncursionInterceptionUtility
         Find.WindowStack.Add(dialog);
     }
 
+    public static void ExecuteHostileDemand(Caravan caravan, WorldObject_Incursion incursion)
+    {
+        if (caravan == null || !caravan.Spawned || incursion == null || !incursion.Spawned)
+        {
+            return;
+        }
+
+        incursion.MarkCaravanMet(caravan.ID);
+
+        if (caravan.pather != null && caravan.pather.Moving)
+        {
+            caravan.pather.Paused = true;
+        }
+
+        string incursionName = incursion.LabelCap;
+        string factionName = incursion.Faction?.Name ?? "hostile forces";
+
+        // Identify candidate goods from caravan inventory to demand
+        List<Thing> allItems = CaravanInventoryUtility.AllInventoryItems(caravan);
+        List<Thing> demandCandidates = new();
+        float totalDemandValue = 0f;
+        float targetValue = Mathf.Clamp(StorytellerUtility.DefaultThreatPointsNow(caravan) * 0.45f, 200f, 600f);
+
+        // 1. Demand silver if available
+        for (int i = 0; i < allItems.Count && totalDemandValue < targetValue; i++)
+        {
+            Thing t = allItems[i];
+            if (t.def == ThingDefOf.Silver && t.stackCount > 0)
+            {
+                int countToTake = Mathf.Min(t.stackCount, (int)(targetValue / Mathf.Max(0.1f, t.MarketValue)));
+                if (countToTake > 0)
+                {
+                    Thing split = t.SplitOff(countToTake);
+                    demandCandidates.Add(split);
+                    totalDemandValue += countToTake * split.MarketValue;
+                }
+            }
+        }
+
+        // 2. If demand value not met, demand packaged meals, medicine, or valuables
+        if (totalDemandValue < targetValue)
+        {
+            for (int i = 0; i < allItems.Count && totalDemandValue < targetValue; i++)
+            {
+                Thing t = allItems[i];
+                if (t != null && !t.Destroyed && t.stackCount > 0 &&
+                    (t.def.IsNutritionGivingIngestible || t is Medicine || t.MarketValue > 20f))
+                {
+                    int countToTake = Mathf.Min(t.stackCount, Mathf.CeilToInt((targetValue - totalDemandValue) / Mathf.Max(1f, t.MarketValue)));
+                    if (countToTake > 0)
+                    {
+                        Thing split = t.SplitOff(countToTake);
+                        demandCandidates.Add(split);
+                        totalDemandValue += countToTake * split.MarketValue;
+                    }
+                }
+            }
+        }
+
+        // If caravan possesses no tribute, hostiles immediately ambush
+        if (demandCandidates.Count == 0)
+        {
+            if (caravan.pather != null && caravan.pather.Paused)
+            {
+                caravan.pather.Paused = false;
+            }
+            Messages.Message($"{caravan.LabelCap} had no valuable supplies to satisfy {incursionName}; the raiders attack!", new GlobalTargetInfo(caravan.Tile), MessageTypeDefOf.ThreatSmall);
+            ExecuteHostileInterception(caravan, incursion, isAmbush: true);
+            return;
+        }
+
+        string demandSummary = string.Join(", ", demandCandidates.Select(t => $"{t.stackCount}x {t.LabelNoCount}"));
+
+        DiaNode root = new DiaNode(
+            $"CARAVAN EXTORTION DEMAND\n\n" +
+            $"{caravan.LabelCap} has been intercepted on the overland route by {incursionName} from {factionName} at sector {caravan.Tile}!\n\n" +
+            $"Their commanders surround your caravan and demand tribute in exchange for safe passage:\n\n" +
+            $"Demanded tribute: {demandSummary}\n\n" +
+            $"Surrendering the tribute will satisfy them; they will take the spoils and depart along their route. If you refuse, they will engage your caravan immediately in tactical battle!");
+
+        DiaOption payDemand = new DiaOption($"Surrender demanded tribute ({demandSummary})")
+        {
+            action = () =>
+            {
+                if (caravan.pather != null && caravan.pather.Paused)
+                {
+                    caravan.pather.Paused = false;
+                }
+
+                var stock = incursion.GetOrCreateTradeStock();
+                for (int i = 0; i < demandCandidates.Count; i++)
+                {
+                    stock.TryAdd(demandCandidates[i], canMergeWithExistingStacks: true);
+                }
+
+                incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 30000);
+                incursion.ReverseCourse("satisfied with extorted caravan tribute");
+
+                Messages.Message(
+                    $"{caravan.LabelCap} surrendered {demandSummary} to {incursionName}. The hostiles departed along their route with the extorted plunder.",
+                    new GlobalTargetInfo(caravan.Tile),
+                    MessageTypeDefOf.NeutralEvent);
+            },
+            resolveTree = true
+        };
+        root.options.Add(payDemand);
+
+        DiaOption fightOption = new DiaOption("Refuse demands and fight (Deploy to tactical battle)")
+        {
+            action = () =>
+            {
+                if (caravan.pather != null && caravan.pather.Paused)
+                {
+                    caravan.pather.Paused = false;
+                }
+
+                for (int i = 0; i < demandCandidates.Count; i++)
+                {
+                    CaravanInventoryUtility.GiveThing(caravan, demandCandidates[i]);
+                }
+
+                ExecuteHostileInterception(caravan, incursion, isAmbush: false);
+            },
+            resolveTree = true
+        };
+        root.options.Add(fightOption);
+
+        DiaOption evadeOption = new DiaOption("Attempt to evade and flee across the sector")
+        {
+            action = () =>
+            {
+                if (caravan.pather != null && caravan.pather.Paused)
+                {
+                    caravan.pather.Paused = false;
+                }
+
+                bool success = Rand.Value < 0.40f;
+                if (success)
+                {
+                    for (int i = 0; i < demandCandidates.Count; i++)
+                    {
+                        CaravanInventoryUtility.GiveThing(caravan, demandCandidates[i]);
+                    }
+
+                    incursion.SetCaravanCooldown(caravan.ID, Find.TickManager.TicksGame + 15000);
+                    Messages.Message(
+                        $"{caravan.LabelCap} successfully slipped past the blockade and outran {incursionName}!",
+                        new GlobalTargetInfo(caravan.Tile),
+                        MessageTypeDefOf.PositiveEvent);
+                }
+                else
+                {
+                    for (int i = 0; i < demandCandidates.Count; i++)
+                    {
+                        CaravanInventoryUtility.GiveThing(caravan, demandCandidates[i]);
+                    }
+
+                    Messages.Message(
+                        $"{caravan.LabelCap} failed to evade {incursionName}; the hostiles open fire!",
+                        new GlobalTargetInfo(caravan.Tile),
+                        MessageTypeDefOf.ThreatSmall);
+                    ExecuteHostileInterception(caravan, incursion, isAmbush: false);
+                }
+            },
+            resolveTree = true
+        };
+        root.options.Add(evadeOption);
+
+        var dialog = new Dialog_NodeTree(root, delayInteractivity: true, radioMode: false, title: "Demand: " + incursionName)
+        {
+            closeAction = () =>
+            {
+                if (caravan.pather != null && caravan.pather.Paused)
+                {
+                    caravan.pather.Paused = false;
+                }
+                for (int i = 0; i < demandCandidates.Count; i++)
+                {
+                    if (!demandCandidates[i].Destroyed)
+                    {
+                        CaravanInventoryUtility.GiveThing(caravan, demandCandidates[i]);
+                    }
+                }
+            }
+        };
+
+        Find.WindowStack.Add(dialog);
+    }
+
     public static void WarnAway(WorldObject_Incursion incursion, Caravan? warningCaravan = null)
     {
         if (incursion == null || !incursion.Spawned)

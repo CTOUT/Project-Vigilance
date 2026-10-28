@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <!-- ==================== Encounter Aftermath Site ==================== -->
+  <WorldObjectDef>
+    <defName>Vigilance_EncounterAftermath</defName>
+    <label>encounter aftermath</label>
+    <description>The wreckage and casualties of an overland skirmish between planetary factions. Scattered trade crates, discarded armaments, and wounded survivors remain among the debris.</description>
+    <worldObjectClass>ProjectVigilance.Geoscape.World.WorldObject_EncounterAftermath</worldObjectClass>
+    <texture>World/WorldObjects/Sites/GenericSite</texture>
+    <useDynamicDrawer>true</useDynamicDrawer>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/Sites/ItemStash</expandingIconTexture>
+    <expandingIconPriority>42</expandingIconPriority>
+    <saved>true</saved>
+  </WorldObjectDef>
+
+</Defs>

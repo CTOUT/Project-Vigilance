@@ -67,6 +67,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public PlanetTile DestinationTile { get => destinationTile; set => destinationTile = value; }
     public IReadOnlyList<PlanetTile> PathTiles => pathTiles;
     public int CurrentPathIndex => currentPathIndex;
+    public void SetCurrentPathIndex(int index) => currentPathIndex = Mathf.Clamp(index, 0, Math.Max(0, (pathTiles?.Count ?? 1) - 1));
+    public void SetTileRaw(PlanetTile t) => HarmonyLib.Traverse.Create(this).Field("tile").SetValue(t);
     public float TileProgress => tileProgress;
     public float SpeedTilesPerDay => speedTilesPerDay;
     public int DepartureDelayTicks => departureDelayTicks;
@@ -101,6 +103,46 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public Caravan? PursuitTargetCaravan => pursuitTargetCaravan;
     public bool IsPursuingCaravan => pursuitTargetCaravanId > 0;
     public int PursuitTargetCaravanId => pursuitTargetCaravanId;
+
+    public void SetCombatPoints(float points)
+    {
+        if (incidentParms != null)
+        {
+            incidentParms.points = points;
+        }
+    }
+
+    public void ApplySkirmishCasualties(float casualtyFraction, float remainingPoints)
+    {
+        SetCombatPoints(remainingPoints);
+
+        if (committedPawns != null && committedPawns.Count > 0)
+        {
+            int pawnsToRemove = (int)Math.Round(committedPawns.Count * casualtyFraction);
+            pawnsToRemove = Math.Clamp(pawnsToRemove, 0, committedPawns.Count);
+            if (pawnsToRemove > 0)
+            {
+                for (int i = 0; i < pawnsToRemove; i++)
+                {
+                    int lastIdx = committedPawns.Count - 1;
+                    Pawn victim = committedPawns[lastIdx];
+                    committedPawns.RemoveAt(lastIdx);
+                    if (victim != null && Find.WorldPawns != null)
+                    {
+                        Find.WorldPawns.ForcefullyKeptPawns.Remove(victim);
+                    }
+                }
+            }
+
+            if (IsUnderlyingTradeCaravan && !isTradeMissionAborted)
+            {
+                if (traderPawn == null || !committedPawns.Contains(traderPawn) || committedPawns.Count == 0)
+                {
+                    AbortTradeMission("merchant leadership lost in skirmish");
+                }
+            }
+        }
+    }
 
     public void SetPursuitTarget(Caravan targetCaravan, List<PlanetTile> initialPath)
     {
