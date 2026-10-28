@@ -17,6 +17,7 @@ Output/
 *.sln.docstates
 
 # RimWorld mod assemblies & local game assemblies
+**/Assemblies/*.dll
 **/Assemblies/*.pdb
 **/Assemblies/*.deps.json
 
