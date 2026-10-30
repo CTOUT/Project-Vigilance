@@ -165,4 +165,108 @@ public sealed class WorldObject_ListeningPostTests
         Assert.AreEqual(37, expectedRemainder, "112 items with 75 stackLimit produces 1 partial stack of 37.");
         Assert.AreEqual(totalRefund, expectedFullStacks * stackLimit + expectedRemainder);
     }
+
+    [TestMethod]
+    public void MaxIntelligenceTier_IsClassified_EnablingContactIdentification()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.SignalBeacon
+        };
+
+        // Assert: MaxIntelligenceTier must be Classified, not Contact, so the identification ring works!
+        Assert.AreEqual(IntelligenceTier.Classified, post.MaxIntelligenceTier, "Listening posts and beacons must have MaxIntelligenceTier = Classified.");
+    }
+
+    [TestMethod]
+    public void SignalBeacon_EvaluatesToClassified_WhenWithinIdentificationHorizon()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.SignalBeacon
+        };
+
+        // At distance 2 (inside identification radius of 3 rings)
+        IntelligenceTier insideTier = SensoryTerrainUtility.EvaluateSensorTier(post, travDist: 2, isTargetMasked: false);
+        Assert.AreEqual(IntelligenceTier.Classified, insideTier, "Target within identification horizon must evaluate to Classified.");
+
+        // At distance 5 (outside identification radius of 3, but inside detection radius of 6 rings)
+        IntelligenceTier outsideTier = SensoryTerrainUtility.EvaluateSensorTier(post, travDist: 5, isTargetMasked: false);
+        Assert.AreEqual(IntelligenceTier.Contact, outsideTier, "Target outside identification horizon must evaluate to Contact.");
+    }
+
+    [TestMethod]
+    public void TimedConstruction_StateTransitions_AndPausing()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.AutomatedRelay
+        };
+
+        // Initial state before construction starts
+        Assert.IsFalse(post.IsConstructing);
+        Assert.IsTrue(post.IsSensorActive);
+
+        // Start construction
+        post.StartConstruction(2500);
+        Assert.IsTrue(post.IsConstructing);
+        Assert.IsFalse(post.IsSensorActive, "Sensor must be inactive while under construction.");
+        Assert.AreEqual(2500, post.ConstructionTicksLeft);
+        Assert.IsTrue(post.GetInspectString().Contains("Under Construction") || post.GetInspectString().Contains("Construction Paused"));
+
+        // Finish construction
+        post.FinishConstruction();
+        Assert.IsFalse(post.IsConstructing);
+        Assert.IsTrue(post.IsSensorActive, "Sensor must activate once construction finishes.");
+        Assert.IsTrue(post.GetInspectString().Contains("Operational"));
+    }
+
+    [TestMethod]
+    public void TimedDismantling_StateTransitions_AndCancellation()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.SignalBeacon
+        };
+
+        // Initial operational state
+        Assert.IsFalse(post.IsDismantling);
+        Assert.IsTrue(post.IsSensorActive);
+
+        // Start dismantling
+        post.StartDismantling(1500);
+        Assert.IsTrue(post.IsDismantling);
+        Assert.IsFalse(post.IsSensorActive, "Sensor must be inactive while dismantling.");
+        Assert.AreEqual(1500, post.DismantleTicksLeft);
+        Assert.IsTrue(post.GetInspectString().Contains("Dismantling"));
+
+        // Cancel dismantling
+        post.CancelDismantling();
+        Assert.IsFalse(post.IsDismantling);
+        Assert.IsTrue(post.IsSensorActive, "Sensor must reactivate if dismantling is cancelled.");
+        Assert.IsTrue(post.GetInspectString().Contains("Operational"));
+    }
+
+    [TestMethod]
+    public void CaravanExpeditionUtility_DismantleDirective_RegistrationAndConsumption()
+    {
+        var tile = (RimWorld.Planet.PlanetTile)12345;
+        var directive = new OutpostConstructionDirective
+        {
+            TargetTile = tile,
+            Kind = ListeningPostKind.AutomatedRelay,
+            DirectiveKind = OutpostDirectiveKind.Dismantle,
+            OriginMapId = 1,
+            CreatedTick = 1000
+        };
+
+        CaravanExpeditionUtility.RegisterPendingDirective(tile, directive);
+        Assert.IsTrue(CaravanExpeditionUtility.TryConsumePendingDirective(tile, out var consumed));
+        Assert.IsNotNull(consumed);
+        Assert.AreEqual(OutpostDirectiveKind.Dismantle, consumed.DirectiveKind);
+        Assert.AreEqual(ListeningPostKind.AutomatedRelay, consumed.Kind);
+
+        // Verify cleared from dictionary
+        Assert.IsFalse(CaravanExpeditionUtility.TryConsumePendingDirective(tile, out _));
+    }
 }

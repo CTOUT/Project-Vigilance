@@ -7,10 +7,10 @@
     <label>automated listening post</label>
     <description>A self-contained, unmanned early-warning radar relay powered by high-capacity solar battery banks. Sweeps the surrounding sector across 12 planetary traversal rings, transmitting real-time tracking telemetry directly to the colony's planetary geoscape grid. Consumes zero local colony TPS.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.Sensory.WorldObject_ListeningPost</worldObjectClass>
-    <texture>World/WorldObjects/Expanding/RoutePlannerWaypoint</texture>
+    <texture>World/WorldObjects/Expanding/Sites/Outpost</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/RoutePlannerWaypoint</expandingIconTexture>
+    <expandingIconTexture>World/WorldObjects/Expanding/Sites/Outpost</expandingIconTexture>
     <expandingIconPriority>45</expandingIconPriority>
     <saved>true</saved>
   </WorldObjectDef>

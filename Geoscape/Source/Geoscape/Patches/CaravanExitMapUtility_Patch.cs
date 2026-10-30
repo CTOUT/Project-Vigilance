@@ -39,15 +39,33 @@ public static class CaravanExitMapUtility_Patch
 
         if (CaravanExpeditionUtility.TryConsumePendingDirective(destinationTile, out var directive) && directive != null)
         {
+            string outpostName = directive.Kind == ListeningPostKind.AutomatedRelay
+                ? "automated listening post"
+                : (directive.StuffDef != null ? $"signal beacon ({directive.StuffDef.LabelCap})" : "signal beacon");
+
+            if (directive.DirectiveKind == OutpostDirectiveKind.Dismantle)
+            {
+                WorldObject_ListeningPost? post = directive.TargetOutpost ??
+                    Find.WorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == destinationTile);
+
+                if (post != null)
+                {
+                    caravan.pather.StartPath(
+                        destinationTile,
+                        new CaravanArrivalAction_DismantleOutpost(post, destinationTile),
+                        repathImmediately: true,
+                        resetPauseStatus: true);
+
+                    Messages.Message($"Caravan {caravan.LabelCap} departed on expedition to dismantle {post.LabelCap} at Tile {destinationTile}.", MessageTypeDefOf.PositiveEvent, false);
+                    return;
+                }
+            }
+
             caravan.pather.StartPath(
                 destinationTile,
                 new CaravanArrivalAction_ConstructOutpost(destinationTile, directive.Kind, directive.StuffDef),
                 repathImmediately: true,
                 resetPauseStatus: true);
-
-            string outpostName = directive.Kind == ListeningPostKind.AutomatedRelay
-                ? "automated listening post"
-                : (directive.StuffDef != null ? $"signal beacon ({directive.StuffDef.LabelCap})" : "signal beacon");
 
             Messages.Message($"Caravan {caravan.LabelCap} departed on construction expedition to establish {outpostName} at Tile {destinationTile}.", MessageTypeDefOf.PositiveEvent, false);
         }

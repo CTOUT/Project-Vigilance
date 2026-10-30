@@ -864,6 +864,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 return TacticalAmberPulseColor(0.95f);
             }
 
+            if (Faction != null)
+            {
+                return Faction.Color;
+            }
+
             bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
             if (isHostile)
             {
@@ -883,10 +888,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 return MaterialPool.MatFrom(CaravanWorldTexture, ShaderDatabase.WorldOverlayTransparentLit, TacticalAmberPulseColor(0.95f), WorldMaterials.DynamicObjectRenderQueue);
             }
 
-            bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
-            Color incursionColor = isHostile
+            Color incursionColor = Faction != null ? Faction.Color : ((Faction?.HostileTo(Faction.OfPlayer) ?? true)
                 ? new Color(1f, 0.25f, 0.25f, 0.95f)
-                : new Color(0.25f, 0.85f, 1f, 0.95f);
+                : new Color(0.25f, 0.85f, 1f, 0.95f));
 
             return MaterialPool.MatFrom(CaravanWorldTexture, ShaderDatabase.WorldOverlayTransparentLit, incursionColor, WorldMaterials.DynamicObjectRenderQueue);
         }
@@ -921,9 +925,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
         else
         {
-            statusColor = isHostile
+            statusColor = Faction != null ? Faction.Color : (isHostile
                 ? new Color(1f, 0.25f, 0.25f, 0.95f)
-                : new Color(0.25f, 0.85f, 1f, 0.95f);
+                : new Color(0.25f, 0.85f, 1f, 0.95f));
         }
 
         // Alpha fade matching vanilla expandable objects transition
@@ -945,7 +949,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             0.85f * averageTileSize,
             DrawAltitude + altOffset,
             baseMat,
-            -90f,
+            0f,
             false,
             false,
             null);
@@ -966,7 +970,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 0.52f * averageTileSize,
                 DrawAltitude + altOffset + 0.005f,
                 emblemMat,
-                -90f,
+                0f,
                 false,
                 false,
                 null);

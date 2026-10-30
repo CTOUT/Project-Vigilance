@@ -27,9 +27,16 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 {
     private ListeningPostKind kind = ListeningPostKind.AutomatedRelay;
     private bool isSabotaged = false;
+    private bool isConstructing = false;
+    private int constructionTicksLeft = 0;
+    private int constructionTicksTotal = 2500;
+    private bool isDismantling = false;
+    private int dismantleTicksLeft = 0;
+    private int dismantleTicksTotal = 1500;
     private int cachedVantageBonus = 0;
     private string? customName = null;
     public ThingDef? stuffDef = null;
+    private Material? cachedMat;
 
     public ThingDef? StuffDef
     {
@@ -56,7 +63,34 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         }
     }
 
+    public bool IsConstructing => isConstructing;
+    public int ConstructionTicksLeft => constructionTicksLeft;
+    public int ConstructionTicksTotal => constructionTicksTotal;
+
+    public bool IsDismantling => isDismantling;
+    public int DismantleTicksLeft => dismantleTicksLeft;
+    public int DismantleTicksTotal => dismantleTicksTotal;
+
     public int CachedVantageBonus => cachedVantageBonus;
+
+    public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
+
+    public override Material Material
+    {
+        get
+        {
+            if (cachedMat == null && def?.texture != null)
+            {
+                Color color = Faction != null ? Faction.Color : Color.white;
+                cachedMat = MaterialPool.MatFrom(
+                    def.texture,
+                    ShaderDatabase.WorldOverlayTransparentLit,
+                    color,
+                    WorldMaterials.WorldObjectRenderQueue);
+            }
+            return cachedMat ?? base.Material;
+        }
+    }
 
     public override string Label
     {
@@ -121,9 +155,9 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         }
     }
 
-    public IntelligenceTier MaxIntelligenceTier => IntelligenceTier.Contact;
+    public IntelligenceTier MaxIntelligenceTier => IntelligenceTier.Classified;
 
-    public bool IsSensorActive => (Find.World?.worldObjects != null ? Spawned : true) && !Destroyed && !isSabotaged;
+    public bool IsSensorActive => (Find.World?.worldObjects != null ? Spawned : true) && !Destroyed && !isSabotaged && !isConstructing && !isDismantling;
 
     public void SetTileRaw(PlanetTile t) => HarmonyLib.Traverse.Create(this).Field("tile").SetValue(t);
     public void SetSpawnedRaw(bool s) => HarmonyLib.Traverse.Create(this).Field("spawned").SetValue(s);
@@ -169,11 +203,12 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     #endregion
 
-    #region Lifecycle & Serialization
+    #region Lifecycle, Ticking & Serialization
 
     public override void SpawnSetup()
     {
         base.SpawnSetup();
+        cachedMat = null;
         cachedVantageBonus = SensoryTerrainUtility.GetVantageBonus(Tile);
         SensoryManager.Instance?.RegisterSensor(this);
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
@@ -186,11 +221,166 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         base.PostRemove();
     }
 
+    protected override void Tick()
+    {
+        base.Tick();
+
+        if (isConstructing)
+        {
+            if (HasPlayerCaravanPresent())
+            {
+                constructionTicksLeft--;
+                if (constructionTicksLeft <= 0)
+                {
+                    FinishConstruction();
+                }
+            }
+        }
+        else if (isDismantling)
+        {
+            if (HasPlayerCaravanPresent(out Caravan? caravan))
+            {
+                dismantleTicksLeft--;
+                if (dismantleTicksLeft <= 0)
+                {
+                    FinishDismantling(caravan);
+                }
+            }
+        }
+    }
+
+    public void TickForTesting() => Tick();
+
+    public bool HasPlayerCaravanPresent() => HasPlayerCaravanPresent(out _);
+
+    public bool HasPlayerCaravanPresent(out Caravan? caravan)
+    {
+        caravan = null;
+        var caravans = Find.World?.worldObjects?.Caravans;
+        if (caravans == null) return false;
+        for (int i = 0; i < caravans.Count; i++)
+        {
+            Caravan c = caravans[i];
+            if (c != null && c.Spawned && c.Tile == Tile && c.Faction?.IsPlayer == true)
+            {
+                caravan = c;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void StartConstruction(int ticks = 2500)
+    {
+        isConstructing = true;
+        constructionTicksLeft = ticks;
+        constructionTicksTotal = ticks;
+        WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
+    }
+
+    public void FinishConstruction()
+    {
+        isConstructing = false;
+        constructionTicksLeft = 0;
+        WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
+        string label = kind == ListeningPostKind.AutomatedRelay
+            ? "Automated listening post"
+            : (stuffDef != null ? $"{stuffDef.LabelCap} signal beacon" : "Signal beacon");
+        if (Current.ProgramState == ProgramState.Playing)
+        {
+            Messages.Message($"{label} construction complete and surveillance grid active at Tile {Tile}.", MessageTypeDefOf.PositiveEvent, false);
+        }
+    }
+
+    public void CancelConstruction(Caravan? caravan)
+    {
+        if (!isConstructing) return;
+
+        // Refund 100% of construction materials
+        if (kind == ListeningPostKind.AutomatedRelay)
+        {
+            if (caravan != null)
+            {
+                Thing steel = ThingMaker.MakeThing(ThingDefOf.Steel);
+                steel.stackCount = OutpostMaterialUtility.AutomatedRelaySteelCost;
+                CaravanInventoryUtility.GiveThing(caravan, steel);
+
+                Thing comp = ThingMaker.MakeThing(ThingDefOf.ComponentIndustrial);
+                comp.stackCount = OutpostMaterialUtility.AutomatedRelayComponentCost;
+                CaravanInventoryUtility.GiveThing(caravan, comp);
+            }
+        }
+        else
+        {
+            if (caravan != null)
+            {
+                ThingDef refundDef = stuffDef ?? ThingDefOf.WoodLog;
+                int remaining = OutpostMaterialUtility.SignalBeaconWoodOrStoneCost;
+                int stackLimit = Mathf.Max(1, refundDef.stackLimit);
+                while (remaining > 0)
+                {
+                    Thing salvaged = ThingMaker.MakeThing(refundDef);
+                    int countToTake = Mathf.Min(remaining, stackLimit);
+                    salvaged.stackCount = countToTake;
+                    remaining -= countToTake;
+                    CaravanInventoryUtility.GiveThing(caravan, salvaged);
+                }
+            }
+        }
+
+        if (Current.ProgramState == ProgramState.Playing)
+        {
+            Messages.Message($"Construction of {LabelCap} cancelled. Materials refunded.", MessageTypeDefOf.CautionInput, false);
+        }
+        Destroy();
+    }
+
+    public void StartDismantling(int ticks = 1500)
+    {
+        if (isDismantling) return;
+        isDismantling = true;
+        dismantleTicksLeft = ticks;
+        dismantleTicksTotal = ticks;
+        WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
+    }
+
+    public void CancelDismantling()
+    {
+        if (!isDismantling) return;
+        isDismantling = false;
+        dismantleTicksLeft = 0;
+        WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
+        if (Current.ProgramState == ProgramState.Playing)
+        {
+            Messages.Message($"Dismantling of {LabelCap} cancelled. Installation operational.", MessageTypeDefOf.CautionInput, false);
+        }
+    }
+
+    public void FinishDismantling(Caravan? workerCaravan)
+    {
+        isDismantling = false;
+        dismantleTicksLeft = 0;
+        if (workerCaravan != null)
+        {
+            Dismantle(workerCaravan);
+        }
+        else
+        {
+            Destroy();
+        }
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
         Scribe_Values.Look(ref kind, "kind", ListeningPostKind.AutomatedRelay);
         Scribe_Values.Look(ref isSabotaged, "isSabotaged", false);
+        Scribe_Values.Look(ref isConstructing, "isConstructing", false);
+        Scribe_Values.Look(ref constructionTicksLeft, "constructionTicksLeft", 0);
+        Scribe_Values.Look(ref constructionTicksTotal, "constructionTicksTotal", 2500);
+        Scribe_Values.Look(ref isDismantling, "isDismantling", false);
+        Scribe_Values.Look(ref dismantleTicksLeft, "dismantleTicksLeft", 0);
+        Scribe_Values.Look(ref dismantleTicksTotal, "dismantleTicksTotal", 1500);
         Scribe_Values.Look(ref customName, "customName");
         Scribe_Values.Look(ref cachedVantageBonus, "cachedVantageBonus", 0);
         Scribe_Defs.Look(ref stuffDef, "stuffDef");
@@ -280,7 +470,10 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             }
         }
 
-        Messages.Message($"{LabelCap} dismantled. Salvaged materials recovered into caravan inventory.", MessageTypeDefOf.TaskCompletion, false);
+        if (Current.ProgramState == ProgramState.Playing)
+        {
+            Messages.Message($"{LabelCap} dismantled. Salvaged materials recovered into caravan inventory.", MessageTypeDefOf.TaskCompletion, false);
+        }
         Destroy();
     }
 
@@ -354,7 +547,25 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             : (stuffDef != null ? $"Signal Beacon ({stuffDef.LabelCap})" : "Signal Beacon");
         sb.AppendLine($"Type: {typeLabel}");
 
-        if (isSabotaged)
+        if (isConstructing)
+        {
+            int pct = Mathf.Clamp(Mathf.RoundToInt((1f - (float)constructionTicksLeft / Mathf.Max(1, constructionTicksTotal)) * 100f), 0, 99);
+            float hoursLeft = constructionTicksLeft / 2500f;
+            sb.AppendLine(HasPlayerCaravanPresent()
+                ? $"Status: Under Construction ({pct}%, ~{hoursLeft:F1}h remaining)"
+                : $"Status: Construction Paused ({pct}% complete - caravan required on-site)");
+            sb.AppendLine("Requires visiting caravan at hex to construct.");
+        }
+        else if (isDismantling)
+        {
+            int pct = Mathf.Clamp(Mathf.RoundToInt((1f - (float)dismantleTicksLeft / Mathf.Max(1, dismantleTicksTotal)) * 100f), 0, 99);
+            float hoursLeft = dismantleTicksLeft / 2500f;
+            sb.AppendLine(HasPlayerCaravanPresent()
+                ? $"Status: Dismantling ({pct}%, ~{hoursLeft:F1}h remaining)"
+                : $"Status: Dismantling Paused ({pct}% complete - caravan required on-site)");
+            sb.AppendLine("Requires visiting caravan at hex to dismantle.");
+        }
+        else if (isSabotaged)
         {
             sb.AppendLine("Status: Sabotaged / Signal Lost");
             sb.AppendLine("Requires maintenance caravan to repair and restore telemetry.");
@@ -404,6 +615,24 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
         if (caravan.Tile == Tile)
         {
+            if (isConstructing)
+            {
+                yield return new FloatMenuOption($"Cancel Construction of {LabelCap} (Refund 100% Materials)", () =>
+                {
+                    CancelConstruction(caravan);
+                }, MenuOptionPriority.High);
+                yield break;
+            }
+
+            if (isDismantling)
+            {
+                yield return new FloatMenuOption($"Cancel Dismantling of {LabelCap}", () =>
+                {
+                    CancelDismantling();
+                }, MenuOptionPriority.High);
+                yield break;
+            }
+
             if (isSabotaged)
             {
                 bool canRepair = HasRepairMaterials(caravan, out string missingDesc);
@@ -420,9 +649,9 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
                 };
             }
 
-            yield return new FloatMenuOption($"Dismantle {LabelCap} (Recover 75% Materials)", () =>
+            yield return new FloatMenuOption($"Dismantle {LabelCap} (Takes time, recover 75% materials)", () =>
             {
-                Dismantle(caravan);
+                StartDismantling(1500);
             }, MenuOptionPriority.Low);
         }
     }

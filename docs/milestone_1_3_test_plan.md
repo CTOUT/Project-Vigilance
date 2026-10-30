@@ -213,7 +213,11 @@ _Objective: Validate zero-TPS unmanned outposts, right-click caravan constructio
    - Once the colonists exit the map boundary, inspect the caravan on the world map.
    - **Verify Caravan Status:** Status displays `travelling to establish automated listening post`.
    - Fast-forward time until the caravan reaches the destination hex.
-   - **Verify Autonomous Deployment:** Upon stepping onto the hex, the caravan automatically consumes the 100 Steel and 4 Components, spawning an **Automated Listening Post** without requiring manual context menu interaction!
+   - **Verify Autonomous Deployment & Timed Construction:** Upon stepping onto the hex, the caravan consumes the 100 Steel and 4 Components, placing the **Automated Listening Post** in an `Under Construction` state.
+   - **Verify Construction Progression:** Inspecting the outpost displays `Status: Under Construction (X%, ~X.Xh remaining)`. Time advances as the caravan works on-site (~1 game hour / 2,500 ticks).
+   - If the caravan moves away, verify the status switches to `Status: Construction Paused`. When the caravan returns, construction resumes.
+   - Upon completion, a positive alert sounds, status switches to `Operational`, and the 12-ring sensory envelope activates on the Geoscape!
+   - **Verify Faction Tinting & Upright Orientation:** The outpost symbol renders upright on the world sphere and is tinted with the player faction's color.
 
 ##### 5.1.2 Distant Caravan Right-Click Orders & Local Deployment
 
@@ -251,15 +255,26 @@ _Objective: Validate zero-TPS unmanned outposts, right-click caravan constructio
    - **Verify:** Repair materials are deducted from caravan inventory.
    - **Verify:** Outpost status restores to `Operational`.
    - **Verify:** Sensory envelope reappears on the world map immediately.
-5. Right-click the operational outpost:
-   - **Verify Context Option:** `Dismantle Outpost (Recover 75% Materials)`.
-6. Click `Dismantle Outpost`:
-   - **Verify Outpost Removal:** The outpost is removed from the world map.
-   - **Automated Relay Salvage:** Exactly 75 Steel and 3 Components (75% of construction cost) are added to caravan inventory.
-   - **Signal Beacon Salvage & Transmutation Prevention:**
-     - For a beacon built with Granite blocks: caravan receives **112 Granite blocks** (75% of 150), **NOT wood logs**.
-     - **Stack-Limit Partitioning:** Inspect the caravan's inventory: verify the 112 stone items are split into **two valid item stacks** (one full stack of 75, one stack of 37) respecting `stackLimit`, with zero `Tried to spawn Thing with stackCount > stackLimit` errors in the debug log.
-     - For a beacon built with Wood logs: verify it recovers 112 Wood logs (split into stacks of 75 and 37).
+5. **Dismantle Dispatch from Colony Settlement:**
+   - Select your Colony Settlement on the Geoscape globe.
+   - Right-click an existing listening post or signal beacon:
+     - **Verify Context Option:** `Dispatch Caravan to Dismantle [Outpost Name] (Recover 75% Materials)`.
+   - Select option: `Dialog_FormCaravan` opens with route waypoint locked to the outpost. Upon departure, caravan paths with status `travelling to dismantle [outpost name]`.
+6. **Dismantle Orders from Caravan:**
+   - With a distant caravan selected, right-click the outpost:
+     - **Verify Option:** `Travel and Dismantle [Outpost Name] (Recover 75% Materials)`.
+   - With a caravan on the same hex as the outpost, right-click the outpost:
+     - **Verify Option:** `Dismantle [Outpost Name] (Takes time, recover 75% materials)`.
+7. **Timed Deconstruction & Material Salvage:**
+   - When dismantling begins, the outpost switches to `Status: Dismantling (X%, ~X.Xh remaining)`.
+   - The caravan works on-site for ~36 game minutes (1,500 ticks). If the caravan leaves, dismantling pauses.
+   - Upon completion:
+     - **Verify Outpost Removal:** The outpost is safely removed from the world map.
+     - **Automated Relay Salvage:** Exactly 75 Steel and 3 Components (75% of construction cost) are added to caravan inventory.
+     - **Signal Beacon Salvage & Transmutation Prevention:**
+       - For a beacon built with Granite blocks: caravan receives **112 Granite blocks** (75% of 150), **NOT wood logs**.
+       - **Stack-Limit Partitioning:** Inspect caravan inventory: 112 stone items split into **two valid item stacks** (75 and 37) respecting `stackLimit`, with zero errors.
+       - For a beacon built with Wood logs: recovers 112 Wood logs (75 and 37).
 
 ---
 

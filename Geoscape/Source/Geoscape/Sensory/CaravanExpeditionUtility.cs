@@ -9,13 +9,24 @@ using Verse;
 namespace ProjectVigilance.Geoscape.Sensory;
 
 /// <summary>
-/// Data payload defining an active construction directive dispatched from a player colony.
+/// Operational directive assigned to a departing caravan expedition.
+/// </summary>
+public enum OutpostDirectiveKind
+{
+    Construct,
+    Dismantle
+}
+
+/// <summary>
+/// Data payload defining an active construction or dismantling directive dispatched from a player colony.
 /// </summary>
 public sealed class OutpostConstructionDirective
 {
+    public OutpostDirectiveKind DirectiveKind { get; init; } = OutpostDirectiveKind.Construct;
     public PlanetTile TargetTile { get; init; }
     public ListeningPostKind Kind { get; init; }
     public ThingDef? StuffDef { get; init; }
+    public WorldObject_ListeningPost? TargetOutpost { get; init; }
     public int OriginMapId { get; init; }
     public int CreatedTick { get; init; }
 }
@@ -179,6 +190,40 @@ public static class CaravanExpeditionUtility
             : (stuffDef != null ? $"{OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} {stuffDef.LabelCap}" : $"{OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} Wood/Stone");
 
         Messages.Message($"[Project Vigilance] Pre-selected {materialSummary} for outpost expedition to Tile {targetTile}. Select colonist(s) and provisions to depart.", MessageTypeDefOf.CautionInput, false);
+    }
+
+    public static void StartDismantleExpedition(Settlement settlement, WorldObject_ListeningPost post)
+    {
+        if (settlement?.Map == null || post == null || !post.Spawned)
+        {
+            return;
+        }
+
+        PlanetTile targetTile = post.Tile;
+
+        // 1. Register pending dismantle directive
+        RegisterPendingDirective(targetTile, new OutpostConstructionDirective
+        {
+            TargetTile = targetTile,
+            Kind = post.Kind,
+            StuffDef = post.StuffDef,
+            DirectiveKind = OutpostDirectiveKind.Dismantle,
+            TargetOutpost = post,
+            OriginMapId = settlement.Map.uniqueID,
+            CreatedTick = Find.TickManager?.TicksGame ?? 0
+        });
+
+        // 2. Open standard Form Caravan dialog configured for route
+        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: () =>
+        {
+            ClearPendingDirective(targetTile);
+        });
+
+        Find.WindowStack.Add(dialog);
+        Find.WorldRoutePlanner.Start(dialog);
+        Find.WorldRoutePlanner.TryAddWaypoint(targetTile);
+
+        Messages.Message($"[Project Vigilance] Dismantle expedition route set to {post.LabelCap} at Tile {targetTile}. Select colonist(s) and provisions to depart.", MessageTypeDefOf.CautionInput, false);
     }
 
     public static void PreallocateConstructionMaterials(Dialog_FormCaravan dialog, ListeningPostKind kind, ThingDef? stuffDef)

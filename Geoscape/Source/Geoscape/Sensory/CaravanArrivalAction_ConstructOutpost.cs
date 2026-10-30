@@ -87,8 +87,9 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
                 post.Tile = caravan.Tile;
                 post.SetFaction(Faction.OfPlayer);
                 post.Kind = ListeningPostKind.AutomatedRelay;
+                post.StartConstruction(2500);
                 Find.WorldObjects?.Add(post);
-                Messages.Message($"Automated listening post deployed and active on geoscape at Tile {caravan.Tile}.", MessageTypeDefOf.PositiveEvent, false);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {caravan.Tile}. Construction of automated listening post commenced.", MessageTypeDefOf.PositiveEvent, false);
             }
             else
             {
@@ -106,8 +107,9 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
                 post.SetFaction(Faction.OfPlayer);
                 post.Kind = ListeningPostKind.SignalBeacon;
                 post.stuffDef = consumed ?? stuffDef ?? ThingDefOf.WoodLog;
+                post.StartConstruction(2500);
                 Find.WorldObjects?.Add(post);
-                Messages.Message($"Signal beacon ({post.stuffDef.LabelCap}) constructed and scanning the sector at Tile {caravan.Tile}.", MessageTypeDefOf.PositiveEvent, false);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {caravan.Tile}. Construction of signal beacon ({post.stuffDef.LabelCap}) commenced.", MessageTypeDefOf.PositiveEvent, false);
             }
             else
             {

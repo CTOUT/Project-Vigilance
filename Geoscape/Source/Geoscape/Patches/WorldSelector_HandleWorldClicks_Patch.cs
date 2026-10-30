@@ -130,10 +130,21 @@ public static class WorldSelector_HandleWorldClicks_Patch
         }
         else
         {
-            options.Add(new FloatMenuOption($"Tile {effectiveTile} already has an active outpost", null, MenuOptionPriority.Default)
+            WorldObject_ListeningPost? post = Find.WorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == effectiveTile);
+            if (post != null)
             {
-                Disabled = true
-            });
+                options.Add(new FloatMenuOption($"Dispatch Caravan to Dismantle {post.LabelCap} (Recover 75% Materials)", () =>
+                {
+                    CaravanExpeditionUtility.StartDismantleExpedition(settlement, post);
+                }, MenuOptionPriority.Default));
+            }
+            else
+            {
+                options.Add(new FloatMenuOption($"Tile {effectiveTile} already has an active outpost", null, MenuOptionPriority.Default)
+                {
+                    Disabled = true
+                });
+            }
         }
 
         Find.WindowStack.Add(new FloatMenu(options, settlement.LabelCap));

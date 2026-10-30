@@ -57,8 +57,9 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                         post.Tile = clickedTile;
                         post.SetFaction(Faction.OfPlayer);
                         post.Kind = ListeningPostKind.AutomatedRelay;
+                        post.StartConstruction(2500);
                         Find.WorldObjects?.Add(post);
-                        Messages.Message("Automated listening post deployed and active on geoscape.", MessageTypeDefOf.PositiveEvent, false);
+                        Messages.Message("Automated listening post deployment commenced. Construction underway.", MessageTypeDefOf.PositiveEvent, false);
                     }
                 }, MenuOptionPriority.Default)
                 {
@@ -106,6 +107,52 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                                 DeployBeacon(clickedTile, consumed ?? ThingDefOf.WoodLog);
                             }
                         }, MenuOptionPriority.Default));
+                    }
+                }
+            }
+            else
+            {
+                WorldObject_ListeningPost? post = Find.WorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
+                if (post != null)
+                {
+                    __result ??= new List<FloatMenuOption>();
+
+                    if (post.IsConstructing)
+                    {
+                        __result.Add(new FloatMenuOption($"Cancel Construction of {post.LabelCap} (Refund 100% Materials)", () =>
+                        {
+                            post.CancelConstruction(caravan);
+                        }, MenuOptionPriority.High));
+                    }
+                    else if (post.IsDismantling)
+                    {
+                        __result.Add(new FloatMenuOption($"Cancel Dismantling of {post.LabelCap}", () =>
+                        {
+                            post.CancelDismantling();
+                        }, MenuOptionPriority.High));
+                    }
+                    else
+                    {
+                        if (post.IsSabotaged)
+                        {
+                            bool canRepair = post.HasRepairMaterials(caravan, out string missingDesc);
+                            string repairLabel = canRepair
+                                ? $"Repair {post.LabelCap}"
+                                : $"Repair {post.LabelCap} ({missingDesc})";
+
+                            __result.Add(new FloatMenuOption(repairLabel, () =>
+                            {
+                                post.TryRepair(caravan);
+                            }, MenuOptionPriority.High)
+                            {
+                                Disabled = !canRepair
+                            });
+                        }
+
+                        __result.Add(new FloatMenuOption($"Dismantle {post.LabelCap} (Takes time, recover 75% materials)", () =>
+                        {
+                            post.StartDismantling(1500);
+                        }, MenuOptionPriority.Low));
                     }
                 }
             }
@@ -200,6 +247,31 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                     }
                 }
             }
+            else
+            {
+                WorldObject_ListeningPost? post = Find.WorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
+                if (post != null)
+                {
+                    __result ??= new List<FloatMenuOption>();
+
+                    // Move here
+                    __result.Add(new FloatMenuOption($"Move to Tile {clickedTile}", () =>
+                    {
+                        caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
+                    }, MenuOptionPriority.Default));
+
+                    // Travel and Dismantle
+                    __result.Add(new FloatMenuOption($"Travel and Dismantle {post.LabelCap} (Recover 75% Materials)", () =>
+                    {
+                        caravan.pather.StartPath(
+                            clickedTile,
+                            new CaravanArrivalAction_DismantleOutpost(post, clickedTile),
+                            repathImmediately: true,
+                            resetPauseStatus: true);
+                        Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {clickedTile}.", MessageTypeDefOf.PositiveEvent, false);
+                    }, MenuOptionPriority.Default));
+                }
+            }
         }
         // 3. Impassable Tile: Provide clear menu options rather than silent auto-movement
         else if (Find.World != null && Find.World.Impassable(clickedTile))
@@ -278,7 +350,8 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
         post.SetFaction(Faction.OfPlayer);
         post.Kind = ListeningPostKind.SignalBeacon;
         post.stuffDef = materialDef;
+        post.StartConstruction(2500);
         Find.WorldObjects?.Add(post);
-        Messages.Message($"Signal beacon ({materialDef.LabelCap}) constructed and scanning the sector.", MessageTypeDefOf.PositiveEvent, false);
+        Messages.Message($"Signal beacon ({materialDef.LabelCap}) construction commenced.", MessageTypeDefOf.PositiveEvent, false);
     }
 }
