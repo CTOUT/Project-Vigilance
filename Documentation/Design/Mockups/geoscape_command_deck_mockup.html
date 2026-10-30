@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Vigilance - Classic X-COM Geoscape Mockup Art</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Retro CRT and Bevel Styling */
+    .bevel-outset {
+      border-style: solid;
+      border-width: 3px;
+      border-top-color: #94a3b8;
+      border-left-color: #94a3b8;
+      border-right-color: #0f172a;
+      border-bottom-color: #0f172a;
+    }
+    .bevel-inset {
+      border-style: solid;
+      border-width: 3px;
+      border-top-color: #0f172a;
+      border-left-color: #0f172a;
+      border-right-color: #94a3b8;
+      border-bottom-color: #94a3b8;
+    }
+    .bevel-button {
+      border-style: solid;
+      border-width: 2px;
+      border-top-color: #cbd5e1;
+      border-left-color: #cbd5e1;
+      border-right-color: #1e293b;
+      border-bottom-color: #1e293b;
+      background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+      transition: all 0.05s ease;
+    }
+    .bevel-button:active, .bevel-button.active {
+      border-top-color: #1e293b;
+      border-left-color: #1e293b;
+      border-right-color: #cbd5e1;
+      border-bottom-color: #cbd5e1;
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+      transform: translateY(1px);
+    }
+    .crt-scanlines {
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.35) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 4px 100%;
+      pointer-events: none;
+    }
+    .phosphor-glow {
+      text-shadow: 0 0 5px rgba(52, 211, 153, 0.8), 0 0 10px rgba(52, 211, 153, 0.4);
+    }
+    .amber-glow {
+      text-shadow: 0 0 5px rgba(251, 191, 36, 0.8), 0 0 10px rgba(251, 191, 36, 0.4);
+    }
+    .red-glow {
+      text-shadow: 0 0 6px rgba(239, 68, 68, 0.8), 0 0 12px rgba(239, 68, 68, 0.5);
+    }
+    .cyan-glow {
+      text-shadow: 0 0 5px rgba(56, 189, 248, 0.8), 0 0 10px rgba(56, 189, 248, 0.4);
+    }
+    /* Radar sweep keyframes */
+    @keyframes radarSweep {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .sweep-line {
+      animation: radarSweep 4s linear infinite;
+      transform-origin: center center;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-mono select-none p-3 overflow-x-hidden min-h-screen">
+
+  <!-- Master Control Header & Viewport Switcher -->
+  <header class="max-w-7xl mx-auto mb-3 bg-slate-900 border-2 border-slate-700 p-2.5 rounded-lg flex flex-wrap items-center justify-between gap-3 shadow-xl">
+    <div class="flex items-center gap-3">
+      <div class="w-4 h-4 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div>
+      <div>
+        <h1 class="text-base font-bold tracking-wider text-emerald-400 phosphor-glow">PROJECT VIGILANCE // GEOSCAPE COMMAND DECK</h1>
+        <p class="text-xs text-slate-400">1994 Classic X-COM Architecture & Visual Mockup Preview</p>
+      </div>
+    </div>
+
+    <!-- View Switcher Tabs -->
+    <div class="flex flex-wrap items-center gap-1.5 text-xs">
+      <button onclick="switchView('deck')" id="tab-deck" class="bevel-button active px-3 py-1.5 text-emerald-300 font-bold">1. Command Deck</button>
+      <button onclick="switchView('modal')" id="tab-modal" class="bevel-button px-3 py-1.5 text-amber-300 font-bold">2. CRT Contact Alert</button>
+      <button onclick="switchView('siting')" id="tab-siting" class="bevel-button px-3 py-1.5 text-cyan-300 font-bold">3. Outpost Siting</button>
+      <button onclick="switchView('dogfight')" id="tab-dogfight" class="bevel-button px-3 py-1.5 text-red-300 font-bold">4. Air Dogfight HUD</button>
+      <button onclick="switchView('bathymetry')" id="tab-bathymetry" class="bevel-button px-3 py-1.5 text-teal-300 font-bold">5. TFTD Bathymetry</button>
+    </div>
+
+    <!-- Global Mockup Settings -->
+    <div class="flex items-center gap-2 text-xs">
+      <label class="flex items-center gap-1.5 cursor-pointer bg-slate-800 px-2 py-1 rounded border border-slate-700">
+        <input type="checkbox" id="scanlines-toggle" checked onchange="toggleScanlines(this.checked)" class="accent-emerald-500">
+        <span class="text-slate-300">CRT Filter</span>
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer bg-slate-800 px-2 py-1 rounded border border-slate-700">
+        <input type="checkbox" id="sound-toggle" checked class="accent-emerald-500">
+        <span class="text-slate-300">Synth SFX</span>
+      </label>
+      <button onclick="triggerContactDropDemo()" class="bevel-button px-2.5 py-1 text-red-400 font-bold border-red-600 hover:text-red-300 flex items-center gap-1">
+        <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+        Simulate Contact Drop
+      </button>
+    </div>
+  </header>
+
+  <!-- Main View Container with Optional CRT Scanline Overlay -->
+  <main id="main-frame" class="max-w-7xl mx-auto relative bg-black rounded-lg border-4 border-slate-800 overflow-hidden shadow-2xl min-h-[660px]">
+    
+    <!-- Dynamic Scanline Layer -->
+    <div id="crt-overlay" class="crt-scanlines absolute inset-0 z-50 pointer-events-none"></div>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: CLASSIC GEOSCAPE COMMAND DECK -->
+    <!-- ========================================================================= -->
+    <div id="view-deck" class="relative flex flex-col md:flex-row h-full min-h-[660px]">
+      
+      <!-- Left Area: The Living Planetary Arena & 3D Globe -->
+      <div class="relative flex-1 bg-gradient-to-br from-indigo-950 via-slate-950 to-purple-950 overflow-hidden flex flex-col justify-between p-4">
+        
+        <!-- Cosmic Nebula Skybox Indicator & Theme Badge -->
+        <div class="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-800 via-transparent to-transparent pointer-events-none"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:32px_32px] opacity-25 pointer-events-none"></div>
+
+        <!-- Top Left Status Bar & Tactical Situation -->
+        <div class="relative z-10 flex items-start justify-between">
+          <div class="bg-slate-900/90 border-2 border-slate-600 px-3 py-1.5 rounded shadow-lg text-xs backdrop-blur">
+            <span class="text-slate-400">PLANETARY THEATER:</span>
+            <span class="text-emerald-400 font-bold ml-1">RIMWORLD PRIME (HEX SECTOR 14)</span>
+            <div class="text-[11px] text-slate-300 flex items-center gap-3 mt-0.5">
+              <span>SENSORS: <strong class="text-emerald-400">4 ACTIVE</strong></span>
+              <span>COVERAGE: <strong class="text-cyan-400">38.4% CONTINENTAL</strong></span>
+              <span>AIRSPACE STATUS: <strong class="text-amber-400 animate-pulse">DEFCON 2</strong></span>
+            </div>
+          </div>
+
+          <!-- Quick Theme Switcher Pill -->
+          <div class="bg-slate-900/80 border border-slate-700 px-2 py-1 rounded text-xs flex items-center gap-2">
+            <span class="text-slate-400 text-[11px]">COSMOS:</span>
+            <select id="cosmos-style" onchange="changeCosmos(this.value)" class="bg-slate-800 text-xs text-slate-200 border border-slate-600 rounded px-1.5 py-0.5">
+              <option value="violet">Classic Violet Nebula (1994)</option>
+              <option value="crimson">Crimson Abyss (TFTD 1995)</option>
+              <option value="void">Deep Space Void (Vanilla)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Center: Interactive 3D Canvas Globe -->
+        <div class="relative flex-1 flex items-center justify-center my-2">
+          <div class="relative w-[440px] h-[440px] flex items-center justify-center">
+            
+            <!-- Atmospheric Limb Halo (Fresnel Glow) -->
+            <div id="planet-halo" class="absolute w-[400px] h-[400px] rounded-full bg-cyan-500/10 blur-xl pointer-events-none transition-all duration-700"></div>
+            
+            <!-- Planet Render Canvas -->
+            <canvas id="globeCanvas" width="400" height="400" class="rounded-full shadow-[0_0_50px_rgba(30,58,138,0.5)] border-2 border-cyan-800/60 cursor-grab active:cursor-grabbing"></canvas>
+
+            <!-- Holographic Radar Rings Overlay (Simulated Sensor Arrays) -->
+            <div class="absolute w-[220px] h-[220px] rounded-full border border-dashed border-cyan-400/50 pointer-events-none animate-pulse"></div>
+            <div class="absolute w-[310px] h-[310px] rounded-full border border-cyan-500/30 pointer-events-none"></div>
+
+            <!-- Rotating Radar Sweep Line -->
+            <div class="absolute w-[310px] h-[310px] rounded-full pointer-events-none sweep-line">
+              <div class="w-1/2 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-emerald-400 shadow-[0_0_8px_#34d399]"></div>
+            </div>
+
+            <!-- Incursion Bogey Blip (Animated Tracking) -->
+            <div id="ufo-bogey" class="absolute top-[130px] right-[120px] flex items-center gap-1.5 z-20 cursor-pointer" onclick="openContactAlert()">
+              <div class="relative flex items-center justify-center">
+                <span class="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-red-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 shadow-[0_0_8px_#ef4444]"></span>
+              </div>
+              <div class="bg-black/80 border border-red-500 px-1.5 py-0.5 rounded text-[11px] text-red-400 font-bold whitespace-nowrap shadow-lg">
+                UFO-04 (HIGH SPEED)
+              </div>
+            </div>
+
+            <!-- Listening Post Alpha Pin -->
+            <div class="absolute bottom-[140px] left-[130px] flex items-center gap-1.5 z-10">
+              <div class="w-2.5 h-2.5 bg-emerald-400 border border-white rounded-sm shadow-[0_0_6px_#10b981]"></div>
+              <div class="bg-black/75 border border-emerald-500/80 px-1 py-0.5 rounded text-[10px] text-emerald-300">
+                LISTENING POST ALPHA
+              </div>
+            </div>
+
+            <!-- Faction Capital Landmark Pin -->
+            <div class="absolute top-[190px] left-[110px] flex items-center gap-1.5 z-10">
+              <div class="w-2 h-2 rounded-full bg-amber-400"></div>
+              <div class="text-[10px] text-amber-300 font-bold bg-black/60 px-1 rounded">
+                SOVEREIGN OUTLANDERS
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Bottom Left: Vanilla LetterStack Coexistence Zone Preview -->
+        <div class="relative z-10 flex items-end justify-between">
+          <div class="bg-slate-900/90 border border-slate-700 p-2 rounded max-w-sm text-xs shadow-lg">
+            <div class="flex items-center gap-2 text-amber-400 font-bold mb-1">
+              <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+              VANILLA LETTERSTACK INTEGRATION:
+            </div>
+            <p class="text-[11px] text-slate-300 leading-snug">
+              Offset by <strong>230px</strong> to the left. Urgent incursion envelopes cascade safely alongside the Classic Command Deck with zero visual overlap.
+            </p>
+          </div>
+
+          <!-- Visual Coordinates & Tracking Legend -->
+          <div class="text-[11px] text-slate-400 text-right bg-black/60 p-2 rounded border border-slate-800">
+            <div>TARGET LAT: <span class="text-cyan-400 font-mono">34.82° N</span> | LON: <span class="text-cyan-400 font-mono">118.54° W</span></div>
+            <div>SENSOR AZIMUTH: <span class="text-emerald-400 font-mono">142° SE</span> | RANGE: <span class="text-emerald-400 font-mono">820 KM</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Area: The Diegetic Command Deck Sidebar (Width: 220px) -->
+      <aside class="w-full md:w-[230px] bg-slate-900 border-t-4 md:border-t-0 md:border-l-4 border-slate-700 flex flex-col justify-between p-3 select-none z-20 shadow-2xl">
+        
+        <!-- Section 1: Main Strategic Function Buttons (Double Bevel 1994 Style) -->
+        <div class="space-y-1.5">
+          <div class="text-[11px] font-bold text-slate-400 tracking-wider mb-1 text-center border-b border-slate-800 pb-1">COMMAND CONSOLE</div>
+          
+          <button onclick="playBeep(); switchView('dogfight')" class="w-full bevel-button py-2 px-3 text-left font-bold text-xs text-slate-200 flex items-center justify-between group">
+            <span class="group-hover:text-emerald-400">INTERCEPT</span>
+            <span class="text-emerald-400 text-[10px]">F1</span>
+          </button>
+          
+          <button onclick="playBeep(); switchView('siting')" class="w-full bevel-button py-2 px-3 text-left font-bold text-xs text-slate-200 flex items-center justify-between group">
+            <span class="group-hover:text-cyan-400">BASES & OUTPOSTS</span>
+            <span class="text-cyan-400 text-[10px]">F2</span>
+          </button>
+          
+          <button onclick="playBeep()" class="w-full bevel-button py-2 px-3 text-left font-bold text-xs text-slate-200 flex items-center justify-between group">
+            <span class="group-hover:text-amber-400">RADAR TELEMETRY</span>
+            <span class="text-amber-400 text-[10px]">F3</span>
+          </button>
+          
+          <button onclick="playBeep()" class="w-full bevel-button py-2 px-3 text-left font-bold text-xs text-slate-200 flex items-center justify-between group">
+            <span class="group-hover:text-purple-400">INTEL ARCHIVE</span>
+            <span class="text-purple-400 text-[10px]">F4</span>
+          </button>
+          
+          <button onclick="playBeep(); switchView('bathymetry')" class="w-full bevel-button py-2 px-3 text-left font-bold text-xs text-slate-200 flex items-center justify-between group">
+            <span class="group-hover:text-teal-400">SENSORY FILTERS</span>
+            <span class="text-teal-400 text-[10px]">F5</span>
+          </button>
+          
+          <button onclick="playBeep()" class="w-full bevel-button py-2 px-3 text-left font-bold text-xs text-slate-200 flex items-center justify-between group">
+            <span class="group-hover:text-blue-400">FACTION PACTS</span>
+            <span class="text-blue-400 text-[10px]">F6</span>
+          </button>
+        </div>
+
+        <!-- Section 2: Mission LED Clock with Running Seconds -->
+        <div class="my-3 bevel-inset bg-black p-2 text-center rounded">
+          <div class="text-[10px] text-slate-400 font-bold tracking-widest">MISSION CLOCK</div>
+          <div id="live-clock" class="text-base font-bold text-emerald-400 phosphor-glow tracking-widest my-0.5">
+            14:22:15
+          </div>
+          <div class="text-[11px] text-emerald-300/80 font-bold">
+            12th Aprimay 5502
+          </div>
+        </div>
+
+        <!-- Section 3: Discrete Time Compression Matrix -->
+        <div class="mb-3">
+          <div class="text-[11px] font-bold text-slate-400 tracking-wider mb-1 text-center border-b border-slate-800 pb-1">TIME COMPRESSION</div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button onclick="setTimeSpeed('5sec', this)" id="btn-speed-5sec" class="bevel-button active py-1.5 text-center font-bold text-xs text-emerald-400">5 Secs</button>
+            <button onclick="setTimeSpeed('1min', this)" id="btn-speed-1min" class="bevel-button py-1.5 text-center font-bold text-xs text-slate-300">1 Min</button>
+            <button onclick="setTimeSpeed('5min', this)" id="btn-speed-5min" class="bevel-button py-1.5 text-center font-bold text-xs text-slate-300">5 Mins</button>
+            <button onclick="setTimeSpeed('30min', this)" id="btn-speed-30min" class="bevel-button py-1.5 text-center font-bold text-xs text-slate-300">30 Mins</button>
+            <button onclick="setTimeSpeed('1hr', this)" id="btn-speed-1hr" class="bevel-button py-1.5 text-center font-bold text-xs text-slate-300">1 Hour</button>
+            <button onclick="setTimeSpeed('1day', this)" id="btn-speed-1day" class="bevel-button py-1.5 text-center font-bold text-xs text-amber-400">1 Day</button>
+          </div>
+          <div id="speed-status" class="text-[10px] text-center text-slate-400 mt-1 font-mono">
+            STATUS: <span class="text-emerald-400 font-bold">NORMAL (1X)</span>
+          </div>
+        </div>
+
+        <!-- Section 4: Tactile Trackball Gimbal & Cardinal Pointers -->
+        <div class="bevel-outset bg-slate-800/80 p-2 rounded flex flex-col items-center">
+          <div class="text-[10px] font-bold text-slate-400 tracking-wider mb-1">TACTICAL GIMBAL</div>
+          
+          <!-- Directional Cross -->
+          <div class="grid grid-cols-3 gap-1 w-28">
+            <div></div>
+            <button onclick="rotateGlobe(0, -0.2)" class="bevel-button h-7 flex items-center justify-center font-bold text-slate-200 text-xs hover:text-emerald-400">▲</button>
+            <div></div>
+            
+            <button onclick="rotateGlobe(-0.2, 0)" class="bevel-button h-7 flex items-center justify-center font-bold text-slate-200 text-xs hover:text-emerald-400">◄</button>
+            <div class="w-full h-7 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center shadow-inner">
+              <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></div>
+            </div>
+            <button onclick="rotateGlobe(0.2, 0)" class="bevel-button h-7 flex items-center justify-center font-bold text-slate-200 text-xs hover:text-emerald-400">►</button>
+            
+            <div></div>
+            <button onclick="rotateGlobe(0, 0.2)" class="bevel-button h-7 flex items-center justify-center font-bold text-slate-200 text-xs hover:text-emerald-400">▼</button>
+            <div></div>
+          </div>
+
+          <!-- Zoom Cutaways -->
+          <div class="grid grid-cols-2 gap-2 w-full mt-2">
+            <button onclick="adjustZoom(-0.15)" class="bevel-button py-1 text-center font-bold text-xs text-cyan-300">ZOOM +</button>
+            <button onclick="adjustZoom(0.15)" class="bevel-button py-1 text-center font-bold text-xs text-cyan-300">ZOOM -</button>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 2: CRT CONTACT ALERT MODAL (DIALOG_CONTACTDETECTED) -->
+    <!-- ========================================================================= -->
+    <div id="view-modal" class="hidden relative h-full min-h-[660px] bg-slate-950 p-6 flex items-center justify-center">
+      
+      <!-- Modal Container Matching Reference 9477245 -->
+      <div class="w-full max-w-2xl bevel-outset bg-slate-900 p-1.5 shadow-[0_0_60px_rgba(239,68,68,0.25)]">
+        
+        <!-- Inner Bevel & Header -->
+        <div class="bg-gradient-to-r from-teal-900 via-slate-800 to-teal-950 border border-teal-500/50 p-2.5 flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="inline-block w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+            <span class="text-sm font-bold text-teal-200 tracking-wider">TACTICAL SENSOR CONTACT: CONTACT-04 (UFO SCOUT)</span>
+          </div>
+          <span class="text-xs bg-red-950 text-red-300 border border-red-700 px-2 py-0.5 rounded font-bold">STAGE 1 CONTACT</span>
+        </div>
+
+        <!-- Telemetry Data Box with Monospace Dot-Leaders -->
+        <div class="bevel-inset bg-black p-4 space-y-2 text-xs text-slate-200">
+          <div class="flex justify-between border-b border-slate-900 pb-1">
+            <span class="text-slate-400">DETECTING ARRAY</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-emerald-400 font-bold">PHASED ARRAY (LISTENING POST DELTA)</span>
+          </div>
+
+          <div class="flex justify-between border-b border-slate-900 pb-1">
+            <span class="text-slate-400">TARGET CLASSIFICATION</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-red-400 font-bold">AIRBORNE CARRIER / FAST SCOUT</span>
+          </div>
+
+          <div class="flex justify-between border-b border-slate-900 pb-1">
+            <span class="text-slate-400">ESTIMATED THREAT TIER</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-amber-300 font-bold">TIER 2 (UNCONFIRMED CONTACT BLIP)</span>
+          </div>
+
+          <div class="flex justify-between border-b border-slate-900 pb-1">
+            <span class="text-slate-400">ESTIMATED SIGNATURES</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-slate-200 font-bold">MEDIUM (14-22 UNITS DETECTED)</span>
+          </div>
+
+          <div class="flex justify-between border-b border-slate-900 pb-1">
+            <span class="text-slate-400">ALTITUDE / MEDIUM</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-cyan-300 font-bold">HIGH STRATOSPHERIC (32,000 FT)</span>
+          </div>
+
+          <div class="flex justify-between border-b border-slate-900 pb-1">
+            <span class="text-slate-400">COMPASS HEADING</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-slate-200 font-bold">SOUTHEAST (138° POLAR AZIMUTH)</span>
+          </div>
+
+          <div class="flex justify-between border-b border-slate-900 pb-1">
+            <span class="text-slate-400">ESTIMATED GROUND SPEED</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-amber-400 font-bold">1,850 KTS (~24 HEXES/DAY)</span>
+          </div>
+
+          <div class="flex justify-between border-b border-slate-900 pb-1">
+            <span class="text-slate-400">INTERSECTING SECTOR</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-emerald-300 font-bold">TILE #14820 (COLONY TERRITORY)</span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-slate-400">PROJECTED PERIMETER BREACH</span>
+            <span class="text-slate-500 flex-1 mx-2 overflow-hidden">...........................................................................</span>
+            <span class="text-red-400 font-bold">~16.4 HOURS</span>
+          </div>
+        </div>
+
+        <!-- The Iconic Action Buttons -->
+        <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+          <!-- Prominent Primary Action: Drop Time to 5 Secs & Center -->
+          <button onclick="playKlaxon(); switchView('deck'); setTimeSpeed('5sec')" class="bevel-button py-2.5 px-3 bg-gradient-to-r from-emerald-950 to-slate-900 text-emerald-300 font-bold text-xs flex items-center justify-center gap-2 border-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:text-emerald-200">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            CENTRE ON BOGEY — TIME = 5 SECS
+          </button>
+          
+          <button onclick="playBeep(); switchView('dogfight')" class="bevel-button py-2.5 px-3 text-red-300 font-bold text-xs flex items-center justify-center gap-1 border-red-700 hover:text-red-200">
+            SCRAMBLE INTERCEPTOR
+          </button>
+          
+          <button onclick="playBeep(); switchView('deck')" class="bevel-button py-2.5 px-3 text-slate-300 font-bold text-xs flex items-center justify-center border-slate-600 hover:text-white">
+            CLOSE & MONITOR
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 3: OUTPOST SITING HOLOGRAM ("SELECT SITE FOR NEW BASE") -->
+    <!-- ========================================================================= -->
+    <div id="view-siting" class="hidden relative h-full min-h-[660px] bg-slate-950 p-4 flex flex-col justify-between">
+      
+      <!-- Top Banner Overlay Matching Reference 16667984 / 1892896 -->
+      <div class="w-full max-w-4xl mx-auto bevel-outset bg-slate-900 p-2 text-center shadow-xl">
+        <div class="bg-gradient-to-r from-teal-950 via-slate-900 to-teal-950 border border-teal-500 py-1.5 px-4 rounded">
+          <h2 class="text-sm font-bold text-emerald-400 phosphor-glow tracking-widest uppercase">
+            SELECT SITE FOR AUTOMATED LISTENING POST [COST: 100 STEEL, 4 COMPONENTS]
+          </h2>
+          <p class="text-xs text-slate-300">Hover over world hexes to preview topographic vantage radar envelope</p>
+        </div>
+      </div>
+
+      <!-- Center Hex Grid & Holographic Siting Preview -->
+      <div class="relative flex-1 max-w-4xl mx-auto w-full my-4 bevel-inset bg-slate-900/90 rounded p-6 flex flex-col md:flex-row items-center justify-around gap-6">
+        
+        <!-- Siting Hologram Projection Canvas -->
+        <div class="relative w-72 h-72 border-2 border-emerald-500/40 rounded-full flex items-center justify-center bg-black/60 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+          <!-- Concentric Projected Range Rings -->
+          <div class="absolute w-24 h-24 rounded-full border border-dashed border-emerald-500/60"></div>
+          <div class="absolute w-48 h-48 rounded-full border border-dashed border-emerald-500/40"></div>
+          <div class="absolute w-64 h-64 rounded-full border border-emerald-400/80 animate-pulse"></div>
+
+          <!-- Dynamic Vantage Range Indicator -->
+          <div class="absolute -top-3 bg-emerald-950 border border-emerald-500 px-2 py-0.5 rounded text-[11px] text-emerald-300 font-bold">
+            PROJECTED RADAR COVERAGE: 14 HEXES
+          </div>
+
+          <!-- Center Station Anchor -->
+          <div class="relative z-10 flex flex-col items-center">
+            <div class="w-5 h-5 bg-cyan-400 border-2 border-white rounded flex items-center justify-center shadow-[0_0_10px_#38bdf8]">
+              <span class="text-[10px] text-black font-extrabold">+</span>
+            </div>
+            <span class="text-[10px] text-cyan-300 font-bold mt-1 bg-black/80 px-1 rounded">SITE #14208</span>
+          </div>
+
+          <!-- Mountainous Masking Obstruction Arc -->
+          <div class="absolute bottom-4 right-6 bg-red-950/80 border border-red-500/80 text-[10px] text-red-300 px-1.5 py-0.5 rounded">
+            TERRAIN MASKING (MT. PEAK)
+          </div>
+        </div>
+
+        <!-- Telemetry Siting Details Panel -->
+        <div class="w-full md:w-80 bg-black/80 border border-slate-700 p-4 rounded text-xs space-y-2.5">
+          <div class="text-emerald-400 font-bold border-b border-slate-800 pb-1 flex items-center justify-between">
+            <span>SITE TOPOGRAPHY AUDIT</span>
+            <span class="text-xs bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800">IDEAL</span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-slate-400">BIOME / TERRAIN:</span>
+            <span class="text-slate-200 font-bold">BOREAL RIDGE (ELEV: 2,140m)</span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-slate-400">TOPOGRAPHY BONUS:</span>
+            <span class="text-emerald-400 font-bold">+2 HEX VANTAGE BONUS</span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-slate-400">SENSOR OVERLAP:</span>
+            <span class="text-cyan-400 font-bold">12% (COLONY ALPHA)</span>
+          </div>
+
+          <div class="flex justify-between">
+            <span class="text-slate-400">BLIND SPOT CLEARANCE:</span>
+            <span class="text-amber-400 font-bold">NORTHERN INGRESS COVERED</span>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 space-y-1.5">
+            <button onclick="playBeep(); switchView('deck')" class="w-full bevel-button py-2 text-center text-xs text-emerald-300 font-bold border-emerald-600 bg-emerald-950/40 hover:text-emerald-200">
+              DISPATCH CARAVAN TO CONSTRUCT
+            </button>
+            <button onclick="switchView('deck')" class="w-full bevel-button py-1.5 text-center text-xs text-slate-400 hover:text-slate-200">
+              CANCEL SURVEY
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Siting Instructions -->
+      <div class="text-center text-xs text-slate-400 bg-black/40 py-1 rounded">
+        Reference: Original Amiga/Windows Base Selection mode (<a href="../../../references/1892896-x-com-ufo-defense-amiga-build-first-base.png" class="text-cyan-400 underline">1892896</a> & <a href="../../../references/5457132-x-com-ufo-defense-windows-world-map.jpg" class="text-cyan-400 underline">5457132</a>)
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 4: AIR INTERCEPTION TACTICAL DOGFIGHT HUD (MODULE 2 BRIDGE) -->
+    <!-- ========================================================================= -->
+    <div id="view-dogfight" class="hidden relative h-full min-h-[660px] bg-slate-950 p-4 flex flex-col justify-between">
+      
+      <!-- Top Interception Telemetry Bar Matching Reference 1889751 -->
+      <div class="w-full max-w-4xl mx-auto bevel-outset bg-slate-900 p-2 shadow-xl">
+        <div class="bg-gradient-to-r from-red-950 via-slate-900 to-red-950 border border-red-500 py-1 px-4 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+            <span class="text-sm font-bold text-red-300 tracking-wider">AERIAL INTERCEPTION: RAVEN-1 vs UFO-04 SCOUT</span>
+          </div>
+          <span class="text-xs text-amber-300 font-mono">SECTOR: #14820 (STRATOSPHERIC)</span>
+        </div>
+      </div>
+
+      <!-- Main Tactical Engagement Console -->
+      <div class="max-w-4xl mx-auto w-full flex-1 my-3 bevel-inset bg-slate-900/90 rounded p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Left Column: Vector Radar Cone & Target Range -->
+        <div class="bevel-inset bg-black p-4 flex flex-col items-center justify-between relative overflow-hidden">
+          <div class="w-full flex justify-between text-xs text-slate-400 border-b border-slate-800 pb-1">
+            <span>TACTICAL RADAR SCOPE</span>
+            <span class="text-emerald-400 font-bold">RADAR LOCK: ACTIVE</span>
+          </div>
+
+          <!-- Radar Cone Graphic -->
+          <div class="relative w-64 h-64 flex items-center justify-center my-2">
+            <!-- Cone Lines -->
+            <svg class="absolute inset-0 w-full h-full text-emerald-500/30" viewBox="0 0 100 100">
+              <polygon points="50,90 10,15 90,15" fill="rgba(16, 185, 129, 0.05)" stroke="currentColor" stroke-width="0.8" />
+              <line x1="50" y1="90" x2="50" y2="15" stroke="currentColor" stroke-dasharray="2,2" stroke-width="0.5" />
+              <circle cx="50" cy="90" r="25" fill="none" stroke="currentColor" stroke-width="0.5" />
+              <circle cx="50" cy="90" r="50" fill="none" stroke="currentColor" stroke-width="0.5" />
+              <circle cx="50" cy="90" r="75" fill="none" stroke="currentColor" stroke-width="0.5" />
+            </svg>
+
+            <!-- Target UFO Bogey (Blip) -->
+            <div class="absolute top-10 flex flex-col items-center animate-pulse">
+              <div class="w-3 h-3 bg-red-500 rotate-45 border border-white shadow-[0_0_8px_#ef4444]"></div>
+              <span class="text-[10px] text-red-400 font-bold mt-1">UFO SCOUT</span>
+            </div>
+
+            <!-- Interceptor Craft Silhouette (Origin) -->
+            <div class="absolute bottom-4 flex flex-col items-center">
+              <span class="text-emerald-400 text-base">▲</span>
+              <span class="text-[10px] text-emerald-300 font-bold">RAVEN-1</span>
+            </div>
+
+            <!-- Dynamic Range Countdown Display -->
+            <div class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/90 border border-emerald-500 p-2 rounded text-right">
+              <div class="text-[10px] text-slate-400">SLANT RANGE</div>
+              <div id="dogfight-range" class="text-lg font-bold text-emerald-400 phosphor-glow">560 m</div>
+              <div class="text-[9px] text-amber-300">CLOSING RATE: 42 m/s</div>
+            </div>
+          </div>
+
+          <!-- Bottom Status -->
+          <div class="w-full text-center text-xs text-slate-400 bg-slate-900/80 py-1 rounded">
+            CRAFT STATUS: <strong class="text-emerald-400">HULL 100%</strong> | FUEL: <strong class="text-cyan-400">82%</strong>
+          </div>
+        </div>
+
+        <!-- Right Column: Weapon Hardpoints & Engagement Stances -->
+        <div class="flex flex-col justify-between space-y-3">
+          
+          <!-- Tactical Stances -->
+          <div class="bg-black/80 border border-slate-700 p-3 rounded">
+            <div class="text-xs font-bold text-slate-300 mb-2 border-b border-slate-800 pb-1">TACTICAL ENGAGEMENT PROFILE</div>
+            <div class="space-y-1.5 text-xs">
+              <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                <input type="radio" name="stance" class="accent-emerald-500">
+                <span class="text-slate-300 font-bold">Cautious Standoff</span>
+                <span class="text-[11px] text-slate-500 ml-auto">(Max Missile Range)</span>
+              </label>
+              <label class="flex items-center gap-2 p-1.5 rounded bg-emerald-950/40 border border-emerald-600/50 cursor-pointer">
+                <input type="radio" name="stance" checked class="accent-emerald-500">
+                <span class="text-emerald-300 font-bold">Standard Attack</span>
+                <span class="text-[11px] text-emerald-500 ml-auto">(Mixed Salvo)</span>
+              </label>
+              <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                <input type="radio" name="stance" class="accent-emerald-500">
+                <span class="text-amber-300 font-bold">Aggressive Dogfight</span>
+                <span class="text-[11px] text-amber-500 ml-auto">(Close-In 30mm)</span>
+              </label>
+              <label class="flex items-center gap-2 p-1.5 rounded hover:bg-slate-800 cursor-pointer">
+                <input type="radio" name="stance" class="accent-emerald-500">
+                <span class="text-red-400 font-bold">Disengage & Abort</span>
+                <span class="text-[11px] text-red-500 ml-auto">(Return to Base)</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Hardpoint Weapon Pods Matching Screenshot 1889751 -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="bg-black/90 border border-slate-700 p-2.5 rounded text-center">
+              <div class="text-[10px] text-slate-400 font-bold">LEFT HARDPOINT</div>
+              <div class="text-xs font-bold text-emerald-400 my-0.5">AVALANCHE MISSILE</div>
+              <div class="text-base font-bold text-amber-400 tracking-widest">[ 3 ]</div>
+              <div class="text-[10px] text-slate-500">AMMO REMAINING</div>
+            </div>
+            <div class="bg-black/90 border border-slate-700 p-2.5 rounded text-center">
+              <div class="text-[10px] text-slate-400 font-bold">RIGHT HARDPOINT</div>
+              <div class="text-xs font-bold text-emerald-400 my-0.5">AVALANCHE MISSILE</div>
+              <div class="text-base font-bold text-amber-400 tracking-widest">[ 3 ]</div>
+              <div class="text-[10px] text-slate-500">AMMO REMAINING</div>
+            </div>
+          </div>
+
+          <!-- Engagement Commands -->
+          <div class="space-y-1.5 pt-1">
+            <button onclick="playKlaxon()" class="w-full bevel-button py-2.5 text-center text-xs font-bold text-red-300 border-red-600 bg-red-950/40 hover:text-red-200">
+              FIRE MISSILE SALVO [AVALANCHE]
+            </button>
+            <button onclick="switchView('deck')" class="w-full bevel-button py-1.5 text-center text-xs text-slate-400 hover:text-slate-200">
+              RETURN TO STRATEGIC GLOBE
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="text-center text-xs text-slate-400 bg-black/40 py-1 rounded">
+        Reference: Original DOS Air Interception mini-console (<a href="../../../references/1889751-x-com-ufo-defense-dos-tracking-an-ufo.png" class="text-cyan-400 underline">1889751</a>)
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 5: TFTD OCEANIC BATHYMETRY & UNDERWATER USOS -->
+    <!-- ========================================================================= -->
+    <div id="view-bathymetry" class="hidden relative h-full min-h-[660px] bg-slate-950 p-4 flex flex-col justify-between">
+      
+      <!-- Top Banner for TFTD Atmosphere -->
+      <div class="w-full max-w-4xl mx-auto bevel-outset bg-slate-900 p-2 shadow-xl">
+        <div class="bg-gradient-to-r from-amber-950 via-slate-900 to-amber-950 border border-amber-600 py-1 px-4 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 bg-teal-400 rounded-full animate-ping"></span>
+            <span class="text-sm font-bold text-amber-300 tracking-wider">TFTD THEATER: BATHYMETRIC SONAR & ABYSSAL DEEPS</span>
+          </div>
+          <span class="text-xs text-teal-300 font-mono">ACOUSTIC SENSORY NETWORK</span>
+        </div>
+      </div>
+
+      <!-- Bathymetric Ocean Depth Display -->
+      <div class="max-w-4xl mx-auto w-full flex-1 my-3 bevel-inset bg-slate-900/90 rounded p-6 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+        
+        <!-- Depth Map Graphic Representation -->
+        <div class="relative w-full h-80 bg-black rounded border-2 border-teal-800/80 p-3 flex flex-col justify-between overflow-hidden shadow-inner">
+          <div class="text-xs text-teal-300 font-bold border-b border-teal-900 pb-1 flex justify-between">
+            <span>PACIFIC RIFT TRENCH #04</span>
+            <span class="text-amber-400 font-mono">-6,200 METERS</span>
+          </div>
+
+          <!-- Multi-tier Visual Water Depths -->
+          <div class="space-y-2 my-auto">
+            <!-- Tier 1 -->
+            <div class="p-2 rounded bg-cyan-950/60 border border-cyan-500/40 text-xs flex justify-between items-center">
+              <div>
+                <strong class="text-cyan-300">TIER 1: CONTINENTAL SHELF</strong>
+                <div class="text-[10px] text-cyan-400/80">0 to -1,000m // Full Sonar Clarity & Visual Recon</div>
+              </div>
+              <span class="text-[10px] bg-cyan-900 text-cyan-200 px-1.5 py-0.5 rounded font-mono">100% SENSITIVITY</span>
+            </div>
+
+            <!-- Tier 2 -->
+            <div class="p-2 rounded bg-blue-950/70 border border-blue-500/40 text-xs flex justify-between items-center">
+              <div>
+                <strong class="text-blue-300">TIER 2: OCEANIC BASIN</strong>
+                <div class="text-[10px] text-blue-400/80">-1,001m to -3,500m // Thermocline Acoustic Attenuation</div>
+              </div>
+              <span class="text-[10px] bg-blue-900 text-blue-200 px-1.5 py-0.5 rounded font-mono">65% SENSITIVITY</span>
+            </div>
+
+            <!-- Tier 3 -->
+            <div class="p-2 rounded bg-indigo-950/90 border border-indigo-500/50 text-xs flex justify-between items-center">
+              <div>
+                <strong class="text-indigo-300">TIER 3: ABYSSAL TRENCH</strong>
+                <div class="text-[10px] text-indigo-400/80">-3,501m and below // Extreme Acoustic Distortion</div>
+              </div>
+              <span class="text-[10px] bg-indigo-900 text-red-300 px-1.5 py-0.5 rounded font-mono">30% SENSITIVITY</span>
+            </div>
+          </div>
+
+          <!-- Submersible USO Status Alert -->
+          <div class="bg-red-950/80 border border-red-600 p-2 rounded text-xs flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+              <span class="text-red-300 font-bold">USO-02 (SUBMERSIBLE)</span>
+            </div>
+            <span class="text-amber-300 text-[11px] font-mono">DIVING TO ABYSS (EVADING RADAR)</span>
+          </div>
+        </div>
+
+        <!-- Bathymetric Rules & Gameplay Specs -->
+        <div class="space-y-3 text-xs text-slate-300">
+          <div class="bg-black/80 border border-slate-700 p-3 rounded">
+            <h3 class="text-amber-400 font-bold mb-1 border-b border-slate-800 pb-1">TFTD SENSORY MECHANICS IN RIMWORLD</h3>
+            <p class="text-[11px] leading-relaxed text-slate-300 mb-2">
+              Vanilla RimWorld oceans are flat textures. By querying <code class="text-cyan-300">tile.elevation &lt; 0</code> on <code class="text-cyan-300">WorldGrid</code>, Project Vigilance builds a 3-layer bathymetric mesh:
+            </p>
+            <ul class="list-disc list-inside space-y-1 text-[11px] text-slate-400">
+              <li><strong class="text-slate-200">Acoustic Sonar Propagation:</strong> Confined exclusively to water hexes; continental landmasses act as sound walls.</li>
+              <li><strong class="text-slate-200">Submersible Evasion:</strong> USOs dive into abyssal trenches to break radar contact; tracking requires coastal hydrophones.</li>
+              <li><strong class="text-slate-200">Apocalyptic Nebula:</strong> Crimson cosmic void reflecting the Terror from the Deep atmosphere.</li>
+            </ul>
+          </div>
+
+          <button onclick="playSonar(); switchView('deck')" class="w-full bevel-button py-2 text-center text-xs font-bold text-teal-300 border-teal-600 bg-teal-950/40 hover:text-teal-200">
+            PING ACOUSTIC HYDROPHONE ARRAY
+          </button>
+        </div>
+
+      </div>
+
+      <div class="text-center text-xs text-slate-400 bg-black/40 py-1 rounded">
+        Reference: Original Terror from the Deep Bathymetric Geoscape (<a href="../../../references/16667984-x-com-terror-from-the-deep-playstation-selecting-the-site-for-yo.png" class="text-teal-400 underline">16667984</a> & <a href="../../../references/6336806-x-com-terror-from-the-deep-dos-geoscape-view.png" class="text-teal-400 underline">6336806</a>)
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Interactive JavaScript Architecture & Canvas Simulator -->
+  <script>
+    // Audio Synthesizer via Web Audio API for Authentic 90s Chiptune FX
+    let audioCtx = null;
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      return audioCtx;
+    }
+
+    function isSoundEnabled() {
+      const toggle = document.getElementById('sound-toggle');
+      return toggle ? toggle.checked : true;
+    }
+
+    function playBeep() {
+      if (!isSoundEnabled()) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(640, ctx.currentTime);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      } catch (e) {}
+    }
+
+    function playKlaxon() {
+      if (!isSoundEnabled()) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+      } catch (e) {}
+    }
+
+    function playSonar() {
+      if (!isSoundEnabled()) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(960, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.6);
+      } catch (e) {}
+    }
+
+    // View Switcher Logic
+    const views = ['deck', 'modal', 'siting', 'dogfight', 'bathymetry'];
+    function switchView(viewName) {
+      views.forEach(v => {
+        const el = document.getElementById('view-' + v);
+        const tab = document.getElementById('tab-' + v);
+        if (v === viewName) {
+          if (el) el.classList.remove('hidden');
+          if (tab) tab.classList.add('active');
+        } else {
+          if (el) el.classList.add('hidden');
+          if (tab) tab.classList.remove('active');
+        }
+      });
+    }
+
+    function toggleScanlines(show) {
+      const el = document.getElementById('crt-overlay');
+      if (el) {
+        if (show) el.classList.remove('hidden');
+        else el.classList.add('hidden');
+      }
+    }
+
+    function openContactAlert() {
+      playKlaxon();
+      switchView('modal');
+    }
+
+    // Discrete Time Speed Simulation
+    let curSpeed = '5sec';
+    let tickMultiplier = 1;
+    function setTimeSpeed(speedKey, btn) {
+      playBeep();
+      curSpeed = speedKey;
+      
+      const buttons = document.querySelectorAll('[id^="btn-speed-"]');
+      buttons.forEach(b => b.classList.remove('active', 'text-emerald-400'));
+      
+      if (btn) {
+        btn.classList.add('active', 'text-emerald-400');
+      }
+
+      const statusEl = document.getElementById('speed-status');
+      if (speedKey === '5sec') {
+        tickMultiplier = 1;
+        if (statusEl) statusEl.innerHTML = 'STATUS: <span class="text-emerald-400 font-bold">NORMAL (1X / 60 TPS)</span>';
+      } else if (speedKey === '1min') {
+        tickMultiplier = 2;
+        if (statusEl) statusEl.innerHTML = 'STATUS: <span class="text-cyan-400 font-bold">PATROL (2X / 180 TPS)</span>';
+      } else if (speedKey === '5min' || speedKey === '30min') {
+        tickMultiplier = 5;
+        if (statusEl) statusEl.innerHTML = 'STATUS: <span class="text-amber-400 font-bold">CARAVAN FAST (3X / 360 TPS)</span>';
+      } else {
+        tickMultiplier = 15;
+        if (statusEl) statusEl.innerHTML = 'STATUS: <span class="text-red-400 font-bold">ULTRAFAST (4X / 900 TPS)</span>';
+      }
+    }
+
+    // Simulate the Classic "Contact Drop" Experience
+    function triggerContactDropDemo() {
+      // 1. Fast forward time
+      setTimeSpeed('1hr', document.getElementById('btn-speed-1hr'));
+      
+      // 2. After 1.5 seconds, trigger sudden drop!
+      setTimeout(() => {
+        playKlaxon();
+        setTimeSpeed('5sec', document.getElementById('btn-speed-5sec'));
+        openContactAlert();
+      }, 1400);
+    }
+
+    // Cosmos Theme Customizer
+    function changeCosmos(style) {
+      const halo = document.getElementById('planet-halo');
+      if (style === 'crimson') {
+        halo.className = 'absolute w-[400px] h-[400px] rounded-full bg-red-600/20 blur-xl pointer-events-none transition-all duration-700';
+      } else if (style === 'violet') {
+        halo.className = 'absolute w-[400px] h-[400px] rounded-full bg-purple-600/20 blur-xl pointer-events-none transition-all duration-700';
+      } else {
+        halo.className = 'absolute w-[400px] h-[400px] rounded-full bg-slate-600/10 blur-xl pointer-events-none transition-all duration-700';
+      }
+    }
+
+    // Interactive 3D Canvas Globe Renderer
+    const canvas = document.getElementById('globeCanvas');
+    const ctx = canvas.getContext('2d');
+    let globeAngle = 0;
+    let globeTilt = 0.25;
+    let zoomLevel = 1.0;
+
+    function rotateGlobe(dAngle, dTilt) {
+      playBeep();
+      globeAngle += dAngle;
+      globeTilt = Math.max(-0.6, Math.min(0.6, globeTilt + dTilt));
+    }
+
+    function adjustZoom(delta) {
+      playBeep();
+      zoomLevel = Math.max(0.7, Math.min(1.4, zoomLevel + delta));
+    }
+
+    // Dynamic Mission Clock Simulation
+    let secCount = 15;
+    let minCount = 22;
+    let hrCount = 14;
+    setInterval(() => {
+      secCount += tickMultiplier;
+      if (secCount >= 60) {
+        minCount += Math.floor(secCount / 60);
+        secCount = secCount % 60;
+      }
+      if (minCount >= 60) {
+        hrCount += Math.floor(minCount / 60);
+        minCount = minCount % 60;
+      }
+      if (hrCount >= 24) hrCount = 0;
+      
+      const clockEl = document.getElementById('live-clock');
+      if (clockEl) {
+        const s = String(secCount).padStart(2, '0');
+        const m = String(minCount).padStart(2, '0');
+        const h = String(hrCount).padStart(2, '0');
+        clockEl.innerText = `${h}:${m}:${s}`;
+      }
+    }, 1000);
+
+    // Globe Render Loop
+    function renderGlobe() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const radius = 175 * zoomLevel;
+
+      // 1. Deep Ocean Base Sphere
+      const oceanGrad = ctx.createRadialGradient(cx - radius * 0.3, cy - radius * 0.3, radius * 0.2, cx, cy, radius);
+      oceanGrad.addColorStop(0, '#1e3a8a');
+      oceanGrad.addColorStop(0.7, '#0f172a');
+      oceanGrad.addColorStop(1, '#020617');
+      ctx.fillStyle = oceanGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2. Latitude & Longitude Geodesic Grid (RimWorld Hex Globe Mesh)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.clip();
+
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
+      ctx.lineWidth = 1;
+
+      for (let lat = -60; lat <= 60; lat += 30) {
+        const y = cy + Math.sin(lat * Math.PI / 180) * radius * 0.9;
+        const rLat = Math.cos(lat * Math.PI / 180) * radius;
+        ctx.beginPath();
+        ctx.ellipse(cx, y, rLat, rLat * 0.25, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      for (let lon = 0; lon < 360; lon += 45) {
+        const radLon = (lon * Math.PI / 180) + globeAngle;
+        const xOffset = Math.sin(radLon) * radius;
+        ctx.beginPath();
+        ctx.ellipse(cx + xOffset * 0.5, cy, Math.abs(Math.cos(radLon)) * radius, radius, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // 3. Stylized Continents & Sovereign Landmasses
+      ctx.fillStyle = '#059669'; // Emerald terrain
+      const landPatches = [
+        { lon: 0, lat: 20, w: 70, h: 45 },
+        { lon: 60, lat: -10, w: 90, h: 55 },
+        { lon: 140, lat: 35, w: 60, h: 40 },
+        { lon: 220, lat: -25, w: 80, h: 50 },
+        { lon: 290, lat: 10, w: 65, h: 40 }
+      ];
+
+      landPatches.forEach(p => {
+        const radL = (p.lon * Math.PI / 180) + globeAngle;
+        const cosL = Math.cos(radL);
+        if (cosL > -0.2) { // Front face visibility
+          const px = cx + Math.sin(radL) * radius * 0.85;
+          const py = cy - Math.sin((p.lat + globeTilt * 30) * Math.PI / 180) * radius * 0.8;
+          ctx.beginPath();
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.45)';
+          ctx.strokeStyle = '#34d399';
+          ctx.lineWidth = 1.2;
+          ctx.ellipse(px, py, p.w * 0.7 * zoomLevel, p.h * 0.6 * zoomLevel, 0.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+      });
+
+      // 4. Day / Night Solar Terminator Gradient
+      const termGrad = ctx.createLinearGradient(cx - radius, cy, cx + radius * 0.8, cy);
+      termGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      termGrad.addColorStop(0.5, 'rgba(2, 6, 23, 0.35)');
+      termGrad.addColorStop(0.85, 'rgba(2, 6, 23, 0.88)');
+      termGrad.addColorStop(1, 'rgba(0, 0, 0, 0.98)');
+      ctx.fillStyle = termGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 5. City Night Lights (Luminescent Dots in Night Shadow)
+      ctx.fillStyle = '#fef08a';
+      const cityLights = [
+        { lon: 210, lat: 15 }, { lon: 235, lat: -10 }, { lon: 260, lat: 25 }, { lon: 195, lat: -30 }
+      ];
+      cityLights.forEach(cl => {
+        const radL = (cl.lon * Math.PI / 180) + globeAngle;
+        const cosL = Math.cos(radL);
+        if (cosL > 0.1) {
+          const lx = cx + Math.sin(radL) * radius * 0.8;
+          const ly = cy - Math.sin(cl.lat * Math.PI / 180) * radius * 0.8;
+          ctx.beginPath();
+          ctx.arc(lx, ly, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      ctx.restore();
+
+      // Slow passive rotation
+      globeAngle += 0.003 * tickMultiplier;
+      requestAnimationFrame(renderGlobe);
+    }
+    requestAnimationFrame(renderGlobe);
+
+    // Mouse drag rotation on canvas
+    let isDragging = false;
+    let lastX = 0;
+    canvas.addEventListener('mousedown', e => {
+      isDragging = true;
+      lastX = e.clientX;
+    });
+    window.addEventListener('mouseup', () => isDragging = false);
+    canvas.addEventListener('mousemove', e => {
+      if (isDragging) {
+        const dx = e.clientX - lastX;
+        globeAngle += dx * 0.01;
+        lastX = e.clientX;
+      }
+    });
+
+    // Simulated Dogfight Range Decrement
+    let dogfightRange = 560;
+    setInterval(() => {
+      const el = document.getElementById('dogfight-range');
+      if (el) {
+        dogfightRange -= 12;
+        if (dogfightRange < 180) dogfightRange = 580;
+        el.innerText = `${dogfightRange} m`;
+      }
+    }, 400);
+  </script>
+</body>
+</html>

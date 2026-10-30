@@ -62,6 +62,17 @@
 
 ---
 
+### Future Milestone: Classic X-COM Geoscape Command Deck & Diegetic Experience
+- **Architectural Design Blueprint:** [`Documentation/Design/Classic_XCom_Geoscape_Blueprint.md`](Documentation/Design/Classic_XCom_Geoscape_Blueprint.md)
+- **Interactive Visual Mockup & Art Prototype:** [`Documentation/Design/Mockups/geoscape_command_deck_mockup.html`](Documentation/Design/Mockups/geoscape_command_deck_mockup.html)
+- [ ] **Temporal "Contact Drop" Engine & CRT Telemetry Modal (`Dialog_ContactDetected`):** Automatic time deceleration to Normal (1x / 60 TPS) or Pause upon radar boundary ingress; monospace dot-leader telemetry readout with single-click `[CENTRE ON BOGEY — TIME = 5 SECS]` camera jump.
+- [ ] **Diegetic Command Deck Sidebar & Harmony Non-Collision Architecture:** 220px classic right-hand operations sidebar with live seconds LED mission clock, discrete time compression buttons, and 3D trackball gimbal; Harmony offset for `LetterStack` (leftwards cascade) and conditional suppression of vanilla `WorldGlobalControls`.
+- [ ] **Outpost Siting Hologram Preview Dome ("Select Site for New Base"):** Full-screen planetary survey mode replacing float menus with dynamic topographic vantage bonus overlay (+1 to +2 rings on hills/mountains) and blind-spot calculation.
+- [ ] **TFTD Oceanic Bathymetry & Underwater USOs:** 3-tier depth world mesh using negative elevation data (`tile.elevation < 0`), acoustic sonar propagation occluding on landmasses, and abyssal trench submarine evasion.
+- [ ] **Atmospheric Immersion & Cosmic Skybox:** Shaders for Classic Violet Nebula (1994) and Apocalyptic Crimson Abyss (TFTD 1995), Fresnel atmospheric limb glow, and sharp day/night terminator.
+
+---
+
 ### Milestone 1.5: Foundation Framework, Modding Extensibility & Community Localisation
 
 - [ ] **RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**
