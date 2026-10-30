@@ -13,6 +13,7 @@ namespace ProjectVigilance.Geoscape.Patches;
 /// Intercepts right-clicks on the Geoscape when a player colony settlement is selected,
 /// providing 4X-style contextual dispatch options (Form Caravan, Dispatch Automated Relay Expedition,
 /// Dispatch Signal Beacon Expedition).
+/// Uses standard FloatMenu so it is not auto-removed by FloatMenuWorld's caravan check.
 /// </summary>
 [HarmonyPatch(typeof(WorldSelector), "HandleWorldClicks")]
 public static class WorldSelector_HandleWorldClicks_Patch
@@ -27,7 +28,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                 settlement.Map != null)
             {
                 PlanetTile clickedTile = GenWorld.MouseTile(false);
-                if (clickedTile.Valid && clickedTile != settlement.Tile && Find.World != null && !Find.World.Impassable(clickedTile))
+                if (clickedTile.Valid && clickedTile != settlement.Tile && Find.World != null)
                 {
                     OpenSettlementDispatchMenu(settlement, clickedTile);
                     Event.current.Use();
@@ -43,28 +44,59 @@ public static class WorldSelector_HandleWorldClicks_Patch
     {
         var options = new List<FloatMenuOption>();
 
-        // 1. Standard Form Caravan to designated hex
-        options.Add(new FloatMenuOption($"Form caravan to Tile {clickedTile}", () =>
+        bool isImpassable = Find.World != null && Find.World.Impassable(clickedTile);
+        PlanetTile effectiveTile = clickedTile;
+
+        if (isImpassable)
         {
-            CaravanExpeditionUtility.OpenCaravanFormingDialog(settlement.Map, clickedTile);
+            options.Add(new FloatMenuOption($"Tile {clickedTile} is impassable (Mountain / Ocean)", null, MenuOptionPriority.Default)
+            {
+                Disabled = true
+            });
+
+            if (GenWorldClosest.TryFindClosestPassableTile(clickedTile, out PlanetTile closestPassable) &&
+                closestPassable.Valid &&
+                closestPassable != settlement.Tile)
+            {
+                effectiveTile = closestPassable;
+            }
+            else
+            {
+                Find.WindowStack.Add(new FloatMenu(options, settlement.LabelCap));
+                return;
+            }
+        }
+
+        string formCaravanLabel = isImpassable
+            ? $"Form caravan towards Tile {clickedTile} (Nearest passable: Tile {effectiveTile})"
+            : $"Form caravan to Tile {effectiveTile}";
+
+        // 1. Standard Form Caravan to designated hex
+        options.Add(new FloatMenuOption(formCaravanLabel, () =>
+        {
+            CaravanExpeditionUtility.OpenCaravanFormingDialog(settlement.Map, effectiveTile);
         }, MenuOptionPriority.Default));
 
         bool hasOutpost = Find.WorldObjects?.AllWorldObjects != null &&
-                          Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
+                          Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == effectiveTile);
 
         if (!hasOutpost)
         {
             // 2. Dispatch Construction Expedition: Automated Listening Post (100 Steel, 4 Components)
             bool canAffordRelay = CaravanExpeditionUtility.CanColonyDeployAutomatedRelay(settlement.Map, out int mapSteel, out int mapComp);
+            string relayPrefix = isImpassable
+                ? $"Dispatch Construction Expedition: Automated Listening Post (Nearest: Tile {effectiveTile})"
+                : "Dispatch Construction Expedition: Automated Listening Post";
+
             string relayLabel = canAffordRelay
-                ? $"Dispatch Construction Expedition: Automated Listening Post ({OutpostMaterialUtility.AutomatedRelaySteelCost} Steel, {OutpostMaterialUtility.AutomatedRelayComponentCost} Components)"
-                : $"Dispatch Construction Expedition: Automated Listening Post (Need {OutpostMaterialUtility.AutomatedRelaySteelCost} Steel, {OutpostMaterialUtility.AutomatedRelayComponentCost} Components - Have {mapSteel} Steel, {mapComp} Components)";
+                ? $"{relayPrefix} ({OutpostMaterialUtility.AutomatedRelaySteelCost} Steel, {OutpostMaterialUtility.AutomatedRelayComponentCost} Components)"
+                : $"{relayPrefix} (Need {OutpostMaterialUtility.AutomatedRelaySteelCost} Steel, {OutpostMaterialUtility.AutomatedRelayComponentCost} Components - Have {mapSteel} Steel, {mapComp} Components)";
 
             options.Add(new FloatMenuOption(relayLabel, () =>
             {
                 if (CaravanExpeditionUtility.CanColonyDeployAutomatedRelay(settlement.Map, out _, out _))
                 {
-                    CaravanExpeditionUtility.StartConstructionExpedition(settlement, clickedTile, ListeningPostKind.AutomatedRelay, null);
+                    CaravanExpeditionUtility.StartConstructionExpedition(settlement, effectiveTile, ListeningPostKind.AutomatedRelay, null);
                 }
             }, MenuOptionPriority.Default)
             {
@@ -72,21 +104,25 @@ public static class WorldSelector_HandleWorldClicks_Patch
             });
 
             // 3. Dispatch Construction Expedition: Signal Beacon (150 Wood/Stone)
+            string beaconPrefix = isImpassable
+                ? $"Dispatch Construction Expedition: Signal Beacon (Nearest: Tile {effectiveTile})"
+                : "Dispatch Construction Expedition: Signal Beacon";
+
             List<ThingDef> beaconMaterials = CaravanExpeditionUtility.GetAvailableColonyBeaconMaterials(settlement.Map);
             if (beaconMaterials.Count > 0)
             {
                 foreach (ThingDef mat in beaconMaterials)
                 {
                     int count = settlement.Map.resourceCounter?.GetCount(mat) ?? 0;
-                    options.Add(new FloatMenuOption($"Dispatch Construction Expedition: Signal Beacon ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} {mat.LabelCap} - Have {count})", () =>
+                    options.Add(new FloatMenuOption($"{beaconPrefix} ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} {mat.LabelCap} - Have {count})", () =>
                     {
-                        CaravanExpeditionUtility.StartConstructionExpedition(settlement, clickedTile, ListeningPostKind.SignalBeacon, mat);
+                        CaravanExpeditionUtility.StartConstructionExpedition(settlement, effectiveTile, ListeningPostKind.SignalBeacon, mat);
                     }, MenuOptionPriority.Default));
                 }
             }
             else
             {
-                options.Add(new FloatMenuOption($"Dispatch Construction Expedition: Signal Beacon (Need {OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} Wood or Stone Blocks)", null, MenuOptionPriority.Default)
+                options.Add(new FloatMenuOption($"{beaconPrefix} (Need {OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} Wood or Stone Blocks)", null, MenuOptionPriority.Default)
                 {
                     Disabled = true
                 });
@@ -94,12 +130,12 @@ public static class WorldSelector_HandleWorldClicks_Patch
         }
         else
         {
-            options.Add(new FloatMenuOption("Tile already has an active outpost", null, MenuOptionPriority.Default)
+            options.Add(new FloatMenuOption($"Tile {effectiveTile} already has an active outpost", null, MenuOptionPriority.Default)
             {
                 Disabled = true
             });
         }
 
-        Find.WindowStack.Add(new FloatMenuWorld(options, settlement.LabelCap, UI.MousePositionOnUI));
+        Find.WindowStack.Add(new FloatMenu(options, settlement.LabelCap));
     }
 }
