@@ -43,5 +43,11 @@ public static class Caravan_GetInspectString_Patch
                 __result = string.IsNullOrEmpty(__result) ? line : $"{__result}\n{line}";
             }
         }
+
+        if (ProjectVigilance.Geoscape.Orbital.OrbitalManager.Instance?.HasNavigationCoverage(__instance.Tile) == true)
+        {
+            string navLine = "Telemetry: Navigation satellite link active (+15% speed)";
+            __result = string.IsNullOrEmpty(__result) ? navLine : $"{__result}\n{navLine}";
+        }
     }
 }
