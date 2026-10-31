@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RimWorld;
 using RimWorld.Planet;
+using UnityEngine;
 using Verse;
 using ProjectVigilance.Geoscape.Sensory;
 
@@ -389,6 +390,81 @@ public sealed class CaravanExpeditionTests
         finally
         {
             WorldObject_ListeningPost.PlayerCaravanPresenceOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void UnexploredTile_RightClickDispatch_SuppressesImpassableLeaksAndConstruction()
+    {
+        try
+        {
+            var prefsField = typeof(Verse.Prefs).GetField("data", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            if (prefsField != null && prefsField.GetValue(null) == null)
+            {
+                var prefsDataType = typeof(Verse.Prefs).Assembly.GetType("Verse.PrefsData");
+                if (prefsDataType != null)
+                {
+                    prefsField.SetValue(null, System.Activator.CreateInstance(prefsDataType));
+                }
+            }
+            if (Verse.LanguageDatabase.activeLanguage == null)
+            {
+                var lang = new Verse.LoadedLanguage("English");
+                var infoField = typeof(Verse.LoadedLanguage).GetField("info");
+                if (infoField != null)
+                {
+                    infoField.SetValue(lang, System.Activator.CreateInstance(infoField.FieldType));
+                }
+                Verse.LanguageDatabase.activeLanguage = lang;
+            }
+
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            var sensory = new SensoryManager(null!);
+            SensoryManager.Instance = sensory;
+            SensoryManager.IsExploredOverride = t => t.tileId == 100; // Only tile 100 is explored
+
+            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+
+            var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+            HarmonyLib.Traverse.Create(caravan).Field("tileInt").SetValue((PlanetTile)100);
+            HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
+
+            var settlement = new Settlement { ID = 9901 };
+            HarmonyLib.Traverse.Create(settlement).Field("tileInt").SetValue((PlanetTile)100);
+            HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+
+            var unexploredImpassableTile = (PlanetTile)500;
+
+            // 1. Caravan Right-Click Choices on Unexplored Tile
+            ProjectVigilance.Geoscape.Patches.FloatMenuMakerWorld_ChoicesAtFor_Patch.MouseTileOverride = unexploredImpassableTile;
+            List<FloatMenuOption> caravanChoices = new();
+            ProjectVigilance.Geoscape.Patches.FloatMenuMakerWorld_ChoicesAtFor_Patch.Postfix(Vector2.zero, caravan, ref caravanChoices);
+
+            Assert.IsNotNull(caravanChoices);
+            Assert.AreEqual(1, caravanChoices.Count, "Must offer exactly 1 generic exploration option into uncharted black unknown.");
+            Assert.AreEqual("Travel into unexplored sector (Tile 500)", caravanChoices[0].Label);
+            Assert.IsFalse(caravanChoices.Any(o => o.Label.ToLowerInvariant().Contains("impassable")),
+                "Must never leak impassable terrain status through fog of war.");
+            Assert.IsFalse(caravanChoices.Any(o => o.Label.ToLowerInvariant().Contains("beacon") || o.Label.ToLowerInvariant().Contains("listening post")),
+                "Must not offer construction expeditions into unexplored territory.");
+
+            // 2. Settlement Right-Click Dispatch Options on Unexplored Tile
+            var settlementOptions = ProjectVigilance.Geoscape.Patches.WorldSelector_HandleWorldClicks_Patch.BuildSettlementDispatchOptions(settlement, unexploredImpassableTile);
+            Assert.IsNotNull(settlementOptions);
+            Assert.AreEqual(1, settlementOptions.Count, "Settlement must offer only generic exploration caravan formation.");
+            Assert.AreEqual("Form expedition towards unexplored sector (Tile 500)", settlementOptions[0].Label);
+            Assert.IsFalse(settlementOptions.Any(o => o.Label.ToLowerInvariant().Contains("impassable")),
+                "Settlement menu must never leak impassable terrain status.");
+            Assert.IsFalse(settlementOptions.Any(o => o.Label.ToLowerInvariant().Contains("nearest passable")),
+                "Settlement menu must not spoil nearest passable coordinates.");
+            Assert.IsFalse(settlementOptions.Any(o => o.Label.ToLowerInvariant().Contains("beacon") || o.Label.ToLowerInvariant().Contains("listening post")),
+                "Settlement must not offer construction expeditions into uncharted territory.");
+        }
+        finally
+        {
+            ProjectVigilance.Geoscape.Patches.FloatMenuMakerWorld_ChoicesAtFor_Patch.MouseTileOverride = null;
+            SensoryManager.IsExploredOverride = null;
+            SensoryManager.Instance = null;
         }
     }
 }

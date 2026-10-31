@@ -42,10 +42,45 @@ public static class WorldSelector_HandleWorldClicks_Patch
 
     private static void OpenSettlementDispatchMenu(Settlement settlement, PlanetTile clickedTile)
     {
+        var options = BuildSettlementDispatchOptions(settlement, clickedTile);
+        if (options != null && options.Count > 0 && Find.WindowStack != null)
+        {
+            Find.WindowStack.Add(new FloatMenu(options, settlement.LabelCap));
+        }
+    }
+
+    public static List<FloatMenuOption> BuildSettlementDispatchOptions(Settlement settlement, PlanetTile clickedTile)
+    {
         var options = new List<FloatMenuOption>();
+
+        bool isUnexplored = GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar &&
+                            SensoryManager.Instance != null &&
+                            !SensoryManager.Instance.IsExplored(clickedTile);
 
         bool isImpassable = Find.World != null && Find.World.Impassable(clickedTile);
         PlanetTile effectiveTile = clickedTile;
+
+        if (isUnexplored)
+        {
+            // Unexplored sector in the black unknown: do not reveal impassable terrain,
+            // nearest passable tile coordinates, or offer construction expeditions into uncharted territory.
+            if (isImpassable)
+            {
+                if (GenWorldClosest.TryFindClosestPassableTile(clickedTile, out PlanetTile closestPassable) &&
+                    closestPassable.Valid &&
+                    closestPassable != settlement.Tile)
+                {
+                    effectiveTile = closestPassable;
+                }
+            }
+
+            options.Add(new FloatMenuOption($"Form expedition towards unexplored sector (Tile {clickedTile.tileId})", () =>
+            {
+                CaravanExpeditionUtility.OpenCaravanFormingDialog(settlement.Map, effectiveTile);
+            }, MenuOptionPriority.Default));
+
+            return options;
+        }
 
         if (isImpassable)
         {
@@ -62,8 +97,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
             }
             else
             {
-                Find.WindowStack.Add(new FloatMenu(options, settlement.LabelCap));
-                return;
+                return options;
             }
         }
 
@@ -147,6 +181,6 @@ public static class WorldSelector_HandleWorldClicks_Patch
             }
         }
 
-        Find.WindowStack.Add(new FloatMenu(options, settlement.LabelCap));
+        return options;
     }
 }
