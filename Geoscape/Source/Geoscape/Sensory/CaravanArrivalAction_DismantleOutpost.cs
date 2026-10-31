@@ -42,9 +42,11 @@ public class CaravanArrivalAction_DismantleOutpost : CaravanArrivalAction
             return false;
         }
 
+        PlanetTile target = destinationTile.Valid ? destinationTile : (this.destinationTile.Valid ? this.destinationTile : caravan.Tile);
+        var worldObjects = Current.Game?.World?.worldObjects;
         WorldObject_ListeningPost? post = targetOutpost ??
-            (Find.WorldObjects?.AllWorldObjects != null
-                ? Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == destinationTile)
+            (worldObjects?.AllWorldObjects != null && target.Valid
+                ? worldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == target)
                 : null);
 
         if (post == null || !post.Spawned || post.Destroyed)
@@ -62,19 +64,21 @@ public class CaravanArrivalAction_DismantleOutpost : CaravanArrivalAction
             return;
         }
 
+        PlanetTile target = caravan.Tile.Valid ? caravan.Tile : (this.destinationTile.Valid ? this.destinationTile : caravan.Tile);
+        var worldObjects = Current.Game?.World?.worldObjects;
         WorldObject_ListeningPost? post = targetOutpost ??
-            (Find.WorldObjects?.AllWorldObjects != null
-                ? Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == destinationTile)
+            (worldObjects?.AllWorldObjects != null && target.Valid
+                ? worldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == target)
                 : null);
 
         if (post == null || !post.Spawned || post.Destroyed)
         {
-            Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {caravan.Tile}, but the outpost was no longer present.", MessageTypeDefOf.RejectInput, false);
+            Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {target}, but the outpost was no longer present.", MessageTypeDefOf.RejectInput, false);
             return;
         }
 
         post.StartDismantling(1500);
-        Messages.Message($"Caravan {caravan.LabelCap} arrived at {post.LabelCap} (Tile {caravan.Tile}). Dismantling commenced (requires remaining on-site).", MessageTypeDefOf.PositiveEvent, false);
+        Messages.Message($"Caravan {caravan.LabelCap} arrived at {post.LabelCap} (Tile {target}). Dismantling commenced (requires remaining on-site).", MessageTypeDefOf.PositiveEvent, false);
     }
 
     public override void ExposeData()

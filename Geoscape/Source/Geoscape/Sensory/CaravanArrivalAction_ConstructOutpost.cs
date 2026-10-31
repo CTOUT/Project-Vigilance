@@ -45,11 +45,16 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
             return false;
         }
 
-        bool hasPost = Find.WorldObjects?.AllWorldObjects != null &&
-                       Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == destinationTile);
-        if (hasPost)
+        PlanetTile target = destinationTile.Valid ? destinationTile : (this.destinationTile.Valid ? this.destinationTile : caravan.Tile);
+        if (target.Valid)
         {
-            return FloatMenuAcceptanceReport.WithFailMessage("An outpost already exists at this location.");
+            var worldObjects = Current.Game?.World?.worldObjects;
+            bool hasPost = worldObjects?.AllWorldObjects != null &&
+                           worldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == target);
+            if (hasPost)
+            {
+                return FloatMenuAcceptanceReport.WithFailMessage("An outpost already exists at this location.");
+            }
         }
 
         if (postKind == ListeningPostKind.AutomatedRelay)
@@ -77,6 +82,8 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
             return;
         }
 
+        PlanetTile targetTile = caravan.Tile.Valid ? caravan.Tile : (destinationTile.Valid ? destinationTile : caravan.Tile);
+
         if (postKind == ListeningPostKind.AutomatedRelay)
         {
             if (OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out string missing))
@@ -84,16 +91,16 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
                 OutpostMaterialUtility.ConsumeAutomatedRelayDeployment(caravan);
                 var def = DefDatabase<WorldObjectDef>.GetNamed("Vigilance_ListeningPost_Automated");
                 var post = (WorldObject_ListeningPost)WorldObjectMaker.MakeWorldObject(def);
-                post.Tile = caravan.Tile;
+                post.Tile = targetTile;
                 post.SetFaction(Faction.OfPlayer);
                 post.Kind = ListeningPostKind.AutomatedRelay;
                 post.StartConstruction(2500);
                 Find.WorldObjects?.Add(post);
-                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {caravan.Tile}. Construction of automated listening post commenced.", MessageTypeDefOf.PositiveEvent, false);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile}. Construction of automated listening post commenced.", MessageTypeDefOf.PositiveEvent, false);
             }
             else
             {
-                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {caravan.Tile} but lacks materials to deploy automated listening post ({missing}).", MessageTypeDefOf.RejectInput, false);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile} but lacks materials to deploy automated listening post ({missing}).", MessageTypeDefOf.RejectInput, false);
             }
         }
         else
@@ -103,17 +110,17 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
                 ThingDef? consumed = OutpostMaterialUtility.ConsumeSignalBeaconDeployment(caravan, stuffDef);
                 var def = DefDatabase<WorldObjectDef>.GetNamed("Vigilance_ListeningPost_Beacon");
                 var post = (WorldObject_ListeningPost)WorldObjectMaker.MakeWorldObject(def);
-                post.Tile = caravan.Tile;
+                post.Tile = targetTile;
                 post.SetFaction(Faction.OfPlayer);
                 post.Kind = ListeningPostKind.SignalBeacon;
                 post.stuffDef = consumed ?? stuffDef ?? ThingDefOf.WoodLog;
                 post.StartConstruction(2500);
                 Find.WorldObjects?.Add(post);
-                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {caravan.Tile}. Construction of signal beacon ({post.stuffDef.LabelCap}) commenced.", MessageTypeDefOf.PositiveEvent, false);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile}. Construction of signal beacon ({post.stuffDef.LabelCap}) commenced.", MessageTypeDefOf.PositiveEvent, false);
             }
             else
             {
-                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {caravan.Tile} but lacks materials to construct signal beacon ({missing}).", MessageTypeDefOf.RejectInput, false);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile} but lacks materials to construct signal beacon ({missing}).", MessageTypeDefOf.RejectInput, false);
             }
         }
     }

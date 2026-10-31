@@ -53,7 +53,7 @@ public static class OutpostMaterialUtility
         }
 
         int remaining = count;
-        CaravanInventoryUtility.TakeThings(caravan, t =>
+        List<Thing> taken = CaravanInventoryUtility.TakeThings(caravan, t =>
         {
             if (t.def == def && remaining > 0)
             {
@@ -63,6 +63,11 @@ public static class OutpostMaterialUtility
             }
             return 0;
         });
+
+        for (int i = 0; i < taken.Count; i++)
+        {
+            taken[i].Destroy();
+        }
     }
 
     public static int CountWoodOrStone(Caravan caravan)
@@ -145,7 +150,7 @@ public static class OutpostMaterialUtility
         var takenPerDef = new Dictionary<ThingDef, int>();
 
         int remaining = count;
-        CaravanInventoryUtility.TakeThings(caravan, t =>
+        List<Thing> taken = CaravanInventoryUtility.TakeThings(caravan, t =>
         {
             if (IsWoodOrStone(t.def) && remaining > 0)
             {
@@ -165,6 +170,11 @@ public static class OutpostMaterialUtility
             }
             return 0;
         });
+
+        for (int i = 0; i < taken.Count; i++)
+        {
+            taken[i].Destroy();
+        }
 
         return primaryDef ?? ThingDefOf.WoodLog;
     }

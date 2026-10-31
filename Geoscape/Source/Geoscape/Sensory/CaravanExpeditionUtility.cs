@@ -67,6 +67,138 @@ public static class CaravanExpeditionUtility
         return false;
     }
 
+    public static bool TryConsumePendingDirectiveForCaravan(Caravan caravan, PlanetTile exitFromTile, PlanetTile destinationTile, out OutpostConstructionDirective? directive)
+    {
+        directive = null;
+        if (caravan == null) return false;
+
+        lock (syncLock)
+        {
+            // 1. Match by explicit destinationTile
+            if (destinationTile.Valid && pendingDirectives.TryGetValue(destinationTile.tileId, out directive))
+            {
+                pendingDirectives.Remove(destinationTile.tileId);
+                return true;
+            }
+
+            // 2. Match by caravan.pather.Destination
+            if (caravan.pather != null && caravan.pather.Destination.Valid && pendingDirectives.TryGetValue(caravan.pather.Destination.tileId, out directive))
+            {
+                pendingDirectives.Remove(caravan.pather.Destination.tileId);
+                return true;
+            }
+
+            // Guard against hijacking unrelated caravans:
+            // If the departing caravan already has an explicit destination that is not the origin exit tile
+            // and does not match any pending directive, fallbacks 3 and 4 must NOT hijack it.
+            bool hasExplicitDestination = destinationTile.Valid && (!exitFromTile.Valid || destinationTile != exitFromTile);
+            if (caravan.pather != null && caravan.pather.Destination.Valid && (!exitFromTile.Valid || caravan.pather.Destination != exitFromTile))
+            {
+                hasExplicitDestination = true;
+            }
+
+            // 3. Fallback: match by origin map/tile if directive was created recently (within 120,000 ticks)
+            int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
+            int originMapId = -1;
+            var worldObjects = Current.Game?.World?.worldObjects;
+            if (worldObjects != null)
+            {
+                if (exitFromTile.Valid && worldObjects.SettlementAt(exitFromTile)?.Map != null)
+                {
+                    originMapId = worldObjects.SettlementAt(exitFromTile).Map.uniqueID;
+                }
+                else if (caravan.Tile.Valid && worldObjects.SettlementAt(caravan.Tile)?.Map != null)
+                {
+                    originMapId = worldObjects.SettlementAt(caravan.Tile).Map.uniqueID;
+                }
+            }
+
+            foreach (var kvp in pendingDirectives.ToList())
+            {
+                var candidate = kvp.Value;
+                if (currentTick > 0 && candidate.CreatedTick > 0 && (currentTick - candidate.CreatedTick) > 120000)
+                {
+                    pendingDirectives.Remove(kvp.Key);
+                    continue;
+                }
+
+                // If caravan is specifically headed to another tile, do not bind to this candidate
+                if (hasExplicitDestination && destinationTile.Valid && destinationTile != candidate.TargetTile)
+                {
+                    continue;
+                }
+
+                // Verify caravan has required materials for this directive (or is dismantle)
+                if (!CaravanMatchesDirectiveRequirements(caravan, candidate))
+                {
+                    continue;
+                }
+
+                if (originMapId != -1 && candidate.OriginMapId == originMapId)
+                {
+                    pendingDirectives.Remove(kvp.Key);
+                    directive = candidate;
+                    return true;
+                }
+            }
+
+            // 4. Fallback: if exactly 1 pending directive exists and has not expired, bind to this caravan
+            if (pendingDirectives.Count == 1)
+            {
+                var single = pendingDirectives.Values.First();
+                if ((currentTick == 0 || single.CreatedTick == 0 || (currentTick - single.CreatedTick) <= 120000) &&
+                    (!hasExplicitDestination || !destinationTile.Valid || destinationTile == single.TargetTile) &&
+                    CaravanMatchesDirectiveRequirements(caravan, single))
+                {
+                    pendingDirectives.Clear();
+                    directive = single;
+                    return true;
+                }
+            }
+        }
+
+        directive = null;
+        return false;
+    }
+
+    private static bool CaravanMatchesDirectiveRequirements(Caravan caravan, OutpostConstructionDirective directive)
+    {
+        if (caravan == null || directive == null) return false;
+
+        // Safely check if pawns list can be read without throwing on uninitialized test objects
+        List<Pawn>? pawns = null;
+        try
+        {
+            pawns = caravan.PawnsListForReading;
+        }
+        catch
+        {
+            // Uninitialized test mock
+        }
+
+        if (pawns == null || pawns.Count == 0)
+        {
+            return true;
+        }
+
+        if (directive.DirectiveKind == OutpostDirectiveKind.Dismantle)
+        {
+            return true;
+        }
+
+        if (directive.Kind == ListeningPostKind.AutomatedRelay)
+        {
+            return OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out _);
+        }
+
+        if (directive.Kind == ListeningPostKind.SignalBeacon)
+        {
+            return OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _);
+        }
+
+        return true;
+    }
+
     public static void ClearPendingDirective(PlanetTile tile)
     {
         if (tile.Valid)
@@ -150,9 +282,8 @@ public static class CaravanExpeditionUtility
     {
         if (map == null || !targetTile.Valid) return;
         var dialog = new Dialog_FormCaravan(map);
+        dialog.Notify_ChoseRoute(targetTile);
         Find.WindowStack.Add(dialog);
-        Find.WorldRoutePlanner.Start(dialog);
-        Find.WorldRoutePlanner.TryAddWaypoint(targetTile);
     }
 
     public static void StartConstructionExpedition(Settlement settlement, PlanetTile targetTile, ListeningPostKind kind, ThingDef? stuffDef)
@@ -169,18 +300,30 @@ public static class CaravanExpeditionUtility
             Kind = kind,
             StuffDef = stuffDef,
             OriginMapId = settlement.Map.uniqueID,
-            CreatedTick = Find.TickManager?.TicksGame ?? 0
+            CreatedTick = Current.Game?.tickManager?.TicksGame ?? 0
         });
 
         // 2. Open standard Form Caravan dialog configured for route
         var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: () =>
         {
-            ClearPendingDirective(targetTile);
+            bool isForming = settlement.Map?.lordManager?.lords != null &&
+                             settlement.Map.lordManager.lords.Any(l =>
+                             {
+                                 if (l.LordJob is LordJob_FormAndSendCaravan f)
+                                 {
+                                     PlanetTile dest = Traverse.Create(f).Field("destinationTile").GetValue<PlanetTile>();
+                                     return dest == targetTile || !dest.Valid;
+                                 }
+                                 return false;
+                             });
+            if (!isForming)
+            {
+                ClearPendingDirective(targetTile);
+            }
         });
 
+        dialog.Notify_ChoseRoute(targetTile);
         Find.WindowStack.Add(dialog);
-        Find.WorldRoutePlanner.Start(dialog);
-        Find.WorldRoutePlanner.TryAddWaypoint(targetTile);
 
         // 3. Pre-select required construction materials in transferables list
         PreallocateConstructionMaterials(dialog, kind, stuffDef);
@@ -210,18 +353,30 @@ public static class CaravanExpeditionUtility
             DirectiveKind = OutpostDirectiveKind.Dismantle,
             TargetOutpost = post,
             OriginMapId = settlement.Map.uniqueID,
-            CreatedTick = Find.TickManager?.TicksGame ?? 0
+            CreatedTick = Current.Game?.tickManager?.TicksGame ?? 0
         });
 
         // 2. Open standard Form Caravan dialog configured for route
         var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: () =>
         {
-            ClearPendingDirective(targetTile);
+            bool isForming = settlement.Map?.lordManager?.lords != null &&
+                             settlement.Map.lordManager.lords.Any(l =>
+                             {
+                                 if (l.LordJob is LordJob_FormAndSendCaravan f)
+                                 {
+                                     PlanetTile dest = Traverse.Create(f).Field("destinationTile").GetValue<PlanetTile>();
+                                     return dest == targetTile || !dest.Valid;
+                                 }
+                                 return false;
+                             });
+            if (!isForming)
+            {
+                ClearPendingDirective(targetTile);
+            }
         });
 
+        dialog.Notify_ChoseRoute(targetTile);
         Find.WindowStack.Add(dialog);
-        Find.WorldRoutePlanner.Start(dialog);
-        Find.WorldRoutePlanner.TryAddWaypoint(targetTile);
 
         Messages.Message($"[Project Vigilance] Dismantle expedition route set to {post.LabelCap} at Tile {targetTile}. Select colonist(s) and provisions to depart.", MessageTypeDefOf.CautionInput, false);
     }

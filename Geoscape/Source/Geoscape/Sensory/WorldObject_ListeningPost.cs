@@ -249,6 +249,11 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         }
     }
 
+    /// <summary>
+    /// Optional override for testing player caravan presence in test harnesses where Find.World is uninitialized.
+    /// </summary>
+    public static System.Func<WorldObject_ListeningPost, Caravan?>? PlayerCaravanPresenceOverride { get; set; }
+
     public void TickForTesting() => Tick();
 
     public bool HasPlayerCaravanPresent() => HasPlayerCaravanPresent(out _);
@@ -256,6 +261,13 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     public bool HasPlayerCaravanPresent(out Caravan? caravan)
     {
         caravan = null;
+
+        if (PlayerCaravanPresenceOverride != null)
+        {
+            caravan = PlayerCaravanPresenceOverride(this);
+            return caravan != null;
+        }
+
         var caravans = Find.World?.worldObjects?.Caravans;
         if (caravans == null) return false;
         for (int i = 0; i < caravans.Count; i++)
@@ -263,8 +275,40 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             Caravan c = caravans[i];
             if (c != null && c.Spawned && c.Tile == Tile && c.Faction?.IsPlayer == true)
             {
-                caravan = c;
-                return true;
+                // Ensure caravan has at least one capable, conscious worker
+                bool hasCapableWorker = false;
+                List<Pawn>? pawns = null;
+                try
+                {
+                    pawns = c.PawnsListForReading;
+                }
+                catch
+                {
+                    // Uninitialized mock
+                }
+
+                if (pawns != null)
+                {
+                    for (int p = 0; p < pawns.Count; p++)
+                    {
+                        Pawn pawn = pawns[p];
+                        if (pawn != null && pawn.IsColonist && !pawn.Dead && !pawn.Downed)
+                        {
+                            hasCapableWorker = true;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    hasCapableWorker = true;
+                }
+
+                if (hasCapableWorker)
+                {
+                    caravan = c;
+                    return true;
+                }
             }
         }
         return false;
@@ -599,6 +643,34 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             icon = ContentFinder<Texture2D>.Get("UI/Commands/LaunchReport", false) ?? BaseContent.WhiteTex,
             action = () => CameraJumper.TryJump(Tile)
         };
+
+        if (Faction?.IsPlayer == true)
+        {
+            if (isConstructing)
+            {
+                yield return new Command_Action
+                {
+                    defaultLabel = "Cancel Construction",
+                    defaultDesc = "Cancels construction of this outpost and refunds materials if caravan is present.",
+                    icon = ContentFinder<Texture2D>.Get("UI/Designators/Cancel", false) ?? BaseContent.WhiteTex,
+                    action = () =>
+                    {
+                        HasPlayerCaravanPresent(out Caravan? caravan);
+                        CancelConstruction(caravan);
+                    }
+                };
+            }
+            else if (isDismantling)
+            {
+                yield return new Command_Action
+                {
+                    defaultLabel = "Cancel Dismantling",
+                    defaultDesc = "Cancels dismantling of this outpost and restores operational telemetry.",
+                    icon = ContentFinder<Texture2D>.Get("UI/Designators/Cancel", false) ?? BaseContent.WhiteTex,
+                    action = CancelDismantling
+                };
+            }
+        }
     }
 
     public override IEnumerable<FloatMenuOption> GetFloatMenuOptions(Caravan caravan)

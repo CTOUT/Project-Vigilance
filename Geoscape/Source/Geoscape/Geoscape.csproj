@@ -42,4 +42,8 @@
     </Reference>
   </ItemGroup>
 
+  <Target Name="RotateLockedAssembly" BeforeTargets="BeforeBuild">
+    <Exec Command="cmd /c if exist &quot;$(OutputPath)Geoscape.dll&quot; (del /f /q &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; move /y &quot;$(OutputPath)Geoscape.dll&quot; &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; exit 0)" />
+  </Target>
+
 </Project>
