@@ -282,8 +282,11 @@ public static class CaravanExpeditionUtility
     {
         if (map == null || !targetTile.Valid) return;
         var dialog = new Dialog_FormCaravan(map);
+        if (Find.WindowStack != null)
+        {
+            Find.WindowStack.Add(dialog);
+        }
         dialog.Notify_ChoseRoute(targetTile);
-        Find.WindowStack.Add(dialog);
     }
 
     public static void StartConstructionExpedition(Settlement settlement, PlanetTile targetTile, ListeningPostKind kind, ThingDef? stuffDef)
@@ -322,8 +325,11 @@ public static class CaravanExpeditionUtility
             }
         });
 
+        if (Find.WindowStack != null)
+        {
+            Find.WindowStack.Add(dialog);
+        }
         dialog.Notify_ChoseRoute(targetTile);
-        Find.WindowStack.Add(dialog);
 
         // 3. Pre-select required construction materials in transferables list
         PreallocateConstructionMaterials(dialog, kind, stuffDef);
@@ -375,8 +381,11 @@ public static class CaravanExpeditionUtility
             }
         });
 
+        if (Find.WindowStack != null)
+        {
+            Find.WindowStack.Add(dialog);
+        }
         dialog.Notify_ChoseRoute(targetTile);
-        Find.WindowStack.Add(dialog);
 
         Messages.Message($"[Project Vigilance] Dismantle expedition route set to {post.LabelCap} at Tile {targetTile}. Select colonist(s) and provisions to depart.", MessageTypeDefOf.CautionInput, false);
     }

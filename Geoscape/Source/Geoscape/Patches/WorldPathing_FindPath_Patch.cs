@@ -266,4 +266,25 @@ public static class WorldPathing_FindPath_Patch
             OptimisticPathingUtility.Active = __state;
         }
     }
+
+    /// <summary>
+    /// Guards against null transferables list in Dialog_FormCaravan if Notify_ChoseRoute
+    /// is called prior to Window.PostOpen() executing.
+    /// </summary>
+    [HarmonyPatch(typeof(Dialog_FormCaravan), "SelectApproximateBestTravelSupplies")]
+    public static class Dialog_FormCaravan_SelectApproximateBestTravelSupplies_Patch
+    {
+        private static readonly System.Reflection.FieldInfo transferablesField =
+            AccessTools.Field(typeof(Dialog_FormCaravan), "transferables");
+
+        public static bool Prefix(Dialog_FormCaravan __instance)
+        {
+            var transferables = (List<TransferableOneWay>?)transferablesField?.GetValue(__instance);
+            if (transferables == null)
+            {
+                return false;
+            }
+            return true;
+        }
+    }
 }
