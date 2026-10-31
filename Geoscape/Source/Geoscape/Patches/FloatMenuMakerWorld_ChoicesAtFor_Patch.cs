@@ -184,17 +184,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 {
                     new FloatMenuOption($"Travel into unexplored sector (Tile {clickedTile.tileId})", () =>
                     {
-                        PlanetTile destination = clickedTile;
-                        if (Find.World != null && Find.World.Impassable(clickedTile))
-                        {
-                            PlanetTile bestNearby = CaravanUtility.BestGotoDestNear(clickedTile, caravan);
-                            if (bestNearby.Valid)
-                            {
-                                destination = bestNearby;
-                            }
-                        }
-
-                        caravan.pather.StartPath(destination, null, repathImmediately: true, resetPauseStatus: true);
+                        caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
                         if (!caravan.pather.Moving)
                         {
                             Messages.Message($"Caravan {caravan.LabelCap} cannot find a route towards unexplored sector {clickedTile.tileId}.", MessageTypeDefOf.RejectInput, false);

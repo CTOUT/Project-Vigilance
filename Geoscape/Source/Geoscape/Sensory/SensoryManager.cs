@@ -166,6 +166,7 @@ public class SensoryManager : WorldComponent
                     MarkSurroundingTilesExplored(c.Tile, radius);
                     MarkSurroundingTilesIdentified(c.Tile, idRadius);
                     anyMoved = true;
+                    OptimisticPathingUtility.NotifyCaravanVisionUpdated(c);
                 }
             }
         }
@@ -435,6 +436,18 @@ public class SensoryManager : WorldComponent
                 if (mode == VisibilityMode.ClassicHazeOfWar)
                 {
                     UpdateHazeActiveVision();
+                    var allCaravans = Find.World?.worldObjects?.Caravans;
+                    if (allCaravans != null)
+                    {
+                        for (int k = 0; k < allCaravans.Count; k++)
+                        {
+                            var c = allCaravans[k];
+                            if (c != null && c.Spawned && c.Faction?.IsPlayer == true && c.pather != null && c.pather.Moving)
+                            {
+                                OptimisticPathingUtility.NotifyCaravanVisionUpdated(c);
+                            }
+                        }
+                    }
                 }
                 WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
             }

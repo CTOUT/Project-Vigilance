@@ -284,6 +284,34 @@ _Objective: Validate zero-TPS unmanned outposts, right-click caravan constructio
 3. Slowly zoom the camera all the way in until the transition into 3D world mesh occurs:
    - **Verify Upright Orientation:** The 3D outpost icon remains perfectly upright facing North, matching the expanding icon orientation without tilting or rotating 90 degrees sideways.
 
+#### 5.5 Authentic Fog-of-War Optimistic Pathfinding & In-Transit Route Adjustment (`TC-05.5`)
+
+_Objective: Validate that unexplored sectors in the black unknown are assumed traversable during path calculation, and caravans dynamically adjust routes only when newly uncovered tiles reveal impassable obstacles._
+
+1. **Ordering Movement into Black Unknown:**
+   - Select a player caravan or settlement on the Geoscape.
+   - Right-click an unexplored sector shrouded in pitch-black fog-of-war behind potential oceans or mountain ranges.
+   - **Verify Context Option:** Displays `Travel into unexplored sector (Tile [ID])` (or `Form expedition towards unexplored sector (Tile [ID])`).
+   - **Verify No Impassable Leaks:** The menu never mentions "impassable", ocean, or mountains, and does not alter the destination to a revealed passable sector.
+2. **Straight Optimistic Path Calculation:**
+   - Confirm the travel order.
+   - **Verify Optimistic Route:** The caravan charts a straight path directly through the black shroud toward the destination, treating uncharted sectors as optimistically traversable with standard baseline movement difficulty (1.0).
+   - The pathfinder does **not** omnisciently detour around mountains or bodies of water concealed beneath the fog.
+3. **In-Transit Obstacle Revelation & Dynamic Recalculation:**
+   - Fast-forward time at `Speed 2` or `Speed 3` as the caravan marches into the unknown.
+   - When the caravan steps onto a subsequent hex and its scout vision uncovers an impassable tile (mountain peak or ocean) directly on its planned route:
+     - **Verify Sensory Reveal:** The fog lifts over the obstacle tile, exposing the true impassable terrain.
+     - **Verify Dynamic Recalculation:** The caravan detects that the route is no longer viable through the newly revealed obstacle and recalculates its path **around** that specific tile.
+     - **Verify Optimistic Continuity:** Any subsequent unexplored black sectors further along the route continue to be assumed traversable.
+     - **Verify Player Alert:** A notification appears:
+       > _"Caravan [Name] encountered [impassable terrain / mountains / ocean] in sector [ID] and adjusted its route."_
+4. **Destination Sector Impassability Fallback:**
+   - Order a caravan directly towards an unexplored sector that happens to be an ocean or mountain summit.
+   - As the caravan approaches and its vision radius illuminates the destination sector:
+     - If an adjacent passable shore or valley exists: the caravan automatically reroutes to the adjacent sector and alerts the player.
+     - If no adjacent passable route exists: the caravan halts safely at the boundary and notifies the player:
+       > _"Caravan [Name] reached the edge of sector [ID]; further passage is blocked by [impassable terrain]. Caravan halted."_
+
 ---
 
 ### Test 6: Two-Stage Early Warning & Non-Peeking Escalation (`TC-06`)

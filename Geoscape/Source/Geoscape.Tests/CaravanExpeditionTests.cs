@@ -467,5 +467,173 @@ public sealed class CaravanExpeditionTests
             SensoryManager.Instance = null;
         }
     }
+
+    [TestMethod]
+    public void OptimisticPathing_TraversalCostAndPassability_AssumedPassableInFog()
+    {
+        try
+        {
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            var unexploredTile = (PlanetTile)501;
+            var exploredTile = (PlanetTile)502;
+
+            OptimisticPathingUtility.IsTileUnexploredOverride = t => t == unexploredTile;
+            OptimisticPathingUtility.IsTileImpassableOverride = t => true; // Both tiles are secretly impassable mountains/oceans
+
+            // 1. Without active optimistic scope: unexplored impassable tile is not altered
+            Assert.IsFalse(OptimisticPathingUtility.ShouldUseOptimisticPathing());
+            float unalteredCost = OptimisticPathingUtility.ModifyMovementDifficulty(1000f, unexploredTile);
+            Assert.AreEqual(1000f, unalteredCost, "When not pathing optimistically, original cost must be preserved.");
+
+            // 2. With active optimistic scope
+            using (new OptimisticPathingUtility.Scope(true))
+            {
+                Assert.IsTrue(OptimisticPathingUtility.ShouldUseOptimisticPathing());
+
+                // Unexplored tile gets baseline 1.0f traversal difficulty
+                float optimisticCost = OptimisticPathingUtility.ModifyMovementDifficulty(1000f, unexploredTile);
+                Assert.AreEqual(1.0f, optimisticCost, "Unexplored tile in fog must be assumed baseline traversable cost (1.0).");
+
+                // Explored impassable tile retains real prohibitive cost
+                float exploredCost = OptimisticPathingUtility.ModifyMovementDifficulty(1000f, exploredTile);
+                Assert.AreEqual(1000f, exploredCost, "Explored tile must retain real terrain movement difficulty.");
+
+                // Passability patches
+                bool passableResult = false;
+                bool handledPassable = ProjectVigilance.Geoscape.Patches.WorldPathing_FindPath_Patch.WorldPathGrid_Passable_Patch.Prefix(unexploredTile, ref passableResult);
+                Assert.IsFalse(handledPassable, "Prefix must handle unexplored tile.");
+                Assert.IsTrue(passableResult, "Unexplored tile must be reported as passable in fog.");
+
+                bool impassableResult = true;
+                bool handledImpassable = ProjectVigilance.Geoscape.Patches.WorldPathing_FindPath_Patch.World_Impassable_Patch.Prefix(unexploredTile, ref impassableResult);
+                Assert.IsFalse(handledImpassable, "Prefix must handle unexplored tile.");
+                Assert.IsFalse(impassableResult, "Unexplored tile must NOT be reported impassable in fog.");
+
+                // Reachability patch
+                bool canReachResult = false;
+                bool handledCanReach = ProjectVigilance.Geoscape.Patches.WorldPathing_FindPath_Patch.WorldReachability_CanReach_Patch.Prefix((PlanetTile)100, unexploredTile, ref canReachResult);
+                Assert.IsFalse(handledCanReach, "Reachability prefix must handle optimistic scope.");
+                Assert.IsTrue(canReachResult, "Reachability must succeed optimistically through fog of war.");
+            }
+
+            // Scope automatically cleaned up
+            Assert.IsFalse(OptimisticPathingUtility.Active);
+        }
+        finally
+        {
+            OptimisticPathingUtility.IsTileUnexploredOverride = null;
+            OptimisticPathingUtility.IsTileImpassableOverride = null;
+            OptimisticPathingUtility.Active = false;
+        }
+    }
+
+    [TestMethod]
+    public void OptimisticPathing_ObstacleRevelation_TriggersDynamicRepath()
+    {
+        try
+        {
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+
+            var startTile = (PlanetTile)100;
+            var obstacleTile = (PlanetTile)101;
+            var destTile = (PlanetTile)105;
+
+            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+            var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+            HarmonyLib.Traverse.Create(caravan).Field("tileInt").SetValue(startTile);
+            HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
+            HarmonyLib.Traverse.Create(caravan).Field("spawnedInt").SetValue(true);
+
+            var pather = (Caravan_PathFollower)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan_PathFollower));
+            HarmonyLib.Traverse.Create(pather).Field("caravan").SetValue(caravan);
+            HarmonyLib.Traverse.Create(pather).Field("destTile").SetValue(destTile);
+            HarmonyLib.Traverse.Create(pather).Field("moving").SetValue(true);
+            HarmonyLib.Traverse.Create(pather).Field("nextTile").SetValue(obstacleTile);
+
+            var curPath = (WorldPath)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(WorldPath));
+            var nodes = new List<PlanetTile> { destTile, (PlanetTile)104, (PlanetTile)103, (PlanetTile)102, obstacleTile, startTile };
+            HarmonyLib.Traverse.Create(curPath).Field("nodes").SetValue(nodes);
+            HarmonyLib.Traverse.Create(pather).Field("curPath").SetValue(curPath);
+            HarmonyLib.Traverse.Create(caravan).Field("pather").SetValue(pather);
+
+            // Obstacle tile 101 is now explored and impassable!
+            HashSet<int> exploredTiles = new() { startTile.tileId, obstacleTile.tileId };
+            OptimisticPathingUtility.IsTileUnexploredOverride = t => !exploredTiles.Contains(t.tileId);
+            OptimisticPathingUtility.IsTileImpassableOverride = t => t.tileId == obstacleTile.tileId;
+
+            Caravan? reroutedCaravan = null;
+            PlanetTile reroutedObstacle = PlanetTile.Invalid;
+            string reroutedReason = string.Empty;
+
+            OptimisticPathingUtility.OnCaravanReroutedForTesting = (c, obs, reason) =>
+            {
+                reroutedCaravan = c;
+                reroutedObstacle = obs;
+                reroutedReason = reason;
+            };
+
+            // Vision updates after caravan takes a step
+            OptimisticPathingUtility.NotifyCaravanVisionUpdated(caravan);
+
+            Assert.IsNotNull(reroutedCaravan, "Caravan must trigger reroute upon discovering impassable obstacle on path.");
+            Assert.AreEqual(obstacleTile, reroutedObstacle, "Discovered obstacle tile must match newly explored impassable sector.");
+        }
+        finally
+        {
+            OptimisticPathingUtility.IsTileUnexploredOverride = null;
+            OptimisticPathingUtility.IsTileImpassableOverride = null;
+            OptimisticPathingUtility.OnCaravanReroutedForTesting = null;
+        }
+    }
+
+    [TestMethod]
+    public void OptimisticPathing_DestinationObstacleRevelation_ReroutesToAdjacentPassableOrHalts()
+    {
+        try
+        {
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+
+            var startTile = (PlanetTile)100;
+            var destTile = (PlanetTile)105;
+
+            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+            var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+            HarmonyLib.Traverse.Create(caravan).Field("tileInt").SetValue(startTile);
+            HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
+            HarmonyLib.Traverse.Create(caravan).Field("spawnedInt").SetValue(true);
+
+            var pather = (Caravan_PathFollower)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan_PathFollower));
+            HarmonyLib.Traverse.Create(pather).Field("caravan").SetValue(caravan);
+            HarmonyLib.Traverse.Create(pather).Field("destTile").SetValue(destTile);
+            HarmonyLib.Traverse.Create(pather).Field("moving").SetValue(true);
+            HarmonyLib.Traverse.Create(caravan).Field("pather").SetValue(pather);
+
+            // Destination tile 105 is now explored and impassable!
+            OptimisticPathingUtility.IsTileUnexploredOverride = t => false; // All explored
+            OptimisticPathingUtility.IsTileImpassableOverride = t => t.tileId == destTile.tileId;
+
+            Caravan? haltedCaravan = null;
+            PlanetTile haltedTile = PlanetTile.Invalid;
+
+            OptimisticPathingUtility.OnCaravanHaltedForTesting = (c, tile, reason) =>
+            {
+                haltedCaravan = c;
+                haltedTile = tile;
+            };
+
+            // Vision updates as destination comes into optical/sensory range
+            OptimisticPathingUtility.NotifyCaravanVisionUpdated(caravan);
+
+            Assert.IsNotNull(haltedCaravan, "Caravan must halt or re-target when destination sector itself is discovered to be impassable.");
+            Assert.AreEqual(destTile, haltedTile);
+            Assert.IsFalse(pather.Moving, "Caravan pather must stop dead if destination is impassable with no adjacent passable alternative.");
+        }
+        finally
+        {
+            OptimisticPathingUtility.IsTileUnexploredOverride = null;
+            OptimisticPathingUtility.IsTileImpassableOverride = null;
+            OptimisticPathingUtility.OnCaravanHaltedForTesting = null;
+        }
+    }
 }
 

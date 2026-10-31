@@ -64,19 +64,9 @@ public static class WorldSelector_HandleWorldClicks_Patch
         {
             // Unexplored sector in the black unknown: do not reveal impassable terrain,
             // nearest passable tile coordinates, or offer construction expeditions into uncharted territory.
-            if (isImpassable)
-            {
-                if (GenWorldClosest.TryFindClosestPassableTile(clickedTile, out PlanetTile closestPassable) &&
-                    closestPassable.Valid &&
-                    closestPassable != settlement.Tile)
-                {
-                    effectiveTile = closestPassable;
-                }
-            }
-
             options.Add(new FloatMenuOption($"Form expedition towards unexplored sector (Tile {clickedTile.tileId})", () =>
             {
-                CaravanExpeditionUtility.OpenCaravanFormingDialog(settlement.Map, effectiveTile);
+                CaravanExpeditionUtility.OpenCaravanFormingDialog(settlement.Map, clickedTile);
             }, MenuOptionPriority.Default));
 
             return options;
