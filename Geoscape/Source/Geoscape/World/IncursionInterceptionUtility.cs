@@ -127,9 +127,24 @@ public static class IncursionInterceptionUtility
             groupParms.generateFightersOnly = true;
         }
 
-        List<Pawn> generated = PawnGroupMakerUtility.GeneratePawns(groupParms).ToList();
+        bool hasMatchingGroupMaker = groupParms.faction?.def?.pawnGroupMakers != null &&
+                                     groupParms.faction.def.pawnGroupMakers.Any(pgm => pgm.kindDef == groupKind);
 
-        // Fallback for solo visitors / low-point neutral groups so a visitor incursion never generates 0 pawns
+        if (!hasMatchingGroupMaker && isTrader && groupParms.faction?.def?.pawnGroupMakers != null &&
+            groupParms.faction.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Peaceful))
+        {
+            groupParms.groupKind = PawnGroupKindDefOf.Peaceful;
+            hasMatchingGroupMaker = true;
+        }
+
+        List<Pawn> generated = new();
+        if (hasMatchingGroupMaker)
+        {
+            generated = PawnGroupMakerUtility.GeneratePawns(groupParms, warnOnZeroResults: false).ToList();
+        }
+
+        // Fallback for solo visitors / low-point neutral groups or factions without group makers
+        // so an overland incursion never generates 0 pawns
         if (generated.Count == 0 && (isVisitorOrTraveler || isTrader) && incursion.Faction != null)
         {
             PawnKindDef kindDef = incursion.Faction.RandomPawnKind() ?? PawnKindDefOf.Villager;
@@ -685,7 +700,7 @@ public static class IncursionInterceptionUtility
                 ? "Their pack animals are laden with goods and their trade representative hails your caravan, inviting you to trade or share the road."
                 : "They hail your caravan peacefully with friendly greetings and road information."));
 
-        if (isTrader && incursion.CanTradeNow)
+        if (isTrader && incursion.CanTradeNow && incursion.TraderKind != null)
         {
             DiaOption tradeOption = new DiaOption("Trade with caravan")
             {
@@ -1293,7 +1308,7 @@ public static class IncursionInterceptionUtility
                 ? "Their pack animals are laden with goods and their trade representative hails your camp, offering to trade goods."
                 : "They hail your camp peacefully with friendly greetings and road information."));
 
-        if (isTrader && incursion.CanTradeNow)
+        if (isTrader && incursion.CanTradeNow && incursion.TraderKind != null)
         {
             DiaOption tradeOption = new DiaOption("Trade with visitors")
             {

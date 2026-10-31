@@ -2141,13 +2141,25 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
         if (!isClassified)
         {
+            bool isMasked = SensoryTerrainUtility.IsTargetMasked(Tile);
+            if (isMasked)
+            {
+                if (SensoryNarrativeUtility.IsLowTech)
+                {
+                    string designation = trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
+                    return $"{designation}\nStatus: Masked by rugged terrain\nPace: ~{speedTilesPerDay:F0} hexes/day\nObservations: Force is navigating deep mountain valleys and canyons; classification delayed until exiting to open terrain";
+                }
+                string highTechDesignation = trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
+                return $"{highTechDesignation}\nStatus: Terrain Masked\nSpeed: ~{speedTilesPerDay:F0} hexes/day\nTelemetry: Contact signal degraded by mountainous terrain masking; requires open terrain or SIGINT decryption to classify";
+            }
+
             if (SensoryNarrativeUtility.IsLowTech)
             {
                 string designation = trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
                 return $"{designation}\nStatus: Spotted in the distance\nPace: ~{speedTilesPerDay:F0} hexes/day\nObservations: Identity and intent unknown from this distance";
             }
-            string highTechDesignation = trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
-            return $"{highTechDesignation}\nStatus: Tracking in progress\nSpeed: ~{speedTilesPerDay:F0} hexes/day\nTelemetry: Insufficient sensor data to classify faction";
+            string standardDesignation = trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
+            return $"{standardDesignation}\nStatus: Tracking in progress\nSpeed: ~{speedTilesPerDay:F0} hexes/day\nTelemetry: Insufficient sensor data to classify faction";
         }
 
         Map? targetMap = Current.Game.FindMap(destinationTile);
@@ -2210,9 +2222,24 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     // ITrader & IThingHolder Implementations (Roadside Persistent Trading)
     // =========================================================================
 
-    public TraderKindDef? TraderKind => IsUnderlyingTradeCaravan
-        ? (explicitTraderKind ?? incidentParms?.traderKind ?? Faction?.def?.caravanTraderKinds?.FirstOrDefault())
-        : null;
+    public TraderKindDef? TraderKind
+    {
+        get
+        {
+            if (!IsUnderlyingTradeCaravan) return null;
+
+            if (explicitTraderKind != null) return explicitTraderKind;
+            if (incidentParms?.traderKind != null) return incidentParms.traderKind;
+
+            TraderKindDef? defKind = Faction?.def?.caravanTraderKinds?.FirstOrDefault()
+                                  ?? Faction?.def?.visitorTraderKinds?.FirstOrDefault()
+                                  ?? Faction?.def?.baseTraderKinds?.FirstOrDefault();
+            if (defKind != null) return defKind;
+
+            return DefDatabase<TraderKindDef>.GetNamedSilentFail("Caravan_Outlander_BulkGoods")
+                ?? DefDatabase<TraderKindDef>.AllDefsListForReading.FirstOrDefault(tk => !tk.orbital);
+        }
+    }
 
     public IEnumerable<Thing> Goods => IsUnderlyingTradeCaravan ? GetOrCreateTradeStock() : Enumerable.Empty<Thing>();
 
@@ -2220,7 +2247,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public string TraderName => LabelCap;
 
-    public bool CanTradeNow => IsUnderlyingTradeCaravan && !isTradeMissionAborted && Faction != null && !Faction.HostileTo(Faction.OfPlayer);
+    public bool CanTradeNow => IsUnderlyingTradeCaravan &&
+                               TraderKind != null &&
+                               !isTradeMissionAborted &&
+                               Faction != null &&
+                               !Faction.HostileTo(Faction.OfPlayer);
 
     public float TradePriceImprovementOffsetForPlayer => 0f;
 

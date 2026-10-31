@@ -138,14 +138,56 @@ public static class GroundedCaravanMeetingHelper
             if (isHostile)
             {
                 faction = Find.FactionManager?.AllFactions?
-                    .Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden)
+                    .Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden && !f.temporary &&
+                                f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Combat))
+                    .RandomElementWithFallback()
+                    ?? Find.FactionManager?.AllFactions?
+                    .Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden && !f.temporary)
+                    .RandomElementWithFallback();
+            }
+            else if (groupKind == IncursionGroupKind.TradeCaravan)
+            {
+                // Ensure the faction has overland trade capability (not an orbital-only faction like TradersGuild)
+                faction = Find.FactionManager?.AllFactions?
+                    .Where(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
+                                f.def.humanlikeFaction &&
+                                f.def.caravanTraderKinds != null && f.def.caravanTraderKinds.Count > 0 &&
+                                f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Trader))
                     .RandomElementWithFallback();
             }
             else
             {
                 faction = Find.FactionManager?.AllFactions?
-                    .Where(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden)
+                    .Where(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
+                                f.def.humanlikeFaction &&
+                                f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Peaceful))
                     .RandomElementWithFallback();
+            }
+        }
+
+        // If an orbital or non-caravaning faction was supplied for a trade caravan encounter,
+        // substitute an eligible terrestrial trading faction or downgrade to a visitor group
+        if (!isHostile && groupKind == IncursionGroupKind.TradeCaravan && faction != null)
+        {
+            bool hasTradeCapability = faction.def.caravanTraderKinds != null && faction.def.caravanTraderKinds.Count > 0 &&
+                                     faction.def.pawnGroupMakers != null && faction.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Trader);
+            if (!hasTradeCapability)
+            {
+                Faction? validTradeFaction = Find.FactionManager?.AllFactions?
+                    .Where(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
+                                f.def.humanlikeFaction &&
+                                f.def.caravanTraderKinds != null && f.def.caravanTraderKinds.Count > 0 &&
+                                f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Trader))
+                    .RandomElementWithFallback();
+
+                if (validTradeFaction != null)
+                {
+                    faction = validTradeFaction;
+                }
+                else
+                {
+                    groupKind = IncursionGroupKind.Visitors;
+                }
             }
         }
 
@@ -157,6 +199,11 @@ public static class GroundedCaravanMeetingHelper
             if (parms.traderKind == null && faction.def?.caravanTraderKinds != null && faction.def.caravanTraderKinds.Count > 0)
             {
                 parms.traderKind = faction.def.caravanTraderKinds.RandomElement();
+            }
+            if (parms.traderKind == null)
+            {
+                parms.traderKind = DefDatabase<TraderKindDef>.GetNamedSilentFail("Caravan_Outlander_BulkGoods")
+                    ?? DefDatabase<TraderKindDef>.AllDefsListForReading.FirstOrDefault(tk => !tk.orbital);
             }
             if (parms.points <= 0f)
             {

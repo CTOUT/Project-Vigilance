@@ -717,7 +717,11 @@ public class SensoryManager : WorldComponent
 
                 if (outIdentifiedTiles != null && idRadiusSteps > 0 && currentStep <= idRadiusSteps)
                 {
-                    outIdentifiedTiles.Add(currentTile);
+                    bool isMasked = SensoryTerrainUtility.IsTargetMasked(currentTile);
+                    if (!isMasked || sensor.PenetratesTerrainMasking || currentStep <= 1)
+                    {
+                        outIdentifiedTiles.Add(currentTile);
+                    }
                 }
 
                 if (outTileDistancesFromPerimeter != null)

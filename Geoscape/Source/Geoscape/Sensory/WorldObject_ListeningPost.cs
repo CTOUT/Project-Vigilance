@@ -191,12 +191,14 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
                 return 5 + (cachedVantageBonus >= 2 ? 1 : 0);
             }
 
-            // Signal Beacon: 3 rings baseline + optical vantage bonus (+1 for hills, +2 for mountains)
-            return 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(cachedVantageBonus);
+            // Signal Beacon: Unmanned optical signal beacon has 0 identification range (early-warning detection only)
+            return 0;
         }
     }
 
-    public IntelligenceTier MaxIntelligenceTier => IntelligenceTier.Classified;
+    public IntelligenceTier MaxIntelligenceTier => kind == ListeningPostKind.AutomatedRelay
+        ? IntelligenceTier.Classified
+        : IntelligenceTier.Contact;
 
     public bool IsSensorActive => (Find.World?.worldObjects != null ? Spawned : true) && !Destroyed && !isSabotaged && !isConstructing && !isDismantling;
 
@@ -658,7 +660,14 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         else
         {
             sb.AppendLine("Status: Operational");
-            sb.AppendLine($"Coverage Rings: Detection {DetectionRadiusInTiles:F0} tiles, Identification {IdentificationRadiusInTiles} tiles");
+            if (kind == ListeningPostKind.SignalBeacon)
+            {
+                sb.AppendLine($"Coverage Rings: Detection {DetectionRadiusInTiles:F0} tiles (Unmanned: 0 tiles identification)");
+            }
+            else
+            {
+                sb.AppendLine($"Coverage Rings: Detection {DetectionRadiusInTiles:F0} tiles, Identification {IdentificationRadiusInTiles} tiles");
+            }
 
             if (cachedVantageBonus > 0)
             {

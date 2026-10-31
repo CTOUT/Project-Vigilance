@@ -19,7 +19,7 @@
   <WorldObjectDef>
     <defName>Vigilance_ListeningPost_Beacon</defName>
     <label>signal beacon</label>
-    <description>An unmanned timber or stone signal beacon established on the planetary surface. Signal bonfires and optical markers observe the sector across 6 traversal rings. Elevated high ground grants organic vantage range bonuses. Consumes zero local colony TPS.</description>
+    <description>An unmanned timber or stone signal beacon established on the planetary surface. Signal bonfires provide early-warning movement detection across 6 traversal rings. Because it is unmanned, it provides zero identification capabilities. Elevated high ground grants organic vantage range bonuses. Consumes zero local colony TPS.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.Sensory.WorldObject_ListeningPost</worldObjectClass>
     <texture>World/WorldObjects/Expanding/Camp</texture>
     <useDynamicDrawer>true</useDynamicDrawer>

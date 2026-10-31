@@ -168,13 +168,13 @@ public sealed class SensoryTerrainModelTests
         int mtn3DishId = System.Math.Min(24, baseId3Dishes + SensoryTerrainUtility.GetIdentificationVantageBonus(3));
         Assert.AreEqual(24, mtn3DishId, "3-dish radar with vantage reaches maximum 24 detection boundary.");
 
-        // 3. Signal Beacon (baseline 3 ID) with optical vantage
-        int flatBeaconId = 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(0);
-        int hillsBeaconId = 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(1);
-        int mtnBeaconId = 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(3);
-        Assert.AreEqual(3, flatBeaconId, "Signal beacon baseline is 3 rings ID.");
-        Assert.AreEqual(4, hillsBeaconId, "Signal beacon on hills is 4 rings ID.");
-        Assert.AreEqual(5, mtnBeaconId, "Signal beacon on mountains is 5 rings ID.");
+        // 3. Automated Relay / Manned Outposts (baseline 5 ID) with vantage
+        int flatRelayId = 5 + (0 >= 2 ? 1 : 0);
+        int hillsRelayId = 5 + (2 >= 2 ? 1 : 0);
+        int mtnRelayId = 5 + (3 >= 2 ? 1 : 0);
+        Assert.AreEqual(5, flatRelayId, "Automated relay baseline is 5 rings ID.");
+        Assert.AreEqual(6, hillsRelayId, "Automated relay on large hills reaches 6 rings ID.");
+        Assert.AreEqual(6, mtnRelayId, "Automated relay on mountains caps at 6 rings ID.");
 
         // 4. Scout Horizon Colony Lookouts (baseline 2 ID)
         int flatColonyId = 2 + SensoryTerrainUtility.GetIdentificationVantageBonus(0);

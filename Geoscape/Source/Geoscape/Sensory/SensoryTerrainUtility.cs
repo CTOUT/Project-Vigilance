@@ -109,7 +109,9 @@ public static class SensoryTerrainUtility
         int idSteps = sensor.IdentificationRadiusInTiles;
         if (idSteps > 0 && travDist <= idSteps)
         {
-            if (isTargetMasked && !sensor.PenetratesTerrainMasking)
+            // Close-range sightlines (travDist <= 1, immediate hex and adjacent) cannot be concealed by mountain masking.
+            // Distant rugged valleys (travDist > 1) delay classification until entering open ground or penetrated by SIGINT.
+            if (isTargetMasked && !sensor.PenetratesTerrainMasking && travDist > 1)
             {
                 return (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact)
                     ? IntelligenceTier.Contact

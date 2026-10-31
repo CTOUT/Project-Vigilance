@@ -355,4 +355,42 @@ public sealed class EarlyWarningDispatcherTests
             targetName: "Colony"
         );
     }
+
+    [TestMethod]
+    public void TerrainMasking_ImmediateProximity_CanBeIdentifiedInMountains()
+    {
+        var standardSensor = new MockSensorProvider
+        {
+            IdentificationRadiusInTiles = 3,
+            MaxIntelligenceTier = IntelligenceTier.Classified,
+            PenetratesTerrainMasking = false
+        };
+
+        // Act 1: Adjacent tile (travDist = 1) even in mountainous terrain is in direct visual line-of-sight
+        IntelligenceTier adjacentTier = SensoryTerrainUtility.EvaluateSensorTier(standardSensor, travDist: 1, isTargetMasked: true);
+        Assert.AreEqual(IntelligenceTier.Classified, adjacentTier, "Immediate adjacent forces in mountains must be identified by optical watchtowers.");
+
+        // Act 2: Distant tile (travDist = 2) in mountains is masked
+        IntelligenceTier distantTier = SensoryTerrainUtility.EvaluateSensorTier(standardSensor, travDist: 2, isTargetMasked: true);
+        Assert.AreEqual(IntelligenceTier.Contact, distantTier, "Distant mountain valley forces must remain held at Contact tier without penetration.");
+    }
+
+    [TestMethod]
+    public void TargetInspectString_WhenTerrainMasked_DisplaysActionableTelemetry()
+    {
+        SensoryTerrainUtility.TargetMaskedOverride = _ => true;
+        try
+        {
+            var incursion = new WorldObject_Incursion();
+            incursion.CurrentIntelligenceTier = IntelligenceTier.Contact;
+
+            string inspect = incursion.GetInspectString();
+            Assert.IsTrue(inspect.Contains("Masked by") || inspect.Contains("Terrain Masked"),
+                $"Inspect string must explain terrain masking. Actual: {inspect}");
+        }
+        finally
+        {
+            SensoryTerrainUtility.TargetMaskedOverride = null;
+        }
+    }
 }

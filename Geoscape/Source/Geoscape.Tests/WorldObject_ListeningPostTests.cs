@@ -26,7 +26,7 @@ public sealed class WorldObject_ListeningPostTests
         else
         {
             float det = 6f + vantageBonus;
-            int id = 3 + SensoryTerrainUtility.GetIdentificationVantageBonus(vantageBonus);
+            int id = 0; // Unmanned signal beacon has 0 identification
             return (det, id);
         }
     }
@@ -62,14 +62,14 @@ public sealed class WorldObject_ListeningPostTests
     }
 
     [TestMethod]
-    public void SignalBeacon_FlatTerrain_Returns6DetectionAnd3Identification()
+    public void SignalBeacon_FlatTerrain_Returns6DetectionAnd0Identification()
     {
         // Act
         var (detection, identification) = CalculateRadii(ListeningPostKind.SignalBeacon, vantageBonus: 0, isSabotaged: false);
 
         // Assert
         Assert.AreEqual(6f, detection, "Signal beacon baseline is 6 rings.");
-        Assert.AreEqual(3, identification, "Signal beacon baseline identification is 3 rings.");
+        Assert.AreEqual(0, identification, "Unmanned signal beacon must have 0 identification rings.");
     }
 
     [TestMethod]
@@ -80,7 +80,7 @@ public sealed class WorldObject_ListeningPostTests
 
         // Assert
         Assert.AreEqual(9f, detection, "Signal beacon with +3 mountain vantage reaches 9 rings detection.");
-        Assert.AreEqual(5, identification, "Signal beacon with +3 mountain vantage reaches 5 rings identification.");
+        Assert.AreEqual(0, identification, "Unmanned signal beacon must maintain 0 identification rings.");
     }
 
     [TestMethod]
@@ -169,32 +169,37 @@ public sealed class WorldObject_ListeningPostTests
     }
 
     [TestMethod]
-    public void MaxIntelligenceTier_IsClassified_EnablingContactIdentification()
+    public void MaxIntelligenceTier_DifferentiatesAutomatedRelayAndSignalBeacon()
     {
-        var post = new WorldObject_ListeningPost
+        var relay = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.AutomatedRelay
+        };
+        var beacon = new WorldObject_ListeningPost
         {
             Kind = ListeningPostKind.SignalBeacon
         };
 
-        // Assert: MaxIntelligenceTier must be Classified, not Contact, so the identification ring works!
-        Assert.AreEqual(IntelligenceTier.Classified, post.MaxIntelligenceTier, "Listening posts and beacons must have MaxIntelligenceTier = Classified.");
+        // Assert: Automated relays classify targets; unmanned signal beacons are detection-only (Contact)
+        Assert.AreEqual(IntelligenceTier.Classified, relay.MaxIntelligenceTier, "Automated relay must have MaxIntelligenceTier = Classified.");
+        Assert.AreEqual(IntelligenceTier.Contact, beacon.MaxIntelligenceTier, "Unmanned signal beacon must have MaxIntelligenceTier = Contact.");
     }
 
     [TestMethod]
-    public void SignalBeacon_EvaluatesToClassified_WhenWithinIdentificationHorizon()
+    public void SignalBeacon_EvaluatesToContact_SinceUnmannedZeroIdentification()
     {
         var post = new WorldObject_ListeningPost
         {
             Kind = ListeningPostKind.SignalBeacon
         };
 
-        // At distance 2 (inside identification radius of 3 rings)
+        // At distance 2 (inside detection radius of 6 rings, but 0 identification)
         IntelligenceTier insideTier = SensoryTerrainUtility.EvaluateSensorTier(post, travDist: 2, isTargetMasked: false);
-        Assert.AreEqual(IntelligenceTier.Classified, insideTier, "Target within identification horizon must evaluate to Classified.");
+        Assert.AreEqual(IntelligenceTier.Contact, insideTier, "Unmanned signal beacon has 0 identification and must evaluate to Contact.");
 
-        // At distance 5 (outside identification radius of 3, but inside detection radius of 6 rings)
+        // At distance 5 (inside detection radius of 6 rings)
         IntelligenceTier outsideTier = SensoryTerrainUtility.EvaluateSensorTier(post, travDist: 5, isTargetMasked: false);
-        Assert.AreEqual(IntelligenceTier.Contact, outsideTier, "Target outside identification horizon must evaluate to Contact.");
+        Assert.AreEqual(IntelligenceTier.Contact, outsideTier, "Target inside detection must evaluate to Contact.");
     }
 
     [TestMethod]
