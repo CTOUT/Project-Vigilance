@@ -171,6 +171,30 @@ In vanilla RimWorld, right-clicking empty world tiles is inactive unless a playe
    - _"Dismantle Outpost"_ (salvages 75% of construction materials back into caravan inventory). For Signal Beacons, 112 items of the matching `stuffDef` are refunded (preventing infinite stone-to-wood transmutation) and cleanly partitioned into valid item stacks respecting `stackLimit` (e.g. 75 + 37 items) to eliminate engine stack-overflow glitches.
    - _"Repair Sabotaged Station"_ (restores sabotaged stations disabled by passing enemy incursions for 25% of original construction materials: 25 Steel + 1 Component for relays, or 38 Wood/Stone for beacons).
 
+### 2.4 Orbital Infrastructure: Persistent Stations & Drifting Satellite Constellations
+
+Orbital-only factions (such as `TradersGuild` / *Merchant's Bazaar*) and advanced space defence programs deploy orbital infrastructure analogous to surface settlements and mobile caravans:
+
+1. **Persistent Orbital Stations (`WorldObject_OrbitalStation`):**
+   - High-altitude, stable operational centres serving as deployment, maintenance, and logistics hubs.
+   - Maintains a $35^\circ$ angular service corridor. Satellites passing through the corridor enter `In Service Area` mode to sync telemetry, receive maintenance, and restock trade inventories.
+   - Houses automated fabrication queues to schedule and launch replacement satellites if assets are destroyed.
+
+2. **Drifting Keplerian Flight Mechanics (`OrbitalFlightModel` & `OrbitalParameters`):**
+   - Replaces fixed repeating loops with closed-form, analytical Keplerian state vectors ($O(1)$ evaluation, zero heap allocations).
+   - Planetary oblateness ($J_2$) nodal precession ($\dot{\Omega}$) and incommensurate orbital periods ($T_{\text{orbit}} \nmid 60{,}000$) ensure ground tracks continually drift across longitudes.
+   - A surface colony never experiences satellite overpasses on a rigid or predictable repeating clock.
+
+3. **Specialized Satellite Payload Roles:**
+   - **Trade Satellite (`Satellite_Trade`):** Implements `ICommunicable`, `ITrader`, and `IThingHolder`. When passing overhead a colony with a powered `Building_CommsConsole`, it opens an orbital trade communication window with drop pod delivery. Restocks when rendezvousing with its parent station.
+   - **Reconnaissance Satellite:** Implements `ISensorProvider` (`IsTechnological = true`, `PenetratesTerrainMasking = true`, `MaxIntelligenceTier = Analysed`). Operates on high-inclination polar sweeps ($88^\circ$ Sun-synchronous), clearing Haze/Fog of War and spotting hidden sites.
+   - **Military Satellite:** High-inclination tactical surveillance platforms providing fire control and instant incursion analysis in contested sectors.
+   - **Navigation Satellite:** Medium-orbit positioning constellations ($12{,}000\text{ km}$). Surface caravans passing under the satellite's footprint receive a 15% overland movement speed acceleration (`CaravanTicksPerMoveUtility_GetTicksPerMove_Patch`).
+   - **Communication Satellite:** High-apogee relays ($35{,}786\text{ km}$) bridging remote, unmanned listening posts across mountain chains and oceans to the player's colony sensor network.
+
+4. **Future Vessel Extensibility (`IOrbitalEntity`):**
+   - Universal interface allowing future orbital actors (player gravships, shuttles, interceptors, UFOs) to enter station service areas or navigate drifting orbits without modifying station or satellite logic.
+
 ---
 
 ## 3. Detection Engine & Performance Design

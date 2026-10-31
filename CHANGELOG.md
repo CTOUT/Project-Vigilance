@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- **Orbital Faction Hubs, Persistent Stations & Drifting Satellite Logistics Network (`WorldObject_OrbitalStation`, `WorldObject_Satellite`, `Satellite_Trade`, `OrbitalFlightModel`, `OrbitalManager`):**
+  - **Drifting Keplerian Mechanics Engine:** Analytical closed-form flight model ($O(1)$, zero heap allocations) incorporating $J_2$ planetary oblateness nodal precession ($\dot{\Omega}$) and incommensurate periods ($T_{\text{orbit}} \nmid 60{,}000$), ensuring satellite ground tracks continuously drift across longitudes without repeating on rigid timers.
+  - **Persistent Orbital Stations:** Permanent faction operational centres for orbital factions (such as `TradersGuild` / *Merchant's Bazaar*). Manages constellation telemetry, automated replacement queues, and a $35^\circ$ angular service corridor where satellites enter for maintenance and trade restock.
+  - **Five Specialized Satellite Roles:**
+    - _Trade Satellites:_ Implements `ICommunicable`, `ITrader`, and `IThingHolder`. Connects to `Building_CommsConsole` during colony overpasses, allowing direct trade negotiations and drop pod deliveries.
+    - _Reconnaissance Satellites:_ High-inclination polar sweeps ($88^\circ$), implements `ISensorProvider` (`IsTechnological`, `PenetratesTerrainMasking`, `MaxIntelligenceTier = Analysed`), clearing Haze/Fog of War.
+    - _Military Satellites:_ High-inclination tactical platforms providing fire control and instant incursion analysis in contested sectors.
+    - _Navigation Satellites:_ Medium orbit ($12{,}000\text{ km}$), projecting positioning telemetry beams accelerating surface caravan travel speed by 15%.
+    - _Communication Satellites:_ High-apogee relays ($35{,}786\text{ km}$) linking remote unmanned listening posts to the colony network across mountains and oceans.
+  - **Extensibility Interface (`IOrbitalEntity`):** Decoupled contract allowing future orbital vessels (gravships, shuttles, interceptors, UFOs) to navigate between stations and orbits.
+- **Detection-Layer Site Masking & Optimistic Exploration (`SensoryManager`, `OptimisticPathingUtility`, `WorldPathing_FindPath_Patch`):**
+  - **Detection-Layer Site Masking:** Non-player settlements, camps, and sites in the outer Detection ring ($R_{detect}$) are masked as "Unidentified site" contacts with gold question-mark mystery icons and hidden faction/type details until entering the identification horizon ($R_{id}$).
+  - **Optimistic Fog-of-War Travel Routing:** Caravan right-click travel directives assume unexplored black hexes are traversable until actively uncovered, re-routing locally if blocked without leaking map intelligence ahead of time.
+  - **Camera-Aligned World Outpost & Sensor Icons:** Fixed rotated outpost and sensor markers when zoomed in, ensuring upright orientation across all zoom levels and latitudes.
+- **Sensory Model Refinements & Vision Consistency (`WorldObject_ListeningPost`, `SensoryTerrainUtility`):**
+  - **Signal Beacon 0 Identification Radius:** Unmanned timber and stone signal beacons provide perimeter detection (Contact Tier) across 6 rings, but feature strictly 0 identification range.
+  - **Terrain Masking Vision Horizon Alignment:** Corrected `SensoryManager.PopulateActiveVisionTiles` so masked mountainous hexes are not erroneously painted into the yellow identification horizon when viewed by non-penetrating sensors. Proximity sightline logic preserves direct optical observation for immediately adjacent hexes ($\le 1$ tile).
+  - **Actionable Masking Telemetry:** Added clear contextual feedback to incursion inspect panes explaining when heraldry and weapon details are obscured by mountain terrain masking.
 - **4X Context Dispatch & Queued Outpost Construction (`CaravanExpeditionUtility`, `CaravanArrivalAction_ConstructOutpost`, `WorldSelector_HandleWorldClicks_Patch`):**
   - **Colony Right-Click Geoscape Dispatching:** Selecting a player colony on the Geoscape and right-clicking any explored, passable hex brings up a 4X-style contextual dispatch menu (`Form caravan to Tile {tile}`, `Dispatch Construction Expedition: Automated Listening Post`, `Dispatch Construction Expedition: Signal Beacon`).
   - **Automated Supply Pre-allocation:** Dispatched construction expeditions automatically pre-allocate the exact required construction materials (100 Steel + 4 Components for Automated Relays, or 150 Wood/Stone blocks for Signal Beacons) directly into `Dialog_FormCaravan` item transfer list, locking the route planner destination to the chosen hex.
