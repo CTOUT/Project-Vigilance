@@ -75,6 +75,7 @@ To make world tile elevation (`tile.elevation`) and topography (`tile.hilliness`
 3. **Technical Boundaries & Future Note:**
    - **Zero Raycasting:** Line-of-sight raycasting, radar shadows, and mesh deformation across the `WorldGrid` are permanently rejected to preserve 60 FPS globe rendering, zero garbage collection, and intuitive player UX.
    - **Oceanic Sonar:** Sonar strictly scans water tiles (`tile.WaterCovered == true`). Land tiles completely block sonar propagation. Future milestones may investigate ocean depth, bathymetry, and negative elevation values.
+   - **Elevation-Aware Visual Observation (Future Investigation):** Evaluating whether `tile.elevation` should grant an additional vantage bonus for optical observation systems (Lookout Watchtowers, Signal Beacons, Caravan Lookouts) on exceptionally high-altitude mountain tiles (> X metres) beyond standard `Hilliness` modifiers (tracked for Milestone 1.4). Does not apply to radar systems unless gameplay testing demonstrates a clear benefit.
 
 ### 2.2 Planetary Radar Overlays
 

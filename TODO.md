@@ -80,6 +80,10 @@
 - [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
 - [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
+- [ ] **Future Investigation: Elevation-Aware Visual Observation:**
+  - Evaluate whether `tile.elevation` should provide an additional vantage bonus for optical observation systems (Lookout Watchtowers, Signal Beacons, Caravan Lookouts) beyond the existing `Hilliness`-based modifiers.
+  - Consider whether exceptionally high-altitude mountain tiles (> X metres) should receive an additional observation bonus.
+  - Do not apply to radar systems unless future gameplay testing demonstrates a clear benefit.
 
 ---
 
