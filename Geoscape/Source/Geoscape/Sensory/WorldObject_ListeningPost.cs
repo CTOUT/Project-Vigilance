@@ -23,6 +23,7 @@ public enum ListeningPostKind
 /// Implements ISensorProvider to provide planetary radar/visual surveillance, respects terrain vantage,
 /// and is vulnerable to sabotage by crossing hostile incursions.
 /// </summary>
+[StaticConstructorOnStartup]
 public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 {
     private ListeningPostKind kind = ListeningPostKind.AutomatedRelay;

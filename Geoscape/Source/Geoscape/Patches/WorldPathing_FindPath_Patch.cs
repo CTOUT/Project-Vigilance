@@ -131,12 +131,12 @@ public static class WorldPathing_FindPath_Patch
         new[] { typeof(PlanetTile) })]
     public static class World_Impassable_Patch
     {
-        public static bool Prefix(PlanetTile tile, ref bool __result)
+        public static bool Prefix(PlanetTile tileID, ref bool __result)
         {
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
                 (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
-                if (OptimisticPathingUtility.IsTileUnexplored(tile))
+                if (OptimisticPathingUtility.IsTileUnexplored(tileID))
                 {
                     __result = false;
                     return false;

@@ -18,6 +18,7 @@ namespace ProjectVigilance.Geoscape.Patches;
 /// as "Unidentified site" / "Unknown site", and orienting zoomed-in world object quads upright
 /// to match zoomed-out expanding icons.
 /// </summary>
+[StaticConstructorOnStartup]
 public static class WorldObject_Visibility_Patch
 {
     public static readonly Color UnknownSiteIconColor = new(1f, 0.78f, 0.15f, 0.95f);
@@ -96,6 +97,7 @@ public static class WorldObject_Visibility_Patch
     // 0. Upright Zoomed-In World Object Icon Orientation
     // ---------------------------------------------------------
     [HarmonyPatch(typeof(WorldObject), nameof(WorldObject.Draw))]
+    [StaticConstructorOnStartup]
     public static class WorldObject_Draw_Upright_Patch
     {
         private static MaterialPropertyBlock? sharedPropertyBlock;
