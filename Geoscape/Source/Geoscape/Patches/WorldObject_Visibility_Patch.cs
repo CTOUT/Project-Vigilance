@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
@@ -11,11 +14,158 @@ namespace ProjectVigilance.Geoscape.Patches;
 
 /// <summary>
 /// Harmony patches culling non-player world objects, landmarks, and geographic region names
-/// in unexplored sectors under Classic Haze of War.
-/// Prevents 2D/3D settlement rendering, landmarks, regional labels, hover tooltips, and selection.
+/// in unexplored sectors under Classic Haze of War, masking detected-but-unidentified sites
+/// as "Unidentified site" / "Unknown site", and orienting zoomed-in world object quads upright
+/// to match zoomed-out expanding icons.
 /// </summary>
 public static class WorldObject_Visibility_Patch
 {
+    public static readonly Color UnknownSiteIconColor = new(1f, 0.78f, 0.15f, 0.95f);
+    private static Texture2D? cachedUnknownExpandingTex;
+    private static Material? cachedUnknownWorldMat;
+
+    public static Texture2D GetUnknownSiteExpandingTexture()
+    {
+        if (cachedUnknownExpandingTex != null)
+        {
+            return cachedUnknownExpandingTex;
+        }
+
+        try
+        {
+            cachedUnknownExpandingTex =
+                ContentFinder<Texture2D>.Get("UI/Overlays/QuestionMark", false) ??
+                ContentFinder<Texture2D>.Get("World/WorldObjects/Expanding/Sites/Outpost", false) ??
+                ContentFinder<Texture2D>.Get("World/WorldObjects/Sites/GenericSite", false) ??
+                BaseContent.BadTex;
+        }
+        catch
+        {
+            cachedUnknownExpandingTex = BaseContent.BadTex;
+        }
+
+        return cachedUnknownExpandingTex!;
+    }
+
+    public static Material GetUnknownSiteWorldMaterial()
+    {
+        if (cachedUnknownWorldMat != null)
+        {
+            return cachedUnknownWorldMat;
+        }
+
+        try
+        {
+            Texture2D tex = GetUnknownSiteExpandingTexture();
+            cachedUnknownWorldMat = MaterialPool.MatFrom(
+                tex,
+                ShaderDatabase.WorldOverlayTransparentLit,
+                UnknownSiteIconColor,
+                WorldMaterials.WorldObjectRenderQueue);
+        }
+        catch
+        {
+            cachedUnknownWorldMat = BaseContent.BadMat;
+        }
+
+        return cachedUnknownWorldMat!;
+    }
+
+    private static IEnumerable<MethodBase> ResolveDeclaredMethods(string methodName, params Type[] types)
+    {
+        for (int i = 0; i < types.Length; i++)
+        {
+            MethodInfo? m = AccessTools.DeclaredMethod(types[i], methodName);
+            if (m != null && !m.IsAbstract)
+            {
+                yield return m;
+            }
+        }
+    }
+
+    public static bool ShouldDrawUpright(WorldObject? wo)
+    {
+        if (wo == null) return false;
+        if (wo is WorldObject_ListeningPost || wo is WorldObject_Incursion) return true;
+        if (SensoryManager.ShouldMaskWorldObjectAsUnknown(wo)) return true;
+        if (wo.def != null && wo.def.expandingIcon && wo.def.texture == wo.def.expandingIconTexture) return true;
+        return false;
+    }
+
+    // ---------------------------------------------------------
+    // 0. Upright Zoomed-In World Object Icon Orientation
+    // ---------------------------------------------------------
+    [HarmonyPatch(typeof(WorldObject), nameof(WorldObject.Draw))]
+    public static class WorldObject_Draw_Upright_Patch
+    {
+        private static MaterialPropertyBlock? sharedPropertyBlock;
+
+        public static bool Prefix(WorldObject __instance)
+        {
+            if (!ShouldDrawUpright(__instance))
+            {
+                return true;
+            }
+
+            float averageTileSize = Find.WorldGrid.AverageTileSize;
+            float rawTransitionPct = ExpandableWorldObjectsUtility.RawTransitionPct;
+            Material? material = __instance.Material;
+            if (material == null)
+            {
+                return false;
+            }
+
+            if (__instance.def.expandingIcon && rawTransitionPct > 0f)
+            {
+                Color color = material.color;
+                float num = 1f - rawTransitionPct;
+                sharedPropertyBlock ??= new MaterialPropertyBlock();
+                sharedPropertyBlock.SetColor(ShaderPropertyIDs.Color, new Color(color.r, color.g, color.b, color.a * num));
+                WorldRendererUtility.DrawQuadTangentialToPlanet(
+                    __instance.DrawPos,
+                    0.7f * averageTileSize,
+                    __instance.DrawAltitude,
+                    material,
+                    WorldObject_ListeningPost.UprightQuadRotationAngle,
+                    counterClockwise: false,
+                    useSkyboxLayer: false,
+                    sharedPropertyBlock);
+                return false;
+            }
+
+            WorldRendererUtility.DrawQuadTangentialToPlanet(
+                __instance.DrawPos,
+                0.7f * averageTileSize,
+                __instance.DrawAltitude,
+                material,
+                WorldObject_ListeningPost.UprightQuadRotationAngle);
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(WorldObject), nameof(WorldObject.Print))]
+    public static class WorldObject_Print_Upright_Patch
+    {
+        public static bool Prefix(WorldObject __instance, LayerSubMesh subMesh)
+        {
+            if (!ShouldDrawUpright(__instance))
+            {
+                return true;
+            }
+
+            float averageTileSize = Find.WorldGrid.AverageTileSize;
+            WorldRendererUtility.PrintQuadTangentialToPlanet(
+                __instance.DrawPos,
+                0.7f * averageTileSize,
+                __instance.DrawAltitude,
+                subMesh,
+                counterClockwise: false,
+                WorldObject_ListeningPost.UprightPrintRotationAngle,
+                printUVs: true);
+            return false;
+        }
+    }
+
     // ---------------------------------------------------------
     // 1. 2D Expanding Icons (Zoomed Out / Mid Distance)
     // ---------------------------------------------------------
@@ -329,6 +479,234 @@ public static class WorldObject_Visibility_Patch
     }
 
     // ---------------------------------------------------------
+    // 6. Detection-Only Unknown Site Masking (Settlements, Sites, Outposts, Camps)
+    // ---------------------------------------------------------
+    [HarmonyPatch]
+    public static class UnknownSite_Label_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            "get_Label",
+            typeof(WorldObject),
+            typeof(Settlement),
+            typeof(Site),
+            typeof(WorldObject_ListeningPost));
+
+        public static bool Prefix(WorldObject __instance, ref string __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = SensoryNarrativeUtility.GetUnknownSiteLabel();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch]
+    public static class UnknownSite_ExpandingIcon_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            "get_ExpandingIcon",
+            typeof(WorldObject),
+            typeof(Settlement),
+            typeof(Site),
+            typeof(EscapeShip));
+
+        public static bool Prefix(WorldObject __instance, ref Texture2D __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = GetUnknownSiteExpandingTexture();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch]
+    public static class UnknownSite_ExpandingIconColor_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            "get_ExpandingIconColor",
+            typeof(WorldObject),
+            typeof(EscapeShip),
+            typeof(WorldObject_ListeningPost));
+
+        public static bool Prefix(WorldObject __instance, ref Color __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = UnknownSiteIconColor;
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(WorldObject), "get_ExpandingMaterial")]
+    public static class UnknownSite_ExpandingMaterial_Patch
+    {
+        public static bool Prefix(WorldObject __instance, ref Material? __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = null;
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch]
+    public static class UnknownSite_Material_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            "get_Material",
+            typeof(WorldObject),
+            typeof(Settlement),
+            typeof(Site),
+            typeof(Camp),
+            typeof(PeaceTalks),
+            typeof(EscapeShip),
+            typeof(WorldObject_ListeningPost));
+
+        public static bool Prefix(WorldObject __instance, ref Material __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = GetUnknownSiteWorldMaterial();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch]
+    public static class UnknownSite_GetInspectString_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            nameof(WorldObject.GetInspectString),
+            typeof(WorldObject),
+            typeof(MapParent),
+            typeof(Settlement),
+            typeof(Site),
+            typeof(AbandonedSettlement),
+            typeof(WorldObject_EncounterAftermath),
+            typeof(WorldObject_ListeningPost));
+
+        public static bool Prefix(WorldObject __instance, ref string __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = SensoryNarrativeUtility.GetUnknownSiteInspectString();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch]
+    public static class UnknownSite_GetDescription_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            nameof(WorldObject.GetDescription),
+            typeof(WorldObject),
+            typeof(Site));
+
+        public static bool Prefix(WorldObject __instance, ref string __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = SensoryNarrativeUtility.GetUnknownSiteDescription();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch]
+    public static class UnknownSite_ShowRelatedQuests_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            "get_ShowRelatedQuests",
+            typeof(WorldObject),
+            typeof(Settlement));
+
+        public static bool Prefix(WorldObject __instance, ref bool __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = false;
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch]
+    public static class UnknownSite_GetGizmos_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            nameof(WorldObject.GetGizmos),
+            typeof(WorldObject),
+            typeof(MapParent),
+            typeof(Settlement),
+            typeof(Site),
+            typeof(WorldObject_ListeningPost));
+
+        public static bool Prefix(WorldObject __instance, ref IEnumerable<Gizmo> __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = Enumerable.Empty<Gizmo>();
+                return false;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch]
+    public static class UnknownSite_GetFloatMenuOptions_Patch
+    {
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            nameof(WorldObject.GetFloatMenuOptions),
+            typeof(WorldObject),
+            typeof(MapParent),
+            typeof(Settlement),
+            typeof(Site),
+            typeof(PeaceTalks),
+            typeof(WorldObject_EncounterAftermath),
+            typeof(WorldObject_ListeningPost));
+
+        public static bool Prefix(WorldObject __instance, Caravan caravan, ref IEnumerable<FloatMenuOption> __result)
+        {
+            if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
+            {
+                __result = BuildInvestigateFloatMenuOptions(__instance, caravan);
+                return false;
+            }
+            return true;
+        }
+
+        private static IEnumerable<FloatMenuOption> BuildInvestigateFloatMenuOptions(WorldObject site, Caravan caravan)
+        {
+            if (caravan == null || !caravan.IsPlayerControlled || !site.Tile.Valid)
+            {
+                yield break;
+            }
+
+            string label = $"Investigate {SensoryNarrativeUtility.GetUnknownSiteLabel()} (Tile {site.Tile.tileId})";
+            yield return new FloatMenuOption(label, () =>
+            {
+                if (caravan.Spawned && caravan.pather != null)
+                {
+                    caravan.pather.StartPath(site.Tile, null, repathImmediately: true);
+                }
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
     // 7. Tile Terrain & World Inspect Pane Shrouding
     // ---------------------------------------------------------
     [HarmonyPatch(typeof(WorldInspectPane), "GetLabel")]
@@ -388,6 +766,12 @@ public static class WorldObject_Visibility_Patch
                 return true;
             }
 
+            if (Find.WorldSelector.SingleSelectedObject != null &&
+                SensoryManager.ShouldMaskWorldObjectAsUnknown(Find.WorldSelector.SingleSelectedObject))
+            {
+                return false;
+            }
+
             if (Find.WorldSelector.NumSelectedObjects == 0 && Find.WorldSelector.SelectedTile.Valid &&
                 SensoryManager.Instance != null && !SensoryManager.Instance.IsTileIdExplored(Find.WorldSelector.SelectedTile.tileId))
             {
@@ -406,6 +790,13 @@ public static class WorldObject_Visibility_Patch
         {
             if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
+                return;
+            }
+
+            if (Find.WorldSelector.SingleSelectedObject != null &&
+                SensoryManager.ShouldMaskWorldObjectAsUnknown(Find.WorldSelector.SingleSelectedObject))
+            {
+                __result = Enumerable.Empty<InspectTabBase>();
                 return;
             }
 

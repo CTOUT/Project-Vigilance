@@ -162,4 +162,39 @@ public static class SensoryNarrativeUtility
 
         return "They are unarmed and in desperate need of charity. They may ask for food, medicine, or supplies.";
     }
+
+    /// <summary>
+    /// Returns the world map label for a non-player static site or settlement that has been
+    /// detected in the outer sensor layer (or explored out of the shroud) but not yet identified.
+    /// </summary>
+    public static string GetUnknownSiteLabel()
+    {
+        return IsLowTech ? "unknown site" : "unidentified site";
+    }
+
+    /// <summary>
+    /// Returns the inspect pane status text for an unidentified static site or settlement.
+    /// </summary>
+    public static string GetUnknownSiteInspectString()
+    {
+        if (IsLowTech)
+        {
+            return "Status: Unidentified Site\nDistant smoke, cleared ground, or structures have been sighted in this sector, but our scouts have not yet approached close enough to determine what kind of camp or settlement lies here.";
+        }
+
+        return "Status: Unidentified Site\nLong-range reconnaissance indicates a surface installation, outpost, or settlement in this sector. Bring the site within identification sensor range or approach with a caravan to classify its nature and faction alignment.";
+    }
+
+    /// <summary>
+    /// Returns the atmospheric info card / tooltip description for an unidentified static site or settlement.
+    /// </summary>
+    public static string GetUnknownSiteDescription()
+    {
+        if (IsLowTech)
+        {
+            return "Distant signs of habitation or activity spotted across the wilderness. Without closer reconnaissance, our lookouts cannot tell whether this is a permanent settlement, a temporary camp, or a fortified outpost.";
+        }
+
+        return "An unidentified surface site detected beyond identification range. Sensor telemetry confirms artificial structures or encampment signatures at these coordinates, but closer reconnaissance is required to determine site classification and faction ownership.";
+    }
 }

@@ -19,5 +19,6 @@ public static class WorldObject_PostRemove_Patch
         }
 
         HazeReconnaissanceManager.Instance?.Notify_WorldObjectRemoved(__instance);
+        SensoryManager.Instance?.Notify_WorldObjectRemoved(__instance);
     }
 }

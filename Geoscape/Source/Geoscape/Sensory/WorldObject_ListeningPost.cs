@@ -73,6 +73,10 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     public int CachedVantageBonus => cachedVantageBonus;
 
+    public const float UprightQuadRotationAngle = -90f;
+    public const float UprightPrintRotationAngle = 90f;
+    private static MaterialPropertyBlock? sharedPropertyBlock;
+
     public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
 
     public override Material Material
@@ -90,6 +94,42 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             }
             return cachedMat ?? base.Material;
         }
+    }
+
+    public override void Draw()
+    {
+        float averageTileSize = Find.WorldGrid.AverageTileSize;
+        float rawTransitionPct = ExpandableWorldObjectsUtility.RawTransitionPct;
+        Material? mat = Material;
+        if (mat == null)
+        {
+            return;
+        }
+
+        if (def.expandingIcon && rawTransitionPct > 0f)
+        {
+            Color color = mat.color;
+            float num = 1f - rawTransitionPct;
+            sharedPropertyBlock ??= new MaterialPropertyBlock();
+            sharedPropertyBlock.SetColor(ShaderPropertyIDs.Color, new Color(color.r, color.g, color.b, color.a * num));
+            WorldRendererUtility.DrawQuadTangentialToPlanet(
+                DrawPos,
+                0.7f * averageTileSize,
+                DrawAltitude,
+                mat,
+                UprightQuadRotationAngle,
+                counterClockwise: false,
+                useSkyboxLayer: false,
+                sharedPropertyBlock);
+            return;
+        }
+
+        WorldRendererUtility.DrawQuadTangentialToPlanet(
+            DrawPos,
+            0.7f * averageTileSize,
+            DrawAltitude,
+            mat,
+            UprightQuadRotationAngle);
     }
 
     public override string Label

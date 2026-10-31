@@ -949,7 +949,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             0.85f * averageTileSize,
             DrawAltitude + altOffset,
             baseMat,
-            0f,
+            WorldObject_ListeningPost.UprightQuadRotationAngle,
             false,
             false,
             null);
@@ -970,7 +970,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 0.52f * averageTileSize,
                 DrawAltitude + altOffset + 0.005f,
                 emblemMat,
-                0f,
+                WorldObject_ListeningPost.UprightQuadRotationAngle,
                 false,
                 false,
                 null);

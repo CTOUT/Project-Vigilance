@@ -93,6 +93,8 @@ public class HazeReconnaissanceManager : WorldComponent
     public static string GetSafeSiteLabel(WorldObject? wo)
     {
         if (wo == null) return "Site";
+        bool prevSuppress = SensoryManager.SuppressUnknownMasking;
+        SensoryManager.SuppressUnknownMasking = true;
         try
         {
             return wo.LabelCap ?? wo.def?.label ?? "Site";
@@ -100,6 +102,10 @@ public class HazeReconnaissanceManager : WorldComponent
         catch
         {
             return wo.def?.label ?? "Site";
+        }
+        finally
+        {
+            SensoryManager.SuppressUnknownMasking = prevSuppress;
         }
     }
 
@@ -140,8 +146,9 @@ public class HazeReconnaissanceManager : WorldComponent
             return;
         }
 
-        if (SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(wo.Tile))
+        if (SensoryManager.Instance != null && !SensoryManager.Instance.HasActiveIdentification(wo.Tile))
         {
+            SensoryManager.Instance.MarkWorldObjectUnidentified(wo);
             if (IsDynamicSite(wo))
             {
                 RegisterConcealedSite(wo);
@@ -206,20 +213,22 @@ public class HazeReconnaissanceManager : WorldComponent
                         return true;
                     }
 
-                    if (!sensory.IsExplored(wo.Tile) && IsDynamicSite(wo))
+                    if (!sensory.HasActiveIdentification(wo.Tile) && IsDynamicSite(wo))
                     {
+                        sensory.MarkWorldObjectUnidentified(wo);
                         RegisterConcealedSite(wo, letter);
                         Log.Message($"[Project Vigilance] Suppressed announcement letter '{letter.Label}' and concealed dynamic site '{GetSafeSiteLabel(wo)}'.");
                         return true;
                     }
                 }
-                else if (target.Tile.Valid && !sensory.IsExplored(target.Tile))
+                else if (target.Tile.Valid && !sensory.HasActiveIdentification(target.Tile))
                 {
                     WorldObject? siteAtTile = Find.WorldObjects?.AllWorldObjects.FirstOrDefault(o => o.Tile == target.Tile && IsDynamicSite(o) && o.Faction?.IsPlayer != true);
                     if (siteAtTile != null)
                     {
+                        sensory.MarkWorldObjectUnidentified(siteAtTile);
                         RegisterConcealedSite(siteAtTile, letter);
-                        Log.Message($"[Project Vigilance] Suppressed announcement letter '{letter.Label}' for site at unexplored tile {target.Tile}.");
+                        Log.Message($"[Project Vigilance] Suppressed announcement letter '{letter.Label}' for site at unidentified tile {target.Tile}.");
                         return true;
                     }
                 }
@@ -237,20 +246,22 @@ public class HazeReconnaissanceManager : WorldComponent
                     if (target.WorldObject != null)
                     {
                         WorldObject wo = target.WorldObject;
-                        if (wo.Faction?.IsPlayer != true && !sensory.IsExplored(wo.Tile) && IsDynamicSite(wo))
+                        if (wo.Faction?.IsPlayer != true && !sensory.HasActiveIdentification(wo.Tile) && IsDynamicSite(wo))
                         {
+                            sensory.MarkWorldObjectUnidentified(wo);
                             RegisterConcealedSite(wo, letter);
                             Log.Message($"[Project Vigilance] Suppressed quest announcement letter '{letter.Label}' for quest target '{GetSafeSiteLabel(wo)}'.");
                             return true;
                         }
                     }
-                    else if (target.Tile.Valid && !sensory.IsExplored(target.Tile))
+                    else if (target.Tile.Valid && !sensory.HasActiveIdentification(target.Tile))
                     {
                         WorldObject? siteAtTile = Find.WorldObjects?.AllWorldObjects.FirstOrDefault(o => o.Tile == target.Tile && IsDynamicSite(o) && o.Faction?.IsPlayer != true);
                         if (siteAtTile != null)
                         {
+                            sensory.MarkWorldObjectUnidentified(siteAtTile);
                             RegisterConcealedSite(siteAtTile, letter);
-                            Log.Message($"[Project Vigilance] Suppressed quest announcement letter '{letter.Label}' for site at unexplored tile {target.Tile}.");
+                            Log.Message($"[Project Vigilance] Suppressed quest announcement letter '{letter.Label}' for site at unidentified tile {target.Tile}.");
                             return true;
                         }
                     }
@@ -270,6 +281,8 @@ public class HazeReconnaissanceManager : WorldComponent
     public bool UncoverSite(WorldObject wo, bool suppressDiscoveryLetter = false)
     {
         if (wo == null) return false;
+
+        SensoryManager.Instance?.MarkWorldObjectIdentified(wo);
 
         if (concealedSites.TryGetValue(wo.ID, out var record))
         {
@@ -365,7 +378,7 @@ public class HazeReconnaissanceManager : WorldComponent
                 continue;
             }
 
-            if (sensory.IsExplored(kvp.Value.tile))
+            if (sensory.IsWorldObjectIdentified(wo))
             {
                 tmpUncoveredObjects.Add(wo);
             }

@@ -102,18 +102,20 @@ public static class BreadcrumbRumourUtility
             if (hexDist <= 0) hexDist = 1;
         }
 
+        // Mark the site as identified and uncover it FIRST in HazeReconnaissanceManager, suppressing the generic
+        // "Our reconnaissance has uncovered..." letter since this rumour IS the announcement!
+        SensoryManager.Instance?.MarkWorldObjectIdentified(targetSite);
+        HazeReconnaissanceManager.Instance?.UncoverSite(targetSite, suppressDiscoveryLetter: true);
+
+        // Reveal the target hex on the Geoscape
+        SensoryManager.Instance?.MarkSurroundingTilesExplored(targetSite.Tile, 1f);
+        SensoryManager.Instance?.MarkSurroundingTilesIdentified(targetSite.Tile, 1);
+
         string direction = GetCompassDirection(settlementTile, targetSite.Tile);
         string siteType = targetSite.Label;
         string factionName = travellerFaction?.Name ?? "peaceful travellers";
 
         OnRumourShared?.Invoke(travellerFaction, targetSite, hexDist, direction);
-
-        // Uncover the site FIRST in HazeReconnaissanceManager, suppressing the generic
-        // "Our reconnaissance has uncovered..." letter since this rumour IS the announcement!
-        HazeReconnaissanceManager.Instance?.UncoverSite(targetSite, suppressDiscoveryLetter: true);
-
-        // Reveal the target hex on the Geoscape
-        SensoryManager.Instance?.MarkSurroundingTilesExplored(targetSite.Tile, 1f);
 
         if (Current.ProgramState == ProgramState.Playing && Find.LetterStack != null)
         {
@@ -133,13 +135,13 @@ public static class BreadcrumbRumourUtility
         var allObjects = Find.World?.worldObjects?.AllWorldObjects;
         if (allObjects == null || allObjects.Count == 0) return null;
 
-        // 1. If incursion has a path, check along their route for unmapped sites
+        // 1. If incursion has a path, check along their route for unidentified dynamic sites
         if (incursion?.PathTiles != null && incursion.PathTiles.Count > 0)
         {
             for (int i = 0; i < allObjects.Count; i++)
             {
                 WorldObject wo = allObjects[i];
-                if (wo.Spawned && wo.Tile.Valid && wo.Faction?.IsPlayer != true && !sensory.IsExplored(wo.Tile) && HazeReconnaissanceManager.IsDynamicSite(wo))
+                if (wo.Spawned && wo.Tile.Valid && wo.Faction?.IsPlayer != true && !sensory.IsWorldObjectIdentified(wo) && HazeReconnaissanceManager.IsDynamicSite(wo))
                 {
                     for (int p = 0; p < incursion.PathTiles.Count; p++)
                     {
@@ -152,14 +154,14 @@ public static class BreadcrumbRumourUtility
             }
         }
 
-        // 2. Otherwise find the closest unmapped dynamic site to the settlement
+        // 2. Otherwise find the closest unidentified dynamic site to the settlement
         WorldObject? closest = null;
         int minDistance = int.MaxValue;
 
         for (int i = 0; i < allObjects.Count; i++)
         {
             WorldObject wo = allObjects[i];
-            if (wo.Spawned && wo.Tile.Valid && wo.Faction?.IsPlayer != true && !sensory.IsExplored(wo.Tile) && HazeReconnaissanceManager.IsDynamicSite(wo))
+            if (wo.Spawned && wo.Tile.Valid && wo.Faction?.IsPlayer != true && !sensory.IsWorldObjectIdentified(wo) && HazeReconnaissanceManager.IsDynamicSite(wo))
             {
                 int dist = Find.WorldGrid.TraversalDistanceBetween(settlementTile, wo.Tile, passImpassable: true, maxDist: 40);
                 if (dist > 0 && dist < minDistance)

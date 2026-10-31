@@ -1,5 +1,7 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape.Sensory;
+using RimWorld;
+using RimWorld.Planet;
 using UnityEngine;
 
 namespace Geoscape.Tests;
@@ -268,5 +270,83 @@ public sealed class WorldObject_ListeningPostTests
 
         // Verify cleared from dictionary
         Assert.IsFalse(CaravanExpeditionUtility.TryConsumePendingDirective(tile, out _));
+    }
+
+    [TestMethod]
+    public void UprightQuadRotationAngle_InDrawQuadTangentialToPlanet_OrientsTextureTopNorthAndRightEast()
+    {
+        // At equator facing camera: pos = (0, 0, -100)
+        // Normal = (0, 0, -1), Local East = Cross(normal, up) = (1, 0, 0), Local North = (0, 1, 0)
+        Vector3 pos = new Vector3(0f, 0f, -100f);
+        Vector3 normalized = pos.normalized;
+        Vector3 east = Vector3.Cross(normalized, Vector3.up).normalized;
+        Vector3 north = Vector3.Cross(east, normalized).normalized;
+
+        Quaternion baseRot = Quaternion.LookRotation( Vector3.Cross(normalized, Vector3.up), normalized );
+
+        // Vanilla 0f rotation rotates texture top (+Z in plane10) 90 degrees clockwise to East
+        Vector3 vanillaTexTop = baseRot * Vector3.forward;
+        Assert.IsTrue(Vector3.Dot(vanillaTexTop, east) > 0.999f,
+            "With 0 degree rotation, MeshPool.plane10 texture top (+Z) points East (rotated 90 degrees clockwise).");
+
+        // UprightQuadRotationAngle (-90f) aligns texture top (+Z) with North and texture right (+X) with East
+        Quaternion uprightRot = Quaternion.AngleAxis(WorldObject_ListeningPost.UprightQuadRotationAngle, normalized) * baseRot;
+        Vector3 uprightTexTop = uprightRot * Vector3.forward;
+        Vector3 uprightTexRight = uprightRot * Vector3.right;
+
+        Assert.IsTrue(Vector3.Dot(uprightTexTop, north) > 0.999f,
+            $"UprightQuadRotationAngle must align texture top with North. Actual: {uprightTexTop}");
+        Assert.IsTrue(Vector3.Dot(uprightTexRight, east) > 0.999f,
+            $"UprightQuadRotationAngle must align texture right with East. Actual: {uprightTexRight}");
+    }
+
+    [TestMethod]
+    public void UprightPrintRotationAngle_InGetTangentsToPlanet_OrientsTextureTopNorthAndRightEast()
+    {
+        // Verify WorldRendererUtility.GetTangentsToPlanet with UprightPrintRotationAngle (90f)
+        Vector3 pos = new Vector3(0f, 0f, -100f);
+        RimWorld.Planet.WorldRendererUtility.GetTangentsToPlanet(
+            pos,
+            out Vector3 first,
+            out Vector3 second,
+            WorldObject_ListeningPost.UprightPrintRotationAngle);
+
+        // In PrintQuadTangentialToPlanet, 'first' is the +U (texture right) tangent and 'second' is the +V (texture top) tangent
+        Assert.IsTrue(Vector3.Dot(first, Vector3.right) > 0.999f,
+            $"UprightPrintRotationAngle must align first tangent (+U / texture right) with East (1,0,0). Actual: {first}");
+        Assert.IsTrue(Vector3.Dot(second, Vector3.up) > 0.999f,
+            $"UprightPrintRotationAngle must align second tangent (+V / texture top) with North (0,1,0). Actual: {second}");
+    }
+
+    [TestMethod]
+    public void ShouldDrawUpright_CorrectlyDiscriminatesTargetObjects()
+    {
+        // 1. ListeningPost -> True
+        var post = new WorldObject_ListeningPost();
+        Assert.IsTrue(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.ShouldDrawUpright(post));
+
+        // 2. Incursion -> True
+        var incursion = new ProjectVigilance.Geoscape.World.WorldObject_Incursion();
+        Assert.IsTrue(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.ShouldDrawUpright(incursion));
+
+        // 3. Normal vanilla settlement with distinct 3D and 2D textures -> False
+        var def = new WorldObjectDef
+        {
+            expandingIcon = true,
+            texture = "World/WorldObjects/DefaultSettlement",
+            expandingIconTexture = "World/WorldObjects/Expanding/Town"
+        };
+        var settlement = new Settlement { def = def };
+        Assert.IsFalse(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.ShouldDrawUpright(settlement));
+
+        // 4. Object whose 3D texture is directly an expanding icon texture -> True
+        var customDef = new WorldObjectDef
+        {
+            expandingIcon = true,
+            texture = "World/WorldObjects/Expanding/Sites/Outpost",
+            expandingIconTexture = "World/WorldObjects/Expanding/Sites/Outpost"
+        };
+        var customSite = new Site { def = customDef };
+        Assert.IsTrue(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.ShouldDrawUpright(customSite));
     }
 }
