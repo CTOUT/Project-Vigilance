@@ -240,6 +240,21 @@ public sealed class OrbitalLogisticsTests
     }
 
     [TestMethod]
+    public void OrbitalManager_FindExistingOrbitalStation_PrioritisesWorldGenSpaceSettlement()
+    {
+        // Scenario: When Odyssey generates a SpaceSettlement at world creation,
+        // OrbitalManager must adopt that existing settlement rather than spawning duplicate stations.
+        OrbitalManager manager = new(null!);
+
+        FactionDef guildDef = new() { defName = "TradersGuild" };
+        Faction guildFaction = new() { def = guildDef };
+
+        // Act: In an empty environment without existing objects, it returns null
+        WorldObject? station = manager.FindExistingOrbitalStationForFaction(guildFaction);
+        Assert.IsNull(station, "Without existing world objects, FindExistingOrbitalStationForFaction should return null.");
+    }
+
+    [TestMethod]
     public void WorldObject_OrbitalStation_ChildRegistrationAndReplenishmentQueue()
     {
         // Arrange

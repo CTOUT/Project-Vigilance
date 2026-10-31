@@ -49,10 +49,10 @@ public interface IOrbitalEntity
     /// <summary>
     /// Invoked when this entity moves into proximity of its parent station's service corridor.
     /// </summary>
-    void OnEnterServiceArea(WorldObject_OrbitalStation station);
+    void OnEnterServiceArea(WorldObject station);
 
     /// <summary>
     /// Invoked when orbital drift or course adjustments take this entity outside the station's service corridor.
     /// </summary>
-    void OnLeaveServiceArea(WorldObject_OrbitalStation station);
+    void OnLeaveServiceArea(WorldObject station);
 }

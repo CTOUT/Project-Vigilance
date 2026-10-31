@@ -157,19 +157,53 @@ public class OrbitalManager : WorldComponent
         return false;
     }
 
-    public WorldObject_OrbitalStation? EnsureStationForFaction(Faction faction)
+    /// <summary>
+    /// Searches for any existing orbital station or space settlement belonging to the faction,
+    /// prioritising world-generation sites (such as Odyssey's SpaceSettlement on the Orbit layer)
+    /// before falling back to custom orbital stations.
+    /// </summary>
+    public WorldObject? FindExistingOrbitalStationForFaction(Faction? faction)
     {
+        if (faction == null || Find.World?.worldObjects == null) return null;
+
+        // 1. Look for existing world-generation orbital settlements (e.g. Odyssey SpaceSettlement)
+        var settlements = Find.World.worldObjects.Settlements;
+        if (settlements != null)
+        {
+            for (int i = 0; i < settlements.Count; i++)
+            {
+                var s = settlements[i];
+                if (s.Faction == faction && (s.def?.defName == "SpaceSettlement" || s.Tile.Layer?.Def?.defName == "Orbit"))
+                {
+                    return s;
+                }
+            }
+        }
+
+        // 2. Look for existing custom WorldObject_OrbitalStation instances
         for (int i = 0; i < stations.Count; i++)
         {
             if (stations[i].Faction == faction)
             {
-                EnsureConstellationForStation(stations[i]);
                 return stations[i];
             }
         }
 
-        // Spawn a new persistent orbital station for this faction
-        WorldObjectDef stationDef = OrbitalDefOf.Vigilance_OrbitalStation ??
+        return null;
+    }
+
+    public WorldObject? EnsureStationForFaction(Faction faction)
+    {
+        WorldObject? existing = FindExistingOrbitalStationForFaction(faction);
+        if (existing != null)
+        {
+            EnsureConstellationForStation(existing);
+            return existing;
+        }
+
+        // If no station exists from world generation (e.g. base game without Odyssey),
+        // spawn a persistent fallback WorldObject_OrbitalStation for this faction.
+        WorldObjectDef? stationDef = OrbitalDefOf.Vigilance_OrbitalStation ??
             DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_OrbitalStation");
 
         if (stationDef == null) return null;
@@ -179,10 +213,10 @@ public class OrbitalManager : WorldComponent
 
         // Place on valid tile
         PlanetTile initialTile = PlanetTile.Invalid;
-        if (Find.WorldGrid != null)
+        if (Find.World?.grid != null)
         {
-            int tileId = Rand.Range(0, Find.WorldGrid.TilesCount);
-            initialTile = new PlanetTile(tileId, Find.WorldGrid.Surface);
+            int tileId = Rand.Range(0, Find.World.grid.TilesCount);
+            initialTile = new PlanetTile(tileId, Find.World.grid.Surface);
         }
 
         station.Tile = initialTile;
@@ -192,29 +226,18 @@ public class OrbitalManager : WorldComponent
         return station;
     }
 
-    public void EnsureConstellationForStation(WorldObject_OrbitalStation station)
+    public void EnsureConstellationForStation(WorldObject station)
     {
         if (station == null || station.Faction == null) return;
 
-        // Clean dead satellite references
-        List<int> validChildren = new();
-        for (int i = 0; i < station.ChildSatelliteIds.Count; i++)
-        {
-            int id = station.ChildSatelliteIds[i];
-            if (satellites.Exists(s => s.ID == id))
-            {
-                validChildren.Add(id);
-            }
-        }
-
-        // Maintain initial constellation: Trade and Recon
+        // Count active satellites linked to this parent station
         bool hasTrade = false;
         bool hasRecon = false;
 
-        for (int i = 0; i < validChildren.Count; i++)
+        for (int i = 0; i < satellites.Count; i++)
         {
-            var sat = satellites.Find(s => s.ID == validChildren[i]);
-            if (sat != null)
+            var sat = satellites[i];
+            if (sat.ParentStationId == station.ID)
             {
                 if (sat.Role == SatelliteRole.Trade) hasTrade = true;
                 if (sat.Role == SatelliteRole.Reconnaissance) hasRecon = true;
@@ -232,7 +255,7 @@ public class OrbitalManager : WorldComponent
         }
     }
 
-    public WorldObject_Satellite? SpawnSatelliteForStation(WorldObject_OrbitalStation station, SatelliteRole role)
+    public WorldObject_Satellite? SpawnSatelliteForStation(WorldObject station, SatelliteRole role)
     {
         WorldObjectDef? def = role switch
         {
@@ -262,7 +285,11 @@ public class OrbitalManager : WorldComponent
 
         sat.InitializeSatellite(role, orbitParams, station.ID, callsign, footprint);
         Find.WorldObjects.Add(sat);
-        station.RegisterChildSatellite(sat);
+
+        if (station is WorldObject_OrbitalStation customStation)
+        {
+            customStation.RegisterChildSatellite(sat);
+        }
 
         return sat;
     }

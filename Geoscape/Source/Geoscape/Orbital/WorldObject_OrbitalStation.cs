@@ -190,12 +190,12 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
         OrbitalManager.Instance?.SpawnSatelliteForStation(this, role);
     }
 
-    public void OnEnterServiceArea(WorldObject_OrbitalStation station)
+    public void OnEnterServiceArea(WorldObject station)
     {
         // Hub self-reference
     }
 
-    public void OnLeaveServiceArea(WorldObject_OrbitalStation station)
+    public void OnLeaveServiceArea(WorldObject station)
     {
         // Hub self-reference
     }

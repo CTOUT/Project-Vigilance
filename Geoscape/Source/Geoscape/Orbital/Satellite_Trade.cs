@@ -70,7 +70,7 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
         goods.TryAddRangeOrTransfer(generated);
     }
 
-    public override void OnEnterServiceArea(WorldObject_OrbitalStation station)
+    public override void OnEnterServiceArea(WorldObject station)
     {
         base.OnEnterServiceArea(station);
         // Restock inventory while in station service corridor

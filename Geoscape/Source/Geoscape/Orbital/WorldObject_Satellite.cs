@@ -118,6 +118,15 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
         }
     }
 
+    public string ParentStationName
+    {
+        get
+        {
+            if (parentStationId < 0 || Find.World?.worldObjects == null) return "Station Hub";
+            return Find.World.worldObjects.AllWorldObjects.Find(wo => wo.ID == parentStationId)?.LabelCap ?? "Station Hub";
+        }
+    }
+
     protected override void Tick()
     {
         base.Tick();
@@ -126,6 +135,31 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
         if (currentTick % 60 == 0)
         {
             UpdateSubSatelliteTile(currentTick);
+        }
+
+        if (currentTick % 250 == 0 && parentStationId >= 0 && Find.World?.worldObjects != null)
+        {
+            CheckServiceAreaProximity(currentTick);
+        }
+    }
+
+    private void CheckServiceAreaProximity(int currentTick)
+    {
+        WorldObject? parentStation = Find.World?.worldObjects?.AllWorldObjects.Find(wo => wo.ID == parentStationId);
+        if (parentStation != null && parentStation.Tile.Valid && Find.World?.grid != null)
+        {
+            Vector3 stationDir = Find.World.grid.GetTileCenter(parentStation.Tile).normalized;
+            Vector3 satDir = OrbitalFlightModel.CalculateSubSatelliteDirection(orbit, currentTick);
+            bool inZone = OrbitalFlightModel.AngularDistanceDeg(stationDir, satDir) <= 35f;
+
+            if (inZone && !inServiceArea)
+            {
+                OnEnterServiceArea(parentStation);
+            }
+            else if (!inZone && inServiceArea)
+            {
+                OnLeaveServiceArea(parentStation);
+            }
         }
     }
 
@@ -147,14 +181,18 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
     public void TickForTesting(int currentTick)
     {
         UpdateSubSatelliteTile(currentTick);
+        if (parentStationId >= 0)
+        {
+            CheckServiceAreaProximity(currentTick);
+        }
     }
 
-    public virtual void OnEnterServiceArea(WorldObject_OrbitalStation station)
+    public virtual void OnEnterServiceArea(WorldObject station)
     {
         inServiceArea = true;
     }
 
-    public virtual void OnLeaveServiceArea(WorldObject_OrbitalStation station)
+    public virtual void OnLeaveServiceArea(WorldObject station)
     {
         inServiceArea = false;
     }
@@ -182,7 +220,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
         if (inServiceArea)
         {
-            sb.Append("Status: In Station Service Corridor (Maintenance & Sync)");
+            sb.Append("Status: In Station Service Corridor (Maintenance & Sync: ").Append(ParentStationName).Append(")");
         }
         else
         {
