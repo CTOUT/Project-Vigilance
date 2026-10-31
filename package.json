@@ -5,7 +5,7 @@
   "description": "Modular X-COM conversion and planetary systems suite for RimWorld",
   "scripts": {
     "spellcheck": "npx cspell \"**/*.md\" \"**/*.json\" \"**/*.yml\" \"**/*.cff\"",
-    "format": "npx prettier --write \"**/*.{md,json,yml,yaml,cff}\"",
+    "format": "npx prettier --write .",
     "build:geoscape": "dotnet build Geoscape/Source/Geoscape.slnx",
     "deploy:geoscape": "pwsh -File ./scripts/deploy-geoscape.ps1",
     "package:release": "pwsh -File ./scripts/package-release.ps1"

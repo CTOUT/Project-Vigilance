@@ -63,6 +63,7 @@
 ---
 
 ### Future Milestone: Classic X-COM Geoscape Command Deck & Diegetic Experience
+
 - **Architectural Design Blueprint:** [`Documentation/Design/Classic_XCom_Geoscape_Blueprint.md`](Documentation/Design/Classic_XCom_Geoscape_Blueprint.md)
 - **Interactive Visual Mockup & Art Prototype:** [`Documentation/Design/Mockups/geoscape_command_deck_mockup.html`](Documentation/Design/Mockups/geoscape_command_deck_mockup.html)
 - [ ] **Temporal "Contact Drop" Engine & CRT Telemetry Modal (`Dialog_ContactDetected`):** Automatic time deceleration to Normal (1x / 60 TPS) or Pause upon radar boundary ingress; monospace dot-leader telemetry readout with single-click `[CENTRE ON BOGEY — TIME = 5 SECS]` camera jump.

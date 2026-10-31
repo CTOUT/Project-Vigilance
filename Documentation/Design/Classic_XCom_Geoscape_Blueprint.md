@@ -1,7 +1,7 @@
 # Architectural Blueprint: Accommodating the Classic X-COM Experience in the Geoscape
 
 > [!NOTE]
-> **Context:** This blueprint reviews the original reference material in [`references/`](../../references/) (spanning Amiga CD32, DOS VGA, PlayStation 1, and Windows 95 releases of *UFO: Enemy Unknown / UFO Defense* [1994] and *X-COM: Terror from the Deep* [1995]) and details how to faithfully translate the classic Geoscape aesthetic and gameplay loop into **Project Vigilance** for RimWorld 1.7 (Waylith) on .NET 10.
+> **Context:** This blueprint reviews the original reference material in [`references/`](../../references/) (spanning Amiga CD32, DOS VGA, PlayStation 1, and Windows 95 releases of _UFO: Enemy Unknown / UFO Defense_ [1994] and _X-COM: Terror from the Deep_ [1995]) and details how to faithfully translate the classic Geoscape aesthetic and gameplay loop into **Project Vigilance** for RimWorld 1.7 (Waylith) on .NET 10.
 > **Interactive Mockup:** A fully functional HTML5/Canvas/WebAudio interactive art prototype is preserved at [`Mockups/geoscape_command_deck_mockup.html`](Mockups/geoscape_command_deck_mockup.html).
 
 ---
@@ -39,15 +39,15 @@ The classic X-COM Geoscape is fundamentally a **diegetic command bunker experien
 
 Audit of the 10 reference files in [`references/`](../../references/):
 
-| Reference Asset | Platform & Game | Core Visual & Mechanical Elements |
-| :--- | :--- | :--- |
-| [`16068943`](../../references/16068943-x-com-ufo-defense-amiga-cd32-i-just-built-my-first-base.png) | Amiga CD32 (*UFO Defense*) | Deep violet nebula background with cross-flair stars; sharp day/night terminator; newly established base shown as cyan square with center dot; right-hand sidebar with 6 command buttons (`INTERCEPT`, `BASES`, `GRAPHS`, `UFOPAEDIA`, `OPTIONS`, `FUNDING`); digital LED clock with running seconds (`12:00:15 FRIDAY 1st Jan 1999`); 6 discrete time compression buttons; rotating trackball gimbal with cardinal arrows and dual zoom cutaway buttons. |
-| [`16667984`](../../references/16667984-x-com-terror-from-the-deep-playstation-selecting-the-site-for-yo.png) | PlayStation 1 (*TFTD*) | Top banner overlay: `SELECT SITE FOR NEW BASE` in green monospace font with double-bevel silver frame; fiery reddish-amber cosmic nebula; **multi-tiered bathymetric oceans** with distinct continental shelf shallows, slope, and abyssal rifts; clock reads `2040`. |
-| [`16804431`](../../references/16804431-x-com-ufo-defense-playstation-the-game-has-you-monitoring-the-ea.png) | PlayStation 1 (*UFO Defense*) | Smooth atmospheric limb shading on planet rim; textured Antarctic sea-ice pack; yellow pointer hovering over `UFOPAEDIA`. |
-| [`1889751`](../../references/1889751-x-com-ufo-defense-dos-tracking-an-ufo.png) | DOS VGA (*UFO Defense*) | **Geopolitical globe rendering:** White national border vectors and yellow landmark capital labels with red dots (`UK / London`, `SPAIN / Madrid`, `Casablanca`, `Cairo / EGYPT`, `Moscow`). Floating **Air Interception HUD:** Green CRT radar cone with interceptor, flanking missile hardpoint ammo indicators (`3` missiles remaining each), target blip, 4 stance buttons (Cautious, Standard, Aggressive, Disengage), craft status silhouette, and phosphor green range countdown (`560`). |
-| [`1892896`](../../references/1892896-x-com-ufo-defense-amiga-build-first-base.png) & [`5457132`](../../references/5457132-x-com-ufo-defense-windows-world-map.jpg) | Amiga & Win95 (*UFO Defense*) | `SELECT SITE FOR NEW BASE` planetary survey mode with double-bevelled banner. Win95 version features metallic green border styling. |
-| [`6336806`](../../references/6336806-x-com-terror-from-the-deep-dos-geoscape-view.png) | DOS VGA (*TFTD*) | Apocalyptic amber/crimson cosmos; bright solar illumination with sharp terminator into deep night; multi-depth ocean hexes. |
-| [`9477245`](../../references/9477245-x-com-terror-from-the-deep-windows-alien-submarine-has-been-spot.jpg) | Win95 (*TFTD*) | **Diegetic Telemetry Alert:** Slate-teal modal box with double grey bevel; header `ALIEN SUB-1 Detected`; dot-leader telemetry (`SIZE...VERY SMALL`, `DEPTH...DEEP`, `HEADING...EAST`, `SPEED...1480`); prominent single-click action `[ CENTRE ON ALIEN SUB-TIME=5 Secs ]` and `[ CANCEL ]`. |
+| Reference Asset                                                                                                                                                    | Platform & Game               | Core Visual & Mechanical Elements                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| :----------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`16068943`](../../references/16068943-x-com-ufo-defense-amiga-cd32-i-just-built-my-first-base.png)                                                                | Amiga CD32 (_UFO Defense_)    | Deep violet nebula background with cross-flair stars; sharp day/night terminator; newly established base shown as cyan square with center dot; right-hand sidebar with 6 command buttons (`INTERCEPT`, `BASES`, `GRAPHS`, `UFOPAEDIA`, `OPTIONS`, `FUNDING`); digital LED clock with running seconds (`12:00:15 FRIDAY 1st Jan 1999`); 6 discrete time compression buttons; rotating trackball gimbal with cardinal arrows and dual zoom cutaway buttons.                                        |
+| [`16667984`](../../references/16667984-x-com-terror-from-the-deep-playstation-selecting-the-site-for-yo.png)                                                       | PlayStation 1 (_TFTD_)        | Top banner overlay: `SELECT SITE FOR NEW BASE` in green monospace font with double-bevel silver frame; fiery reddish-amber cosmic nebula; **multi-tiered bathymetric oceans** with distinct continental shelf shallows, slope, and abyssal rifts; clock reads `2040`.                                                                                                                                                                                                                            |
+| [`16804431`](../../references/16804431-x-com-ufo-defense-playstation-the-game-has-you-monitoring-the-ea.png)                                                       | PlayStation 1 (_UFO Defense_) | Smooth atmospheric limb shading on planet rim; textured Antarctic sea-ice pack; yellow pointer hovering over `UFOPAEDIA`.                                                                                                                                                                                                                                                                                                                                                                        |
+| [`1889751`](../../references/1889751-x-com-ufo-defense-dos-tracking-an-ufo.png)                                                                                    | DOS VGA (_UFO Defense_)       | **Geopolitical globe rendering:** White national border vectors and yellow landmark capital labels with red dots (`UK / London`, `SPAIN / Madrid`, `Casablanca`, `Cairo / EGYPT`, `Moscow`). Floating **Air Interception HUD:** Green CRT radar cone with interceptor, flanking missile hardpoint ammo indicators (`3` missiles remaining each), target blip, 4 stance buttons (Cautious, Standard, Aggressive, Disengage), craft status silhouette, and phosphor green range countdown (`560`). |
+| [`1892896`](../../references/1892896-x-com-ufo-defense-amiga-build-first-base.png) & [`5457132`](../../references/5457132-x-com-ufo-defense-windows-world-map.jpg) | Amiga & Win95 (_UFO Defense_) | `SELECT SITE FOR NEW BASE` planetary survey mode with double-bevelled banner. Win95 version features metallic green border styling.                                                                                                                                                                                                                                                                                                                                                              |
+| [`6336806`](../../references/6336806-x-com-terror-from-the-deep-dos-geoscape-view.png)                                                                             | DOS VGA (_TFTD_)              | Apocalyptic amber/crimson cosmos; bright solar illumination with sharp terminator into deep night; multi-depth ocean hexes.                                                                                                                                                                                                                                                                                                                                                                      |
+| [`9477245`](../../references/9477245-x-com-terror-from-the-deep-windows-alien-submarine-has-been-spot.jpg)                                                         | Win95 (_TFTD_)                | **Diegetic Telemetry Alert:** Slate-teal modal box with double grey bevel; header `ALIEN SUB-1 Detected`; dot-leader telemetry (`SIZE...VERY SMALL`, `DEPTH...DEEP`, `HEADING...EAST`, `SPEED...1480`); prominent single-click action `[ CENTRE ON ALIEN SUB-TIME=5 Secs ]` and `[ CANCEL ]`.                                                                                                                                                                                                    |
 
 ---
 
@@ -81,12 +81,13 @@ To capture the retro command bunker feeling without colliding with RimWorld's va
 ```
 
 #### Technical Harmonization with RimWorld UI:
+
 1. **`LetterStack` Offset:**
    - In vanilla RimWorld, `LetterStack.LetterStackOnGUI` anchors the notification column along the right edge (`UI.screenWidth - 38f`).
-   - *Harmony patch:* Offset the letter anchor by `-(SidebarWidth + 10f)` so letters cascade to the left of the command deck rather than rendering underneath it.
+   - _Harmony patch:_ Offset the letter anchor by `-(SidebarWidth + 10f)` so letters cascade to the left of the command deck rather than rendering underneath it.
 2. **`WorldGlobalControls` Synchronization:**
    - In vanilla, speed and date widgets render at the bottom-right.
-   - *Harmony patch:* When the Classic HUD is toggled on in `GeoscapeSettings.cs`, suppress vanilla `WorldGlobalControls` to eliminate competing speed buttons and clocks.
+   - _Harmony patch:_ When the Classic HUD is toggled on in `GeoscapeSettings.cs`, suppress vanilla `WorldGlobalControls` to eliminate competing speed buttons and clocks.
 3. **Tactical Trackball Gimbal:**
    - Smooth planetary rotation via cardinal controls calling `Find.WorldCameraDriver.altitude` and `Find.WorldCameraDriver.RotateTo(...)`.
    - Discrete zoom increments between strategic global view and tactical hex surveillance.
@@ -98,26 +99,29 @@ To capture the retro command bunker feeling without colliding with RimWorld's va
 The defining psychological thrill of classic X-COM is the transition from strategic fast-forwarding to the sudden, jarring **Contact Drop**.
 
 #### 1. Speed Mapping:
+
 - `5 Secs` $\rightarrow$ `TimeSpeed.Normal` (1x: 60 TPS, tactical pursuit & vector interception).
 - `1 Min` $\rightarrow$ `TimeSpeed.Fast` (2x: 180 TPS, standard patrol tracking).
 - `5 Mins` / `30 Mins` $\rightarrow$ `TimeSpeed.Superfast` (3x: 360 TPS, regional caravan transit).
 - `1 Hour` / `1 Day` $\rightarrow$ `TimeSpeed.Ultrafast` (4x: 900 TPS, high-speed patrol simulation with auto-interrupt).
 
 #### 2. The "Contact Drop" Interruption Hook:
+
 In `EarlyWarningDispatcher.cs`:
+
 ```csharp
 if (newTier >= IntelligenceTier.Contact && !incursion.HasDispatchedContactAlert)
 {
     if (GeoscapeMod.Settings.enableContactDrop)
     {
-        Find.TickManager.CurTimeSpeed = GeoscapeMod.Settings.contactDropToPause 
-            ? TimeSpeed.Paused 
+        Find.TickManager.CurTimeSpeed = GeoscapeMod.Settings.contactDropToPause
+            ? TimeSpeed.Paused
             : TimeSpeed.Normal;
-        
+
         // Classic tactile radar ping audio cue
         PV_SoundDefOf.PV_TacticalRadarPing?.PlayOneShotOnCamera();
     }
-    
+
     incursion.HasDispatchedContactAlert = true;
     DispatchContactLetter(incursion, sensor);
 }
@@ -149,6 +153,7 @@ Directly replicating the Windows/DOS alert from [`9477245`](../../references/947
 ```
 
 #### Key Capabilities:
+
 - Single-click `[ CENTRE ON TARGET — TIME = 5 SECS ]` pans the camera, locks onto the incursion vector, and drops time to normal tactical speed.
 - Monospace dot-leader telemetry (`.PadRight(28, '.')`).
 - Configurable in settings: `Classic CRT Modal`, `Standard RimWorld Letters`, or `Both`.
@@ -160,12 +165,15 @@ Directly replicating the Windows/DOS alert from [`9477245`](../../references/947
 Direct reference: [`16667984`](../../references/16667984-x-com-terror-from-the-deep-playstation-selecting-the-site-for-yo.png) and [`6336806`](../../references/6336806-x-com-terror-from-the-deep-dos-geoscape-view.png).
 
 #### 1. Multi-Tier Bathymetric World Layer (`WorldDrawLayer_OceanDepth`):
+
 Leverages RimWorld's existing negative elevation data (`tile.elevation < 0`):
+
 - **Tier 1: Continental Shelves & Coastal Shallows (-1m to -1,000m):** Lighter cyan/turquoise stippled mesh. Standard sonar propagation; target easily sighted from air or sea.
 - **Tier 2: Deep Oceanic Basins (-1,001m to -3,500m):** Deep navy cobalt. Medium acoustic attenuation.
 - **Tier 3: Abyssal Trenches & Oceanic Rifts (-3,501m and below):** Midnight abyssal indigo/black. Severe acoustic distortion.
 
 #### 2. Sonar Propagation in `CompRadar.cs`:
+
 - Hydrophones propagate strictly over contiguous water hexes (`tile.WaterCovered`).
 - Landmasses fully occlude sonar propagation.
 - Submersible craft (USOs) entering deep ocean trenches dive to evade conventional ground radar (`"Contact Lost in Abyssal Trench"`), requiring coastal hydrophone arrays or acoustic buoys to maintain tracking.
