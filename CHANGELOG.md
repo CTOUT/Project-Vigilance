@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- **Campaign Rules, Mutability Framework & Core Design Principles (`GeoscapeCampaignRules`, `GeoscapeRuleSet`, `GeoscapeRules`):**
+  - **Core Epistemic Principles:** Elevated twin foundational design principles: _"You don't know what you don't know"_ and _"Information must be earned, not guessed"_. Established **Classic Haze of War as the recommended default visibility mode**, transforming the procedural rimworld into an uncharted celestial body where knowledge must be earned through active field reconnaissance.
+  - **Two-Axis Mutability Framework (`ProjectVigilance.Geoscape.Rules`):** Decoupled lifecycle constraints (`Mutable`, `Escalatable`, `Immutable`) from transition side-effects (`RebuildWorldLayers`, `RescanSensors`, `ReleaseConcealedSites`, `RepathPlayerCaravans`).
+  - **Authoritative Save Persistence:** Persists `GeoscapeRuleSet` in `.rws` save data via `GeoscapeCampaignRules` (`WorldComponent`), ensuring gameplay rules remain immutable to cross-save contamination.
+  - **High-Performance Facade (`GeoscapeRules`):** Routes all production queries to save data with zero heap allocations, safely falling back to defaults in tests and at the main menu.
+  - **World-Generation Campaign Setup:** Added launcher button to `Page_CreateWorldParams` opening `Dialog_GeoscapeCampaignRules`, enabling pre-generation rule selection and one-click campaign profile presets (`Classic Haze (Recommended)`, `Planetary Surveillance`, `Hardcore Vigilance`, `Custom`).
+  - **Forensic Audit Ledger (`RuleChangeRecord`):** Tracks escalations, legacy migrations, and dev overrides up to 100 entries, including an immutable Day-0 rule snapshot (`CampaignCreated`).
+  - **DevMode-Gated Session Override:** `allowUnsafeRuleTransitions` requires active `Prefs.DevMode`, resets on exit, and turns off automatically if DevMode is disabled.
 - **Orbital Faction Hubs, Persistent Stations & Drifting Satellite Logistics Network (`WorldObject_OrbitalStation`, `WorldObject_Satellite`, `Satellite_Trade`, `OrbitalFlightModel`, `OrbitalManager`):**
   - **Drifting Keplerian Mechanics Engine:** Analytical closed-form flight model ($O(1)$, zero heap allocations) incorporating $J_2$ planetary oblateness nodal precession ($\dot{\Omega}$) and incommensurate periods ($T_{\text{orbit}} \nmid 60{,}000$), ensuring satellite ground tracks continuously drift across longitudes without repeating on rigid timers.
   - **Persistent Orbital Stations:** Permanent faction operational centres for orbital factions (such as `TradersGuild` / *Merchant's Bazaar*). Manages constellation telemetry, automated replacement queues, and a $35^\circ$ angular service corridor where satellites enter for maintenance and trade restock.

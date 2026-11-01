@@ -72,11 +72,23 @@
   - **Extensibility for Future Orbital Vessels (`IOrbitalEntity`):** Common contract unifying stations, satellites, and future mobile actors (gravships, shuttles, interceptors, UFOs) without modifying station or satellite logic.
   - **Orbital Ecosystem Manager (`OrbitalManager`):** Global `WorldComponent` tracking orbital infrastructure and automatically deploying stations and initial constellations for orbital factions lacking ground bases.
   - **Automated Unit Testing & Verification (`OrbitalLogisticsTests.cs`):** 15 automated test cases validating ground track drift, Keplerian velocities, station service area transitions, trade contracts, caravan navigation bonuses, and constellation management. All 125 unit tests in `Geoscape.Tests` passing.
+- [ ] **Campaign Rules, Mutability Framework & World-Gen Setup:**
+  - **Epistemic Principle Alignment:** Embed twin core principles—_"You don't know what you don't know"_ and _"Information must be earned, not guessed"_—into the save architecture. Establish **Classic Haze of War as the recommended default visibility mode**.
+  - **Two-Axis Mutability Engine (`ProjectVigilance.Geoscape.Rules`):** Decouple lifecycle constraints (`Mutable`, `Escalatable`, `Immutable`) from transition side-effects (`RebuildWorldLayers`, `RescanSensors`, `ReleaseConcealedSites`, `RepathPlayerCaravans`).
+  - **Authoritative Persistence (`GeoscapeCampaignRules` & `GeoscapeRules`):** Persist `GeoscapeRuleSet` in save data (`.rws`) via `WorldComponent`. Expose zero-allocation `GeoscapeRules` facade routing all production queries to the save, falling back to defaults in tests and at the main menu.
+  - **World-Generation Rules Launcher (`Page_CreateWorldParams`):** Add launcher button to the world-generation setup page opening `Dialog_GeoscapeCampaignRules`, allowing players to configure campaign rules and choose profiles (`Classic Haze (Recommended)`, `Planetary Surveillance`, `Hardcore Vigilance`, `Custom`) before world creation.
+  - **Forensic Audit Ledger (`RuleChangeRecord`):** Capped at 100 entries, recording escalations, unsafe transitions, and dev override toggles. Includes pinned Day-0 rule snapshot (`CampaignCreated`) and legacy migration records (`LegacyMigration`).
+  - **DevMode-Gated Session-Only Override:** `allowUnsafeRuleTransitions` requires active `Prefs.DevMode`, resets on game exit, and clears automatically when DevMode is turned off.
+  - **Legacy Save Migration:** Adopt current ModSettings defaults on first load of pre-1.3 saves, opening a 1-day review window with a deferred notification letter.
 
 ---
 
 ### Milestone 1.4: Planetary Coordination & Version Support
 
+- [ ] **Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
+  - Implement the pre-settlement expedition phase for uncharted rim worlds, allowing players to survey regional geography, waterways, and mountain passes before committing to a permanent base location.
+  - **Landing Cargo / Mission Assets:** Keep heavy starting resources (bulk steel, food crates, components) off-map in orbital staging pods, deploying via drop pods only when the player stakes their colony claim via Colony Beacon.
+  - **Scenario Opt-In Architecture:** Configurable via `ExpeditionStartMode` (`Disabled`, `ScenarioDefault`, `ForceExpedition`) with XML `DefModExtension` support, automatically bypassing orbital/space starts (Odyssey, GravShips, SOS2).
 - [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
 - [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.

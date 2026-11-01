@@ -87,22 +87,22 @@ When viewing the world map, players can toggle the **Radar Coverage Overlay**:
 
 ### 2.3 Configurable Planetary Visibility Modes
 
-Recognising that player preferences range from authentic military surveillance to immersive exploration and casual storytelling, the engine exposes three selectable visibility models:
+Guided by the foundational principles—_**"You don't know what you don't know"**_ and _**"Information must be earned, not guessed"**_—Project Vigilance treats the planetary globe not as an omniscient atlas, but as an uncharted celestial frontier. The engine provides three selectable visibility models balancing discovery, operational surveillance, and sandbox play:
 
-1. **Planetary Surveillance (X-COM Style — Default):**
-   - Planetary geography (landmasses, oceans, biomes, and visible faction settlements) is charted and known from orbital mapping.
-   - Dynamic tactical movement is hidden: hostile incursions, alien craft, and clandestine sites are concealed unless they fall within active Radar or Scout coverage.
-   - Ideal for industrial, spacer, and authentic X-COM playthroughs tracking the _difference_ in global activity.
+1. **Classic Haze of War (3-Tier RTS Style — Recommended Default):**
+   - **Terra Incognita (Unexplored):** The procedural planet begins completely uncharted and shrouded in darkness. Continents, mountain ranges, biomes, and foreign settlements must be actively discovered from ground level.
+   - **Haze of War (Explored but Unmonitored):** Rendered with a desaturated translucent slate veil. Known terrain, charted settlements, and permanent landmarks remain visible, but active enemy incursions, caravans, and dynamic hostile camps are completely concealed.
+   - **Active Vision:** Full daylight clarity revealing live moving entities, accompanied by subtle radar sweep rings and lookout horizons.
+   - **Core Philosophy:** Purest expression of the Vigilance design thesis. Every lookout watchtower, signal beacon, caravan expedition, and reconnaissance satellite expands your charted frontier.
 
-2. **Classic Haze of War (3-Tier RTS Style):**
-   - **Terra Incognita (Unexplored):** Shrouded in darkness until visited or scanned.
-   - **Haze of War (Explored but Unmonitored):** Rendered with a desaturated translucent slate veil. Known terrain and static bases remain visible, but active incursions and moving hostile units are completely concealed.
-   - **Active Vision:** Full daylight clarity revealing live moving entities, accompanied by subtle radar sweep rings.
-   - Ideal for low-tech, tribal, medieval, or roleplaying campaigns emphasizing planetary discovery.
+2. **Planetary Surveillance (Classic X-COM):**
+   - **Orbital Survey Mapping Available:** Planetary geography (continents, oceans, mountain chains, biomes, and visible faction settlements) is charted and known from initial orbital cartography, mirroring the 1994 X-COM experience on Earth.
+   - **Dynamic Movement Concealed:** Dynamic hostile incursions, alien warbands, and clandestine forward camps remain concealed unless they fall within active Radar or Scout coverage.
+   - **Ideal For:** Industrial, spacer, and high-tech playthroughs focusing strictly on the tactical detection and interception of incoming threats rather than cartographic exploration.
 
-3. **Omniscient Mode (Living Map / Spectator):**
-   - Zero fog of war or haze. All worldwide incursion movements, faction emblems, and arrival ETAs are immediately visible across the globe without technology requirements.
-   - Ideal for players who enjoy observing the planetary simulation without managing radar grids.
+3. **Omniscient Mode (Sandbox / Observer):**
+   - Zero fog of war or haze. All worldwide incursion movements, faction emblems, dynamic camps, and arrival ETAs are immediately visible across the globe without technology or sensor requirements.
+   - **Ideal For:** Mod debugging, performance profiling, storyteller testing, and casual role-players who enjoy observing the living world simulation without managing sensor networks.
 
 ### 2.4 5-Tier Contact Classification & Intelligence Progression
 
@@ -172,7 +172,7 @@ In vanilla RimWorld, right-clicking empty world tiles is inactive unless a playe
    - _"Dismantle Outpost"_ (salvages 75% of construction materials back into caravan inventory). For Signal Beacons, 112 items of the matching `stuffDef` are refunded (preventing infinite stone-to-wood transmutation) and cleanly partitioned into valid item stacks respecting `stackLimit` (e.g. 75 + 37 items) to eliminate engine stack-overflow glitches.
    - _"Repair Sabotaged Station"_ (restores sabotaged stations disabled by passing enemy incursions for 25% of original construction materials: 25 Steel + 1 Component for relays, or 38 Wood/Stone for beacons).
 
-### 2.4 Orbital Infrastructure: Persistent Stations & Drifting Satellite Constellations
+### 2.7 Orbital Infrastructure: Persistent Stations & Drifting Satellite Constellations
 
 Orbital-only factions (such as `TradersGuild` / *Merchant's Bazaar*) and advanced space defence programs deploy orbital infrastructure analogous to surface settlements and mobile caravans:
 
@@ -195,6 +195,58 @@ Orbital-only factions (such as `TradersGuild` / *Merchant's Bazaar*) and advance
 
 4. **Future Vessel Extensibility (`IOrbitalEntity`):**
    - Universal interface allowing future orbital actors (player gravships, shuttles, interceptors, UFOs) to enter station service areas or navigate drifting orbits without modifying station or satellite logic.
+
+### 2.8 Campaign Rules, Persistence & Mutability Framework
+
+Guided by our twin design principles—_**"You don't know what you don't know"**_ and _**"Information must be earned, not guessed"**_—gameplay-affecting settings in Project Vigilance are not floating global UI options; they are **authoritative campaign state** bound directly to save files:
+
+$$\mathbf{Campaign\ Identity} = \mathbf{Scenario} + \mathbf{World\ Seed} + \mathbf{Storyteller\ \&\ Difficulty} + \mathbf{Campaign\ Rules}$$
+
+#### 1. The Two-Axis Rule Model
+
+The framework separates the *lifecycle constraint* of a rule from its *operational transition side-effects*:
+
+- **Axis 1: Mutability Lifecycle (`RuleMutability`):**
+  - **`Mutable`:** Presentation and notification filters that can be freely altered at any time without compromising simulation integrity (e.g. `enableEarlyWarningLetters`, radar outline styles, custom colours).
+  - **`Escalatable`:** Epistemic knowledge rules that follow a monotonic forward-progression path (e.g. `visibilityMode`: Classic Haze $\to$ Planetary Surveillance $\to$ Omniscient). Information can be safely revealed; it cannot be cleanly unrevealed without loss of historical state.
+  - **`Immutable`:** Physical, biological, and storyteller simulation laws locked at world generation (e.g. `colonyScoutRadius`, `caravanScoutRadius`, `enableNighttimeSensoryReduction`, `incursionsRestAtNight`, `synchronizeMultiVectorRaids`, `enableTacticalIngressFlanking`, `resetThreatCooldownOnArrival`).
+- **Axis 2: Transition Effects (`RuleTransitionEffects`):**
+  - Bitmask declaring automated engine routines triggered when permitted rule changes occur (`ReleaseConcealedSites`, `RescanSensors`, `RepathPlayerCaravans`, `RebuildWorldLayers`).
+
+#### 2. Authoritative Architecture & Zero-Allocation Facade
+
+```text
+[ Global ModSettings ]
+      │ (Player's new-campaign defaults)
+      ▼
+[ World Generation Page ] ──> Dialog_GeoscapeCampaignRules (Draft Set + Preset Profiles)
+      │ (Snapshot taken upon world creation)
+      ▼
+[ GeoscapeCampaignRules ] (WorldComponent: saved in .rws, authoritative)
+      │
+      ▼
+[ GeoscapeRules Facade ] ───> Gameplay hot path (Zero-alloc thread-safe reads)
+```
+
+- **`GeoscapeCampaignRules` (`WorldComponent`):** Serialises the authoritative `GeoscapeRuleSet` into the `.rws` save file under `<world><components>`.
+- **`GeoscapeRules` Facade:** High-performance, zero-allocation accessor routing all production queries to the active campaign's rules, safely falling back to defaults at the main menu or in headless unit tests.
+- **Rule Change Ledger (`RuleChangeRecord`):** Capped at 100 entries, recording every escalation, unsafe dev override, and legacy migration. Pinned origin records (`CampaignCreated`, `LegacyMigration`) are permanently preserved.
+- **Day-0 Creation Snapshot:** The initial `CampaignCreated` ledger entry records an exhaustive semicolon-delimited string snapshot of all 9 campaign rules selected at Day 0, providing permanent forensic integrity for bug reporting and challenge runs.
+
+#### 3. Campaign Profiles (Presets)
+
+To streamline world setup, the world-generation dialog and mod settings provide one-click profile presets:
+- **Classic Haze (Recommended):** Full planetary fog of war, biological nocturnal rest, multi-vector synchronisation, and tactical flanking.
+- **Planetary Surveillance (Classic X-COM):** Known planetary geography with dynamic incursion tracking outside radar envelopes.
+- **Hardcore Vigilance:** Uncharted planet, tight visual horizons, active night blindness, and aggressive tactical flanking.
+- **Custom:** Full manual control over individual rule parameters.
+
+#### 4. Strategic Runway: The Planetary Expedition Phase
+
+To eliminate the "Blind Guessing Paradox" of starting on an uncharted planet under *Classic Haze of War*, the architecture incorporates an extensible runway for the **Civilization Settler Paradigm** (Milestone 1.4):
+- Scenarios can declare an overland **Expedition Phase** (`ExpeditionStartMode`), starting the player with a mobile reconnaissance caravan to survey local rivers, choke points, and roads before committing to a base location.
+- Heavy starting resources (steel, components, food crates) are preserved as **Orbital Landing Cargo / Mission Assets**, deployed via drop pods only when the player activates their Colony Beacon on the chosen hex.
+- Orbital and space starts (Odyssey platforms, GravShips, Save Our Ship 2) automatically bypass the overland expedition, preserving 100% scenario compatibility.
 
 ---
 

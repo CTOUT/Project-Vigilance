@@ -81,18 +81,23 @@ In vanilla RimWorld, oceans make up 30–50% of the planetary surface, yet they 
 - RimWorld already excels at base building, power management, workshops, and hospital wings.
 - The suite introduces the **X-COM Facilities Layer**: Radar domes, containment cells, research laboratories, manufacturing workshops for alien alloys, and launch pads.
 
-### Core Design Practice: "You Don't Know What You Don't Know"
+### Core Design Principles: Epistemic Uncertainty & Earned Intelligence
 
-A central design practice governing all systems across Project Vigilance is:
+Two foundational design principles govern all systems across Project Vigilance:
 
-> **"You don't know what you don't know."**  
+> **1. "You don't know what you don't know."**  
 > _To know, you need to find out — investigate, identify, research, explore._
+>
+> **2. "Information must be earned, not guessed."**  
+> _Uncertainty is not arbitrary blindness; every unknown has an actionable, strategic path to discovery._
 
 #### 1. The Epistemic Philosophy
 
-In vanilla RimWorld and standard strategy gaming conventions, the interface often grants players passive, omniscient intelligence. When a raid or incident triggers, the player instantly receives an explicit letter stating the exact enemy faction, threat point budget, raid delivery method, pawn roster, armour sets, and weaponry.
+In vanilla RimWorld and standard strategy conventions, the interface often grants players passive, omniscient intelligence. When a raid triggers, an explicit letter instantly reveals the attacking faction, threat points, pawn roster, armour, and weaponry. At the world scale, the entire planet is unveiled as a fully-charted atlas from Day 0.
 
-Project Vigilance rejects passive omniscience. Information is treated as an active, high-value strategic commodity that must be earned through deliberate player initiative, technological investment, and field reconnaissance. The universe begins in darkness and uncertainty; what lies beyond your immediate sensory perimeter is completely unknown until you take deliberate action to discover it.
+Project Vigilance rejects passive omniscience:
+- **Earned Intelligence:** Information is an active, high-value strategic commodity earned through deliberate player initiative, technological investment, and field reconnaissance.
+- **Eliminating the Blind Guessing Paradox:** While the planet begins in darkness, the player should never be forced to make permanent, game-defining decisions through blind guesswork. True exploration provides the tools to survey, probe, and uncover actionable intelligence before committing irreversible resources.
 
 #### 2. Practical Application Across Systems
 
@@ -113,6 +118,17 @@ Project Vigilance rejects passive omniscience. Information is treated as an acti
 
 - **World Exploration & Strategic Surveillance:**  
   Unmonitored planetary sectors on the Geoscape hide active enemy operations, secret staging bases, sub-surface ocean anomalies, and terror cells. The world does not passively update its state for your convenience. To discover what hostile forces are plotting across the globe, you must actively explore, establish remote forward listening posts, survey regional biomes, and deploy reconnaissance craft.
+
+- **Planetary Expedition Phase & Landing Reserves (Civilization Settler Paradigm):**  
+  To ensure *information is earned, not guessed*, starting on an uncharted planet (*Classic Haze of War*) transitions from arbitrary site selection to a deliberate regional survey. Rather than committing to a permanent settlement blindly from orbit, landing parties deploy with mobile reconnaissance mobility to survey local waterways, roads, and defensible mountain choke points before staking their permanent claim, calling down heavy landing cargo and orbital supply pods upon site deployment.
+
+#### 3. The Campaign Identity Equation
+
+Project Vigilance treats campaign rules not as floating global UI options, but as permanent pillars of simulation identity:
+
+$$\mathbf{Campaign\ Identity} = \mathbf{Scenario} + \mathbf{World\ Seed} + \mathbf{Storyteller\ \&\ Difficulty} + \mathbf{Campaign\ Rules}$$
+
+Campaign rules (such as Fog of War visibility modes, night vigilance mechanics, tactical ingress flanking, and multi-vector raid synchronisation) are bound directly to save files. A save is an authoritative historical record of the exact physical laws and strategic constraints under which that campaign was fought.
 
 ---
 
