@@ -35,6 +35,7 @@ It covers multi-dish radar interferometry, dynamic power scaling, Model B+ terra
 | **TC-23** | Automatic Override Invalidation on DevMode Toggle   | • Toggling `Prefs.DevMode` off in Options immediately deactivates `UnsafeRuleOverride.Requested` and sets `Effective` to false.<br>• Active campaign ledger records `DevOverrideDisabled` with note `Developer mode switched off`.<br>• Mutability constraints immediately re-engage in Mod Settings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | **Ready for Test** | Options / Mod Settings / Audit Ledger     |
 | **TC-24** | Override Session Ephemerality Across Loads & Restarts | • Enabling unsafe override and saving game does not persist override flag into save XML.<br>• Loading save while DevMode is active logs `DevOverrideEnabled` (`Override active when campaign was loaded`).<br>• Restarting RimWorld executable launches with override disabled by default, preventing accidental unintended rule mutations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | **Ready for Test** | Save/Load Menu / Game Restart             |
 | **TC-25** | Mutable Notification Preferences & ModSettings Decoupling | • In-game toggling of `EarlyWarningLetters` (`enableEarlyWarningLetters`) takes effect immediately without confirmation modal or ledger entry.<br>• In-game reset button (`Reset New Campaign Defaults to Factory Settings`) resets global preferences and factory defaults for future games, leaving active campaign rules and ledger completely untouched.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | **Ready for Test** | Mod Settings / Early Warning Tab          |
+| **TC-26** | First-Time Project Vigilance Adoption & Save Provenance | • Loading established save never exposed to Project Vigilance (`schemaVersion == 0` and foundational components absent from save XML) triggers `DetermineEntryPath` $\rightarrow$ `ModAdoption`.<br>• Game pauses on load and presents `Dialog_GeoscapeModAdoption` modal.<br>• Choosing `Planetary Surveillance` adopts rules preserving charted geography, opens 1-day review window, and pins Day-0 `ModAdoption` origin snapshot in ledger.<br>• Choosing `Classic Haze of War ("The Great Blackout")` displays explicit warning note that existing geographic knowledge will be lost, resets shroud around lookouts, and triggers optimistic caravan route recalculation.<br>• Dismissing modal via `Esc` or `Close (X)` defaults to `Planetary Surveillance` with active 1-day grace period. | **Ready for Test** | Mod Adoption Modal / Audit Ledger         |
 
 ---
 
@@ -955,6 +956,57 @@ _Objective: Validate Mutable rule operation and total decoupling of factory defa
 
 ---
 
+### Test 26: First-Time Project Vigilance Adoption (`TC-26`)
+
+_Objective: Validate that an established colony that has never used Project Vigilance receives explicit agency via the adoption modal, defaults safely to Planetary Surveillance, and records a pinned provenance audit entry._
+
+#### 26.1 Standard Mod Adoption (Planetary Surveillance)
+
+1. Load an established vanilla RimWorld save (e.g. Year 5+ colony) that has never run Project Vigilance.
+2. Observe game initialisation:
+   - **Verify Game State:** Game loads in paused state.
+   - **Verify Modal Presentation:** `Dialog_GeoscapeModAdoption` is presented automatically on screen.
+   - **Verify Options:** All four options are visible:
+     - `Planetary Surveillance (Rec.)`
+     - `Classic Haze of War`
+     - `Hardcore Vigilance`
+     - `Customise Individual Rules...`
+3. Click `Planetary Surveillance (Rec.)`:
+   - **Verify World Map:** Terrain, oceans, rivers, and static faction settlements remain charted and fully visible.
+   - **Verify Tactical Cloaking:** Active hostile incursions, mechanoid warbands, and dynamic camps outside lookout/radar envelopes remain hidden.
+   - **Verify Review Banner:** Open `Options -> Mod Settings`: green 1-day review banner is displayed with remaining ticks and lock confirmation button.
+   - **Verify Pinned Provenance Record:** Enable DevMode and inspect the ledger:
+     - Record #0 has kind `ModAdoption`.
+     - Is marked pinned (`IsPinned == true`).
+     - Note confirms `Profile: Planetary Surveillance (User Selection)`.
+
+#### 26.2 "The Great Blackout" Challenge Scenario (Classic Haze of War)
+
+1. Load the vanilla save again.
+2. In `Dialog_GeoscapeModAdoption`, inspect the `Classic Haze of War` card:
+   - **Verify Warning Note:** Displays prominent amber warning:
+     ```text
+     Warning:
+     Existing geographic knowledge will be lost.
+     Recommended only for players intentionally starting a re-discovery challenge.
+     ```
+3. Click `Classic Haze of War`:
+   - **Verify Planetary Shroud:** Unmonitored sectors outside colony lookouts/radar are plunged into black shroud.
+   - **Verify Caravan Safety:** Any caravans in transit repath optimistically without pathing errors or crashes.
+   - **Verify Ledger:** Pinned record notes `Profile: Classic Haze of War (Recommended) (User Selection)`.
+
+#### 26.3 Dialog Dismissal Fallback & 1-Day Review Window
+
+1. Load the vanilla save again.
+2. When `Dialog_GeoscapeModAdoption` appears, press `Esc` or click the top-right `X` close button without making an explicit selection.
+3. Observe adoption fallback:
+   - **Verify Notification:** Notification confirms adoption with `Planetary Surveillance` baseline.
+   - **Verify World Map:** Geography remains charted (non-destructive baseline).
+   - **Verify Review Window:** Open Mod Settings: 1-day review window remains open, allowing the player to change their rules freely.
+   - **Verify Ledger:** Record notes `Profile: Planetary Surveillance (Dismissal Fallback)`.
+
+---
+
 ## In-Game Verification Sign-Off Checklist
 
 - [ ] **TC-01:** Multi-dish radar interferometry progression ($10 \rightarrow 17 \rightarrow 22$ rings), locked 250-tick cadence, and dynamic power scaling verified.
@@ -982,3 +1034,4 @@ _Objective: Validate Mutable rule operation and total decoupling of factory defa
 - [ ] **TC-23:** Immediate unsafe override revocation and `DevOverrideDisabled` ledger logging upon turning off DevMode verified.
 - [ ] **TC-24:** Session-only ephemerality (zero XML persistence) and restart safety verified.
 - [ ] **TC-25:** Mutable notification rule toggling and factory defaults reset isolation verified.
+- [ ] **TC-26:** First-time mod adoption lifecycle (`Dialog_GeoscapeModAdoption`), planetary surveillance default, blackout warning, and pinned `ModAdoption` provenance record verified.

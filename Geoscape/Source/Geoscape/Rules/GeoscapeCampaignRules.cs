@@ -1,11 +1,30 @@
 using System;
 using System.Collections.Generic;
 using ProjectVigilance.Geoscape.Sensory;
+using ProjectVigilance.Geoscape.World;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
 
 namespace ProjectVigilance.Geoscape.Rules;
+
+/// <summary>
+/// Identifies the initialisation origin and provenance of a campaign.
+/// </summary>
+public enum CampaignEntryPath
+{
+    /// <summary>Started fresh under Project Vigilance 1.3+ on a new world.</summary>
+    NewCampaign,
+
+    /// <summary>Active governed save restored from disk (schemaVersion >= 1).</summary>
+    ActiveSave,
+
+    /// <summary>Pre-1.3 Project Vigilance save upgraded to campaign rules framework.</summary>
+    LegacyMigration,
+
+    /// <summary>Established non-Vigilance save adopting Geoscape systems for the first time.</summary>
+    ModAdoption
+}
 
 /// <summary>
 /// WorldComponent holding authoritative campaign rules, audit ledger, and legacy migration lifecycle for the active save.
@@ -25,6 +44,12 @@ public sealed class GeoscapeCampaignRules : WorldComponent
     private bool loadedFromSave;
     private bool initialised;
     private string? pendingCreationSource;
+
+    public bool LoadedFromSave
+    {
+        get => loadedFromSave;
+        internal set => loadedFromSave = value;
+    }
 
     public GeoscapeRuleSet Rules => rules;
     public IReadOnlyList<RuleChangeRecord> Ledger => ledger;
@@ -152,27 +177,107 @@ public sealed class GeoscapeCampaignRules : WorldComponent
         }
     }
 
+    public CampaignEntryPath DetermineEntryPath(bool fromLoad)
+    {
+        if (!fromLoad)
+        {
+            return CampaignEntryPath.NewCampaign;
+        }
+
+        if (loadedFromSave && schemaVersion >= CurrentSchemaVersion)
+        {
+            return CampaignEntryPath.ActiveSave;
+        }
+
+        bool hasPriorGeoscapeData = (SensoryManager.Instance?.LoadedFromSave == true) ||
+                                    (ContactRegistry.Instance?.LoadedFromSave == true) ||
+                                    (HazeReconnaissanceManager.Instance?.LoadedFromSave == true);
+        return hasPriorGeoscapeData ? CampaignEntryPath.LegacyMigration : CampaignEntryPath.ModAdoption;
+    }
+
     public override void FinalizeInit(bool fromLoad)
     {
         base.FinalizeInit(fromLoad);
 
-        bool isLegacySave = fromLoad && !loadedFromSave;
         EnsureInitialised();
 
-        if (isLegacySave)
+        CampaignEntryPath path = DetermineEntryPath(fromLoad);
+        switch (path)
         {
-            BeginLegacyMigration();
-        }
-        else if (!fromLoad)
-        {
-            string source = pendingCreationSource ?? "Defaults";
-            string snapshot = rules.CreateSnapshotString();
-            Record(RuleChangeKind.CampaignCreated, note: $"{source} | {snapshot}");
-            NewCampaignRuleDraft.Clear();
+            case CampaignEntryPath.NewCampaign:
+                string source = pendingCreationSource ?? "Defaults";
+                string snapshot = rules.CreateSnapshotString();
+                Record(RuleChangeKind.CampaignCreated, note: $"{source} | {snapshot}");
+                NewCampaignRuleDraft.Clear();
+                break;
+
+            case CampaignEntryPath.LegacyMigration:
+                BeginLegacyMigration();
+                break;
+
+            case CampaignEntryPath.ModAdoption:
+                BeginModAdoption();
+                break;
+
+            case CampaignEntryPath.ActiveSave:
+                // Normal governed save; rules restored via ExposeData
+                break;
         }
 
         UnsafeRuleOverride.Notify_CampaignActivated(this, fromLoad);
     }
+
+    private void BeginModAdoption()
+    {
+        reviewWindowEndsAtTick = CurrentTick + ReviewWindowTicks;
+        schemaVersion = CurrentSchemaVersion;
+
+        LongEventHandler.ExecuteWhenFinished(() =>
+        {
+            if (Current.ProgramState != ProgramState.Playing || Find.WindowStack == null)
+            {
+                return;
+            }
+
+            Find.WindowStack.Add(new Dialog_GeoscapeModAdoption(this));
+        });
+    }
+
+    public void ApplyAdoptionProfile(CampaignProfile profile, string source)
+    {
+        rules.ApplyProfile(profile);
+
+        RuleTransitionEffects effects = RuleTransitionEffects.RebuildWorldLayers | RuleTransitionEffects.RescanSensors;
+        if (rules.Visibility.Value == VisibilityMode.ClassicHazeOfWar)
+        {
+            effects |= RuleTransitionEffects.RepathPlayerCaravans;
+        }
+        else
+        {
+            effects |= RuleTransitionEffects.ReleaseConcealedSites;
+        }
+
+        RuleTransitionExecutor.Execute(effects);
+
+        string snapshot = rules.CreateSnapshotString();
+        Record(RuleChangeKind.ModAdoption, note: $"Profile: {profile.GetDisplayName()} ({source}) | {snapshot}");
+    }
+
+    public void ApplyAdoptionCustom(string source)
+    {
+        RuleTransitionEffects effects = RuleTransitionEffects.RebuildWorldLayers | RuleTransitionEffects.RescanSensors;
+        if (rules.Visibility.Value == VisibilityMode.ClassicHazeOfWar)
+        {
+            effects |= RuleTransitionEffects.RepathPlayerCaravans;
+        }
+
+        RuleTransitionExecutor.Execute(effects);
+
+        string snapshot = rules.CreateSnapshotString();
+        Record(RuleChangeKind.ModAdoption, note: $"Profile: Custom ({source}) | {snapshot}");
+    }
+
+    public bool HasRecordedAdoption => ledger.Any(r => r.kind == RuleChangeKind.ModAdoption);
 
     private void BeginLegacyMigration()
     {

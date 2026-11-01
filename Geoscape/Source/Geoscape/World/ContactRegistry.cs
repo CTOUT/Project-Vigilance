@@ -175,7 +175,14 @@ public class ContactRegistry : WorldComponent
     private readonly Dictionary<int, WorldObject_Incursion> activeContacts = new();
     private List<ContactArchiveRecord> historicalRecords = new();
 
-    public static ContactRegistry? Instance => Find.World?.GetComponent<ContactRegistry>();
+    [ThreadStatic]
+    private static ContactRegistry? testInstance;
+
+    public static ContactRegistry? Instance
+    {
+        get => testInstance ?? Find.World?.GetComponent<ContactRegistry>();
+        set => testInstance = value;
+    }
 
     public int NextContactTrackingId => nextContactTrackingId;
 
@@ -483,9 +490,26 @@ public class ContactRegistry : WorldComponent
         Log.Message($"[Project Vigilance] ContactRegistry initialized. Active contacts: {activeContacts.Count}, Historical records: {historicalRecords.Count}, Next ID: {nextContactTrackingId}.");
     }
 
+    private bool loadedFromSave;
+
+    /// <summary>
+    /// Indicates whether this component was deserialized from save XML.
+    /// </summary>
+    public bool LoadedFromSave
+    {
+        get => loadedFromSave;
+        internal set => loadedFromSave = value;
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
+
+        if (Scribe.mode == LoadSaveMode.LoadingVars)
+        {
+            loadedFromSave = true;
+        }
+
         Scribe_Values.Look(ref nextContactTrackingId, "nextContactTrackingId", 1);
         Scribe_Collections.Look(ref historicalRecords, "historicalRecords", LookMode.Deep);
 

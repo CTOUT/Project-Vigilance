@@ -4,6 +4,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape;
 using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
+using ProjectVigilance.Geoscape.World;
 using UnityEngine;
 using Verse;
 
@@ -18,6 +19,9 @@ public class CampaignRulesTests
         GeoscapeCampaignRules.ResetStaticDataForTesting();
         UnsafeRuleOverride.ResetForTesting();
         NewCampaignRuleDraft.Clear();
+        SensoryManager.Instance = null;
+        ContactRegistry.Instance = null;
+        HazeReconnaissanceManager.Instance = null;
     }
 
     [TestCleanup]
@@ -26,6 +30,9 @@ public class CampaignRulesTests
         GeoscapeCampaignRules.ResetStaticDataForTesting();
         UnsafeRuleOverride.ResetForTesting();
         NewCampaignRuleDraft.Clear();
+        SensoryManager.Instance = null;
+        ContactRegistry.Instance = null;
+        HazeReconnaissanceManager.Instance = null;
     }
 
     // =========================================================================
@@ -425,5 +432,108 @@ public class CampaignRulesTests
         // Check ledger recorded disabled transition
         Assert.IsTrue(campaign.Ledger.Count >= 2);
         Assert.AreEqual(RuleChangeKind.DevOverrideDisabled, campaign.Ledger[campaign.Ledger.Count - 1].kind);
+    }
+
+    // =========================================================================
+    // 7. Mod Adoption & Lifecycle Entry Path Tests
+    // =========================================================================
+
+    [TestMethod]
+    public void DetermineEntryPath_ReturnsNewCampaign_WhenNotFromLoad()
+    {
+        GeoscapeCampaignRules campaign = new();
+        CampaignEntryPath path = campaign.DetermineEntryPath(fromLoad: false);
+        Assert.AreEqual(CampaignEntryPath.NewCampaign, path);
+    }
+
+    [TestMethod]
+    public void DetermineEntryPath_ReturnsActiveSave_WhenLoadedFromSaveAndCurrentSchema()
+    {
+        GeoscapeCampaignRules campaign = new();
+        campaign.LoadedFromSave = true;
+        // Parameterless constructor sets schemaVersion = CurrentSchemaVersion (1)
+        CampaignEntryPath path = campaign.DetermineEntryPath(fromLoad: true);
+        Assert.AreEqual(CampaignEntryPath.ActiveSave, path);
+    }
+
+    [TestMethod]
+    public void DetermineEntryPath_ReturnsLegacyMigration_WhenPriorSensoryDataLoadedFromSave()
+    {
+        GeoscapeCampaignRules campaign = new();
+        campaign.LoadedFromSave = false;
+
+        SensoryManager sensory = new(null!);
+        sensory.LoadedFromSave = true;
+        SensoryManager.Instance = sensory;
+
+        CampaignEntryPath path = campaign.DetermineEntryPath(fromLoad: true);
+        Assert.AreEqual(CampaignEntryPath.LegacyMigration, path);
+    }
+
+    [TestMethod]
+    public void DetermineEntryPath_ReturnsLegacyMigration_WhenPriorContactRegistryLoadedFromSave()
+    {
+        GeoscapeCampaignRules campaign = new();
+        campaign.LoadedFromSave = false;
+
+        ContactRegistry registry = new(null!);
+        registry.LoadedFromSave = true;
+        ContactRegistry.Instance = registry;
+
+        CampaignEntryPath path = campaign.DetermineEntryPath(fromLoad: true);
+        Assert.AreEqual(CampaignEntryPath.LegacyMigration, path);
+    }
+
+    [TestMethod]
+    public void DetermineEntryPath_ReturnsModAdoption_WhenNoPriorComponentsDeserialized()
+    {
+        GeoscapeCampaignRules campaign = new();
+        campaign.LoadedFromSave = false;
+
+        // No prior components deserialized
+        SensoryManager sensory = new(null!);
+        sensory.LoadedFromSave = false;
+        SensoryManager.Instance = sensory;
+
+        CampaignEntryPath path = campaign.DetermineEntryPath(fromLoad: true);
+        Assert.AreEqual(CampaignEntryPath.ModAdoption, path);
+    }
+
+    [TestMethod]
+    public void ApplyAdoptionProfile_RecordsModAdoption_AsPinnedRecord()
+    {
+        GeoscapeCampaignRules campaign = new();
+        campaign.ApplyAdoptionProfile(CampaignProfile.PlanetarySurveillance, "Test User");
+
+        Assert.AreEqual(1, campaign.Ledger.Count);
+        RuleChangeRecord record = campaign.Ledger[0];
+        Assert.AreEqual(RuleChangeKind.ModAdoption, record.kind);
+        Assert.IsTrue(record.IsPinned);
+        Assert.IsTrue(record.note?.Contains("Planetary Surveillance") == true);
+        Assert.AreEqual(VisibilityMode.PlanetarySurveillance, campaign.Rules.Visibility.Value);
+        Assert.IsTrue(campaign.HasRecordedAdoption);
+    }
+
+    [TestMethod]
+    public void ApplyAdoptionProfile_ClassicHaze_SetsClassicHazeOfWar()
+    {
+        GeoscapeCampaignRules campaign = new();
+        campaign.ApplyAdoptionProfile(CampaignProfile.ClassicHaze, "Test User");
+
+        Assert.AreEqual(1, campaign.Ledger.Count);
+        Assert.AreEqual(RuleChangeKind.ModAdoption, campaign.Ledger[0].kind);
+        Assert.AreEqual(VisibilityMode.ClassicHazeOfWar, campaign.Rules.Visibility.Value);
+    }
+
+    [TestMethod]
+    public void ApplyAdoptionCustom_RecordsModAdoption_WithCustomProfile()
+    {
+        GeoscapeCampaignRules campaign = new();
+        campaign.ApplyAdoptionCustom("Test Custom");
+
+        Assert.AreEqual(1, campaign.Ledger.Count);
+        Assert.AreEqual(RuleChangeKind.ModAdoption, campaign.Ledger[0].kind);
+        Assert.IsTrue(campaign.Ledger[0].note?.Contains("Custom") == true);
+        Assert.IsTrue(campaign.HasRecordedAdoption);
     }
 }

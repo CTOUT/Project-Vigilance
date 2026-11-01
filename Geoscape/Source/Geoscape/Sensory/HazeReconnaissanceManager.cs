@@ -429,9 +429,25 @@ public class HazeReconnaissanceManager : WorldComponent
         }
     }
 
+    private bool loadedFromSave;
+
+    /// <summary>
+    /// Indicates whether this component was deserialized from save XML.
+    /// </summary>
+    public bool LoadedFromSave
+    {
+        get => loadedFromSave;
+        internal set => loadedFromSave = value;
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
+
+        if (Scribe.mode == LoadSaveMode.LoadingVars)
+        {
+            loadedFromSave = true;
+        }
 
         Scribe_Collections.Look(ref concealedSites, "concealedSites", LookMode.Value, LookMode.Deep);
         concealedSites ??= new Dictionary<int, ConcealedSiteRecord>();

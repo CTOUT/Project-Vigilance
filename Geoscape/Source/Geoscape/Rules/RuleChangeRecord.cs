@@ -13,6 +13,9 @@ public enum RuleChangeKind
     /// <summary>Pinned: Initial rules adopted from ModSettings on legacy-save migration.</summary>
     LegacyMigration,
 
+    /// <summary>Pinned: Initial rules adopted mid-campaign onto an existing non-Vigilance save.</summary>
+    ModAdoption,
+
     /// <summary>Rule changed during the legacy-save review window.</summary>
     ReviewWindowEdit,
 
@@ -44,7 +47,9 @@ public sealed class RuleChangeRecord : IExposable
     public string? to;
     public string? note;
 
-    public bool IsPinned => kind is RuleChangeKind.CampaignCreated or RuleChangeKind.LegacyMigration;
+    public bool IsPinned => kind is RuleChangeKind.CampaignCreated
+                               or RuleChangeKind.LegacyMigration
+                               or RuleChangeKind.ModAdoption;
 
     public RuleChangeRecord()
     {

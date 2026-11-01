@@ -1498,9 +1498,26 @@ public class SensoryManager : WorldComponent
         }
     }
 
+    private bool loadedFromSave;
+
+    /// <summary>
+    /// Indicates whether this component was deserialized from save XML.
+    /// Returns false if instantiated dynamically on an existing save via World.FillComponents().
+    /// </summary>
+    public bool LoadedFromSave
+    {
+        get => loadedFromSave;
+        internal set => loadedFromSave = value;
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
+
+        if (Scribe.mode == LoadSaveMode.LoadingVars)
+        {
+            loadedFromSave = true;
+        }
 
         Scribe_Values.Look(ref nextContactTrackingId, "nextContactTrackingId", 1);
 
