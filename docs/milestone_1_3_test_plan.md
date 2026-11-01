@@ -25,6 +25,16 @@ It covers multi-dish radar interferometry, dynamic power scaling, Model B+ terra
 | **TC-13** | Drifting Orbital Mechanics & Non-Repeating Ground Tracks | • Satellites orbit along Keplerian paths with nodal precession ($\dot{\Omega}$) and incommensurate periods ($T_{\text{orbit}} \nmid 60{,}000$).<br>• Ground tracks shift westward across successive orbits.<br>• Sub-satellite position after 1 day (60,000 ticks) is distinctly displaced, ensuring passes over player colonies do not occur on a static repeating clock.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | **Ready for Test** | World Map / Orbit Telemetry / Inspector   |
 | **TC-14** | Persistent Orbital Stations & Constellation Service Zones | • Persistent orbital station hub (`WorldObject_OrbitalStation`) operates in stable high orbit for orbital factions (`TradersGuild`).<br>• Satellites entering the $35^\circ$ service corridor transition to `In Service Area`, syncing telemetry and restock inventory.<br>• Lost or destroyed satellites queue automated replenishment countdown, spawning replacements after fabrication.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | **Ready for Test** | World Map / Station Inspector             |
 | **TC-15** | Satellite Mission Roles (Trade & Navigation Boost)   | • **Trade Satellite:** When overhead a colony with a powered `Building_CommsConsole`, appears in comms options; opens trade negotiations via drop pod delivery.<br>• **Navigation Satellite:** Caravans under the satellite's 24-tile footprint receive 15% overland speed boost (0.85x ticks per move) with inspect string telemetry feedback.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | **Ready for Test** | Colony Comms Console / Caravan Inspector  |
+| **TC-16** | Cross-Campaign Save Isolation & Pinned Rules        | • Campaign A created under `ClassicHazeOfWar`. Campaign B created under `Omniscient`.<br>• Reloading Campaign A restores `ClassicHazeOfWar`; reloading Campaign B restores `Omniscient`.<br>• Global `ModSettings` defaults are untouched by save loads and do not cross-contaminate active saves.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | **Ready for Test** | World Map / Mod Settings / Save System    |
+| **TC-17** | World-Gen Rules Dialog & Profile Presets            | • `Page_CreateWorldParams` bottom bar renders `Geoscape Rules...` launcher button between Back and Reset.<br>• Opens `Dialog_GeoscapeCampaignRules` displaying lock-preview badges and campaign profile buttons (`Classic Haze (Recommended)`, `Planetary Surveillance`, `Hardcore Vigilance`, `Custom`).<br>• Choosing preset applies values to transient draft.<br>• Vanilla `Reset` resets draft back to defaults; `Save as Defaults` syncs to ModSettings.<br>• World creation consumes draft, pins `CampaignCreated` Day-0 snapshot in ledger, and clears draft.                                                                                                                                                                                                                                                                                                                                                       | **Ready for Test** | World Generation Page / Dialog            |
+| **TC-18** | Default Campaign Creation & Day-0 Snapshot          | • Generating world without opening `Dialog_GeoscapeCampaignRules` adopts factory defaults (`ClassicHazeOfWar`).<br>• Pins initial `CampaignCreated` Day-0 snapshot record in ledger with full rule state.<br>• Transient draft remains cleared.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | **Ready for Test** | World Generation / Audit Ledger           |
+| **TC-19** | Legacy Save Migration & Day-1 Review Grace Period   | • Loading unversioned pre-1.3 save detects `schemaVersion == 0`.<br>• Adopts current `ModSettings` as baseline, sets 60,000-tick review window, and pins `LegacyMigration` record in ledger.<br>• Dispatches non-blocking explanation letter warning player of review period and noting existing exploration data if present.<br>• Review banner in Mod Settings displays remaining time and `[Confirm & Lock In Campaign Rules Now]` button.<br>• Confirming or window expiration locks immutable rules and records `ReviewWindowLocked`.                                                                                                                                                                                                                                                                                                                                                                                       | **Ready for Test** | Legacy Save Load / Letter Stack           |
+| **TC-20** | Monotonic Visibility Escalation & Side-Effects Engine | • In-game escalation from `ClassicHazeOfWar` $\rightarrow$ `PlanetarySurveillance` or `Omniscient` prompts permanent escalation confirmation dialog.<br>• Executing transition invokes `RuleTransitionExecutor`: releases all concealed dynamic sites and delivers deferred quest/announcement letters, invalidates sensory caches and sweeps vision, repaths active player caravans around discovered terrain, and rebuilds 3D GPU world meshes and feature labels.<br>• Ledger records `Escalation` transition with from/to labels.                                                                                                                                                                                                                                                                                                                                                                                        | **Ready for Test** | Mod Settings / World Map / Caravans       |
+| **TC-21** | Mutability Enforcement & Immutable Rule Locking     | • Once campaign starts and review window closes, all 7 Immutable rules (`colonyScoutRadius`, `caravanScoutRadius`, `enableNighttimeSensoryReduction`, `incursionsRestAtNight`, `synchronizeMultiVectorRaids`, `enableTacticalIngressFlanking`, `resetThreatCooldownOnArrival`) are greyed out with `(Locked)` suffix.<br>• Reverse visibility transitions (e.g. `PlanetarySurveillance` $\rightarrow$ `ClassicHazeOfWar`) are greyed out with `(Locked - Cannot reverse)` suffix.<br>• Sliders and checkboxes reject interaction when DevMode is disabled; 0 changes recorded to ledger.                                                                                                                                                                                                                                                                                                                                    | **Ready for Test** | Mod Settings / Incursions & Sensory Tabs  |
+| **TC-22** | Developer-Mode Session Unsafe Override & Audit Trail | • With `Prefs.DevMode` active, About & Diagnostics tab exposes `Allow Unsafe Rule Transitions (Session Only)` checkbox.<br>• Enabling override unlocks immutable rules and reverse visibility transitions, displaying red warning banner and `(Unsafe)` badge.<br>• Executing unsafe transition prompts destructive warning modal; upon confirmation, forces transition and records `UnsafeChange` in ledger.<br>• Downgrading to `ClassicHazeOfWar` triggers sensor radius sweep to re-flood fog of war around active lookouts.                                                                                                                                                                                                                                                                                                                                                                                                       | **Ready for Test** | Mod Settings / About Tab / Dev Mode       |
+| **TC-23** | Automatic Override Invalidation on DevMode Toggle   | • Toggling `Prefs.DevMode` off in Options immediately deactivates `UnsafeRuleOverride.Requested` and sets `Effective` to false.<br>• Active campaign ledger records `DevOverrideDisabled` with note `Developer mode switched off`.<br>• Mutability constraints immediately re-engage in Mod Settings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | **Ready for Test** | Options / Mod Settings / Audit Ledger     |
+| **TC-24** | Override Session Ephemerality Across Loads & Restarts | • Enabling unsafe override and saving game does not persist override flag into save XML.<br>• Loading save while DevMode is active logs `DevOverrideEnabled` (`Override active when campaign was loaded`).<br>• Restarting RimWorld executable launches with override disabled by default, preventing accidental unintended rule mutations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | **Ready for Test** | Save/Load Menu / Game Restart             |
+| **TC-25** | Mutable Notification Preferences & ModSettings Decoupling | • In-game toggling of `EarlyWarningLetters` (`enableEarlyWarningLetters`) takes effect immediately without confirmation modal or ledger entry.<br>• In-game reset button (`Reset New Campaign Defaults to Factory Settings`) resets global preferences and factory defaults for future games, leaving active campaign rules and ledger completely untouched.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | **Ready for Test** | Mod Settings / Early Warning Tab          |
 
 ---
 
@@ -584,6 +594,367 @@ _Objective: Validate 100% Scribe serialization integrity, material fidelity, and
 
 ---
 
+### Test 12: Optimistic Fog-of-War Travel Routing & Unknown Hex Assumption (`TC-12`)
+
+_Objective: Validate authentic 4X Fog-of-War optimistic pathfinding across unmapped sectors, dynamic obstacle detection upon visual contact, and graceful fallback when dead ends are discovered._
+
+#### 12.1 Optimistic Travel Directives Across Uncharted Sectors
+
+1. Start or load a game operating under `ClassicHazeOfWar`.
+2. Form a player caravan from your colony.
+3. Switch to the World Map (`Tab`) and select the caravan.
+4. Locate an unexplored sector deep within the black shroud that contains impassable mountains or ocean bodies (verify coordinates in Dev Mode / God Mode if necessary).
+5. Right-click the unexplored sector with the caravan selected:
+   - **Verify:** Travel directive options appear (`Travel to unexplored sector [Tile]`).
+   - **Verify:** The caravan pathfinder does **not** leak impassable terrain ahead of time; the plotted route draws optimistically through the shroud assuming baseline 1.0x traversal difficulty.
+6. Order the caravan to proceed toward the uncharted sector.
+
+#### 12.2 Dynamic Obstacle Detection & Route Recalculation
+
+1. Follow the caravan at fast forward speed (`Speed 3`) as it marches into the shroud.
+2. As the caravan comes within lookout observation distance of an impassable mountain tile:
+   - **Verify:** The mountain tile transitions from black shroud into explored terrain.
+   - **Verify:** `NotifyCaravanVisionUpdated` detects the newly uncovered impassable tile.
+   - **Verify:** The caravan dynamically recalculates its route locally around the discovered obstacle.
+   - **Verify:** A notification message displays:
+     > _"Caravan [Name] encountered impassable mountains in sector [Tile] and adjusted its route."_
+   - **Verify:** The caravan continues optimistically through remaining uncharted sectors along its new route.
+
+#### 12.3 Dead-End Discovery & Caravan Halt
+
+1. Order a caravan toward an unexplored destination tile that is entirely landlocked by impassable mountains.
+2. Allow the caravan to approach until vision reveals the destination tile itself is impassable:
+   - **Verify:** If an adjacent passable sector exists, the caravan reroutes to that sector.
+   - **Verify:** If no passable adjacent sector exists, the caravan halts dead at the perimeter.
+   - **Verify:** A caution letter arrives:
+     > _"Caravan [Name] reached the edge of sector [Tile]; further passage is blocked by impassable terrain."_
+
+---
+
+### Test 13: Drifting Orbital Mechanics & Non-Repeating Ground Tracks (`TC-13`)
+
+_Objective: Validate Keplerian drifting orbital satellites with nodal precession ($\dot{\Omega}$) and incommensurate orbital periods ($T_{\text{orbit}} \nmid 60{,}000$)._
+
+#### 13.1 Ground Track Westward Precession
+
+1. With active orbital stations or drifting satellites spawned in orbit, open the World Map (`Tab`).
+2. Select a satellite and open its telemetry inspect card:
+   - **Verify:** Telemetry displays Keplerian parameters: inclination ($i$), orbital period ($T_{\text{orbit}}$), altitude, and current ground track sub-satellite coordinates.
+3. Observe the sub-satellite point across successive orbits:
+   - **Verify:** Due to planetary rotation beneath the inclined orbit, the ground track precesses westward on each pass.
+
+#### 13.2 Day-1 Diurnal Non-Repeating Verification
+
+1. Note the exact world hex and solar hour when the satellite passes directly overhead your colony.
+2. Advance time forward by exactly 1 in-game day (60,000 ticks) via Dev Mode: `Debug Actions Menu → Tools - General → Fast-forward 1 day`.
+3. Check the satellite position at the exact same solar hour on Day 2:
+   - **Verify:** The satellite is **not** at the same location overhead, confirming $T_{\text{orbit}} \nmid 60{,}000$ and that passes do not recur on an artificial static diurnal clock.
+
+---
+
+### Test 14: Persistent Orbital Stations & Constellation Service Zones (`TC-14`)
+
+_Objective: Validate persistent high-orbit stations (`WorldObject_OrbitalStation`) and satellite constellation replenishment._
+
+#### 14.1 Service Corridor Synchronization
+
+1. Locate an orbital station hub on the World Map in high orbit.
+2. Track a satellite entering the station's $35^\circ$ service cone:
+   - **Verify:** Status changes to `In Service Area`.
+   - **Verify:** Satellite telemetry and trade inventory synchronize with the station hub.
+
+#### 14.2 Constellation Loss & Fabrication Pipeline
+
+1. In Dev Mode, select an orbital satellite and execute `Destroy object`.
+2. Inspect the parent orbital station:
+   - **Verify:** The station detects the constellation deficiency.
+   - **Verify:** An automated fabrication countdown queues:
+     > _"Constellation Replenishment: Fabricating replacement satellite (ETA: X hours)"_
+3. Advance time until the timer elapses:
+   - **Verify:** A new satellite launches into the assigned orbital plane with fresh telemetry.
+
+---
+
+### Test 15: Satellite Mission Roles (Trade & Navigation Boost) (`TC-15`)
+
+_Objective: Validate orbital trade communications and tactical navigation acceleration._
+
+#### 15.1 Orbital Trade Satellite Comms Interaction
+
+1. Construct a powered `Building_CommsConsole` on your colony map.
+2. Wait for a commercial trade satellite to enter your colony's orbital overhead cone.
+3. Direct a colonist to operate the Comms Console:
+   - **Verify:** The trade satellite appears in the comms dialogue list (e.g. `Comms: Orbital Trade Satellite [Name]`).
+   - **Verify:** Opening trade opens standard trade interface; purchased cargo arrives via drop pods.
+
+#### 15.2 Navigation Satellite Caravan Boost
+
+1. Form a player caravan on the World Map.
+2. Move the caravan under the 24-tile footprint of an active navigation satellite:
+   - **Verify Inspect Panel:** Telemetry inspect string displays `Orbital GPS Uplink: +15% travel speed (0.85x ticks per move)`.
+   - **Verify Movement Rate:** Caravan travel ticks decrease proportionally while under footprint.
+3. Move the caravan outside the footprint:
+   - **Verify:** Overland velocity reverts cleanly to baseline rate.
+
+---
+
+### Test 16: Cross-Campaign Save Isolation & Pinned Rules (`TC-16`)
+
+_Objective: Validate that gameplay rules are strictly persisted within save files and cannot cross-contaminate between campaigns._
+
+#### 16.1 Multi-Campaign Isolation Verification
+
+1. Start RimWorld and open `Options → Mod Settings → Project Vigilance: Geoscape`.
+   - Note the default visibility setting (factory default: `ClassicHazeOfWar`).
+2. Start a new game (**Campaign A**):
+   - On the world-generation setup page, click `Geoscape Rules...`.
+   - Select the `Classic Haze (Recommended)` preset.
+   - Generate world and embark. Save game as `Campaign_A_Haze`.
+3. Quit to the Main Menu and start a second game (**Campaign B**):
+   - On the world-generation setup page, click `Geoscape Rules...`.
+   - Select the `Planetary Surveillance` preset.
+   - Generate world and embark. Save game as `Campaign_B_Surveillance`.
+4. Return to the Main Menu and load `Campaign_A_Haze`:
+   - Open `Options → Mod Settings → Project Vigilance: Geoscape`:
+     - **Verify:** Visibility mode is strictly `ClassicHazeOfWar`.
+     - **Verify:** Unmonitored world tiles show fog of war and haze.
+5. Return to the Main Menu and load `Campaign_B_Surveillance`:
+   - Open `Options → Mod Settings → Project Vigilance: Geoscape`:
+     - **Verify:** Visibility mode is strictly `PlanetarySurveillance`.
+     - **Verify:** World geography and continents are fully revealed.
+6. Quit to the Main Menu and open Mod Settings:
+   - **Verify:** Factory defaults remain completely unaffected by either campaign.
+
+---
+
+### Test 17: World-Gen Rules Dialog & Profile Presets (`TC-17`)
+
+_Objective: Validate the world-generation setup page launcher, transient draft lifecycle, profile presets, and Day-0 ledger pinning._
+
+#### 17.1 Launcher Button Placement & Minimum Width Guard
+
+1. From the Main Menu, click `New Colony → Next → World Generation`.
+2. Inspect the bottom button bar on `Page_CreateWorldParams`:
+   - **Verify:** A `Geoscape Rules...` button appears in the bottom gap between `Back` (left) and `Reset` (centre).
+   - **Verify:** The button does not overlap vanilla buttons or third-party world-generation controls.
+3. Click `Geoscape Rules...`:
+   - **Verify:** `Dialog_GeoscapeCampaignRules` opens cleanly as a modal window.
+
+#### 17.2 Profile Presets & Lock Previews
+
+1. Inspect the profile buttons along the top:
+   - Click `Planetary Surveillance`:
+     - **Verify:** Visibility switches to `Planetary Surveillance`.
+     - **Verify:** Simulation rule fields update to surveillance defaults.
+   - Click `Hardcore Vigilance`:
+     - **Verify:** Visibility switches to `Classic Haze of War`.
+     - **Verify:** Colony scout horizon updates to 4.0 hexes; caravan lookout updates to 2.0 hexes.
+   - Click `Classic Haze (Recommended)`:
+     - **Verify:** Colony scout horizon resets to 5.0 hexes; caravan lookout resets to 3.0 hexes.
+2. Inspect individual rule rows:
+   - **Verify:** Immutable rules show `[Locked after creation]` or `(Locked after creation)` preview badges.
+   - **Verify:** Visibility mode displays `Classic Haze of War (Recommended)`.
+3. Manually adjust a slider (e.g. Colony scout horizon to 6.5 hexes):
+   - **Verify:** Profile selector updates automatically to `Custom`.
+4. Click `Close` (or `X`):
+   - Click vanilla `Reset` on `Page_CreateWorldParams`:
+     - Re-open `Geoscape Rules...`: verify draft values reverted back to factory defaults.
+5. Generate the world:
+   - **Verify:** World generation consumes the draft and embarks with the selected rules.
+   - **Verify Audit Ledger:** Open `Options → Mod Settings → About & Diagnostics`:
+     - Verify a pinned record `CampaignCreated` is logged with note `World generation page | visibilityMode=...`.
+
+---
+
+### Test 18: Default Campaign Creation & Day-0 Snapshot (`TC-18`)
+
+_Objective: Validate campaign creation when world-generation dialog is bypassed._
+
+1. From the Main Menu, initiate a new game and click `Generate World` without clicking `Geoscape Rules...`.
+2. Embark onto the colony map.
+3. Open `Options → Mod Settings → Project Vigilance: Geoscape`:
+   - **Verify Visibility:** Operates under `ClassicHazeOfWar` (Recommended default).
+   - **Verify Lookout Horizons:** Colony horizon is 5.0 hexes; Caravan lookout is 3.0 hexes.
+4. Switch to `About & Diagnostics` tab:
+   - **Verify Active Profile:** Displays `Classic Haze of War (Recommended)`.
+   - **Verify Ledger Origin:** Day-0 pinned record displays:
+     > `CampaignCreated | Defaults | visibilityMode=ClassicHazeOfWar ...`
+
+---
+
+### Test 19: Legacy Save Migration & Day-1 Review Grace Period (`TC-19`)
+
+_Objective: Validate migration of unversioned pre-1.3 saves, review window grace period, and rule lock confirmation._
+
+#### 19.1 Legacy Save Ingestion & Review Window Setup
+
+1. Load a legacy save created under Milestone 1.2 or early 1.3 (where `schemaVersion == 0` or missing).
+2. Upon map load:
+   - **Verify Letter Arrival:** A neutral event letter arrives:
+     > **Project Vigilance: Campaign Rules Bound to Save**  
+     > _"Project Vigilance now stores gameplay-affecting campaign rules directly within your save file to prevent cross-campaign contamination. A 1-day review window is currently open, allowing you to freely adjust and lock in your desired rules under Mod Settings."_
+   - If the save contained explored tiles, verify the letter includes the notice:
+     > _"Notice: This save contains Classic Haze of War exploration data and may have been created under Classic Haze of War."_
+3. Open `Options → Mod Settings → Project Vigilance: Geoscape`:
+   - **Verify Context Banner:** A green review banner displays:
+     > `Active Save: 1-Day Review Window Open (Free rule adjustments permitted)`
+   - **Verify Rule Mutability:** All rules (including Immutable rules like `colonyScoutRadius`) are freely editable without lock restrictions during the review window.
+
+#### 19.2 Rule Confirmation & Expiration
+
+1. Navigate to the `About & Diagnostics` tab:
+   - **Verify Ledger Entry:** Pinned `LegacyMigration` record appears with note `Adopted ModSettings defaults | ...`.
+   - **Verify Confirm Button:** A button `Confirm & Lock In Campaign Rules Now` is visible.
+2. Click `Confirm & Lock In Campaign Rules Now`:
+   - **Verify:** A confirmation message appears: `Campaign rules locked. Mutability restrictions now active.`
+   - **Verify Banner Transition:** Banner transitions to standard active save banner:
+     > `Active Save: Campaign Rules Bound to Save (Immutable rules locked; Escalation allowed)`
+   - **Verify Ledger Logging:** A new record `ReviewWindowLocked` is logged with note `Confirmed by player`.
+   - **Verify Rule Locking:** Immutable rules immediately become locked and greyed out.
+
+---
+
+### Test 20: Monotonic Visibility Escalation & Side-Effects Engine (`TC-20`)
+
+_Objective: Validate monotonic visibility elevation and operational side-effects execution._
+
+#### 20.1 Escalation Confirmation & Warning Modal
+
+1. Load a game operating under `ClassicHazeOfWar` with review window locked.
+2. Spawn a dynamic quest site in the black shroud so it becomes concealed (`HazeReconnaissanceManager.RegisterConcealedSite`).
+3. Form a moving player caravan travelling through the shroud.
+4. Open `Options → Mod Settings → Sensory & Radar`.
+5. Click `Planetary Surveillance`:
+   - **Verify Modal:** A confirmation dialog appears:
+     > **Confirm Planetary Visibility Escalation**  
+     > _"Are you sure you want to escalate visibility from Classic Haze of War to Planetary Surveillance? This change is PERMANENT for this campaign and cannot be undone."_
+6. Click `Cancel`: Verify visibility remains `ClassicHazeOfWar`.
+
+#### 20.2 Side-Effects Execution Verification
+
+1. Click `Planetary Surveillance` again and click `Confirm Escalation`:
+   - **Verify 1: Concealed Site Release:** The concealed dynamic site is uncovered; its deferred quest/announcement letter arrives immediately and its timeout clock resumes.
+   - **Verify 2: Caravan Route Recalculation:** The moving player caravan immediately repaths using newly revealed world geography.
+   - **Verify 3: Vision Cache Sweep:** Sensors rescan immediately.
+   - **Verify 4: World Mesh Rebuild:** 3D fog of war layers and feature labels rebuild without visual artifacts or requiring game restart.
+2. Open `About & Diagnostics` tab:
+   - **Verify Ledger Logging:** An `Escalation` entry is recorded:
+     > `Escalation | visibilityMode: Classic Haze of War -> Planetary Surveillance`
+
+---
+
+### Test 21: Mutability Enforcement & Immutable Rule Locking (`TC-21`)
+
+_Objective: Validate that Immutable rules lock permanently and reverse visibility transitions are rejected outside developer mode._
+
+1. Ensure Developer Mode is **disabled** (`Options → Development mode: Off`).
+2. Load an active campaign with review window locked.
+3. Open `Options → Mod Settings → Project Vigilance: Geoscape`:
+4. **Test Sensory & Radar Tab:**
+   - Attempt to click `Classic Haze of War`:
+     - **Verify:** Option is greyed out and displays `Classic Haze of War (Locked - Cannot reverse)`. Clicking has no effect.
+   - Attempt to adjust `Colony Scout Horizon` slider:
+     - **Verify:** Header displays `[Locked]` and slider cannot be dragged.
+   - Attempt to toggle `Nighttime visual lookout reduction`:
+     - **Verify:** Label displays `(Locked)` and checkbox cannot be toggled.
+5. **Test Incursions & AI Tab:**
+   - Attempt to toggle `Synchronize multi-vector raid departures`, `Biological incursions rest at night`, `Enable tactical ingress diversification`, or `Reset Storyteller threat cycle`:
+     - **Verify:** All 4 checkboxes display `(Locked)` and reject user clicks.
+6. Open debug log (`~`):
+   - **Verify:** Zero errors or exceptions; active campaign rules remain 100% unaltered.
+
+---
+
+### Test 22: Developer-Mode Session Unsafe Override & Audit Trail (`TC-22`)
+
+_Objective: Validate DevMode-gated session override for emergency debugging and forensic audit logging._
+
+#### 22.1 Unsafe Override Activation
+
+1. Enable Developer Mode in RimWorld options (`Options → Development mode: On`).
+2. Open `Options → Mod Settings → About & Diagnostics`:
+   - **Verify Checkbox Appearance:** Under `Active Campaign Rules & Governance`, a checkbox appears:
+     > `Allow Unsafe Rule Transitions (Session Only)`
+3. Check `Allow Unsafe Rule Transitions (Session Only)`:
+   - **Verify Context Banner:** Mod Settings header displays a red warning banner:
+     > `Active Save: DEV OVERRIDE ACTIVE (All rule mutability restrictions bypassed)`
+   - **Verify Ledger Logging:** Ledger records `DevOverrideEnabled` with note `Toggled on`.
+
+#### 22.2 Destructive Downgrade Execution
+
+1. Switch to `Sensory & Radar` tab:
+   - **Verify Badges:** Previously locked options now display `(Unsafe)` or `[Unsafe Override]`.
+2. Click `Classic Haze of War`:
+   - **Verify Modal:** A red modal appears:
+     > **Unsafe Rule Downgrade Warning**  
+     > _"Warning: Downgrading planetary visibility from Planetary Surveillance to Classic Haze of War is an unsafe operation. Active sensors will re-scan, but previously mapped sectors may be re-shrouded. This action will be permanently recorded in the save game audit ledger."_
+3. Click `Confirm`:
+   - **Verify:** Visibility mode downgrades to `ClassicHazeOfWar`.
+   - **Verify Fog Re-Flooding:** Planetary fog re-floods the globe, with visibility re-established around active colony radars and lookouts.
+   - **Verify Ledger Logging:** An `UnsafeChange` entry is recorded:
+     > `UnsafeChange | visibilityMode: Planetary Surveillance -> Classic Haze of War [Developer override]`
+
+---
+
+### Test 23: Automatic Override Invalidation on DevMode Toggle (`TC-23`)
+
+_Objective: Validate that switching off Developer Mode immediately revokes unsafe override permissions._
+
+1. With `Allow Unsafe Rule Transitions` enabled and active, return to RimWorld options.
+2. Toggle Developer Mode **Off** (`Options → Development mode: Off`).
+3. Re-open `Options → Mod Settings → Project Vigilance: Geoscape`:
+   - **Verify Banner Reversion:** Red banner disappears; standard active save banner returns.
+   - **Verify Immediate Locking:** All immutable rules and reverse visibility options immediately return to `(Locked)` state.
+4. Switch to `About & Diagnostics` tab:
+   - **Verify Override Checkbox Hidden:** `Allow Unsafe Rule Transitions` checkbox is completely removed from UI.
+   - **Verify Ledger Record:** Ledger logs `DevOverrideDisabled` with note `Developer mode switched off`.
+
+---
+
+### Test 24: Override Session Ephemerality Across Loads & Restarts (`TC-24`)
+
+_Objective: Validate that unsafe override flag is never written to save XML and does not survive restarts._
+
+1. With Developer Mode on and unsafe override active, save the game as `Test_Override_Save`.
+2. Open the `.rws` save file in a text editor (located in `%USERPROFILE%\AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\Saves`):
+   - **Verify:** Search for `allowUnsafeRuleTransitions`: confirm it does **not** appear anywhere in the save file.
+3. Quit RimWorld completely to desktop.
+4. Relaunch RimWorld:
+   - Load `Test_Override_Save`.
+   - Open Mod Settings:
+     - **Verify:** Unsafe override is **disabled by default**, preventing unintentional rule alterations.
+5. In a separate test, enable override at the Main Menu, then load a save:
+   - **Verify Ledger Record:** Loading a save with override already active logs `DevOverrideEnabled` with note `Override active when campaign was loaded`.
+
+---
+
+### Test 25: Mutable Notification Preferences & ModSettings Decoupling (`TC-25`)
+
+_Objective: Validate Mutable rule operation and total decoupling of factory defaults from active saves._
+
+#### 25.1 Mutable Rule In-Game Toggling
+
+1. In an active game with review window locked and DevMode off, open `Options → Mod Settings → Early Warning & Intel`.
+2. Toggle `Dispatch Early Warning notifications on contact detection` off:
+   - **Verify:** Checkbox toggles immediately with no confirmation modal.
+   - **Verify:** Switch to `About & Diagnostics`: 0 new records are added to the ledger (mutable preferences do not pollute the audit trail).
+3. Spawn an incursion:
+   - **Verify:** Incursion detection does not dispatch early warning letters.
+
+#### 25.2 Factory Defaults Reset Isolation
+
+1. While in an active game, open `About & Diagnostics` tab.
+2. Inspect the reset button label:
+   - **Verify Label:** Displays `Reset New Campaign Defaults to Factory Settings`.
+3. Click `Reset New Campaign Defaults to Factory Settings`:
+   - **Verify Notification:** Displays `Project Vigilance new campaign defaults reset. Active save rules remain unaffected.`
+   - **Verify Save State Isolation:** Check `Sensory & Radar` and `Incursions & AI` tabs:
+     - Active campaign rules, visibility mode, and audit ledger are **completely unchanged**.
+4. Quit to the Main Menu and open Mod Settings:
+   - **Verify:** Factory defaults have been reset to factory values for newly created future games.
+
+---
+
 ## In-Game Verification Sign-Off Checklist
 
 - [ ] **TC-01:** Multi-dish radar interferometry progression ($10 \rightarrow 17 \rightarrow 22$ rings), locked 250-tick cadence, and dynamic power scaling verified.
@@ -597,3 +968,17 @@ _Objective: Validate 100% Scribe serialization integrity, material fidelity, and
 - [ ] **TC-09:** Grounded storyteller caravan encounters, faction/dialogue consistency (no null faction errors or friendly hostile warbands), and extortion demand item safety verified.
 - [ ] **TC-10:** Native Waylith DeepProfiler execution budget ($\le 1.0\text{ ms}$), single-pass traversal resolution, and zero-allocation hot path verified.
 - [ ] **TC-11:** Scribe save/load persistence, stuffDef material serialization, and defensive outpost removal resilience verified.
+- [ ] **TC-12:** Optimistic fog-of-war travel routing, unmapped obstacle dynamic route recalculation, and dead-end halting verified.
+- [ ] **TC-13:** Drifting orbital satellite Keplerian mechanics, westward ground track precession, and diurnal displacement verified.
+- [ ] **TC-14:** Persistent high-orbit station hubs, $35^\circ$ service cone synchronization, and automated replenishment fabrication verified.
+- [ ] **TC-15:** Trade satellite comms console interaction and navigation satellite overland velocity boosts (+15%) verified.
+- [ ] **TC-16:** Cross-campaign save isolation and independent per-save gameplay rule persistence verified.
+- [ ] **TC-17:** World-generation rules launcher, profile presets (`Classic Haze`, `Planetary Surveillance`, `Hardcore Vigilance`), and Day-0 draft consumption verified.
+- [ ] **TC-18:** Bypassed dialog default campaign creation and pinned `CampaignCreated` ledger snapshot verified.
+- [ ] **TC-19:** Legacy save migration, Day-1 (60,000 tick) review window grace period, and lock confirmation verified.
+- [ ] **TC-20:** Monotonic visibility escalation, confirmation modal, site release, sensor rescan, and caravan repath side-effects verified.
+- [ ] **TC-21:** Mutability constraints, Immutable rule locking, and reverse visibility transition blocking verified.
+- [ ] **TC-22:** Developer Mode session unsafe override, red banner, warning modal, fog re-flooding, and `UnsafeChange` ledger audit verified.
+- [ ] **TC-23:** Immediate unsafe override revocation and `DevOverrideDisabled` ledger logging upon turning off DevMode verified.
+- [ ] **TC-24:** Session-only ephemerality (zero XML persistence) and restart safety verified.
+- [ ] **TC-25:** Mutable notification rule toggling and factory defaults reset isolation verified.
