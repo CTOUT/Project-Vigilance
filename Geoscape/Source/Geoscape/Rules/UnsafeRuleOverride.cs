@@ -9,6 +9,7 @@ namespace ProjectVigilance.Geoscape.Rules;
 /// </summary>
 public static class UnsafeRuleOverride
 {
+    [ThreadStatic]
     private static bool requested;
 
     [ThreadStatic]

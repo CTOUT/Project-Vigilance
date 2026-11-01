@@ -28,13 +28,20 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
 
     public TraderKindDef TraderKind => traderKind ?? (traderKind = DefDatabase<TraderKindDef>.GetRandom());
 
-    public IEnumerable<Thing> Goods => goods;
+    public IEnumerable<Thing> Goods
+    {
+        get
+        {
+            EnsureGoodsGenerated();
+            return goods;
+        }
+    }
 
     public int RandomPriceFactorSeed => randomPriceFactorSeed;
 
     public string TraderName => OrbitalCallsign;
 
-    public bool CanTradeNow => Faction != null && !Faction.HostileTo(Faction.OfPlayer);
+    public bool CanTradeNow => Faction != null && Faction.OfPlayer != null && !Faction.HostileTo(Faction.OfPlayer);
 
     public float TradePriceImprovementOffsetForPlayer => 0f;
 
@@ -50,7 +57,15 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
             randomPriceFactorSeed = Rand.Range(1, 1000000);
         }
 
-        if (goods.Count == 0)
+        if (goods.Count == 0 && Current.ProgramState == ProgramState.Playing && Faction.OfPlayer != null)
+        {
+            GenerateInitialGoods();
+        }
+    }
+
+    private void EnsureGoodsGenerated()
+    {
+        if (goods.Count == 0 && Current.ProgramState == ProgramState.Playing && Faction.OfPlayer != null)
         {
             GenerateInitialGoods();
         }
@@ -58,6 +73,11 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
 
     public void GenerateInitialGoods()
     {
+        if (Current.ProgramState != ProgramState.Playing || Faction.OfPlayer == null)
+        {
+            return;
+        }
+
         goods.ClearAndDestroyContents();
         if (TraderKind == null) return;
 
@@ -73,8 +93,11 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
     public override void OnEnterServiceArea(WorldObject station)
     {
         base.OnEnterServiceArea(station);
-        // Restock inventory while in station service corridor
-        GenerateInitialGoods();
+        if (Current.ProgramState == ProgramState.Playing && Faction.OfPlayer != null)
+        {
+            // Restock inventory while in station service corridor
+            GenerateInitialGoods();
+        }
     }
 
     #region ICommunicable Implementation
@@ -87,6 +110,7 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
 
     public void TryOpenComms(Pawn myPawn)
     {
+        EnsureGoodsGenerated();
         if (!CanTradeNow) return;
         Find.WindowStack.Add(new Dialog_Trade(myPawn, this));
     }
@@ -145,7 +169,11 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
         ThingOwnerUtility.AppendThingHoldersFromThings(outChildren, GetDirectlyHeldThings());
     }
 
-    public ThingOwner GetDirectlyHeldThings() => goods;
+    public ThingOwner GetDirectlyHeldThings()
+    {
+        EnsureGoodsGenerated();
+        return goods;
+    }
 
     #endregion
 
