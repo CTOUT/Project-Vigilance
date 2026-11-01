@@ -44,12 +44,12 @@ public static class EarlyWarningDispatcher
         }
         else if (!incursion.HasDispatchedClassifiedAlert)
         {
-            incursion.IsIdentified = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient);
+            incursion.IsIdentified = (GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient);
         }
 
         incursion.UpdateSampledPosition();
 
-        if (!GeoscapeMod.Settings.enableEarlyWarningLetters)
+        if (!GeoscapeRules.EarlyWarningLetters)
         {
             return;
         }

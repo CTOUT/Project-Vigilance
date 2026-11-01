@@ -53,7 +53,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
     {
         var options = new List<FloatMenuOption>();
 
-        bool isUnexplored = GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar &&
+        bool isUnexplored = GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar &&
                             SensoryManager.Instance != null &&
                             !SensoryManager.Instance.IsExplored(clickedTile);
 

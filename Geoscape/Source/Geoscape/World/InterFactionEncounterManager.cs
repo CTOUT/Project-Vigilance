@@ -337,7 +337,7 @@ public class InterFactionEncounterManager : WorldComponent
         SkirmishResolution res)
     {
         bool hasSensoryVision = SensoryManager.Instance != null && SensoryManager.Instance.HasActiveVision(tile);
-        bool isOmniscient = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient;
+        bool isOmniscient = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient;
 
         if (hasSensoryVision || isOmniscient)
         {

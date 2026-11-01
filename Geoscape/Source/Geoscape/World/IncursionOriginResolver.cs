@@ -477,7 +477,7 @@ public static class IncursionOriginResolver
     {
         diversifiedPath = directPath;
 
-        if (!GeoscapeMod.Settings.enableTacticalIngressFlanking)
+        if (!GeoscapeRules.TacticalIngressFlanking)
         {
             return false;
         }

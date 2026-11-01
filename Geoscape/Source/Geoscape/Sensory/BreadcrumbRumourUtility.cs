@@ -79,7 +79,7 @@ public static class BreadcrumbRumourUtility
     /// </summary>
     public static bool TryShareTravellerRumour(Faction? travellerFaction, PlanetTile settlementTile, WorldObject_Incursion? incursion = null)
     {
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return false;
         }

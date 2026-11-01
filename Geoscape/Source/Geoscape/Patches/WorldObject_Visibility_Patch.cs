@@ -176,7 +176,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject wo, ref bool __result)
         {
-            if (__result || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -201,7 +201,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject worldObject, ref bool __result)
         {
-            if (__result || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -223,7 +223,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject worldObject, ref bool __result)
         {
-            if (__result || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -248,7 +248,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static bool Prefix(PlanetTile tile)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return true;
             }
@@ -267,7 +267,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(ref List<PlanetTile> __result)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar || __result == null || __result.Count == 0)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar || __result == null || __result.Count == 0)
             {
                 return;
             }
@@ -291,7 +291,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static bool Prefix(WorldFeatureTextMesh text, WorldFeature feature)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return true;
             }
@@ -317,7 +317,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldFeature feature, ref bool __result)
         {
-            if (!__result || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -337,7 +337,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject __instance, ref bool __result)
         {
-            if (!__result || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -359,7 +359,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject o, ref bool __result)
         {
-            if (!__result || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -381,7 +381,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(List<WorldObject> __result)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar || __result == null || __result.Count == 0)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar || __result == null || __result.Count == 0)
             {
                 return;
             }
@@ -420,14 +420,14 @@ public static class WorldObject_Visibility_Patch
 
             if (obj is WorldObject_Incursion incursion)
             {
-                if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient &&
+                if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient &&
                     incursion.CurrentIntelligenceTier < IntelligenceTier.Contact)
                 {
                     return false;
                 }
             }
 
-            if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
                 if (obj.Faction?.IsPlayer != true && SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(obj.Tile))
                 {
@@ -455,8 +455,8 @@ public static class WorldObject_Visibility_Patch
         private static IEnumerable<WorldObject> FilterSelectable(IEnumerable<WorldObject> source)
         {
             SensoryManager? sensory = SensoryManager.Instance;
-            bool isClassicHaze = GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar;
-            bool isOmniscient = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient;
+            bool isClassicHaze = GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar;
+            bool isOmniscient = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient;
 
             foreach (WorldObject obj in source)
             {
@@ -717,7 +717,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPrefix]
         public static bool Prefix(ref string __result)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return true;
             }
@@ -739,7 +739,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPrefix]
         public static bool Prefix(ref string __result)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return true;
             }
@@ -763,7 +763,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPrefix]
         public static bool Prefix(Rect rect, ref float lineEndWidth)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return true;
             }
@@ -790,7 +790,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPostfix]
         public static void Postfix(ref IEnumerable<InspectTabBase> __result)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -816,7 +816,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPostfix]
         public static void Postfix(ref bool __result)
         {
-            if (!__result || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -836,7 +836,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPostfix]
         public static void Postfix(ref bool __result)
         {
-            if (!__result || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return;
             }
@@ -859,7 +859,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPrefix]
         public static bool Prefix()
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return true;
             }

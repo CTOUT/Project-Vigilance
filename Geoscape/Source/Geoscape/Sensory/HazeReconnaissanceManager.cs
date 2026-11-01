@@ -73,6 +73,7 @@ public class HazeReconnaissanceManager : WorldComponent
     }
 
     public IReadOnlyDictionary<int, ConcealedSiteRecord> ConcealedSites => concealedSites;
+    public bool HasConcealedSitesRecorded => concealedSites.Count > 0;
 
     public HazeReconnaissanceManager(RimWorld.Planet.World world) : base(world)
     {
@@ -141,7 +142,7 @@ public class HazeReconnaissanceManager : WorldComponent
             return;
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return;
         }
@@ -178,7 +179,7 @@ public class HazeReconnaissanceManager : WorldComponent
             return false;
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return false;
         }
@@ -311,6 +312,29 @@ public class HazeReconnaissanceManager : WorldComponent
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Uncovers all currently concealed sites when escalating out of Classic Haze of War.
+    /// Resumes their timeout clocks and dispatches any deferred announcement letters.
+    /// </summary>
+    public void ReleaseAllConcealedSites()
+    {
+        if (concealedSites.Count == 0) return;
+
+        List<int> ids = concealedSites.Keys.ToList();
+        for (int i = 0; i < ids.Count; i++)
+        {
+            WorldObject? wo = FindWorldObjectById(ids[i]);
+            if (wo != null && !wo.Destroyed)
+            {
+                UncoverSite(wo);
+            }
+            else
+            {
+                concealedSites.Remove(ids[i]);
+            }
+        }
     }
 
     public void DispatchDiscoveryLetter(WorldObject wo)

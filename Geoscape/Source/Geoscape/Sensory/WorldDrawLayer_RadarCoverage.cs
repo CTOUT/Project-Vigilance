@@ -49,7 +49,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 return false;
             }
 
-            if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient)
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient)
             {
                 return false;
             }

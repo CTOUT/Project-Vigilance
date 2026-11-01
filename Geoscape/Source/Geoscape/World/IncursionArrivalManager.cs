@@ -159,7 +159,7 @@ public static class IncursionArrivalManager
         {
             var sensoryManager = Find.World?.GetComponent<SensoryManager>();
             bool hasVisual = sensoryManager != null && sensoryManager.HasActiveVision(incursion.DestinationTile);
-            bool isIdentified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+            bool isIdentified = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient ||
                                 incursion.CurrentIntelligenceTier >= IntelligenceTier.Classified ||
                                 hasVisual;
 
@@ -265,7 +265,7 @@ public static class IncursionArrivalManager
                     BreadcrumbRumourUtility.TryShareTravellerRumour(incursion.Faction, incursion.DestinationTile, incursion);
                 }
 
-                if (GeoscapeMod.Settings.resetThreatCooldownOnArrival &&
+                if (GeoscapeRules.ResetThreatCooldownOnArrival &&
                     incursion.IncidentDef.category == IncidentCategoryDefOf.ThreatBig &&
                     targetMap.storyState != null)
                 {

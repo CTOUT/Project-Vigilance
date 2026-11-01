@@ -71,7 +71,7 @@ public class CaravanArrivalAction_InterceptIncursion : CaravanArrivalAction
         // If the incursion is still visible to sensors, continue pursuing its updated lead vector
         var sensoryManager = Find.World?.GetComponent<Sensory.SensoryManager>();
         bool hasVision = sensoryManager != null && sensoryManager.HasActiveVision(targetIncursion.Tile);
-        if (GeoscapeMod.Settings.visibilityMode == Sensory.VisibilityMode.Omniscient ||
+        if (GeoscapeRules.VisibilityMode == Sensory.VisibilityMode.Omniscient ||
             targetIncursion.CurrentIntelligenceTier >= Sensory.IntelligenceTier.Contact ||
             hasVision)
         {

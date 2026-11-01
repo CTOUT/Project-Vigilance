@@ -98,7 +98,7 @@ public static class IncidentWorker_RaidEnemy_Patch
                     int departureDelayTicks = 0;
 
                     // Synchronize arrival times: closer bases mobilize at base so forces converge simultaneously
-                    if (GeoscapeMod.Settings.synchronizeMultiVectorRaids)
+                    if (GeoscapeRules.SynchronizeMultiVectorRaids)
                     {
                         // Check if this column shares its final approach corridor with an earlier column
                         bool sharesCorridor = false;

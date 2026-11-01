@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
 using RimWorld;
 using UnityEngine;
@@ -27,7 +28,7 @@ public class GeoscapeSettings : ModSettings
     public bool resetThreatCooldownOnArrival = false;
     public bool enableTacticalIngressFlanking = true;
 
-    public VisibilityMode visibilityMode = VisibilityMode.PlanetarySurveillance;
+    public VisibilityMode visibilityMode = VisibilityMode.ClassicHazeOfWar;
     public RadarOutlineStyle radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
     public bool usePlayerFactionColor = true;
     public Color radarCustomColor = new(0f, 0.90f, 1.0f);
@@ -72,7 +73,7 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref resetThreatCooldownOnArrival, "resetThreatCooldownOnArrival", false);
         Scribe_Values.Look(ref enableTacticalIngressFlanking, "enableTacticalIngressFlanking", true);
 
-        Scribe_Values.Look(ref visibilityMode, "visibilityMode", VisibilityMode.PlanetarySurveillance);
+        Scribe_Values.Look(ref visibilityMode, "visibilityMode", VisibilityMode.ClassicHazeOfWar);
         Scribe_Values.Look(ref radarOutlineStyle, "radarOutlineStyle", RadarOutlineStyle.BoundaryAndGrid);
         Scribe_Values.Look(ref usePlayerFactionColor, "usePlayerFactionColor", true);
         Scribe_Values.Look(ref radarCustomColor, "radarCustomColor", new Color(0f, 0.90f, 1.0f));
@@ -156,76 +157,77 @@ public class GeoscapeSettings : ModSettings
     // Tab 1: Sensory & Radar Grid
     // =========================================================================
 
+    private GeoscapeRuleSet? transientDefaultRuleSet;
+
+    private GeoscapeRuleSet GetOrCreateTransientRuleSet()
+    {
+        if (transientDefaultRuleSet == null)
+        {
+            transientDefaultRuleSet = new GeoscapeRuleSet();
+            transientDefaultRuleSet.CopyFromDefaults(this);
+        }
+        else
+        {
+            transientDefaultRuleSet.CopyFromDefaults(this);
+        }
+        return transientDefaultRuleSet;
+    }
+
+    private void DrawContextBanner(Listing_Standard listing, GeoscapeCampaignRules? campaign)
+    {
+        Rect bannerRect = listing.GetRect(28f);
+        if (campaign != null)
+        {
+            if (UnsafeRuleOverride.Effective)
+            {
+                Widgets.DrawBoxSolid(bannerRect, new Color(0.4f, 0.1f, 0.1f, 0.5f));
+                Widgets.DrawHighlight(bannerRect);
+                GUI.color = new Color(1f, 0.4f, 0.4f);
+                Widgets.Label(bannerRect.ContractedBy(4f), "Active Save: DEV OVERRIDE ACTIVE (All rule mutability restrictions bypassed)");
+                GUI.color = Color.white;
+            }
+            else if (campaign.ReviewWindowOpen)
+            {
+                Widgets.DrawBoxSolid(bannerRect, new Color(0.1f, 0.35f, 0.2f, 0.5f));
+                Widgets.DrawHighlight(bannerRect);
+                GUI.color = new Color(0.4f, 1f, 0.5f);
+                Widgets.Label(bannerRect.ContractedBy(4f), "Active Save: 1-Day Review Window Open (Free rule adjustments permitted)");
+                GUI.color = Color.white;
+            }
+            else
+            {
+                Widgets.DrawBoxSolid(bannerRect, new Color(0.1f, 0.2f, 0.3f, 0.5f));
+                Widgets.DrawHighlight(bannerRect);
+                GUI.color = new Color(0.6f, 0.85f, 1f);
+                Widgets.Label(bannerRect.ContractedBy(4f), "Active Save: Campaign Rules Bound to Save (Immutable rules locked; Escalation allowed)");
+                GUI.color = Color.white;
+            }
+        }
+        else
+        {
+            Widgets.DrawBoxSolid(bannerRect, new Color(0.15f, 0.15f, 0.15f, 0.5f));
+            Widgets.DrawHighlight(bannerRect);
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            Widgets.Label(bannerRect.ContractedBy(4f), "New Campaign Defaults (These settings initialise newly created games)");
+            GUI.color = Color.white;
+        }
+        listing.Gap(4f);
+    }
+
     private void DrawSensoryRadarTab(Listing_Standard listing)
     {
-        Text.Font = GameFont.Medium;
-        listing.Label("Sensory & Planetary Visibility");
-        Text.Font = GameFont.Small;
-        listing.GapLine();
+        GeoscapeCampaignRules? campaign = GeoscapeCampaignRules.Active;
+        bool inCampaign = campaign != null;
+        GeoscapeRuleSet rules = campaign != null ? campaign.Rules : GetOrCreateTransientRuleSet();
+        RuleEditContext ctx = campaign != null ? campaign.CreateEditContext() : new RuleEditContext(false, false, false);
 
-        if (listing.RadioButton("Planetary Surveillance (X-COM Style — Default)", visibilityMode == VisibilityMode.PlanetarySurveillance, tooltip: "Continents and static bases are known. Moving hostile incursions are hidden unless within active scout or radar range."))
+        DrawContextBanner(listing, campaign);
+
+        CampaignRulesPanel.DrawSensoryVisibilitySection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
+
+        if (rules.Visibility.Value != VisibilityMode.Omniscient)
         {
-            if (visibilityMode != VisibilityMode.PlanetarySurveillance)
-            {
-                visibilityMode = VisibilityMode.PlanetarySurveillance;
-                OnVisibilityModeChanged();
-            }
-        }
-
-        if (listing.RadioButton("Classic Haze of War (3-Tier RTS)", visibilityMode == VisibilityMode.ClassicHazeOfWar, tooltip: "Unexplored tiles are dark, unmonitored explored tiles show a translucent grey haze, and active sensors reveal live movement."))
-        {
-            if (visibilityMode != VisibilityMode.ClassicHazeOfWar)
-            {
-                visibilityMode = VisibilityMode.ClassicHazeOfWar;
-                OnVisibilityModeChanged();
-            }
-        }
-
-        if (listing.RadioButton("Omniscient (Spectator / Living Map)", visibilityMode == VisibilityMode.Omniscient, tooltip: "No fog of war. All worldwide movement is visible at all times across the globe without scout or radar requirements."))
-        {
-            if (visibilityMode != VisibilityMode.Omniscient)
-            {
-                visibilityMode = VisibilityMode.Omniscient;
-                OnVisibilityModeChanged();
-            }
-        }
-
-        listing.Gap();
-
-        if (visibilityMode != VisibilityMode.Omniscient)
-        {
-            Text.Font = GameFont.Medium;
-            listing.Label("Lookout & Scouting Horizons");
-            Text.Font = GameFont.Small;
-            listing.GapLine();
-
-            listing.Label($"Colony Scout Horizon: {colonyScoutRadius:F1} hexes (Natural settlement vision)");
-            float newColonyRadius = listing.Slider(colonyScoutRadius, 1f, 15f);
-            if (Mathf.Abs(newColonyRadius - colonyScoutRadius) > 0.05f)
-            {
-                colonyScoutRadius = newColonyRadius;
-                SensoryManager.Instance?.Notify_SensorRadiusChanged();
-            }
-
-            listing.Label($"Caravan Scout Lookout: {caravanScoutRadius:F1} hexes (Moving caravan vision)");
-            float newCaravanRadius = listing.Slider(caravanScoutRadius, 1f, 10f);
-            if (Mathf.Abs(newCaravanRadius - caravanScoutRadius) > 0.05f)
-            {
-                caravanScoutRadius = newCaravanRadius;
-                SensoryManager.Instance?.Notify_SensorRadiusChanged();
-            }
-
-            bool prevNightReduction = enableNighttimeSensoryReduction;
-            listing.CheckboxLabeled(
-                "Nighttime visual lookout reduction",
-                ref enableNighttimeSensoryReduction,
-                "Naked-eye lookouts suffer a 50% visual range reduction at night, collapsing to 1 hex if all conscious colonists are asleep.");
-            if (prevNightReduction != enableNighttimeSensoryReduction)
-            {
-                SensoryManager.Instance?.Notify_SensorRadiusChanged();
-            }
-
-            listing.Gap();
+            CampaignRulesPanel.DrawLookoutScoutingSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
 
             Text.Font = GameFont.Medium;
             listing.Label("Tactical Radar Overlay & Range Outlines (X-COM Style)");
@@ -352,6 +354,11 @@ public class GeoscapeSettings : ModSettings
                 NotifyRadarVisualsChanged();
             }
         }
+
+        if (!inCampaign)
+        {
+            rules.WriteToDefaults(this);
+        }
     }
 
     // =========================================================================
@@ -360,43 +367,24 @@ public class GeoscapeSettings : ModSettings
 
     private void DrawIncursionsTab(Listing_Standard listing)
     {
-        Text.Font = GameFont.Medium;
-        listing.Label("Incursion Movement & Storyteller Rules");
-        Text.Font = GameFont.Small;
-        listing.GapLine();
+        GeoscapeCampaignRules? campaign = GeoscapeCampaignRules.Active;
+        bool inCampaign = campaign != null;
+        GeoscapeRuleSet rules = campaign != null ? campaign.Rules : GetOrCreateTransientRuleSet();
+        RuleEditContext ctx = campaign != null ? campaign.CreateEditContext() : new RuleEditContext(false, false, false);
 
-        listing.CheckboxLabeled(
-            "Synchronize multi-vector raid departures",
-            ref synchronizeMultiVectorRaids,
-            "When hostile factions launch multi-group raids from separate bases, closer settlements mobilize at base so forces converge simultaneously.");
+        DrawContextBanner(listing, campaign);
 
-        listing.Gap();
-
-        listing.CheckboxLabeled(
-            "Biological incursions rest at night",
-            ref incursionsRestAtNight,
-            "Hostile warbands and neutral caravans from biological factions halt and camp between 22:00 and 06:00 solar time. Mechanoids and anomaly entities march relentlessly 24/7.");
-
-        listing.Gap();
-
-        listing.CheckboxLabeled(
-            "Enable tactical ingress diversification & anti-funnelling",
-            ref enableTacticalIngressFlanking,
-            "Raiders and tribal warbands occasionally take off-road flanking routes and approach from unexpected vectors to avoid predictable highway checkpoints.");
-
-        listing.Gap();
+        CampaignRulesPanel.DrawIncursionsSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
 
         listing.CheckboxLabeled(
             "Show faction emblems on Geoscape incursions",
             ref showFactionEmblems,
             "Render the attacking faction's emblem icon on planetary incursions once classified, instead of generic markers.");
 
-        listing.Gap();
-
-        listing.CheckboxLabeled(
-            "Reset Storyteller threat cycle on map arrival (Default: Off)",
-            ref resetThreatCooldownOnArrival,
-            "When enabled, the Storyteller threat cooldown begins only when the raid arrives on the colony map rather than upon planetary departure. Warning: may leave extended peaceful intervals between events.");
+        if (!inCampaign)
+        {
+            rules.WriteToDefaults(this);
+        }
     }
 
     // =========================================================================
@@ -405,17 +393,14 @@ public class GeoscapeSettings : ModSettings
 
     private void DrawEarlyWarningIntelTab(Listing_Standard listing)
     {
-        Text.Font = GameFont.Medium;
-        listing.Label("Early Warning & Contact Intelligence");
-        Text.Font = GameFont.Small;
-        listing.GapLine();
+        GeoscapeCampaignRules? campaign = GeoscapeCampaignRules.Active;
+        bool inCampaign = campaign != null;
+        GeoscapeRuleSet rules = campaign != null ? campaign.Rules : GetOrCreateTransientRuleSet();
+        RuleEditContext ctx = campaign != null ? campaign.CreateEditContext() : new RuleEditContext(false, false, false);
 
-        listing.CheckboxLabeled(
-            "Dispatch Early Warning notifications on contact detection",
-            ref enableEarlyWarningLetters,
-            "Send a letter when lookouts or sensors first detect an approaching incursion on the planetary map.");
+        DrawContextBanner(listing, campaign);
 
-        listing.Gap();
+        CampaignRulesPanel.DrawNotificationsSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
 
         Text.Font = GameFont.Medium;
         listing.Label("Epistemic Discovery: \"You Don't Know What You Don't Know\"");
@@ -453,6 +438,11 @@ public class GeoscapeSettings : ModSettings
                           "• Industrial / Spacer: Advanced sensors provide military telemetry (e.g., 'Contact-03', 'Bearing South-Southeast, ~24 hexes/day').";
 
         Widgets.Label(techTextRect, techInfo);
+
+        if (!inCampaign)
+        {
+            rules.WriteToDefaults(this);
+        }
     }
 
     // =========================================================================
@@ -496,16 +486,65 @@ public class GeoscapeSettings : ModSettings
 
         listing.Gap();
 
+        GeoscapeCampaignRules? campaign = GeoscapeCampaignRules.Active;
+        if (campaign != null)
+        {
+            Text.Font = GameFont.Medium;
+            listing.Label("Active Campaign Rules & Governance");
+            Text.Font = GameFont.Small;
+            listing.GapLine();
+
+            string statusText = $"• Active Profile: {campaign.Rules.DetectCurrentProfile().GetDisplayName()}\n" +
+                                $"• Schema Version: v{campaign.SchemaVersion}\n" +
+                                $"• Review Window: {(campaign.ReviewWindowOpen ? "Open (Day 1 Grace Period)" : "Locked")}\n" +
+                                $"• Ledger Records: {campaign.Ledger.Count} entries";
+            listing.Label(statusText);
+
+            if (campaign.ReviewWindowOpen)
+            {
+                if (listing.ButtonText("Confirm & Lock In Campaign Rules Now"))
+                {
+                    campaign.ConfirmAndLock();
+                    SoundDefOf.Click?.PlayOneShotOnCamera();
+                    Messages.Message("Campaign rules locked. Mutability restrictions now active.", MessageTypeDefOf.PositiveEvent, historical: false);
+                }
+            }
+
+            if (Prefs.DevMode)
+            {
+                listing.Gap(6f);
+                bool req = UnsafeRuleOverride.Requested;
+                bool prev = req;
+                listing.CheckboxLabeled(
+                    "Allow Unsafe Rule Transitions (Session Only)",
+                    ref req,
+                    "Developer Mode override. Bypasses all mutability constraints, allowing downgrades and editing of immutable rules. All changes are marked [Unsafe] in the audit ledger.");
+                if (req != prev)
+                {
+                    UnsafeRuleOverride.SetRequested(req);
+                }
+            }
+
+            listing.Gap();
+        }
+
         Text.Font = GameFont.Medium;
         listing.Label("Configuration Management");
         Text.Font = GameFont.Small;
         listing.GapLine();
 
-        if (listing.ButtonText("Reset All Geoscape Settings to Defaults"))
+        string resetBtnLabel = campaign != null
+            ? "Reset New Campaign Defaults to Factory Settings"
+            : "Reset All Geoscape Settings to Defaults";
+
+        if (listing.ButtonText(resetBtnLabel))
         {
             ResetToDefaults();
             SoundDefOf.ClickReject?.PlayOneShotOnCamera();
-            Messages.Message("Project Vigilance settings reset to default values.", MessageTypeDefOf.NeutralEvent, historical: false);
+            string msg = campaign != null
+                ? "Project Vigilance new campaign defaults reset. Active save rules remain unaffected."
+                : "Project Vigilance settings reset to default values.";
+            Messages.Message(msg, MessageTypeDefOf.NeutralEvent, historical: false);
         }
     }
 
@@ -515,7 +554,7 @@ public class GeoscapeSettings : ModSettings
         showFactionEmblems = true;
         resetThreatCooldownOnArrival = false;
         enableTacticalIngressFlanking = true;
-        visibilityMode = VisibilityMode.PlanetarySurveillance;
+        visibilityMode = VisibilityMode.ClassicHazeOfWar;
         radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
         usePlayerFactionColor = true;
         radarCustomColor = new Color(0f, 0.90f, 1.0f);
@@ -551,15 +590,6 @@ public class GeoscapeSettings : ModSettings
 
     private void OnVisibilityModeChanged()
     {
-        if (Current.ProgramState == ProgramState.Playing && Find.World != null)
-        {
-            WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
-            WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
-            if (Find.WorldGrid?.Surface != null)
-            {
-                Find.WorldGrid.Surface.SetAllLayersDirty();
-            }
-            Find.WorldFeatures?.UpdateFeatures();
-        }
+        RuleTransitionExecutor.Execute(RuleTransitionEffects.RebuildWorldLayers);
     }
 }

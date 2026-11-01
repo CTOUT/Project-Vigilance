@@ -26,7 +26,7 @@ public static class WorldPathing_FindPath_Patch
             bool isPlayerContext = (caravan != null && caravan.Faction?.IsPlayer == true) ||
                                   (caravan == null && (OptimisticPathingUtility.IsRoutePlannerActive || OptimisticPathingUtility.ForceActive));
 
-            if (isPlayerContext && GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar)
+            if (isPlayerContext && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
                 OptimisticPathingUtility.Active = true;
             }
@@ -77,7 +77,7 @@ public static class WorldPathing_FindPath_Patch
         public static bool Prefix(PlanetTile startTile, PlanetTile destTile, ref bool __result)
         {
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 __result = true;
                 return false;
@@ -94,7 +94,7 @@ public static class WorldPathing_FindPath_Patch
         public static bool Prefix(PlanetTile tile, ref bool __result)
         {
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tile))
                 {
@@ -114,7 +114,7 @@ public static class WorldPathing_FindPath_Patch
         public static bool Prefix(PlanetTile tile, ref bool __result)
         {
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tile))
                 {
@@ -134,7 +134,7 @@ public static class WorldPathing_FindPath_Patch
         public static bool Prefix(PlanetTile tileID, ref bool __result)
         {
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tileID))
                 {
@@ -154,7 +154,7 @@ public static class WorldPathing_FindPath_Patch
         public static bool Prefix(PlanetTile tile, ref float __result)
         {
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tile))
                 {
@@ -175,7 +175,7 @@ public static class WorldPathing_FindPath_Patch
             __state = OptimisticPathingUtility.Active;
 
             if (OptimisticPathingUtility.IsPlayerPather(__instance) &&
-                GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar)
+                GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
                 OptimisticPathingUtility.Active = true;
             }
@@ -193,7 +193,7 @@ public static class WorldPathing_FindPath_Patch
         public static bool Prefix(Caravan_PathFollower __instance, PlanetTile tile, ref bool __result)
         {
             if (OptimisticPathingUtility.IsPlayerPather(__instance) &&
-                GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar)
+                GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tile))
                 {
@@ -212,7 +212,7 @@ public static class WorldPathing_FindPath_Patch
         public static bool Prefix(Caravan_PathFollower __instance)
         {
             if (OptimisticPathingUtility.IsPlayerPather(__instance) &&
-                GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar)
+                GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
                 if (!__instance.IsNextTilePassable())
                 {
@@ -236,7 +236,7 @@ public static class WorldPathing_FindPath_Patch
         {
             __state = OptimisticPathingUtility.Active;
 
-            if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
                 OptimisticPathingUtility.Active = true;
             }
@@ -255,7 +255,7 @@ public static class WorldPathing_FindPath_Patch
         {
             __state = OptimisticPathingUtility.Active;
 
-            if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
                 OptimisticPathingUtility.Active = true;
             }

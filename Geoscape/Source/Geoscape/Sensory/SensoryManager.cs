@@ -93,6 +93,31 @@ public class SensoryManager : WorldComponent
         set => testInstance = value;
     }
 
+    /// <summary>
+    /// Scans the explored tiles bitset for any recorded exploration data.
+    /// Used during legacy migration to detect whether an unversioned save was created under Classic Haze of War.
+    /// </summary>
+    public bool HasAnyExploredTiles
+    {
+        get
+        {
+            if (exploredBytes == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < exploredBytes.Length; i++)
+            {
+                if (exploredBytes[i] != 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     public SensoryManager(RimWorld.Planet.World world) : base(world)
     {
         ExternalFogCompatibility.ResetAndRescan();
@@ -123,7 +148,7 @@ public class SensoryManager : WorldComponent
 
         // Responsive movement check: if an active player caravan steps onto a new hex,
         // instantly reveal fog and update active vision without waiting for the 250-tick sweep
-        if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar && Find.TickManager.TicksGame % 5 == 0)
+        if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar && Find.TickManager.TicksGame % 5 == 0)
         {
             CheckPlayerCaravanMovement();
         }
@@ -155,7 +180,7 @@ public class SensoryManager : WorldComponent
                         caravanSensors[id] = sensor;
                     }
 
-                    float radius = GeoscapeMod.Settings.caravanScoutRadius;
+                    float radius = GeoscapeRules.CaravanScoutRadius;
                     int idRadius = 1 + SensoryTerrainUtility.GetIdentificationVantageBonus(SensoryTerrainUtility.GetVantageBonus(c.Tile));
                     if (sensor.IsSensorActive)
                     {
@@ -310,7 +335,7 @@ public class SensoryManager : WorldComponent
         DeepProfiler.Start("ProjectVigilance.PerformSensorySweep");
         try
         {
-            VisibilityMode mode = GeoscapeMod.Settings.visibilityMode;
+            VisibilityMode mode = GeoscapeRules.VisibilityMode;
 
             // Clean up stale targets or populate if empty
             activeTargets.RemoveWhere(StaleTargetPredicate);
@@ -554,7 +579,7 @@ public class SensoryManager : WorldComponent
 
     public bool HasActiveVision(PlanetTile tile)
     {
-        if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient)
+        if (GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient)
         {
             return true;
         }
@@ -588,7 +613,7 @@ public class SensoryManager : WorldComponent
 
     public bool HasActiveIdentification(PlanetTile tile)
     {
-        if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient)
+        if (GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient)
         {
             return true;
         }
@@ -765,7 +790,7 @@ public class SensoryManager : WorldComponent
             return isExploredOverride(tile);
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }
@@ -804,7 +829,7 @@ public class SensoryManager : WorldComponent
 
     public bool IsTileIdExplored(int tileId)
     {
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }
@@ -851,7 +876,7 @@ public class SensoryManager : WorldComponent
             return isExploredOverride(tile);
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }
@@ -884,7 +909,7 @@ public class SensoryManager : WorldComponent
 
     public bool IsTileIdIdentified(int tileId)
     {
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }
@@ -960,7 +985,7 @@ public class SensoryManager : WorldComponent
             return isExploredOverride(wo.Tile);
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }
@@ -990,7 +1015,7 @@ public class SensoryManager : WorldComponent
             return false;
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return false;
         }
@@ -1105,7 +1130,7 @@ public class SensoryManager : WorldComponent
             return true;
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }

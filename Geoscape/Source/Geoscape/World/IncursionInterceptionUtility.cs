@@ -1035,7 +1035,7 @@ public static class IncursionInterceptionUtility
         int caravanId = caravan.ID;
         var sensoryManager = Find.World?.GetComponent<SensoryManager>();
         bool hasVision = sensoryManager != null && sensoryManager.HasActiveVision(incursion.Tile);
-        bool isDetected = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+        bool isDetected = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient ||
                           incursion.CurrentIntelligenceTier >= IntelligenceTier.Contact ||
                           hasVision;
 

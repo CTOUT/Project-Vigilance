@@ -418,7 +418,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         get
         {
-            if (!GeoscapeMod.Settings.incursionsRestAtNight)
+            if (!GeoscapeRules.IncursionsRestAtNight)
             {
                 return false;
             }
@@ -451,7 +451,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public bool IsIdentified
     {
-        get => GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+        get => GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient ||
                (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
         set
         {
@@ -475,7 +475,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         set
         {
             intelligenceTier = value;
-            if (value < IntelligenceTier.Contact && GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient)
+            if (value < IntelligenceTier.Contact && GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient)
             {
                 if (Find.WorldSelector != null && Find.WorldSelector.IsSelected(this))
                 {
@@ -502,10 +502,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         cachedCaravanWorldTexture ??= ContentFinder<Texture2D>.Get("World/WorldObjects/Caravan");
 
     public override bool SelectableNow =>
-        GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact;
+        GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact;
 
     public override bool NeverMultiSelect =>
-        GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact;
+        GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact;
 
     public override IEnumerable<FloatMenuOption> GetFloatMenuOptions(Caravan caravan)
     {
@@ -519,12 +519,12 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             yield break;
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
         {
             yield break;
         }
 
-        bool isClassified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+        bool isClassified = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient ||
                             (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
 
         if (!isClassified)
@@ -622,7 +622,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         get
         {
-            bool isClassified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+            bool isClassified = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient ||
                                 (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
 
             if (!isClassified)
@@ -835,7 +835,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         get
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
             {
                 return BaseContent.ClearTex;
             }
@@ -859,7 +859,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         get
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
             {
                 return TacticalAmberPulseColor(0.95f);
             }
@@ -883,7 +883,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         get
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
             {
                 return MaterialPool.MatFrom(CaravanWorldTexture, ShaderDatabase.WorldOverlayTransparentLit, TacticalAmberPulseColor(0.95f), WorldMaterials.DynamicObjectRenderQueue);
             }
@@ -906,7 +906,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
 
         // Hide entirely if undetected by the sensory net
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
         {
             return;
         }
@@ -918,7 +918,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
         Color statusColor;
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
         {
             // Calm tactical amber breathing blip for unidentified contacts
             statusColor = TacticalAmberPulseColor(1f);
@@ -955,7 +955,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             null);
 
         // 2. Overlay Layer: Faction Emblem (ONLY when Classified or Analysed)
-        bool canShowEmblem = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Classified;
+        bool canShowEmblem = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Classified;
         if (canShowEmblem && isIdentified && Faction?.def?.FactionIcon != null && GeoscapeMod.Settings.showFactionEmblems)
         {
             Color factionTint = Faction.Color;
@@ -1041,8 +1041,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         // Eagerly pre-materialize the full force makeup (pawns, animals, mechs, weapons, inventory)
         EnsureRosterGenerated();
 
-        isIdentified = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient);
-        intelligenceTier = (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient)
+        isIdentified = (GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient);
+        intelligenceTier = (GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient)
             ? IntelligenceTier.Analysed
             : IntelligenceTier.Undetected;
         hasDispatchedContactAlert = false;
@@ -1234,7 +1234,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
             {
                 isIdentified = false;
             }
@@ -1320,7 +1320,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     {
         base.Tick();
 
-        if (intelligenceTier < IntelligenceTier.Contact && GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient)
+        if (intelligenceTier < IntelligenceTier.Contact && GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient)
         {
             if (Find.WorldSelector != null && Find.WorldSelector.IsSelected(this))
             {
@@ -1631,7 +1631,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                         // Dynamic pursuit tracking: plot X-COM lead intercept tile along incursion heading
                         var sensoryManager = Find.World?.GetComponent<SensoryManager>();
                         bool hasVision = sensoryManager != null && sensoryManager.HasActiveVision(Tile);
-                        if (GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact || hasVision)
+                        if (GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Contact || hasVision)
                         {
                             PlanetTile targetTile = GetInterceptTargetTile(c);
                             if (c.pather.Destination != targetTile)
@@ -1863,7 +1863,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         get
         {
             // In Contact Tier, position updates discretely on 250-tick sweeps rather than 60 FPS continuous Slerp
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier == IntelligenceTier.Contact)
             {
                 if (lastSampledDrawPos != Vector3.zero)
                 {
@@ -1916,7 +1916,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public override void DrawExtraSelectionOverlays()
     {
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
         {
             return;
         }
@@ -1935,7 +1935,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         List<PlanetTile> tiles = pathTiles;
 
         // In Contact tier, do not reveal the entire projected planetary path to the player
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
         {
             Vector3 curDrawPos = DrawPos + DrawPos.normalized * 0.08f;
             int anchorIdx = (currentPathIndex > 0 && tileProgress < 0.5f) ? currentPathIndex - 1 : currentPathIndex;
@@ -2037,12 +2037,12 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public override string GetInspectString()
     {
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
         {
             return string.Empty;
         }
 
-        bool isClassified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+        bool isClassified = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient ||
                             (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
 
         string idTag = trackingId > 0
@@ -2081,7 +2081,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
 
         bool isMechanoid = Faction != null && (Faction.def == FactionDefOf.Mechanoid || Faction.def.defName.Contains("Mechanoid"));
-        float effectiveSpeed = (GeoscapeMod.Settings.incursionsRestAtNight && !isMechanoid)
+        float effectiveSpeed = (GeoscapeRules.IncursionsRestAtNight && !isMechanoid)
             ? speedTilesPerDay * (16f / 24f)
             : speedTilesPerDay;
         float actualRemainingTiles = Math.Max(0f, (pathTiles != null ? (pathTiles.Count - currentPathIndex) : 0) - tileProgress);
@@ -2177,7 +2177,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
     public override string GetDescription()
     {
-        bool isClassified = GeoscapeMod.Settings.visibilityMode == VisibilityMode.Omniscient ||
+        bool isClassified = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient ||
                             (isIdentified && intelligenceTier >= IntelligenceTier.Classified);
 
         if (!isClassified)

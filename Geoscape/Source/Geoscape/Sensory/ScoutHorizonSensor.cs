@@ -37,7 +37,7 @@ public class ScoutHorizonSensor : ISensorProvider
                 string nightType = isColony ? "Night Watch" : "Camp Night Watch";
                 string sleepingType = isColony ? "Sleeping Lookouts" : "Sleeping Camp Watch";
 
-                if (GeoscapeMod.Settings.enableNighttimeSensoryReduction)
+                if (GeoscapeRules.NighttimeSensoryReduction)
                 {
                     if (GenCelestial.CurCelestialSunGlow(mapParent.Map) < 0.35f)
                     {
@@ -129,10 +129,10 @@ public class ScoutHorizonSensor : ISensorProvider
         {
             int vantageBonus = SensoryTerrainUtility.GetVantageBonus(SensorTile);
             float baseRadius = (isColony
-                ? GeoscapeMod.Settings.colonyScoutRadius
-                : GeoscapeMod.Settings.caravanScoutRadius) + vantageBonus;
+                ? GeoscapeRules.ColonyScoutRadius
+                : GeoscapeRules.CaravanScoutRadius) + vantageBonus;
 
-            if (!GeoscapeMod.Settings.enableNighttimeSensoryReduction)
+            if (!GeoscapeRules.NighttimeSensoryReduction)
             {
                 return baseRadius;
             }
@@ -251,10 +251,10 @@ public class ScoutHorizonSensor : ISensorProvider
 
             // Colony Lookout:
             // Baseline 2 rings (default 5-tile horizon), or scaled integer if slider modified
-            int baseColonyId = Mathf.Max(1, Mathf.RoundToInt(GeoscapeMod.Settings.colonyScoutRadius * 0.4f));
+            int baseColonyId = Mathf.Max(1, Mathf.RoundToInt(GeoscapeRules.ColonyScoutRadius * 0.4f));
 
             // Darkness reduction (night watch or asleep): collapses to 1 ring
-            float daylightDet = GeoscapeMod.Settings.colonyScoutRadius + vantage;
+            float daylightDet = GeoscapeRules.ColonyScoutRadius + vantage;
             if (det < daylightDet)
             {
                 return 1;

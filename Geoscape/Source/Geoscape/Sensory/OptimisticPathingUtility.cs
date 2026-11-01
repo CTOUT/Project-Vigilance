@@ -72,7 +72,7 @@ public static class OptimisticPathingUtility
     public static bool ShouldUseOptimisticPathing()
     {
         return (Active || ForceActive) &&
-               GeoscapeMod.Settings.visibilityMode == VisibilityMode.ClassicHazeOfWar;
+               GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar;
     }
 
     public static bool IsTileUnexplored(PlanetTile tile)
@@ -162,7 +162,7 @@ public static class OptimisticPathingUtility
             return;
         }
 
-        if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return;
         }
@@ -275,6 +275,31 @@ public static class OptimisticPathingUtility
                         false);
                 }
                 OnCaravanHaltedForTesting?.Invoke(caravan, blockedTile, reason);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Forces all active moving player caravans to repath immediately.
+    /// Called when planetary visibility rules transition (e.g. from Haze to Surveillance/Omniscient).
+    /// </summary>
+    public static void RepathMovingPlayerCaravans()
+    {
+        if (Find.WorldObjects == null) return;
+
+        List<Caravan> caravans = Find.WorldObjects.Caravans;
+        if (caravans == null) return;
+
+        for (int i = 0; i < caravans.Count; i++)
+        {
+            Caravan caravan = caravans[i];
+            if (caravan != null && caravan.Faction?.IsPlayer == true && caravan.Spawned && caravan.pather != null && IsMoving(caravan.pather))
+            {
+                PlanetTile dest = caravan.pather.Destination;
+                if (dest.Valid)
+                {
+                    caravan.pather.StartPath(dest, caravan.pather.ArrivalAction, repathImmediately: true);
+                }
             }
         }
     }

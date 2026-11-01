@@ -52,7 +52,7 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
     {
         get
         {
-            if (GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return false;
             }
@@ -126,7 +126,7 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
     {
         Instance = this;
 
-        if (planetLayer == null || GeoscapeMod.Settings.visibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (planetLayer == null || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             for (int s = 0; s < subMeshes.Count; s++)
             {
