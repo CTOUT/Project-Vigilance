@@ -306,6 +306,17 @@ public sealed class OrbitalLogisticsTests
     }
 
     [TestMethod]
+    public void Satellite_Trade_CanTradeNow_WhenPlayerFactionNull_DoesNotThrow()
+    {
+        // Scenario: Trade satellite initialized during world generation before player faction is generated.
+        // Accessing CanTradeNow must safely return false and not throw or trigger Log.Error via Faction.OfPlayer.
+        Satellite_Trade sat = new();
+        sat.SetFaction(new Faction { def = new FactionDef { defName = "OutlanderCivil" } });
+
+        Assert.IsFalse(sat.CanTradeNow, "CanTradeNow should return false safely when player faction is uninitialized.");
+    }
+
+    [TestMethod]
     public void WorldObject_Satellite_InspectString_IncludesTelemetryAndDriftStatus()
     {
         WorldObject_Satellite sat = new();

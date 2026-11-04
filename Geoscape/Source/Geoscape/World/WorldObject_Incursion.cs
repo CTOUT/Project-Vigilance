@@ -468,7 +468,15 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public PlanetTile CurrentTile => Tile;
     public Vector3 CurrentDrawPos => TrueDrawPos;
     public Faction? TargetFaction => Faction;
-    public bool IsHostileToPlayer => Faction?.HostileTo(Faction.OfPlayer) ?? true;
+    public bool IsHostileToPlayer
+    {
+        get
+        {
+            if (Faction == null) return true;
+            Faction? playerFaction = (Find.World != null && Find.FactionManager != null) ? Faction.OfPlayerSilentFail : null;
+            return playerFaction != null ? Faction.HostileTo(playerFaction) : (Faction.def?.permanentEnemy ?? true);
+        }
+    }
     public IntelligenceTier CurrentIntelligenceTier
     {
         get => intelligenceTier;

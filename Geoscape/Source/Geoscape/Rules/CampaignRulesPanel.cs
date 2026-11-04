@@ -23,9 +23,9 @@ public static class CampaignRulesPanel
 
         CampaignRuleWidgets.DrawVisibilityRadio(
             listing,
-            VisibilityMode.ClassicHazeOfWar,
-            "Classic Haze of War (3-Tier RTS)",
-            "The planet is uncharted. Unexplored tiles are dark, unmonitored explored tiles show a translucent grey haze, and active sensors reveal live movement.",
+            VisibilityMode.FogOfWar,
+            "Fog of War",
+            "The planet is uncharted. Unexplored tiles are shrouded in darkness, explored unmonitored tiles show a translucent veil, and active sensors reveal live movement.",
             rules.Visibility,
             campaign,
             ctx,

@@ -12,6 +12,7 @@
     <expandingIcon>true</expandingIcon>
     <expandingIconTexture>World/WorldObjects/Expanding/Sites/Outpost</expandingIconTexture>
     <expandingIconPriority>50</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
   </WorldObjectDef>
 
@@ -26,6 +27,7 @@
     <expandingIcon>true</expandingIcon>
     <expandingIconTexture>World/WorldObjects/Expanding/Sites/DownedRefugee</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
   </WorldObjectDef>
 
@@ -40,6 +42,7 @@
     <expandingIcon>true</expandingIcon>
     <expandingIconTexture>World/WorldObjects/Expanding/Sites/Outpost</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
   </WorldObjectDef>
 
@@ -54,6 +57,7 @@
     <expandingIcon>true</expandingIcon>
     <expandingIconTexture>World/WorldObjects/Expanding/Sites/DownedRefugee</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
   </WorldObjectDef>
 
@@ -68,6 +72,7 @@
     <expandingIcon>true</expandingIcon>
     <expandingIconTexture>World/WorldObjects/Expanding/Sites/DownedRefugee</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
   </WorldObjectDef>
 
@@ -82,6 +87,7 @@
     <expandingIcon>true</expandingIcon>
     <expandingIconTexture>World/WorldObjects/Expanding/Sites/DownedRefugee</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
+    <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
   </WorldObjectDef>
 

@@ -16,7 +16,7 @@ public static class GroundedCaravanMeetingHelper
 {
     public static bool TryInterceptMeeting(IncidentWorker __instance, IncidentParms parms, ref bool result)
     {
-        if (parms?.target is not Caravan caravan || !caravan.Spawned || caravan.Faction != Faction.OfPlayer)
+        if (parms?.target is not Caravan caravan || !caravan.Spawned || caravan.Faction?.IsPlayer != true)
         {
             return true;
         }
@@ -54,7 +54,7 @@ public static class GroundedCaravanMeetingHelper
 
     public static bool TryInterceptDemand(IncidentWorker __instance, IncidentParms parms, ref bool result)
     {
-        if (parms?.target is not Caravan caravan || !caravan.Spawned || caravan.Faction != Faction.OfPlayer)
+        if (parms?.target is not Caravan caravan || !caravan.Spawned || caravan.Faction?.IsPlayer != true)
         {
             return true;
         }
@@ -95,6 +95,9 @@ public static class GroundedCaravanMeetingHelper
         var worldObjects = Find.WorldObjects?.AllWorldObjects;
         if (worldObjects == null) return null;
 
+        Faction? playerFaction = Faction.OfPlayerSilentFail;
+        if (playerFaction == null) return null;
+
         for (int i = 0; i < worldObjects.Count; i++)
         {
             if (worldObjects[i] is WorldObject_Incursion inc &&
@@ -103,8 +106,8 @@ public static class GroundedCaravanMeetingHelper
                 !inc.IsEngagedInTacticalMap)
             {
                 bool matchesHostility = isHostile
-                    ? (inc.Faction != null && inc.Faction.HostileTo(Faction.OfPlayer))
-                    : (inc.Faction != null && !inc.Faction.HostileTo(Faction.OfPlayer));
+                    ? (inc.Faction != null && inc.Faction.HostileTo(playerFaction))
+                    : (inc.Faction != null && !inc.Faction.HostileTo(playerFaction));
 
                 if (matchesHostility)
                 {
@@ -133,23 +136,24 @@ public static class GroundedCaravanMeetingHelper
         bool isHostile)
     {
         Faction? faction = parms.faction;
+        Faction? playerFaction = Faction.OfPlayerSilentFail;
         if (faction == null)
         {
             if (isHostile)
             {
                 faction = Find.FactionManager?.AllFactions?
-                    .Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden && !f.temporary &&
+                    .Where(f => (playerFaction != null ? f.HostileTo(playerFaction) : f.def.permanentEnemy) && !f.def.hidden && !f.temporary &&
                                 f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Combat))
                     .RandomElementWithFallback()
                     ?? Find.FactionManager?.AllFactions?
-                    .Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden && !f.temporary)
+                    .Where(f => (playerFaction != null ? f.HostileTo(playerFaction) : f.def.permanentEnemy) && !f.def.hidden && !f.temporary)
                     .RandomElementWithFallback();
             }
             else if (groupKind == IncursionGroupKind.TradeCaravan)
             {
                 // Ensure the faction has overland trade capability (not an orbital-only faction like TradersGuild)
                 faction = Find.FactionManager?.AllFactions?
-                    .Where(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
+                    .Where(f => (playerFaction == null || !f.HostileTo(playerFaction)) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
                                 f.def.humanlikeFaction &&
                                 f.def.caravanTraderKinds != null && f.def.caravanTraderKinds.Count > 0 &&
                                 f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Trader))
@@ -158,7 +162,7 @@ public static class GroundedCaravanMeetingHelper
             else
             {
                 faction = Find.FactionManager?.AllFactions?
-                    .Where(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
+                    .Where(f => (playerFaction == null || !f.HostileTo(playerFaction)) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
                                 f.def.humanlikeFaction &&
                                 f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Peaceful))
                     .RandomElementWithFallback();
@@ -174,7 +178,7 @@ public static class GroundedCaravanMeetingHelper
             if (!hasTradeCapability)
             {
                 Faction? validTradeFaction = Find.FactionManager?.AllFactions?
-                    .Where(f => !f.HostileTo(Faction.OfPlayer) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
+                    .Where(f => (playerFaction == null || !f.HostileTo(playerFaction)) && !f.IsPlayer && !f.def.hidden && !f.temporary &&
                                 f.def.humanlikeFaction &&
                                 f.def.caravanTraderKinds != null && f.def.caravanTraderKinds.Count > 0 &&
                                 f.def.pawnGroupMakers != null && f.def.pawnGroupMakers.Any(pgm => pgm.kindDef == PawnGroupKindDefOf.Trader))

@@ -130,7 +130,7 @@ public static class CampaignRuleWidgets
         RuleTransitionVerdict verdict = isSelected ? RuleTransitionVerdict.NoChange : rule.Evaluate(option, ctx);
 
         string displayLabel = label;
-        if (showLockPreview && option == VisibilityMode.ClassicHazeOfWar)
+        if (showLockPreview && (option == VisibilityMode.FogOfWar || option == VisibilityMode.ClassicHazeOfWar) && !displayLabel.Contains("(Recommended)"))
         {
             displayLabel += " (Recommended)";
         }

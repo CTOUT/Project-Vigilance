@@ -31,7 +31,7 @@ public static class Caravan_NightResting_Patch
     [HarmonyPostfix]
     public static void Postfix(Caravan __instance, ref bool __result)
     {
-        if (__instance == null || !__instance.Spawned || __instance.Faction != Faction.OfPlayer)
+        if (__instance == null || !__instance.Spawned || __instance.Faction?.IsPlayer != true)
         {
             return;
         }
@@ -352,7 +352,7 @@ public static class CaravanNightRestUtility_LeftRestTicksAt_Patch
         for (int i = 0; i < caravans.Count; i++)
         {
             Caravan c = caravans[i];
-            if (c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == tile)
+            if (c != null && c.Spawned && c.Faction?.IsPlayer == true && c.Tile == tile)
             {
                 matchingCaravan = c;
                 break;

@@ -12,8 +12,13 @@ public enum VisibilityMode
     PlanetarySurveillance = 0,
 
     /// <summary>
-    /// 3-Tier RTS Fog of War: Unexplored tiles are dark, explored unmonitored tiles show a translucent grey haze,
+    /// Planetary Fog of War: Unexplored tiles are dark, explored unmonitored tiles show a translucent shroud,
     /// and active vision reveals live targets.
+    /// </summary>
+    FogOfWar = 1,
+
+    /// <summary>
+    /// Backwards-compatibility alias for FogOfWar.
     /// </summary>
     ClassicHazeOfWar = 1,
 

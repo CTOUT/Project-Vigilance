@@ -241,6 +241,12 @@ public class SensoryManager : WorldComponent
     {
         if (sensor != null && !customSensors.Contains(sensor))
         {
+            // Security & gameplay isolation: only player-owned sensors or unowned player utilities may join SensoryManager
+            if (sensor.Source != null && sensor.Source.Faction != null && !sensor.Source.Faction.IsPlayer)
+            {
+                return;
+            }
+
             customSensors.Add(sensor);
             WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         }
@@ -266,8 +272,9 @@ public class SensoryManager : WorldComponent
             for (int i = 0; i < maps.Count; i++)
             {
                 Map map = maps[i];
+                Faction? playerFaction = (Find.World != null && Find.FactionManager != null) ? Faction.OfPlayerSilentFail : null;
                 if (map.Parent != null && map.Parent.Tile.Valid &&
-                    (map.IsPlayerHome || (map.Parent.Faction == Faction.OfPlayer) || (map.mapPawns != null && map.mapPawns.AnyFreeColonistSpawned)))
+                    (map.IsPlayerHome || (playerFaction != null && map.Parent.Faction == playerFaction) || (map.mapPawns != null && map.mapPawns.AnyFreeColonistSpawned)))
                 {
                     int parentId = map.Parent.ID;
                     if (!colonySensors.TryGetValue(parentId, out var sensor))
@@ -314,16 +321,20 @@ public class SensoryManager : WorldComponent
             {
                 if (all[i] is WorldObject_ListeningPost post && (Find.World == null || post.Spawned) && !post.Destroyed && !customSensors.Contains(post))
                 {
-                    customSensors.Add(post);
+                    if (post.Faction == null || post.Faction.IsPlayer)
+                    {
+                        customSensors.Add(post);
+                    }
                 }
             }
         }
 
         for (int i = 0; i < customSensors.Count; i++)
         {
-            if (customSensors[i].IsSensorActive)
+            var s = customSensors[i];
+            if (s.IsSensorActive && (s.Source == null || s.Source.Faction == null || s.Source.Faction.IsPlayer))
             {
-                activeSensorsCache.Add(customSensors[i]);
+                activeSensorsCache.Add(s);
             }
         }
 
@@ -829,6 +840,16 @@ public class SensoryManager : WorldComponent
 
     public bool IsTileIdExplored(int tileId)
     {
+        if (tileId < 0)
+        {
+            return false;
+        }
+
+        if (isExploredOverride != null)
+        {
+            return isExploredOverride(new PlanetTile(tileId));
+        }
+
         if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;

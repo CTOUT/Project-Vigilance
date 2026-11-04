@@ -30,9 +30,9 @@ public sealed class GeoscapeRuleSet : IExposable
         Visibility = new CampaignRule<VisibilityMode>(
             "visibilityMode",
             "Planetary visibility",
-            "Determines planetary fog of war and movement visibility. Classic Haze of War shrouds the unexplored planet; Planetary Surveillance charts world geography; Omniscient reveals all global movement.",
+            "Determines planetary fog of war and movement visibility. Fog of War shrouds the unexplored planet; Planetary Surveillance charts world geography; Omniscient reveals all global movement.",
             RuleMutability.Escalatable,
-            hardDefault: VisibilityMode.ClassicHazeOfWar,
+            hardDefault: VisibilityMode.FogOfWar,
             defaultSelector: d => d.visibilityMode,
             defaultWriter: (d, val) => d.visibilityMode = val,
             effects: RuleTransitionEffects.ReleaseConcealedSites |
@@ -158,7 +158,7 @@ public sealed class GeoscapeRuleSet : IExposable
 
     private static string FormatVisibilityMode(VisibilityMode m) => m switch
     {
-        VisibilityMode.ClassicHazeOfWar      => "Classic Haze of War",
+        VisibilityMode.FogOfWar              => "Fog of War",
         VisibilityMode.PlanetarySurveillance => "Planetary Surveillance",
         VisibilityMode.Omniscient            => "Omniscient",
         _ => m.ToString()
@@ -225,10 +225,22 @@ public sealed class GeoscapeRuleSet : IExposable
                 break;
 
             case CampaignProfile.HardcoreVigilance:
-                Visibility.Value = VisibilityMode.ClassicHazeOfWar;
+                Visibility.Value = VisibilityMode.FogOfWar;
                 ColonyScoutRadius.Value = 4.0f;
                 CaravanScoutRadius.Value = 2.0f;
                 NighttimeSensoryReduction.Value = true;
+                IncursionsRestAtNight.Value = true;
+                SynchronizeMultiVectorRaids.Value = true;
+                TacticalIngressFlanking.Value = true;
+                ResetThreatCooldownOnArrival.Value = false;
+                EarlyWarningLetters.Value = true;
+                break;
+
+            case CampaignProfile.Omniscient:
+                Visibility.Value = VisibilityMode.Omniscient;
+                ColonyScoutRadius.Value = 5.0f;
+                CaravanScoutRadius.Value = 3.0f;
+                NighttimeSensoryReduction.Value = false;
                 IncursionsRestAtNight.Value = true;
                 SynchronizeMultiVectorRaids.Value = true;
                 TacticalIngressFlanking.Value = true;
@@ -244,7 +256,16 @@ public sealed class GeoscapeRuleSet : IExposable
 
     public CampaignProfile DetectCurrentProfile()
     {
-        if (Visibility.Value == VisibilityMode.ClassicHazeOfWar &&
+        if (Visibility.Value == VisibilityMode.Omniscient &&
+            IncursionsRestAtNight.Value &&
+            SynchronizeMultiVectorRaids.Value &&
+            TacticalIngressFlanking.Value &&
+            !ResetThreatCooldownOnArrival.Value)
+        {
+            return CampaignProfile.Omniscient;
+        }
+
+        if (Visibility.Value == VisibilityMode.FogOfWar &&
             Math.Abs(ColonyScoutRadius.Value - 5.0f) < 0.05f &&
             Math.Abs(CaravanScoutRadius.Value - 3.0f) < 0.05f &&
             NighttimeSensoryReduction.Value &&
@@ -253,7 +274,7 @@ public sealed class GeoscapeRuleSet : IExposable
             TacticalIngressFlanking.Value &&
             !ResetThreatCooldownOnArrival.Value)
         {
-            return CampaignProfile.ClassicHaze;
+            return CampaignProfile.FogOfWar;
         }
 
         if (Visibility.Value == VisibilityMode.PlanetarySurveillance &&
@@ -268,7 +289,7 @@ public sealed class GeoscapeRuleSet : IExposable
             return CampaignProfile.PlanetarySurveillance;
         }
 
-        if (Visibility.Value == VisibilityMode.ClassicHazeOfWar &&
+        if (Visibility.Value == VisibilityMode.FogOfWar &&
             Math.Abs(ColonyScoutRadius.Value - 4.0f) < 0.05f &&
             Math.Abs(CaravanScoutRadius.Value - 2.0f) < 0.05f &&
             NighttimeSensoryReduction.Value &&

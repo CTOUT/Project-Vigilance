@@ -128,7 +128,7 @@ public sealed class Dialog_GeoscapeModAdoption : Window
             campaign.ApplyAdoptionCustom("User Custom");
             SoundDefOf.Click?.PlayOneShotOnCamera();
             Close();
-            Find.WindowStack?.Add(new Dialog_GeoscapeCampaignRules(campaign.Rules));
+            Find.WindowStack?.Add(new Dialog_GeoscapeCampaignRules(campaign.Rules, campaign));
         }
 
         Rect footerRect = new(inRect.x, bottomRow.yMax + 6f, inRect.width, 24f);

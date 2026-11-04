@@ -17,7 +17,7 @@ public static class Caravan_GetInspectString_Patch
 {
     public static void Postfix(Caravan __instance, ref string __result)
     {
-        if (__instance == null || !__instance.Spawned || __instance.Faction != Faction.OfPlayer || !__instance.Tile.Valid)
+        if (__instance == null || !__instance.Spawned || __instance.Faction?.IsPlayer != true || !__instance.Tile.Valid)
         {
             return;
         }

@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape;
+using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
+using RimWorld;
 using UnityEngine;
 using Verse;
 
@@ -535,5 +538,111 @@ public class CampaignRulesTests
         Assert.AreEqual(RuleChangeKind.ModAdoption, campaign.Ledger[0].kind);
         Assert.IsTrue(campaign.Ledger[0].note?.Contains("Custom") == true);
         Assert.IsTrue(campaign.HasRecordedAdoption);
+    }
+
+    [TestMethod]
+    public void Page_GeoscapeRules_Properties_And_Draft_Initialization()
+    {
+        Page_GeoscapeRules page = new();
+        Assert.AreEqual("Geoscape Campaign Rules", page.PageTitle);
+        Assert.AreEqual(new Vector2(1020f, 764f), page.InitialSize);
+
+        page.PreOpen();
+        Assert.IsNotNull(NewCampaignRuleDraft.Current);
+    }
+
+    [TestMethod]
+    public void PageUtility_StitchedPages_Patch_Inserts_Page_GeoscapeRules_Before_CreateWorldParams()
+    {
+        Page_SelectStoryteller storyteller = new();
+        Page_CreateWorldParams worldParams = new();
+        Page_ConfigureStartingPawns pawns = new();
+
+        IEnumerable<Page> pages = new List<Page> { storyteller, worldParams, pawns };
+
+        PageUtility_StitchedPages_Patch.Prefix(ref pages);
+
+        List<Page> list = pages.ToList();
+        Assert.AreEqual(4, list.Count);
+        Assert.IsInstanceOfType(list[0], typeof(Page_SelectStoryteller));
+        Assert.IsInstanceOfType(list[1], typeof(Page_GeoscapeRules));
+        Assert.IsInstanceOfType(list[2], typeof(Page_CreateWorldParams));
+        Assert.IsInstanceOfType(list[3], typeof(Page_ConfigureStartingPawns));
+
+        // Test idempotency: calling Prefix again must not insert duplicate
+        PageUtility_StitchedPages_Patch.Prefix(ref pages);
+        Assert.AreEqual(4, pages.Count());
+    }
+
+    [TestMethod]
+    public void CampaignProfile_FogOfWar_Aliases_And_Omniscient()
+    {
+        GeoscapeRuleSet rules = new();
+        rules.ApplyProfile(CampaignProfile.FogOfWar);
+        Assert.AreEqual(VisibilityMode.FogOfWar, rules.Visibility.Value);
+        Assert.AreEqual(CampaignProfile.FogOfWar, rules.DetectCurrentProfile());
+
+        rules.ApplyProfile(CampaignProfile.Omniscient);
+        Assert.AreEqual(VisibilityMode.Omniscient, rules.Visibility.Value);
+        Assert.AreEqual(CampaignProfile.Omniscient, rules.DetectCurrentProfile());
+    }
+
+    [TestMethod]
+    public void Dialog_GeoscapeCampaignRules_Properties_And_OnClose_Callback()
+    {
+        GeoscapeRuleSet draft = new();
+        bool closedCalled = false;
+        Dialog_GeoscapeCampaignRules dialog = new(draft, onClose: () => closedCalled = true);
+
+        Assert.AreEqual(new Vector2(700f, 760f), dialog.InitialSize);
+        dialog.PreClose();
+        Assert.IsTrue(closedCalled);
+    }
+
+    [TestMethod]
+    public void Draft_Tuning_Switches_To_Custom_Profile_And_Reapply_Resets()
+    {
+        GeoscapeRuleSet draft = new();
+        draft.ApplyProfile(CampaignProfile.FogOfWar);
+        Assert.AreEqual(CampaignProfile.FogOfWar, draft.DetectCurrentProfile());
+
+        // Modify fine-grained rule
+        draft.ColonyScoutRadius.Value = 3.5f;
+        Assert.AreEqual(CampaignProfile.Custom, draft.DetectCurrentProfile());
+
+        // Re-apply preset restores profile
+        draft.ApplyProfile(CampaignProfile.HardcoreVigilance);
+        Assert.AreEqual(CampaignProfile.HardcoreVigilance, draft.DetectCurrentProfile());
+        Assert.AreEqual(4.0f, draft.ColonyScoutRadius.Value, 0.01f);
+    }
+
+    [TestMethod]
+    public void Draft_Omniscient_Tuning_Incursions_Switches_To_Custom_Profile()
+    {
+        GeoscapeRuleSet draft = new();
+        draft.ApplyProfile(CampaignProfile.Omniscient);
+        Assert.AreEqual(CampaignProfile.Omniscient, draft.DetectCurrentProfile());
+
+        // Alter an incursion rule under Omniscient
+        draft.IncursionsRestAtNight.Value = false;
+        Assert.AreEqual(CampaignProfile.Custom, draft.DetectCurrentProfile());
+
+        // Restore rule restores Omniscient
+        draft.IncursionsRestAtNight.Value = true;
+        Assert.AreEqual(CampaignProfile.Omniscient, draft.DetectCurrentProfile());
+
+        // Alter tactical flanking
+        draft.TacticalIngressFlanking.Value = false;
+        Assert.AreEqual(CampaignProfile.Custom, draft.DetectCurrentProfile());
+    }
+
+    [TestMethod]
+    public void CampaignProfile_GetCleanName_ReturnsCleanStrings()
+    {
+        Assert.AreEqual("Fog of War", CampaignProfile.FogOfWar.GetCleanName());
+        Assert.AreEqual("Planetary Surveillance", CampaignProfile.PlanetarySurveillance.GetCleanName());
+        Assert.AreEqual("Hardcore Vigilance", CampaignProfile.HardcoreVigilance.GetCleanName());
+        Assert.AreEqual("Omniscient", CampaignProfile.Omniscient.GetCleanName());
+        Assert.AreEqual("Custom", CampaignProfile.Custom.GetCleanName());
     }
 }

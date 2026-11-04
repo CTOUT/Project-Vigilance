@@ -88,7 +88,7 @@ public class CompRadar : ThingComp, ISensorProvider
 
     public bool IsStationary => true;
 
-    public bool IsTechnological => true;
+    public bool IsTechnological => parent?.def?.techLevel >= TechLevel.Industrial;
 
     public bool PenetratesTerrainMasking =>
         Props.penetratesTerrainMasking || HasActiveSigintConsole;

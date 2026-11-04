@@ -41,7 +41,15 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
 
     public string TraderName => OrbitalCallsign;
 
-    public bool CanTradeNow => Faction != null && Faction.OfPlayer != null && !Faction.HostileTo(Faction.OfPlayer);
+    public bool CanTradeNow
+    {
+        get
+        {
+            if (Faction == null || Find.World == null || Find.FactionManager == null) return false;
+            Faction? playerFaction = Faction.OfPlayerSilentFail;
+            return playerFaction != null && !Faction.HostileTo(playerFaction);
+        }
+    }
 
     public float TradePriceImprovementOffsetForPlayer => 0f;
 
@@ -57,7 +65,7 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
             randomPriceFactorSeed = Rand.Range(1, 1000000);
         }
 
-        if (goods.Count == 0 && Current.ProgramState == ProgramState.Playing && Faction.OfPlayer != null)
+        if (goods.Count == 0 && Current.ProgramState == ProgramState.Playing && Find.World != null && Find.FactionManager != null && Faction.OfPlayerSilentFail != null)
         {
             GenerateInitialGoods();
         }
@@ -65,7 +73,7 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
 
     private void EnsureGoodsGenerated()
     {
-        if (goods.Count == 0 && Current.ProgramState == ProgramState.Playing && Faction.OfPlayer != null)
+        if (goods.Count == 0 && Current.ProgramState == ProgramState.Playing && Find.World != null && Find.FactionManager != null && Faction.OfPlayerSilentFail != null)
         {
             GenerateInitialGoods();
         }
@@ -73,7 +81,7 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
 
     public void GenerateInitialGoods()
     {
-        if (Current.ProgramState != ProgramState.Playing || Faction.OfPlayer == null)
+        if (Current.ProgramState != ProgramState.Playing || Find.World == null || Find.FactionManager == null || Faction.OfPlayerSilentFail == null)
         {
             return;
         }
@@ -93,7 +101,7 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
     public override void OnEnterServiceArea(WorldObject station)
     {
         base.OnEnterServiceArea(station);
-        if (Current.ProgramState == ProgramState.Playing && Faction.OfPlayer != null)
+        if (Current.ProgramState == ProgramState.Playing && Find.World != null && Find.FactionManager != null && Faction.OfPlayerSilentFail != null)
         {
             // Restock inventory while in station service corridor
             GenerateInitialGoods();

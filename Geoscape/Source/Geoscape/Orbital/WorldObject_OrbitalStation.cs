@@ -36,6 +36,39 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
     public bool InServiceArea => true;
     public int ParentStationId => ID;
 
+    private Material? cachedFactionMat;
+    private Faction? cachedFaction;
+
+    public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
+
+    public override Material Material
+    {
+        get
+        {
+            if (cachedFactionMat == null || cachedFaction != Faction)
+            {
+                cachedFaction = Faction;
+                Color color = Faction != null ? Faction.Color : Color.white;
+                if (def?.texture != null)
+                {
+                    cachedFactionMat = MaterialPool.MatFrom(
+                        def.texture,
+                        ShaderDatabase.WorldOverlayTransparentLit,
+                        color,
+                        WorldMaterials.WorldObjectRenderQueue);
+                }
+            }
+            return cachedFactionMat ?? base.Material;
+        }
+    }
+
+    public override void SetFaction(Faction newFaction)
+    {
+        base.SetFaction(newFaction);
+        cachedFactionMat = null;
+        cachedFaction = null;
+    }
+
     public PlanetTile CurrentSubSatelliteTile => OrbitalFlightModel.CalculateSubSatelliteTile(orbit, Current.Game?.tickManager?.TicksGame ?? 0);
 
     public Vector3 CurrentOrbitalPosition => OrbitalFlightModel.CalculateOrbitalPosition(

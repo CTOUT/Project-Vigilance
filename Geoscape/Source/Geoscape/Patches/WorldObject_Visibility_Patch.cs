@@ -9,6 +9,7 @@ using UnityEngine;
 using Verse;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
+using ProjectVigilance.Geoscape.Orbital;
 
 namespace ProjectVigilance.Geoscape.Patches;
 
@@ -84,10 +85,38 @@ public static class WorldObject_Visibility_Patch
         }
     }
 
+    /// <summary>
+    /// Evaluates whether a WorldObject should be completely concealed from rendering, selection, and mouse hover
+    /// under the current campaign visibility rules and sensory detection state.
+    /// Non-player orbital entities require active technological space-tracking sensors; surface entities require explored hexes.
+    /// </summary>
+    public static bool ShouldHideWorldObject(WorldObject? wo)
+    {
+        if (wo == null) return false;
+
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        {
+            return false;
+        }
+
+        if (wo.Faction?.IsPlayer == true)
+        {
+            return false;
+        }
+
+        if (wo is IOrbitalEntity || wo is WorldObject_Satellite || wo is WorldObject_OrbitalStation)
+        {
+            return !OrbitalVisibilityUtility.IsOrbitalEntityDetected(wo);
+        }
+
+        return SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(wo.Tile);
+    }
+
     public static bool ShouldDrawUpright(WorldObject? wo)
     {
         if (wo == null) return false;
         if (wo is WorldObject_ListeningPost || wo is WorldObject_Incursion) return true;
+        if (wo is IOrbitalEntity || wo is WorldObject_Satellite || wo is WorldObject_OrbitalStation) return true;
         if (SensoryManager.ShouldMaskWorldObjectAsUnknown(wo)) return true;
         if (wo.def != null && wo.def.expandingIcon && wo.def.texture == wo.def.expandingIconTexture) return true;
         return false;
@@ -104,6 +133,11 @@ public static class WorldObject_Visibility_Patch
 
         public static bool Prefix(WorldObject __instance)
         {
+            if (ShouldHideWorldObject(__instance))
+            {
+                return false;
+            }
+
             if (!ShouldDrawUpright(__instance))
             {
                 return true;
@@ -150,6 +184,11 @@ public static class WorldObject_Visibility_Patch
     {
         public static bool Prefix(WorldObject __instance, LayerSubMesh subMesh)
         {
+            if (ShouldHideWorldObject(__instance))
+            {
+                return false;
+            }
+
             if (!ShouldDrawUpright(__instance))
             {
                 return true;
@@ -168,6 +207,19 @@ public static class WorldObject_Visibility_Patch
         }
     }
 
+    /// <summary>
+    /// Checks whether the currently selected camera layer is either the planetary Surface
+    /// or an orbital/space layer (e.g. Odyssey's Orbit layer), enabling seamless cross-layer
+    /// rendering of orbital entities.
+    /// </summary>
+    public static bool IsValidOrbitalLayerActive()
+    {
+        if (Find.World == null || Find.WorldSelector == null) return true;
+        PlanetLayer? sel = Find.WorldSelector.SelectedLayer;
+        if (sel == null) return true;
+        return sel == Find.WorldGrid?.Surface || sel.Def?.isSpace == true || sel.Def?.defName == "Orbit";
+    }
+
     // ---------------------------------------------------------
     // 1. 2D Expanding Icons (Zoomed Out / Mid Distance)
     // ---------------------------------------------------------
@@ -176,17 +228,28 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject wo, ref bool __result)
         {
-            if (__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (wo is IOrbitalEntity || wo is WorldObject_Satellite || wo is WorldObject_OrbitalStation)
+            {
+                if (ShouldHideWorldObject(wo))
+                {
+                    __result = true;
+                    return;
+                }
+
+                // If detected / player-owned, allow rendering across both Surface and Orbit views
+                if (IsValidOrbitalLayerActive())
+                {
+                    __result = false;
+                    return;
+                }
+            }
+
+            if (__result)
             {
                 return;
             }
 
-            if (wo.Faction?.IsPlayer == true)
-            {
-                return;
-            }
-
-            if (SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(wo.Tile))
+            if (ShouldHideWorldObject(wo))
             {
                 __result = true;
             }
@@ -201,17 +264,27 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject worldObject, ref bool __result)
         {
-            if (__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (worldObject is IOrbitalEntity || worldObject is WorldObject_Satellite || worldObject is WorldObject_OrbitalStation)
+            {
+                if (ShouldHideWorldObject(worldObject))
+                {
+                    __result = true;
+                    return;
+                }
+
+                if (__result && IsValidOrbitalLayerActive())
+                {
+                    __result = false;
+                    return;
+                }
+            }
+
+            if (__result)
             {
                 return;
             }
 
-            if (worldObject.Faction?.IsPlayer == true)
-            {
-                return;
-            }
-
-            if (SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(worldObject.Tile))
+            if (ShouldHideWorldObject(worldObject))
             {
                 __result = true;
             }
@@ -223,17 +296,27 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject worldObject, ref bool __result)
         {
-            if (__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (worldObject is IOrbitalEntity || worldObject is WorldObject_Satellite || worldObject is WorldObject_OrbitalStation)
+            {
+                if (ShouldHideWorldObject(worldObject))
+                {
+                    __result = true;
+                    return;
+                }
+
+                if (__result && IsValidOrbitalLayerActive())
+                {
+                    __result = false;
+                    return;
+                }
+            }
+
+            if (__result)
             {
                 return;
             }
 
-            if (worldObject.Faction?.IsPlayer == true)
-            {
-                return;
-            }
-
-            if (SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(worldObject.Tile))
+            if (ShouldHideWorldObject(worldObject))
             {
                 __result = true;
             }
@@ -337,17 +420,12 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject __instance, ref bool __result)
         {
-            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result)
             {
                 return;
             }
 
-            if (__instance.Faction?.IsPlayer == true)
-            {
-                return;
-            }
-
-            if (SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(__instance.Tile))
+            if (ShouldHideWorldObject(__instance))
             {
                 __result = false;
             }
@@ -359,17 +437,27 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject o, ref bool __result)
         {
-            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (o is IOrbitalEntity || o is WorldObject_Satellite || o is WorldObject_OrbitalStation)
+            {
+                if (ShouldHideWorldObject(o))
+                {
+                    __result = false;
+                    return;
+                }
+
+                if (!__result && IsValidOrbitalLayerActive())
+                {
+                    __result = true;
+                    return;
+                }
+            }
+
+            if (!__result)
             {
                 return;
             }
 
-            if (o.Faction?.IsPlayer == true)
-            {
-                return;
-            }
-
-            if (SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(o.Tile))
+            if (ShouldHideWorldObject(o))
             {
                 __result = false;
             }
@@ -381,13 +469,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(List<WorldObject> __result)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar || __result == null || __result.Count == 0)
-            {
-                return;
-            }
-
-            SensoryManager? sensory = SensoryManager.Instance;
-            if (sensory == null)
+            if (__result == null || __result.Count == 0)
             {
                 return;
             }
@@ -395,7 +477,7 @@ public static class WorldObject_Visibility_Patch
             for (int i = __result.Count - 1; i >= 0; i--)
             {
                 WorldObject wo = __result[i];
-                if (wo.Faction?.IsPlayer != true && !sensory.IsExplored(wo.Tile))
+                if (ShouldHideWorldObject(wo))
                 {
                     __result.RemoveAt(i);
                 }
@@ -413,6 +495,11 @@ public static class WorldObject_Visibility_Patch
                 return false;
             }
 
+            if (ShouldHideWorldObject(obj))
+            {
+                return false;
+            }
+
             if (!obj.SelectableNow)
             {
                 return false;
@@ -422,14 +509,6 @@ public static class WorldObject_Visibility_Patch
             {
                 if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient &&
                     incursion.CurrentIntelligenceTier < IntelligenceTier.Contact)
-                {
-                    return false;
-                }
-            }
-
-            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
-            {
-                if (obj.Faction?.IsPlayer != true && SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(obj.Tile))
                 {
                     return false;
                 }
@@ -454,8 +533,6 @@ public static class WorldObject_Visibility_Patch
 
         private static IEnumerable<WorldObject> FilterSelectable(IEnumerable<WorldObject> source)
         {
-            SensoryManager? sensory = SensoryManager.Instance;
-            bool isClassicHaze = GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar;
             bool isOmniscient = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient;
 
             foreach (WorldObject obj in source)
@@ -470,7 +547,7 @@ public static class WorldObject_Visibility_Patch
                     continue;
                 }
 
-                if (isClassicHaze && obj.Faction?.IsPlayer != true && sensory != null && !sensory.IsExplored(obj.Tile))
+                if (ShouldHideWorldObject(obj))
                 {
                     continue;
                 }
@@ -717,13 +794,13 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPrefix]
         public static bool Prefix(ref string __result)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
 
             if (Find.WorldSelector.NumSelectedObjects == 0 && Find.WorldSelector.SelectedTile.Valid &&
-                SensoryManager.Instance != null && !SensoryManager.Instance.IsTileIdExplored(Find.WorldSelector.SelectedTile.tileId))
+                !StartingSiteFeedbackUtility.IsTileExplored(Find.WorldSelector.SelectedTile))
             {
                 __result = "Unexplored";
                 return false;
@@ -739,13 +816,13 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPrefix]
         public static bool Prefix(ref string __result)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
 
-            if (Find.WorldSelector.SelectedTile.Valid && SensoryManager.Instance != null &&
-                !SensoryManager.Instance.IsTileIdExplored(Find.WorldSelector.SelectedTile.tileId))
+            if (Find.WorldSelector.SelectedTile.Valid &&
+                !StartingSiteFeedbackUtility.IsTileExplored(Find.WorldSelector.SelectedTile))
             {
                 __result = SensoryNarrativeUtility.IsLowTech
                     ? "Uncharted territory. Send scouts or travellers to explore this region."
@@ -763,7 +840,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPrefix]
         public static bool Prefix(Rect rect, ref float lineEndWidth)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
@@ -775,7 +852,7 @@ public static class WorldObject_Visibility_Patch
             }
 
             if (Find.WorldSelector.NumSelectedObjects == 0 && Find.WorldSelector.SelectedTile.Valid &&
-                SensoryManager.Instance != null && !SensoryManager.Instance.IsTileIdExplored(Find.WorldSelector.SelectedTile.tileId))
+                !StartingSiteFeedbackUtility.IsTileExplored(Find.WorldSelector.SelectedTile))
             {
                 return false;
             }
@@ -790,7 +867,7 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPostfix]
         public static void Postfix(ref IEnumerable<InspectTabBase> __result)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return;
             }
@@ -803,7 +880,7 @@ public static class WorldObject_Visibility_Patch
             }
 
             if (Find.WorldSelector.NumSelectedObjects == 0 && Find.WorldSelector.SelectedTile.Valid &&
-                SensoryManager.Instance != null && !SensoryManager.Instance.IsTileIdExplored(Find.WorldSelector.SelectedTile.tileId))
+                !StartingSiteFeedbackUtility.IsTileExplored(Find.WorldSelector.SelectedTile))
             {
                 __result = Enumerable.Empty<InspectTabBase>();
             }
@@ -816,17 +893,39 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPostfix]
         public static void Postfix(ref bool __result)
         {
-            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return;
             }
 
             PlanetTile tile = Find.WorldSelector.SelectedTile;
-            if (tile.Valid && Find.WorldSelector.NumSelectedObjects == 0 && SensoryManager.Instance != null &&
-                !SensoryManager.Instance.IsTileIdExplored(tile.tileId))
+            if (tile.Valid && Find.WorldSelector.NumSelectedObjects == 0 &&
+                !StartingSiteFeedbackUtility.IsTileExplored(tile))
             {
                 __result = false;
             }
+        }
+    }
+
+    [HarmonyPatch(typeof(WITab_Terrain), "FillTab")]
+    public static class WITab_Terrain_FillTab_Patch
+    {
+        [HarmonyPrefix]
+        public static bool Prefix()
+        {
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
+            {
+                return true;
+            }
+
+            PlanetTile tile = Find.WorldSelector.SelectedTile;
+            if (tile.Valid && Find.WorldSelector.NumSelectedObjects == 0 &&
+                !StartingSiteFeedbackUtility.IsTileExplored(tile))
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 
@@ -836,14 +935,14 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPostfix]
         public static void Postfix(ref bool __result)
         {
-            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return;
             }
 
             PlanetTile tile = Find.WorldSelector.SelectedTile;
-            if (tile.Valid && Find.WorldSelector.NumSelectedObjects == 0 && SensoryManager.Instance != null &&
-                !SensoryManager.Instance.IsTileIdExplored(tile.tileId))
+            if (tile.Valid && Find.WorldSelector.NumSelectedObjects == 0 &&
+                !StartingSiteFeedbackUtility.IsTileExplored(tile))
             {
                 __result = false;
             }
@@ -859,14 +958,13 @@ public static class WorldObject_Visibility_Patch
         [HarmonyPrefix]
         public static bool Prefix()
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
 
             PlanetTile mouseTile = GenWorld.MouseTile(false);
-            if (mouseTile.Valid && SensoryManager.Instance != null &&
-                !SensoryManager.Instance.IsTileIdExplored(mouseTile.tileId))
+            if (mouseTile.Valid && !StartingSiteFeedbackUtility.IsTileExplored(mouseTile))
             {
                 return false;
             }

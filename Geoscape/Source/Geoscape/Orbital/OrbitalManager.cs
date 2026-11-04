@@ -108,16 +108,44 @@ public class OrbitalManager : WorldComponent
     /// <summary>
     /// Scans for orbital-only factions (such as TradersGuild or factions with no ground settlements)
     /// and ensures they maintain an operational persistent orbital station and satellite network.
+    /// Also guarantees a minimum global trade fleet (2-3 vessels) to align with vanilla storyteller cadences.
     /// </summary>
     public void EnsureOrbitalFactionInfrastructure()
     {
-        if (Find.FactionManager == null || Find.WorldObjects == null) return;
+        FactionManager? factionManager = Find.FactionManager;
+        if (factionManager == null || Find.WorldObjects == null) return;
 
-        foreach (Faction faction in Find.FactionManager.AllFactionsVisible)
+        foreach (Faction faction in factionManager.AllFactionsVisible)
         {
             if (IsOrbitalFaction(faction))
             {
                 EnsureStationForFaction(faction);
+            }
+        }
+
+        // Maintain at least 2 global trade satellites across friendly/civil factions
+        // to provide a physical trade pass cadence of ~8 to 12 days per colony.
+        int tradeSatCount = 0;
+        for (int i = 0; i < satellites.Count; i++)
+        {
+            if (satellites[i].Role == SatelliteRole.Trade)
+            {
+                tradeSatCount++;
+            }
+        }
+
+        if (tradeSatCount < 2)
+        {
+            Faction? playerFaction = (Find.World != null) ? Faction.OfPlayerSilentFail : null;
+            foreach (Faction f in factionManager.AllFactionsVisible)
+            {
+                bool isHostile = playerFaction != null ? f.HostileTo(playerFaction) : (f.def?.permanentEnemy ?? false);
+                if (!f.IsPlayer && !f.defeated && !f.Hidden && !isHostile)
+                {
+                    EnsureStationForFaction(f);
+                    tradeSatCount++;
+                    if (tradeSatCount >= 2) break;
+                }
             }
         }
     }
@@ -294,6 +322,20 @@ public class OrbitalManager : WorldComponent
         return sat;
     }
 
+    /// <summary>
+    /// Gets the default orbital period in ticks for each satellite role, calibrated for playable tactical timescales
+    /// and storyteller incident frequencies.
+    /// </summary>
+    public static int GetDefaultPeriodForRole(SatelliteRole role) => role switch
+    {
+        SatelliteRole.Trade => 62500, // 25.0 in-game hours: storyteller-aligned (~8-12 days revisit)
+        SatelliteRole.Reconnaissance => 45000, // 18.0 in-game hours: polar sweeping
+        SatelliteRole.Military => 75000, // 30.0 in-game hours: tactical deterrence
+        SatelliteRole.Navigation => 120000, // 48.0 in-game hours (2 days): MEO constellation
+        SatelliteRole.Communication => 180000, // 72.0 in-game hours (3 days): semi-geosynchronous relay
+        _ => 60000
+    };
+
     public static OrbitalParameters CreateOrbitalParametersForRole(SatelliteRole role)
     {
         int now = Current.Game?.tickManager?.TicksGame ?? 0;
@@ -301,7 +343,7 @@ public class OrbitalManager : WorldComponent
         {
             SatelliteRole.Trade => new OrbitalParameters(
                 altitudeKm: 600f,
-                periodTicks: 4250,
+                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Trade),
                 inclinationDeg: Rand.Range(35f, 48f),
                 ascendingNodeDeg: Rand.Range(0f, 360f),
                 precessionRateDegPerDay: -3.5f,
@@ -311,7 +353,7 @@ public class OrbitalManager : WorldComponent
 
             SatelliteRole.Reconnaissance => new OrbitalParameters(
                 altitudeKm: 450f,
-                periodTicks: 3420,
+                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Reconnaissance),
                 inclinationDeg: Rand.Range(85f, 98f), // Polar / Sun-synchronous
                 ascendingNodeDeg: Rand.Range(0f, 360f),
                 precessionRateDegPerDay: -2.8f,
@@ -321,7 +363,7 @@ public class OrbitalManager : WorldComponent
 
             SatelliteRole.Military => new OrbitalParameters(
                 altitudeKm: 800f,
-                periodTicks: 5120,
+                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Military),
                 inclinationDeg: Rand.Range(55f, 65f),
                 ascendingNodeDeg: Rand.Range(0f, 360f),
                 precessionRateDegPerDay: -3.1f,
@@ -331,7 +373,7 @@ public class OrbitalManager : WorldComponent
 
             SatelliteRole.Navigation => new OrbitalParameters(
                 altitudeKm: 12000f,
-                periodTicks: 14200,
+                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Navigation),
                 inclinationDeg: Rand.Range(50f, 60f),
                 ascendingNodeDeg: Rand.Range(0f, 360f),
                 precessionRateDegPerDay: -1.2f,
@@ -341,7 +383,7 @@ public class OrbitalManager : WorldComponent
 
             SatelliteRole.Communication => new OrbitalParameters(
                 altitudeKm: 35786f,
-                periodTicks: 28000,
+                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Communication),
                 inclinationDeg: Rand.Range(20f, 35f),
                 ascendingNodeDeg: Rand.Range(0f, 360f),
                 precessionRateDegPerDay: -0.4f,
