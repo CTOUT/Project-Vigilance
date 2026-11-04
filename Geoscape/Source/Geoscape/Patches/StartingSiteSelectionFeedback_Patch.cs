@@ -85,11 +85,11 @@ public static class StartingSiteSelectionFeedback_Patch
     public static class SettlementProximityGoodwillUtility_GetConfirmationEffects_Patch
     {
         [HarmonyPostfix]
-        public static void Postfix(PlanetTile tile, ref IEnumerable<TaggedString> __result)
+        public static void Postfix(PlanetTile tile, ref IEnumerable<string> __result)
         {
             if (StartingSiteFeedbackUtility.ShouldSuppressHazardConfirmation(tile))
             {
-                __result = Enumerable.Empty<TaggedString>();
+                __result = Enumerable.Empty<string>();
             }
         }
     }

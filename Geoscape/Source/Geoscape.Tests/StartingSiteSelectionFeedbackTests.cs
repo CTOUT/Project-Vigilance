@@ -420,9 +420,9 @@ public sealed class StartingSiteSelectionFeedbackTests
     {
         PlanetTile tile = new(88);
         SensoryManager.IsExploredOverride = _ => false;
-        IEnumerable<TaggedString> effects = new List<TaggedString>
+        IEnumerable<string> effects = new List<string>
         {
-            new("-15 goodwill with Outlanders for settling too close")
+            "-15 goodwill with Outlanders for settling too close"
         };
 
         StartingSiteSelectionFeedback_Patch.SettlementProximityGoodwillUtility_GetConfirmationEffects_Patch.Postfix(tile, ref effects);
@@ -435,11 +435,11 @@ public sealed class StartingSiteSelectionFeedbackTests
     {
         PlanetTile tile = new(88);
         SensoryManager.IsExploredOverride = _ => true;
-        List<TaggedString> original = new()
+        List<string> original = new()
         {
-            new("-15 goodwill with Outlanders for settling too close")
+            "-15 goodwill with Outlanders for settling too close"
         };
-        IEnumerable<TaggedString> effects = original;
+        IEnumerable<string> effects = original;
 
         StartingSiteSelectionFeedback_Patch.SettlementProximityGoodwillUtility_GetConfirmationEffects_Patch.Postfix(tile, ref effects);
 
@@ -452,11 +452,11 @@ public sealed class StartingSiteSelectionFeedbackTests
         GeoscapeMod.Settings.visibilityMode = VisibilityMode.PlanetarySurveillance;
         PlanetTile tile = new(88);
         SensoryManager.IsExploredOverride = _ => false;
-        List<TaggedString> original = new()
+        List<string> original = new()
         {
-            new("-15 goodwill with Outlanders for settling too close")
+            "-15 goodwill with Outlanders for settling too close"
         };
-        IEnumerable<TaggedString> effects = original;
+        IEnumerable<string> effects = original;
 
         StartingSiteSelectionFeedback_Patch.SettlementProximityGoodwillUtility_GetConfirmationEffects_Patch.Postfix(tile, ref effects);
 
@@ -466,6 +466,13 @@ public sealed class StartingSiteSelectionFeedbackTests
     // =========================================================================
     // 3. SensoryManager & Bounds Robustness Tests
     // =========================================================================
+
+    [TestMethod]
+    public void Harmony_PatchAll_EntireGeoscapeAssembly_AppliesWithoutContractException()
+    {
+        HarmonyLib.Harmony harmony = new("test.projectvigilance.entireassembly");
+        harmony.PatchAll(typeof(GeoscapeMod).Assembly);
+    }
 
     [TestMethod]
     public void SensoryManager_IsTileIdExplored_NegativeTileId_ReturnsFalseWithoutThrowing()
