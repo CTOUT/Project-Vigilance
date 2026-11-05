@@ -63,9 +63,25 @@ npm run build:geoscape
 
 ### Deploying to RimWorld Mods Directory
 
+**Windows (PowerShell):**
+
 ```powershell
 npm run deploy:geoscape
+# or directly:
+./scripts/deploy-geoscape.ps1
 ```
+
+**Linux / CachyOS (Bash):**
+
+```bash
+npm run deploy:geoscape:linux
+# or directly:
+./scripts/deploy-geoscape.sh
+```
+
+> **Default Linux Mods path:** `~/.local/share/Steam/steamapps/common/RimWorld/Mods/ProjectVigilance-Geoscape`  
+> To specify a custom path: `./scripts/deploy-geoscape.sh -p /path/to/RimWorld/Mods`  
+> To deploy XML/Defs without compiling C#: `./scripts/deploy-geoscape.sh --skip-build`
 
 For answers to common compatibility and design questions, see the [Frequently Asked Questions (FAQ)](../docs/faq.md).
 For the long-term technical specification of the sensory grid and radar domes, see [docs/modules/geoscape-and-radar.md](../docs/modules/geoscape-and-radar.md).

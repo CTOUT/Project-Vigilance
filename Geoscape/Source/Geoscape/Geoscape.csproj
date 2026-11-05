@@ -11,8 +11,11 @@
     <Version>0.4.0</Version>
     <AssemblyVersion>0.4.0.0</AssemblyVersion>
     <FileVersion>0.4.0.0</FileVersion>
-    <RimWorldPath Condition="'$(RimWorldPath)' == ''">D:\Games\Steam\steamapps\common\RimWorld</RimWorldPath>
-    <HarmonyPath Condition="'$(HarmonyPath)' == ''">D:\Games\Steam\steamapps\workshop\content\294100\2009463077\1.7\Assemblies\0Harmony.dll</HarmonyPath>
+    <!-- Default Steam paths by platform -->
+    <RimWorldPath Condition="'$(RimWorldPath)' == '' and '$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))'">D:\Games\Steam\steamapps\common\RimWorld</RimWorldPath>
+    <RimWorldPath Condition="'$(RimWorldPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))">$(HOME)/.local/share/Steam/steamapps/common/RimWorld</RimWorldPath>
+    <HarmonyPath Condition="'$(HarmonyPath)' == '' and '$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))'">D:\Games\Steam\steamapps\workshop\content\294100\2009463077\1.7\Assemblies\0Harmony.dll</HarmonyPath>
+    <HarmonyPath Condition="'$(HarmonyPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))">$(HOME)/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,23 +24,23 @@
       <Private>false</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>$(RimWorldPath)\Assembly-CSharp.dll</HintPath>
+      <HintPath>$(RimWorldPath)/Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="RimWorld">
-      <HintPath>$(RimWorldPath)\RimWorld.dll</HintPath>
+      <HintPath>$(RimWorldPath)/RimWorld.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="UnityStubs">
-      <HintPath>$(RimWorldPath)\UnityStubs.dll</HintPath>
+      <HintPath>$(RimWorldPath)/UnityStubs.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Waylith.UnityCompat">
-      <HintPath>$(RimWorldPath)\Waylith.UnityCompat.dll</HintPath>
+      <HintPath>$(RimWorldPath)/Waylith.UnityCompat.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="CommunityToolkit.HighPerformance">
-      <HintPath>$(RimWorldPath)\CommunityToolkit.HighPerformance.dll</HintPath>
+      <HintPath>$(RimWorldPath)/CommunityToolkit.HighPerformance.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
@@ -47,7 +50,10 @@
   </ItemGroup>
 
   <Target Name="RotateLockedAssembly" BeforeTargets="BeforeBuild">
-    <Exec Command="cmd /c if exist &quot;$(OutputPath)Geoscape.dll&quot; (del /f /q &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; move /y &quot;$(OutputPath)Geoscape.dll&quot; &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; exit 0)" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+          Command="cmd /c if exist &quot;$(OutputPath)Geoscape.dll&quot; (del /f /q &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; move /y &quot;$(OutputPath)Geoscape.dll&quot; &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; exit 0)" />
+    <Exec Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
+          Command="if [ -f &quot;$(OutputPath)Geoscape.dll&quot; ]; then rm -f &quot;$(OutputPath)Geoscape.dll.old&quot; 2>/dev/null; mv &quot;$(OutputPath)Geoscape.dll&quot; &quot;$(OutputPath)Geoscape.dll.old&quot; 2>/dev/null || true; fi" />
   </Target>
 
 </Project>

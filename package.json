@@ -8,6 +8,7 @@
     "format": "npx prettier --write .",
     "build:geoscape": "dotnet build Geoscape/Source/Geoscape.slnx",
     "deploy:geoscape": "pwsh -File ./scripts/deploy-geoscape.ps1",
+    "deploy:geoscape:linux": "./scripts/deploy-geoscape.sh",
     "package:release": "pwsh -File ./scripts/package-release.ps1"
   },
   "devDependencies": {

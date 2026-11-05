@@ -14,6 +14,7 @@ using Verse;
 namespace Geoscape.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public class CampaignRulesTests
 {
     [TestInitialize]

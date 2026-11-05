@@ -68,7 +68,8 @@ To make testing as efficient as possible, every test case is categorised into a 
 ## Prerequisites & Test Environment Setup
 
 1. **Deploy Latest Build to RimWorld 1.7:**
-   - Execute [`scripts/deploy-geoscape.ps1`](file:///d:/Repos/GitHub/Project-Vigilance/scripts/deploy-geoscape.ps1) to compile `Release` binary and ensure the NTFS junction is linked to `RimWorld/Mods/ProjectVigilance-Geoscape`.
+   - **Windows:** Execute [`scripts/deploy-geoscape.ps1`](scripts/deploy-geoscape.ps1) (or `npm run deploy:geoscape`) to compile `Release` binary and ensure the NTFS junction is linked to `RimWorld/Mods/ProjectVigilance-Geoscape`.
+   - **Linux / CachyOS:** Execute [`scripts/deploy-geoscape.sh`](scripts/deploy-geoscape.sh) (or `npm run deploy:geoscape:linux`) to compile and link the symlink to `~/.local/share/Steam/steamapps/common/RimWorld/Mods/ProjectVigilance-Geoscape`.
 2. **Launch RimWorld 1.7** with Project Vigilance loaded.
 3. **Enable Development Mode** (`Options → Development mode`).
 4. **Prepare a Recommended Test World:**
