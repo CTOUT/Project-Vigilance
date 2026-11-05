@@ -23,6 +23,16 @@ public class Page_GeoscapeRules : Page
     {
         base.PreOpen();
         draft = NewCampaignRuleDraft.GetOrCreate(GeoscapeMod.Settings);
+        CampaignWizardPageUtility.SyncPageLinkage(draft);
+    }
+
+    protected override void DoNext()
+    {
+        if (draft != null)
+        {
+            CampaignWizardPageUtility.SyncPageLinkage(draft);
+        }
+        base.DoNext();
     }
 
     public override void DoWindowContents(Rect inRect)
@@ -126,6 +136,7 @@ public class Page_GeoscapeRules : Page
         DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Early Warning Radars", draft.EarlyWarningLetters.Value ? "Active Radar Telemetry & Audio Dispatch" : "Passive Only");
         DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Hostile Ingress Doctrine", draft.TacticalIngressFlanking.Value ? "Active (Raids flank off-road to evade fortified choke points)" : "Direct (Raids take direct approach corridors)");
         DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Incursion Storyteller Rules", $"{(draft.IncursionsRestAtNight.Value ? "Camp at Night" : "Continuous Movement")}, {(draft.SynchronizeMultiVectorRaids.Value ? "Multi-Vector Synchronised" : "Independent Waves")}");
+        DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Starting Site Selection", draft.StartingSiteSelection.CurrentValueLabel);
         DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Rule Mutability", "Locked permanently upon world generation (Visibility may be escalated)");
 
         // Standard Bottom Navigation Buttons (Back, Reset to Defaults, Next)

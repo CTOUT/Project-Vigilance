@@ -93,4 +93,29 @@ public static class StartingSiteSelectionFeedback_Patch
             }
         }
     }
+
+    /// <summary>
+    /// Intercepts Page_SelectStartingSite.CanDoNext(). Under Fog of War, if the player opted into manual targeting
+    /// but advances without manually selecting a tile, automatically designates a viable random landing site
+    /// instead of presenting the vanilla rejection error.
+    /// </summary>
+    [HarmonyPatch(typeof(Page_SelectStartingSite), "CanDoNext")]
+    public static class Page_SelectStartingSite_CanDoNext_Patch
+    {
+        [HarmonyPrefix]
+        public static void Prefix()
+        {
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar &&
+                Find.WorldInterface != null &&
+                !Find.WorldInterface.SelectedTile.Valid)
+            {
+                PlanetTile candidate = TileFinder.RandomStartingTile();
+                if (candidate.Valid)
+                {
+                    Find.WorldInterface.SelectedTile = candidate;
+                    Messages.Message("Random landing site automatically designated.", MessageTypeDefOf.SilentInput, false);
+                }
+            }
+        }
+    }
 }

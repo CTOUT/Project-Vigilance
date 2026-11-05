@@ -21,6 +21,7 @@ public sealed class GeoscapeRuleSet : IExposable
     public readonly CampaignRule<bool> TacticalIngressFlanking;
     public readonly CampaignRule<bool> ResetThreatCooldownOnArrival;
     public readonly CampaignRule<bool> EarlyWarningLetters;
+    public readonly CampaignRule<StartingSiteSelectionMode> StartingSiteSelection;
 
     private readonly List<ICampaignRule> allRules;
     public IReadOnlyList<ICampaignRule> All => allRules;
@@ -130,7 +131,18 @@ public sealed class GeoscapeRuleSet : IExposable
             effects: RuleTransitionEffects.None,
             valueFormatter: val => val ? "Enabled" : "Disabled");
 
-        allRules = new List<ICampaignRule>(9)
+        StartingSiteSelection = new CampaignRule<StartingSiteSelectionMode>(
+            "startingSiteSelection",
+            "Starting site selection",
+            "Controls whether campaign creation automatically picks a viable landing site on uncharted globes or presents manual targeting.",
+            RuleMutability.Immutable,
+            hardDefault: StartingSiteSelectionMode.AutomatedLandfall,
+            defaultSelector: d => d.startingSiteSelection,
+            defaultWriter: (d, val) => d.startingSiteSelection = val,
+            effects: RuleTransitionEffects.None,
+            valueFormatter: FormatStartingSiteSelection);
+
+        allRules = new List<ICampaignRule>(10)
         {
             Visibility,
             ColonyScoutRadius,
@@ -140,7 +152,8 @@ public sealed class GeoscapeRuleSet : IExposable
             SynchronizeMultiVectorRaids,
             TacticalIngressFlanking,
             ResetThreatCooldownOnArrival,
-            EarlyWarningLetters
+            EarlyWarningLetters,
+            StartingSiteSelection
         };
     }
 
@@ -161,6 +174,13 @@ public sealed class GeoscapeRuleSet : IExposable
         VisibilityMode.FogOfWar              => "Fog of War",
         VisibilityMode.PlanetarySurveillance => "Planetary Surveillance",
         VisibilityMode.Omniscient            => "Omniscient",
+        _ => m.ToString()
+    };
+
+    private static string FormatStartingSiteSelection(StartingSiteSelectionMode m) => m switch
+    {
+        StartingSiteSelectionMode.AutomatedLandfall => "Automated Landfall",
+        StartingSiteSelectionMode.ManualTargeting   => "Manual Targeting",
         _ => m.ToString()
     };
 
@@ -194,6 +214,7 @@ public sealed class GeoscapeRuleSet : IExposable
         TacticalIngressFlanking.Value = other.TacticalIngressFlanking.Value;
         ResetThreatCooldownOnArrival.Value = other.ResetThreatCooldownOnArrival.Value;
         EarlyWarningLetters.Value = other.EarlyWarningLetters.Value;
+        StartingSiteSelection.Value = other.StartingSiteSelection.Value;
     }
 
     public void ApplyProfile(CampaignProfile profile)
@@ -210,6 +231,7 @@ public sealed class GeoscapeRuleSet : IExposable
                 TacticalIngressFlanking.Value = true;
                 ResetThreatCooldownOnArrival.Value = false;
                 EarlyWarningLetters.Value = true;
+                StartingSiteSelection.Value = StartingSiteSelectionMode.AutomatedLandfall;
                 break;
 
             case CampaignProfile.PlanetarySurveillance:
@@ -222,6 +244,7 @@ public sealed class GeoscapeRuleSet : IExposable
                 TacticalIngressFlanking.Value = true;
                 ResetThreatCooldownOnArrival.Value = false;
                 EarlyWarningLetters.Value = true;
+                StartingSiteSelection.Value = StartingSiteSelectionMode.ManualTargeting;
                 break;
 
             case CampaignProfile.HardcoreVigilance:
@@ -234,6 +257,7 @@ public sealed class GeoscapeRuleSet : IExposable
                 TacticalIngressFlanking.Value = true;
                 ResetThreatCooldownOnArrival.Value = false;
                 EarlyWarningLetters.Value = true;
+                StartingSiteSelection.Value = StartingSiteSelectionMode.AutomatedLandfall;
                 break;
 
             case CampaignProfile.Omniscient:
@@ -246,6 +270,7 @@ public sealed class GeoscapeRuleSet : IExposable
                 TacticalIngressFlanking.Value = true;
                 ResetThreatCooldownOnArrival.Value = false;
                 EarlyWarningLetters.Value = true;
+                StartingSiteSelection.Value = StartingSiteSelectionMode.ManualTargeting;
                 break;
 
             case CampaignProfile.Custom:
@@ -260,7 +285,8 @@ public sealed class GeoscapeRuleSet : IExposable
             IncursionsRestAtNight.Value &&
             SynchronizeMultiVectorRaids.Value &&
             TacticalIngressFlanking.Value &&
-            !ResetThreatCooldownOnArrival.Value)
+            !ResetThreatCooldownOnArrival.Value &&
+            StartingSiteSelection.Value == StartingSiteSelectionMode.ManualTargeting)
         {
             return CampaignProfile.Omniscient;
         }
@@ -272,7 +298,8 @@ public sealed class GeoscapeRuleSet : IExposable
             IncursionsRestAtNight.Value &&
             SynchronizeMultiVectorRaids.Value &&
             TacticalIngressFlanking.Value &&
-            !ResetThreatCooldownOnArrival.Value)
+            !ResetThreatCooldownOnArrival.Value &&
+            StartingSiteSelection.Value == StartingSiteSelectionMode.AutomatedLandfall)
         {
             return CampaignProfile.FogOfWar;
         }
@@ -284,7 +311,8 @@ public sealed class GeoscapeRuleSet : IExposable
             IncursionsRestAtNight.Value &&
             SynchronizeMultiVectorRaids.Value &&
             TacticalIngressFlanking.Value &&
-            !ResetThreatCooldownOnArrival.Value)
+            !ResetThreatCooldownOnArrival.Value &&
+            StartingSiteSelection.Value == StartingSiteSelectionMode.ManualTargeting)
         {
             return CampaignProfile.PlanetarySurveillance;
         }
@@ -296,7 +324,8 @@ public sealed class GeoscapeRuleSet : IExposable
             IncursionsRestAtNight.Value &&
             SynchronizeMultiVectorRaids.Value &&
             TacticalIngressFlanking.Value &&
-            !ResetThreatCooldownOnArrival.Value)
+            !ResetThreatCooldownOnArrival.Value &&
+            StartingSiteSelection.Value == StartingSiteSelectionMode.AutomatedLandfall)
         {
             return CampaignProfile.HardcoreVigilance;
         }

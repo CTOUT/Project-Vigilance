@@ -36,4 +36,7 @@ public static class GeoscapeRules
 
     public static bool EarlyWarningLetters =>
         GeoscapeCampaignRules.Active?.Rules.EarlyWarningLetters.Value ?? GeoscapeMod.Settings.enableEarlyWarningLetters;
+
+    public static StartingSiteSelectionMode StartingSiteSelection =>
+        GeoscapeCampaignRules.Active?.Rules.StartingSiteSelection.Value ?? GeoscapeMod.Settings.startingSiteSelection;
 }

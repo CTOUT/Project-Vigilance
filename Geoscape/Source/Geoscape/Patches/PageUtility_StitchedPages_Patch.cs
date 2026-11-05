@@ -35,4 +35,33 @@ public static class PageUtility_StitchedPages_Patch
             pages = pageList;
         }
     }
+
+    public static void Postfix(Page __result)
+    {
+        if (__result == null) return;
+
+        Page_CreateWorldParams? worldParams = null;
+        Page_SelectStartingSite? sitePage = null;
+
+        Page? curr = __result;
+        while (curr != null)
+        {
+            if (curr is Page_CreateWorldParams wp)
+            {
+                worldParams = wp;
+            }
+            else if (curr is Page_SelectStartingSite sp)
+            {
+                sitePage = sp;
+                break;
+            }
+            curr = curr.next;
+        }
+
+        Page? pageAfterSite = sitePage?.next;
+        CampaignWizardPageUtility.RegisterPages(worldParams, sitePage, pageAfterSite);
+
+        GeoscapeRuleSet draft = NewCampaignRuleDraft.GetOrCreate(GeoscapeMod.Settings);
+        CampaignWizardPageUtility.SyncPageLinkage(draft);
+    }
 }

@@ -40,6 +40,7 @@ public class GeoscapeSettings : ModSettings
     public bool enableNighttimeSensoryReduction = true;
     public bool incursionsRestAtNight = true;
     public bool showIdentificationHorizon = true;
+    public StartingSiteSelectionMode startingSiteSelection = StartingSiteSelectionMode.AutomatedLandfall;
 
     // =========================================================================
     // Transient UI State (Tabs, Scrolling & Dynamic Sizing)
@@ -85,6 +86,7 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref enableEarlyWarningLetters, "enableEarlyWarningLetters", true);
         Scribe_Values.Look(ref enableNighttimeSensoryReduction, "enableNighttimeSensoryReduction", true);
         Scribe_Values.Look(ref incursionsRestAtNight, "incursionsRestAtNight", true);
+        Scribe_Values.Look(ref startingSiteSelection, "startingSiteSelection", StartingSiteSelectionMode.AutomatedLandfall);
     }
 
     // =========================================================================

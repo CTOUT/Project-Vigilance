@@ -169,6 +169,46 @@ public static class CampaignRuleWidgets
         }
     }
 
+    public static void DrawStartingSiteSelectionRadio(
+        Listing_Standard listing,
+        StartingSiteSelectionMode option,
+        string label,
+        string tooltip,
+        CampaignRule<StartingSiteSelectionMode> rule,
+        GeoscapeCampaignRules? campaign,
+        RuleEditContext ctx,
+        bool showLockPreview = false)
+    {
+        bool isSelected = rule.Value == option;
+        RuleTransitionVerdict verdict = isSelected ? RuleTransitionVerdict.NoChange : rule.Evaluate(option, ctx);
+
+        string displayLabel = label;
+        if (verdict == RuleTransitionVerdict.Blocked)
+        {
+            displayLabel += " (Locked)";
+        }
+
+        bool disabled = verdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled;
+
+        if (disabled)
+        {
+            GUI.color = new Color(1f, 1f, 1f, 0.45f);
+        }
+
+        if (listing.RadioButton(displayLabel, isSelected, tooltip: tooltip))
+        {
+            if (!isSelected && !disabled)
+            {
+                HandleProposedChange(rule, option, verdict, campaign);
+            }
+        }
+
+        if (disabled)
+        {
+            GUI.color = Color.white;
+        }
+    }
+
     private static void HandleProposedChange<T>(
         CampaignRule<T> rule,
         T proposed,

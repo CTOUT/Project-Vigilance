@@ -645,4 +645,98 @@ public class CampaignRulesTests
         Assert.AreEqual("Omniscient", CampaignProfile.Omniscient.GetCleanName());
         Assert.AreEqual("Custom", CampaignProfile.Custom.GetCleanName());
     }
+
+    [TestMethod]
+    public void StartingSiteSelection_ProfileDefaults_ApplyCorrectly()
+    {
+        GeoscapeRuleSet rules = new();
+
+        rules.ApplyProfile(CampaignProfile.FogOfWar);
+        Assert.AreEqual(StartingSiteSelectionMode.AutomatedLandfall, rules.StartingSiteSelection.Value);
+        Assert.AreEqual(CampaignProfile.FogOfWar, rules.DetectCurrentProfile());
+
+        rules.ApplyProfile(CampaignProfile.HardcoreVigilance);
+        Assert.AreEqual(StartingSiteSelectionMode.AutomatedLandfall, rules.StartingSiteSelection.Value);
+        Assert.AreEqual(CampaignProfile.HardcoreVigilance, rules.DetectCurrentProfile());
+
+        rules.ApplyProfile(CampaignProfile.PlanetarySurveillance);
+        Assert.AreEqual(StartingSiteSelectionMode.ManualTargeting, rules.StartingSiteSelection.Value);
+        Assert.AreEqual(CampaignProfile.PlanetarySurveillance, rules.DetectCurrentProfile());
+
+        rules.ApplyProfile(CampaignProfile.Omniscient);
+        Assert.AreEqual(StartingSiteSelectionMode.ManualTargeting, rules.StartingSiteSelection.Value);
+        Assert.AreEqual(CampaignProfile.Omniscient, rules.DetectCurrentProfile());
+    }
+
+    [TestMethod]
+    public void StartingSiteSelection_ManualOptIn_UnderFogOfWar_DetectsCustom()
+    {
+        GeoscapeRuleSet rules = new();
+        rules.ApplyProfile(CampaignProfile.FogOfWar);
+
+        // Player opts into ManualTargeting under Fog of War
+        rules.StartingSiteSelection.Value = StartingSiteSelectionMode.ManualTargeting;
+        Assert.AreEqual(CampaignProfile.Custom, rules.DetectCurrentProfile());
+
+        // Reverting to AutomatedLandfall restores FogOfWar profile
+        rules.StartingSiteSelection.Value = StartingSiteSelectionMode.AutomatedLandfall;
+        Assert.AreEqual(CampaignProfile.FogOfWar, rules.DetectCurrentProfile());
+    }
+
+    [TestMethod]
+    public void CampaignWizardPageUtility_ShouldSkipStartingSite_EvaluatesCorrectly()
+    {
+        GeoscapeRuleSet rules = new();
+
+        rules.Visibility.Value = VisibilityMode.FogOfWar;
+        rules.StartingSiteSelection.Value = StartingSiteSelectionMode.AutomatedLandfall;
+        Assert.IsTrue(CampaignWizardPageUtility.ShouldSkipStartingSite(rules));
+
+        rules.StartingSiteSelection.Value = StartingSiteSelectionMode.ManualTargeting;
+        Assert.IsFalse(CampaignWizardPageUtility.ShouldSkipStartingSite(rules));
+
+        rules.Visibility.Value = VisibilityMode.PlanetarySurveillance;
+        rules.StartingSiteSelection.Value = StartingSiteSelectionMode.AutomatedLandfall;
+        Assert.IsFalse(CampaignWizardPageUtility.ShouldSkipStartingSite(rules));
+
+        rules.Visibility.Value = VisibilityMode.Omniscient;
+        Assert.IsFalse(CampaignWizardPageUtility.ShouldSkipStartingSite(rules));
+
+        Assert.IsFalse(CampaignWizardPageUtility.ShouldSkipStartingSite(null));
+    }
+
+    [TestMethod]
+    public void CampaignWizardPageUtility_SyncPageLinkage_AutomatedLandfall_BypassesSiteSelection()
+    {
+        Page_CreateWorldParams worldParams = new();
+        Page_SelectStartingSite sitePage = new();
+        Page_ConfigureStartingPawns pawns = new();
+
+        // Initial vanilla stitching
+        worldParams.next = sitePage;
+        sitePage.prev = worldParams;
+        sitePage.next = pawns;
+        pawns.prev = sitePage;
+
+        CampaignWizardPageUtility.RegisterPages(worldParams, sitePage, pawns);
+
+        GeoscapeRuleSet rules = new();
+        rules.Visibility.Value = VisibilityMode.FogOfWar;
+        rules.StartingSiteSelection.Value = StartingSiteSelectionMode.AutomatedLandfall;
+
+        CampaignWizardPageUtility.SyncPageLinkage(rules);
+
+        // Under Automated Landfall, worldParams skips directly to pawns
+        Assert.AreSame(pawns, worldParams.next, "Page_CreateWorldParams must link directly to pawns.");
+        Assert.AreSame(worldParams, pawns.prev, "Pawns prev must link back to Page_CreateWorldParams.");
+
+        // Switching to ManualTargeting restores sitePage
+        rules.StartingSiteSelection.Value = StartingSiteSelectionMode.ManualTargeting;
+        CampaignWizardPageUtility.SyncPageLinkage(rules);
+
+        Assert.AreSame(sitePage, worldParams.next, "Page_CreateWorldParams must link to sitePage under manual targeting.");
+        Assert.AreSame(worldParams, sitePage.prev, "sitePage prev must link to worldParams.");
+        Assert.AreSame(pawns, sitePage.next, "sitePage next must link to pawns.");
+        Assert.AreSame(sitePage, pawns.prev, "pawns prev must link to sitePage.");
+    }
 }

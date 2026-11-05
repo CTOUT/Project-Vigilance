@@ -54,6 +54,41 @@ public static class CampaignRulesPanel
         listing.Gap();
     }
 
+    public static void DrawStartingSiteSelectionSection(
+        Listing_Standard listing,
+        GeoscapeRuleSet rules,
+        GeoscapeCampaignRules? campaign,
+        RuleEditContext ctx,
+        bool showLockPreview = false)
+    {
+        Text.Font = GameFont.Medium;
+        listing.Label("Landing Site Selection");
+        Text.Font = GameFont.Small;
+        listing.GapLine();
+
+        CampaignRuleWidgets.DrawStartingSiteSelectionRadio(
+            listing,
+            StartingSiteSelectionMode.AutomatedLandfall,
+            "Automated Landfall (Recommended for Fog of War)",
+            "World generation automatically selects a viable, habitable landing site and advances directly to Ideology/Colonist setup. Eliminates purposeless clicking on an uncharted dark globe.",
+            rules.StartingSiteSelection,
+            campaign,
+            ctx,
+            showLockPreview);
+
+        CampaignRuleWidgets.DrawStartingSiteSelectionRadio(
+            listing,
+            StartingSiteSelectionMode.ManualTargeting,
+            "Manual Globe Targeting",
+            "Presents the planetary globe during campaign setup. Recommended when playing with Planetary Surveillance, or for players intentionally aiming for specific polar or equatorial latitudes under Fog of War.",
+            rules.StartingSiteSelection,
+            campaign,
+            ctx,
+            showLockPreview);
+
+        listing.Gap();
+    }
+
     public static void DrawLookoutScoutingSection(
         Listing_Standard listing,
         GeoscapeRuleSet rules,
@@ -178,6 +213,7 @@ public static class CampaignRulesPanel
         bool showLockPreview = false)
     {
         DrawSensoryVisibilitySection(listing, rules, campaign, ctx, showLockPreview);
+        DrawStartingSiteSelectionSection(listing, rules, campaign, ctx, showLockPreview);
         DrawLookoutScoutingSection(listing, rules, campaign, ctx, showLockPreview);
         DrawIncursionsSection(listing, rules, campaign, ctx, showLockPreview);
         DrawNotificationsSection(listing, rules, campaign, ctx, showLockPreview);

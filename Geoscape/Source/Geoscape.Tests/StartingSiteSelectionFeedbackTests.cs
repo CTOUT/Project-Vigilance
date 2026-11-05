@@ -494,4 +494,11 @@ public sealed class StartingSiteSelectionFeedbackTests
 
         Assert.IsFalse(result, "Invalid tile must always evaluate as unexplored.");
     }
+
+    [TestMethod]
+    public void EnsureStartingTileAssigned_WhenNotEntry_ExitsSafelyWithoutThrowing()
+    {
+        // Headless execution must exit safely without throwing
+        CampaignWizardPageUtility.EnsureStartingTileAssigned();
+    }
 }
