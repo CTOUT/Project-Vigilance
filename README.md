@@ -39,7 +39,10 @@ In vanilla RimWorld, raids and trade caravans instantaneously materialise at the
 
 1. Ensure **RimWorld 1.7 (Waylith)** and **Harmony** are installed.
 2. Download or clone this repository.
-3. Copy the [`Geoscape/`](Geoscape/) folder into your RimWorld `Mods/` directory (e.g. `RimWorld/Mods/ProjectVigilance-OverlandIncursions`).
+3. Link the [`Geoscape/`](Geoscape/) folder to your RimWorld `Mods/` directory using the automated deployment tooling:
+   - **Windows (PowerShell):** `npm run deploy:geoscape` (or `./scripts/deploy-geoscape.ps1`)
+   - **Linux / CachyOS (Bash):** `npm run deploy:geoscape:linux` (or `./scripts/deploy-geoscape.sh`)
+   - _Manual alternative:_ Copy or symlink `Geoscape/` into your RimWorld `Mods/ProjectVigilance-Geoscape` folder.
 4. Activate **Harmony** first, followed by **Project Vigilance - Overland Incursions** in your mod manager.
 
 💬 **Join the Testing Discussion:** Have feedback, balance notes, or ideas? Join our [GitHub Community Discussions](https://github.com/CTOUT/Project-Vigilance/discussions) or report issues via [GitHub Issues](https://github.com/CTOUT/Project-Vigilance/issues).
@@ -82,15 +85,26 @@ To maintain performance, simplicity, and community compatibility, the project is
 
 ## Documentation Index
 
+### Architectural Blueprints & Design Specifications
 - **[Vision & Architectural Pillars](docs/architecture/vision-and-pillars.md)**
 - **[Modular System Architecture](docs/architecture/modular-system.md)**
 - **[DLC Integration Architecture](docs/architecture/dlc-integrations.md)**
+- **[Design Blueprint: Campaign Rules, Mutability Framework & Campaign Identity](Documentation/Design/Campaign_Rules_And_Mutability_Blueprint.md)**
+- **[Design Blueprint: Orbital Logistics & Drifting Satellite Infrastructure](Documentation/Design/Orbital_Logistics_And_Drifting_Satellites_Blueprint.md)**
+- **[Design Blueprint: Classic X-COM Geoscape Experience](Documentation/Design/Classic_XCom_Geoscape_Blueprint.md)**
+- **[Interactive Mockup: Geoscape Command Deck Prototype](Documentation/Design/Mockups/geoscape_command_deck_mockup.html)**
+
+### Module Specifications
 - **[Module 1 Specification: Geoscape & Radar Grid](docs/modules/geoscape-and-radar.md)**
 - **[Module 2 Specification: Interception & Rapid Response](docs/modules/interception-and-rapid-response.md)**
 - **[Module 3 Specification: Alien Containment & Biology](docs/modules/containment-and-biology.md)**
 - **[Tactical Battlescape, Sensory & Fog of War Specification](docs/modules/battlescape-and-tactical-combat.md)**
 - **[Module 4 Specification: The Invasion Campaign & Panic](docs/modules/campaign-and-panic.md)**
 - **[Aquatic Operations & Terror from the Deep Integration](docs/modules/aquatic-operations.md)**
+
+### Testing, Roadmap & Operations
+- **[Milestone 1.3 Quality Assurance & Playtest Plan (TC-01 – TC-28)](docs/milestone_1_3_test_plan.md)**
+- **[Authoritative Release & Publishing Process](docs/release-process.md)**
 - **[Frequently Asked Questions (FAQ)](docs/faq.md)**
 - **[Implementation Roadmap & TODO](TODO.md)**
 - **[Changelog](CHANGELOG.md)**
@@ -99,10 +113,21 @@ To maintain performance, simplicity, and community compatibility, the project is
 
 ## Repository Standards & Tooling
 
-This repository enforces formatting and spellchecking standards:
+This repository provides cross-platform compilation, automated deployment, formatting, and spellchecking:
 
 ```bash
-# Format Markdown, JSON, and YAML files
+# Compile solution (.NET 10 Release)
+npm run build:geoscape
+# or: dotnet build Geoscape/Source/Geoscape.slnx
+
+# Run automated test suite (MSTest)
+dotnet test Geoscape/Source/Geoscape.slnx
+
+# Deploy mod to local RimWorld Mods directory
+npm run deploy:geoscape         # Windows (PowerShell / NTFS Junction)
+npm run deploy:geoscape:linux   # Linux / CachyOS (Bash / Symlink)
+
+# Format project files (Prettier)
 npm run format
 
 # Spellcheck project documentation (en-GB)

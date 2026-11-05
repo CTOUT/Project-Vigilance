@@ -85,3 +85,37 @@ Answers to common community inquiries regarding compatibility, design philosophy
 > - **Terrain Masking (Hostile Ground):** Moving through `Mountainous` tiles delays classification. While an incursion hugs a mountain range, you always receive the **amber Contact blip** (speed and heading known), but attacking faction crests and headcount remain masked until the force exits into open foothills or plains.
 > - **Spacer Tech Override:** Constructing the **SIGINT Decryption Console** adjacent to a **Phased Radar Array** bypasses mountain masking entirely through tactical radio decryption and advanced synthetic aperture processing.
 > - **Zero Clutter:** Terrain never requires confusing line-of-sight raycasting or jagged radar shadow cutouts; the radar boundary remains a clean, intuitive holographic ring.
+
+---
+
+### 7. Cross-Platform Support & Operating Systems
+
+**Q: Does Project Vigilance work on Linux, CachyOS, Steam Deck (SteamOS), or macOS?**
+
+> **Yes, 100% natively supported.**
+> Project Vigilance contains zero native C++ binaries or OS-specific dynamic libraries; it runs entirely on RimWorld 1.7's managed .NET runtime.
+>
+> For developers and playtesters building or linking locally from source:
+> - **Linux / CachyOS / SteamOS:** Execute `./scripts/deploy-geoscape.sh` (or `npm run deploy:geoscape:linux`). It creates a native Unix symbolic link into `~/.local/share/Steam/steamapps/common/RimWorld/Mods/ProjectVigilance-Geoscape` and supports `--skip-build` and `--copy` modes.
+> - **Windows:** Execute `./scripts/deploy-geoscape.ps1` (or `npm run deploy:geoscape`), which links via an NTFS Junction to `D:\Games\Steam\steamapps\common\RimWorld\Mods\ProjectVigilance-Geoscape`.
+
+---
+
+### 8. Campaign Creation, Mutability & Mod Adoption
+
+**Q: What happens when I load a pre-existing save from before Milestone 1.3?**
+
+> When loading an ongoing save that predates the Campaign Rules framework, the mod presents a non-destructive **First-Time Mod Adoption dialog** (`Dialog_GeoscapeModAdoption`):
+>
+> - **Planetary Surveillance (Default):** Retains known world geography while enabling incursion transit and radar envelopes.
+> - **1-Day Review Window:** Grants a 60,000-tick grace period with a deferred notification letter allowing you to adjust or lock your campaign rules.
+> - **Fog of War Challenge:** Opts into full planetary blackout for an immediate exploration challenge.
+>
+> All adopted rules are stored permanently in your `.rws` save file under `GeoscapeCampaignRules` (`WorldComponent`), ensuring independent rules per campaign without cross-save contamination.
+
+**Q: Can I change rules during a campaign?**
+
+> Rules follow a formal two-axis mutability model:
+> - **Mutable rules** (e.g. notification letters, UI styles) can be modified at any time in Mod Options.
+> - **Escalatable rules** (e.g. `visibilityMode`) can only progress forward (Fog of War $\to$ Planetary Surveillance $\to$ Omniscient) to maintain epistemic simulation integrity.
+> - **Immutable rules** (e.g. sensory radii, nighttime biological rest, combat synchronisation) are locked at Day 0 to maintain campaign challenge integrity. Developer Mode allows temporary, audited session overrides (`allowUnsafeRuleTransitions`) that clear automatically on exit.

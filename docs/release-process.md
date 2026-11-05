@@ -25,7 +25,8 @@ Each release publishes synchronised artifacts across two primary channels:
 Before creating a release, ensure all items in the target milestone are complete:
 
 - [ ] All milestone features implemented and tested.
-- [ ] No compilation warnings or errors: `dotnet build Geoscape/Source/Geoscape/Geoscape.csproj -c Release`.
+- [ ] No compilation warnings or errors: `dotnet build Geoscape/Source/Geoscape.slnx -c Release`.
+- [ ] All automated unit tests passing: `dotnet test Geoscape/Source/Geoscape.slnx`.
 - [ ] No spellcheck errors: `npm run spellcheck`.
 - [ ] Working branch (`feat/milestone-X.Y`) merged or fast-forwarded into `main`.
 

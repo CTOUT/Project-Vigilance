@@ -10,9 +10,16 @@ This is a **standalone, zero-dependency framework mod** designed for RimWorld 1.
 
 ---
 
-## Current Features (v0.3.0 Playtest)
+## Current Features (v0.3.0 Live & v0.4.0 Milestone 1.3)
 
 - **Physical Incursion Engine:** Intercepts walk-in raids (`IncidentWorker_RaidEnemy`) and trade caravans (`IncidentWorker_TraderCaravanArrival`), spawning physical world entities that march across the planet.
+- **Planetary Sensory & Radar Network:** Early-warning radar domes, lookout watchtowers, coastal sonar arrays, and multi-dish interferometry expanding identification horizons.
+- **Lightweight Forward Outposts:** Caravan-deployable automated relays and signal beacons providing zero-TPS forward perimeter surveillance with dynamic material salvage.
+- **Dynamic Inter-Faction Encounters:** Tile-bucketed $O(M)$ collision scans, algebraic background skirmishes, and persistent salvageable aftermath sites.
+- **Orbital Logistics & Drifting Constellations:** Closed-form analytical Keplerian mechanics engine with $J_2$ oblateness nodal precession, persistent orbital station hubs, and 5 specialised satellite payload roles.
+- **Campaign Creation Wizard & Mutability Framework:** First-class campaign wizard page (`Page_GeoscapeRules`), 4 distinct campaign profiles (**Fog of War**, **Planetary Surveillance**, **Hardcore Vigilance**, **Omniscient**), two-axis rule mutability, first-time mod adoption lifecycle, and forensic change ledgers.
+- **Automated Landfall & Blind Touchdown:** Prevents global map cheese on uncharted globes by auto-selecting landing sectors or masking terrain telemetry until touchdown.
+- **Optimistic Fog-of-War Pathfinding:** Friendly caravans assume unmapped sectors are passable until discovered, dynamically re-routing locally when meeting impassable terrain.
 - **Dynamic Origin Resolution:** Automatically resolves genuine origin settlements or wilderness staging sites based on faction territory and terrain accessibility.
 - **Real-Time WorldGrid Pathing:** Calculates terrain-based transit speeds and realistic ETAs (hours to days depending on biomes, roads, and mountains).
 - **Tactical World Map Rendering:**
@@ -27,23 +34,25 @@ This is a **standalone, zero-dependency framework mod** designed for RimWorld 1.
 
 ## Directory Layout
 
-```
+```text
 Geoscape/
 ├── 1.7/
 │   ├── Assemblies/           # Compiled .NET 10 (net10.0) C# binaries (Geoscape.dll)
-│   ├── Defs/                 # XML WorldObjectDefs and ThingDefs
-│   └── Textures/             # Tactical UI markers and icons
+│   ├── Defs/                 # XML Defs (Buildings, Research, WorldObjects, Letters)
+│   └── Patches/              # XML Patches (PlanetLayerPatch)
 ├── About/
 │   ├── About.xml             # RimWorld 1.7 mod metadata
 │   └── Preview.png           # Workshop & mod-manager preview graphic
 └── Source/                   # C# .NET 10 solution (targeting Waylith)
-    ├── Geoscape.slnx         # Modern Visual Studio solution
-    └── Geoscape/
-        ├── Geoscape.csproj   # TargetFramework: net10.0
-        ├── Patches/          # Harmony patches (RaidEnemy, TraderCaravan)
-        ├── Settings/         # In-game ModSettings & UI dialogue
-        ├── UI/               # Telemetry and inspect pane string builders
-        └── World/            # WorldObject_Incursion, pathing, and arrival management
+    ├── Geoscape.slnx         # Solution file
+    ├── Geoscape/             # Mod core project
+    │   ├── Geoscape.csproj   # TargetFramework: net10.0
+    │   ├── Orbital/          # Drifting Keplerian satellite & station engine
+    │   ├── Patches/          # Harmony runtime patches
+    │   ├── Rules/            # Campaign rules, mutability framework, wizard & dialogs
+    │   ├── Sensory/          # Radar coverage, listening posts, optimistic pathing & Haze
+    │   └── World/            # Incursion simulation, collision detection & skirmishes
+    └── Geoscape.Tests/       # Automated MSTest test suite (216 tests)
 ```
 
 ---

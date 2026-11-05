@@ -86,6 +86,7 @@
   - **Forensic Audit Ledger (`RuleChangeRecord`):** Capped at 100 entries, recording escalations, unsafe transitions, and dev override toggles. Includes pinned Day-0 rule snapshot (`CampaignCreated`), mod adoption provenance (`ModAdoption`), and legacy migration records (`LegacyMigration`).
   - **DevMode-Gated Session-Only Override:** `allowUnsafeRuleTransitions` requires active `Prefs.DevMode`, resets on game exit, and clears automatically when DevMode is turned off.
   - **Legacy Save Migration:** Adopt current ModSettings defaults on first load of pre-1.3 saves, opening a 1-day review window with a deferred notification letter.
+- [x] **Cross-Platform Linux & Windows Deployment Pipeline:** Added native Bash deployment automation script ([`scripts/deploy-geoscape.sh`](scripts/deploy-geoscape.sh)) and cross-platform PowerShell ([`scripts/deploy-geoscape.ps1`](scripts/deploy-geoscape.ps1)) supporting both Linux / CachyOS (symlinks, `~/.local/share` paths, `--skip-build` / `--copy` modes) and Windows (NTFS junctions). Implemented cross-platform MSBuild OS detection and non-blocking assembly rotation across game launches.
 
 ---
 

@@ -22,7 +22,7 @@ Radar and sensor facilities can be constructed at player colonies or deployed as
 | **SIGINT Decryption Console**       |        Ultra         | Facility Linker (`CompFacility`) |       _Attached to Array_       |         _Matches Array_          |          700 W / 1,400 W          | **Upgrades to Tier 4 (_Analysed_)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. Penetrates terrain masking. |
 | **Coastal Sonar Station**           |      Industrial      |             Building             |      **18 rings (Water)**       |             8 rings              |          500 W / 1,200 W          |           Coastal / Ocean           | Shoreline hydrophone array monitoring maritime transit and aquatic incursions on water tiles (`tile.WaterCovered`).                                                   |
 | **Listening Post: Automated Relay** | Industrial / Spacer  |           WorldObject            |    **12 rings** _(+Vantage)_    |             5 rings              |         Standalone Solar          |         Tier 2 (_Contact_)          | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. 100% unmanned. Capped vantage (+1 to +2 rings).                                      |
-| **Listening Post: Signal Beacon**   | Neolithic / Medieval |           WorldObject            |    **6 rings** _(+Vantage)_     |             3 rings              |          0 W (Unpowered)          |         Tier 2 (_Contact_)          | Unmanned timber or stone signal beacon deployed by caravans. Full optical vantage (+1 to +3 rings on high ground).                                                    |
+| **Listening Post: Signal Beacon**   | Neolithic / Medieval |           WorldObject            |    **6 rings** _(+Vantage)_     |             0 rings              |          0 W (Unpowered)          |         Tier 2 (_Contact_)          | Unmanned timber or stone signal beacon deployed by caravans. Full optical vantage (+1 to +3 rings on high ground); zero identification capability.    |
 
 #### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Identification Expansion)
 
@@ -208,8 +208,8 @@ The framework separates the *lifecycle constraint* of a rule from its *operation
 
 - **Axis 1: Mutability Lifecycle (`RuleMutability`):**
   - **`Mutable`:** Presentation and notification filters that can be freely altered at any time without compromising simulation integrity (e.g. `enableEarlyWarningLetters`, radar outline styles, custom colours).
-  - **`Escalatable`:** Epistemic knowledge rules that follow a monotonic forward-progression path (e.g. `visibilityMode`: Classic Haze $\to$ Planetary Surveillance $\to$ Omniscient). Information can be safely revealed; it cannot be cleanly unrevealed without loss of historical state.
-  - **`Immutable`:** Physical, biological, and storyteller simulation laws locked at world generation (e.g. `colonyScoutRadius`, `caravanScoutRadius`, `enableNighttimeSensoryReduction`, `incursionsRestAtNight`, `synchronizeMultiVectorRaids`, `enableTacticalIngressFlanking`, `resetThreatCooldownOnArrival`).
+  - **`Escalatable`:** Epistemic knowledge rules that follow a monotonic forward-progression path (e.g. `visibilityMode`: Fog of War $\to$ Planetary Surveillance $\to$ Omniscient). Information can be safely revealed; it cannot be cleanly unrevealed without loss of historical state.
+  - **`Immutable`:** Physical, biological, and storyteller simulation laws locked at world generation (e.g. `colonyScoutRadius`, `caravanScoutRadius`, `enableNighttimeSensoryReduction`, `incursionsRestAtNight`, `synchronizeMultiVectorRaids`, `enableTacticalIngressFlanking`, `resetThreatCooldownOnArrival`, `startingSiteSelection`).
 - **Axis 2: Transition Effects (`RuleTransitionEffects`):**
   - Bitmask declaring automated engine routines triggered when permitted rule changes occur (`ReleaseConcealedSites`, `RescanSensors`, `RepathPlayerCaravans`, `RebuildWorldLayers`).
 
@@ -231,15 +231,16 @@ The framework separates the *lifecycle constraint* of a rule from its *operation
 - **`GeoscapeCampaignRules` (`WorldComponent`):** Serialises the authoritative `GeoscapeRuleSet` into the `.rws` save file under `<world><components>`.
 - **`GeoscapeRules` Facade:** High-performance, zero-allocation accessor routing all production queries to the active campaign's rules, safely falling back to defaults at the main menu or in headless unit tests.
 - **Rule Change Ledger (`RuleChangeRecord`):** Capped at 100 entries, recording every escalation, unsafe dev override, and legacy migration. Pinned origin records (`CampaignCreated`, `LegacyMigration`) are permanently preserved.
-- **Day-0 Creation Snapshot:** The initial `CampaignCreated` ledger entry records an exhaustive semicolon-delimited string snapshot of all 9 campaign rules selected at Day 0, providing permanent forensic integrity for bug reporting and challenge runs.
+- **Day-0 Creation Snapshot:** The initial `CampaignCreated` ledger entry records an exhaustive semicolon-delimited string snapshot of all 10 campaign rules selected at Day 0, providing permanent forensic integrity for bug reporting and challenge runs.
 
 #### 3. Campaign Profiles (Presets)
 
-To streamline world setup, the world-generation dialog and mod settings provide one-click profile presets:
-- **Classic Haze (Recommended):** Full planetary fog of war, biological nocturnal rest, multi-vector synchronisation, and tactical flanking.
+To streamline world setup, the campaign creation wizard page (`Page_GeoscapeRules`) and mod settings provide one-click profile presets:
+- **Fog of War (Recommended):** Full planetary fog of war, automated landfall on uncharted globes, biological nocturnal rest, multi-vector synchronisation, and tactical flanking.
 - **Planetary Surveillance (Classic X-COM):** Known planetary geography with dynamic incursion tracking outside radar envelopes.
-- **Hardcore Vigilance:** Uncharted planet, tight visual horizons, active night blindness, and aggressive tactical flanking.
-- **Custom:** Full manual control over individual rule parameters.
+- **Hardcore Vigilance:** Uncharted planet, tight visual horizons, active night blindness, automated landfall, and aggressive tactical flanking.
+- **Omniscient (Vanilla):** Vanilla RimWorld global visibility. No fog of war.
+- **Custom:** Full manual control over individual rule parameters via the modal dialog (`Dialog_GeoscapeCampaignRules`).
 
 #### 4. Strategic Runway: The Planetary Expedition Phase
 
