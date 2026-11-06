@@ -6,6 +6,7 @@ using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
 
 namespace ProjectVigilance.Geoscape.Patches;
@@ -105,7 +106,8 @@ public static class StartingSiteSelectionFeedback_Patch
         [HarmonyPrefix]
         public static void Prefix()
         {
-            if (GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar &&
+            if ((GeoscapeRules.StartingSiteSelection == StartingSiteSelectionMode.AutomatedLandfall ||
+                 GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar) &&
                 Find.WorldInterface != null &&
                 !Find.WorldInterface.SelectedTile.Valid)
             {

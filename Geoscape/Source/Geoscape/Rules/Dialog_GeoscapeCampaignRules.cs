@@ -38,6 +38,7 @@ public sealed class Dialog_GeoscapeCampaignRules : Window
     public override void PreClose()
     {
         base.PreClose();
+        CampaignWizardPageUtility.SyncPageLinkage(draft);
         onClose?.Invoke();
     }
 

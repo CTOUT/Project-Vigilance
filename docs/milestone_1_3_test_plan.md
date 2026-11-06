@@ -1142,7 +1142,15 @@ _Objective: Validate that campaign setup on an uncharted globe under Fog of War 
 2. Click `Next` $\rightarrow$ click `Generate` on `Page_CreateWorldParams`:
    - **Verify Full Cartography:** `Page_SelectStartingSite` opens normally with full orbital cartography, revealed terrain, biomes, and standard manual site selection.
 
-#### 28.4 Ambiguous Landing Rejection on Physically Impossible Tiles (Manual Targeting)
+#### 28.4 Automated Landfall on Planetary Surveillance / Omniscient (Custom Rules)
+
+1. Start a new campaign $\rightarrow$ select **Planetary Surveillance** (or **Omniscient**) on `Page_GeoscapeRules`.
+2. Click `Customise Individual Rules...` $\rightarrow$ set `Starting Site Selection` to **Automated Landfall**.
+3. Click `Close` $\rightarrow$ click `Next` $\rightarrow$ click `Generate` on `Page_CreateWorldParams`:
+   - **Verify Black Globe Skipped:** `Page_SelectStartingSite` is completely bypassed.
+   - The setup smoothly designates a valid random starting site and advances directly to Ideology / Colonist selection.
+
+#### 28.5 Ambiguous Landing Rejection on Physically Impossible Tiles (Manual Targeting)
 
 1. Under `Fog of War` with `Manual Globe Targeting` enabled, locate an unexplored/fogged ocean or deep water hex in the black shroud.
 2. Attempt to settle on the hex:
@@ -1151,7 +1159,7 @@ _Objective: Validate that campaign setup on an uncharted globe under Fog of War 
 3. Attempt to settle on an unexplored impassable mountain hex:
    - **Verify Rejection Message:** Displays the exact same ambiguous telemetry message without disclosing mountain terrain or impassability.
 
-#### 28.5 Blind Touchdown on Environmental Hazard Sectors (Manual Targeting)
+#### 28.6 Blind Touchdown on Environmental Hazard Sectors (Manual Targeting)
 
 1. Under `Fog of War` with `Manual Globe Targeting` enabled, select an unexplored sector containing hazards (toxic pollution, extreme desert, ice sheet).
 2. Click `Next`:
@@ -1160,7 +1168,7 @@ _Objective: Validate that campaign setup on an uncharted globe under Fog of War 
 3. Switch to `Planetary Surveillance`:
    - **Verify Informed Confirmation:** Selecting a polluted or hazardous hex prompts the standard vanilla confirmation dialog before embarking.
 
-#### 28.6 Step 3 Storyteller Screen Mod Compatibility
+#### 28.7 Step 3 Storyteller Screen Mod Compatibility
 
 1. On `Page_SelectStoryteller` (Step 3), verify the page is 100% vanilla without modded text overlays or button injections.
 2. All Project Vigilance simulation rules, mutability constraints, and profile descriptions remain contained exclusively within `Page_GeoscapeRules` and `Dialog_GeoscapeCampaignRules`.

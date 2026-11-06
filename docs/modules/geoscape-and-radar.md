@@ -22,7 +22,7 @@ Radar and sensor facilities can be constructed at player colonies or deployed as
 | **SIGINT Decryption Console**       |        Ultra         | Facility Linker (`CompFacility`) |       _Attached to Array_       |         _Matches Array_          |          700 W / 1,400 W          | **Upgrades to Tier 4 (_Analysed_)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. Penetrates terrain masking. |
 | **Coastal Sonar Station**           |      Industrial      |             Building             |      **18 rings (Water)**       |             8 rings              |          500 W / 1,200 W          |           Coastal / Ocean           | Shoreline hydrophone array monitoring maritime transit and aquatic incursions on water tiles (`tile.WaterCovered`).                                                   |
 | **Listening Post: Automated Relay** | Industrial / Spacer  |           WorldObject            |    **12 rings** _(+Vantage)_    |             5 rings              |         Standalone Solar          |         Tier 2 (_Contact_)          | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. 100% unmanned. Capped vantage (+1 to +2 rings).                                      |
-| **Listening Post: Signal Beacon**   | Neolithic / Medieval |           WorldObject            |    **6 rings** _(+Vantage)_     |             0 rings              |          0 W (Unpowered)          |         Tier 2 (_Contact_)          | Unmanned timber or stone signal beacon deployed by caravans. Full optical vantage (+1 to +3 rings on high ground); zero identification capability.    |
+| **Listening Post: Signal Beacon**   | Neolithic / Medieval |           WorldObject            |    **6 rings** _(+Vantage)_     |             0 rings              |          0 W (Unpowered)          |         Tier 2 (_Contact_)          | Unmanned timber or stone signal beacon deployed by caravans. Full optical vantage (+1 to +3 rings on high ground); zero identification capability.                    |
 
 #### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Identification Expansion)
 
@@ -174,7 +174,7 @@ In vanilla RimWorld, right-clicking empty world tiles is inactive unless a playe
 
 ### 2.7 Orbital Infrastructure: Persistent Stations & Drifting Satellite Constellations
 
-Orbital-only factions (such as `TradersGuild` / *Merchant's Bazaar*) and advanced space defence programs deploy orbital infrastructure analogous to surface settlements and mobile caravans:
+Orbital-only factions (such as `TradersGuild` / _Merchant's Bazaar_) and advanced space defence programs deploy orbital infrastructure analogous to surface settlements and mobile caravans:
 
 1. **Persistent Orbital Stations (`WorldObject_OrbitalStation`):**
    - High-altitude, stable operational centres serving as deployment, maintenance, and logistics hubs.
@@ -204,7 +204,7 @@ $$\mathbf{Campaign\ Identity} = \mathbf{Scenario} + \mathbf{World\ Seed} + \math
 
 #### 1. The Two-Axis Rule Model
 
-The framework separates the *lifecycle constraint* of a rule from its *operational transition side-effects*:
+The framework separates the _lifecycle constraint_ of a rule from its _operational transition side-effects_:
 
 - **Axis 1: Mutability Lifecycle (`RuleMutability`):**
   - **`Mutable`:** Presentation and notification filters that can be freely altered at any time without compromising simulation integrity (e.g. `enableEarlyWarningLetters`, radar outline styles, custom colours).
@@ -236,6 +236,7 @@ The framework separates the *lifecycle constraint* of a rule from its *operation
 #### 3. Campaign Profiles (Presets)
 
 To streamline world setup, the campaign creation wizard page (`Page_GeoscapeRules`) and mod settings provide one-click profile presets:
+
 - **Fog of War (Recommended):** Full planetary fog of war, automated landfall on uncharted globes, biological nocturnal rest, multi-vector synchronisation, and tactical flanking.
 - **Planetary Surveillance (Classic X-COM):** Known planetary geography with dynamic incursion tracking outside radar envelopes.
 - **Hardcore Vigilance:** Uncharted planet, tight visual horizons, active night blindness, automated landfall, and aggressive tactical flanking.
@@ -244,7 +245,8 @@ To streamline world setup, the campaign creation wizard page (`Page_GeoscapeRule
 
 #### 4. Strategic Runway: The Planetary Expedition Phase
 
-To eliminate the "Blind Guessing Paradox" of starting on an uncharted planet under *Classic Haze of War*, the architecture incorporates an extensible runway for the **Civilization Settler Paradigm** (Milestone 1.4):
+To eliminate the "Blind Guessing Paradox" of starting on an uncharted planet under _Classic Haze of War_, the architecture incorporates an extensible runway for the **Civilization Settler Paradigm** (Milestone 1.4):
+
 - Scenarios can declare an overland **Expedition Phase** (`ExpeditionStartMode`), starting the player with a mobile reconnaissance caravan to survey local rivers, choke points, and roads before committing to a base location.
 - Heavy starting resources (steel, components, food crates) are preserved as **Orbital Landing Cargo / Mission Assets**, deployed via drop pods only when the player activates their Colony Beacon on the chosen hex.
 - Orbital and space starts (Odyssey platforms, GravShips, Save Our Ship 2) automatically bypass the overland expedition, preserving 100% scenario compatibility.

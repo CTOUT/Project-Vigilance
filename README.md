@@ -86,6 +86,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 ## Documentation Index
 
 ### Architectural Blueprints & Design Specifications
+
 - **[Vision & Architectural Pillars](docs/architecture/vision-and-pillars.md)**
 - **[Modular System Architecture](docs/architecture/modular-system.md)**
 - **[DLC Integration Architecture](docs/architecture/dlc-integrations.md)**
@@ -95,6 +96,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 - **[Interactive Mockup: Geoscape Command Deck Prototype](Documentation/Design/Mockups/geoscape_command_deck_mockup.html)**
 
 ### Module Specifications
+
 - **[Module 1 Specification: Geoscape & Radar Grid](docs/modules/geoscape-and-radar.md)**
 - **[Module 2 Specification: Interception & Rapid Response](docs/modules/interception-and-rapid-response.md)**
 - **[Module 3 Specification: Alien Containment & Biology](docs/modules/containment-and-biology.md)**
@@ -103,6 +105,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 - **[Aquatic Operations & Terror from the Deep Integration](docs/modules/aquatic-operations.md)**
 
 ### Testing, Roadmap & Operations
+
 - **[Milestone 1.3 Quality Assurance & Playtest Plan (TC-01 – TC-28)](docs/milestone_1_3_test_plan.md)**
 - **[Authoritative Release & Publishing Process](docs/release-process.md)**
 - **[Frequently Asked Questions (FAQ)](docs/faq.md)**

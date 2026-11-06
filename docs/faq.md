@@ -96,6 +96,7 @@ Answers to common community inquiries regarding compatibility, design philosophy
 > Project Vigilance contains zero native C++ binaries or OS-specific dynamic libraries; it runs entirely on RimWorld 1.7's managed .NET runtime.
 >
 > For developers and playtesters building or linking locally from source:
+>
 > - **Linux / CachyOS / SteamOS:** Execute `./scripts/deploy-geoscape.sh` (or `npm run deploy:geoscape:linux`). It creates a native Unix symbolic link into `~/.local/share/Steam/steamapps/common/RimWorld/Mods/ProjectVigilance-Geoscape` and supports `--skip-build` and `--copy` modes.
 > - **Windows:** Execute `./scripts/deploy-geoscape.ps1` (or `npm run deploy:geoscape`), which links via an NTFS Junction to `D:\Games\Steam\steamapps\common\RimWorld\Mods\ProjectVigilance-Geoscape`.
 
@@ -116,6 +117,7 @@ Answers to common community inquiries regarding compatibility, design philosophy
 **Q: Can I change rules during a campaign?**
 
 > Rules follow a formal two-axis mutability model:
+>
 > - **Mutable rules** (e.g. notification letters, UI styles) can be modified at any time in Mod Options.
 > - **Escalatable rules** (e.g. `visibilityMode`) can only progress forward (Fog of War $\to$ Planetary Surveillance $\to$ Omniscient) to maintain epistemic simulation integrity.
 > - **Immutable rules** (e.g. sensory radii, nighttime biological rest, combat synchronisation) are locked at Day 0 to maintain campaign challenge integrity. Developer Mode allows temporary, audited session overrides (`allowUnsafeRuleTransitions`) that clear automatically on exit.

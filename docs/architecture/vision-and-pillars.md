@@ -96,6 +96,7 @@ Two foundational design principles govern all systems across Project Vigilance:
 In vanilla RimWorld and standard strategy conventions, the interface often grants players passive, omniscient intelligence. When a raid triggers, an explicit letter instantly reveals the attacking faction, threat points, pawn roster, armour, and weaponry. At the world scale, the entire planet is unveiled as a fully-charted atlas from Day 0.
 
 Project Vigilance rejects passive omniscience:
+
 - **Earned Intelligence:** Information is an active, high-value strategic commodity earned through deliberate player initiative, technological investment, and field reconnaissance.
 - **Eliminating the Blind Guessing Paradox:** While the planet begins in darkness, the player should never be forced to make permanent, game-defining decisions through blind guesswork. True exploration provides the tools to survey, probe, and uncover actionable intelligence before committing irreversible resources.
 
@@ -120,7 +121,7 @@ Project Vigilance rejects passive omniscience:
   Unmonitored planetary sectors on the Geoscape hide active enemy operations, secret staging bases, sub-surface ocean anomalies, and terror cells. The world does not passively update its state for your convenience. To discover what hostile forces are plotting across the globe, you must actively explore, establish remote forward listening posts, survey regional biomes, and deploy reconnaissance craft.
 
 - **Planetary Expedition Phase & Landing Reserves (Civilization Settler Paradigm):**  
-  To ensure *information is earned, not guessed*, starting on an uncharted planet (*Classic Haze of War*) transitions from arbitrary site selection to a deliberate regional survey. Rather than committing to a permanent settlement blindly from orbit, landing parties deploy with mobile reconnaissance mobility to survey local waterways, roads, and defensible mountain choke points before staking their permanent claim, calling down heavy landing cargo and orbital supply pods upon site deployment.
+  To ensure _information is earned, not guessed_, starting on an uncharted planet (_Classic Haze of War_) transitions from arbitrary site selection to a deliberate regional survey. Rather than committing to a permanent settlement blindly from orbit, landing parties deploy with mobile reconnaissance mobility to survey local waterways, roads, and defensible mountain choke points before staking their permanent claim, calling down heavy landing cargo and orbital supply pods upon site deployment.
 
 #### 3. The Campaign Identity Equation
 

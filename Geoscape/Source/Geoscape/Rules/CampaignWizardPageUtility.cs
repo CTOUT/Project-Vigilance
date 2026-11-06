@@ -37,8 +37,7 @@ public static class CampaignWizardPageUtility
     public static bool ShouldSkipStartingSite(GeoscapeRuleSet? rules)
     {
         if (rules == null) return false;
-        return rules.Visibility.Value == VisibilityMode.FogOfWar &&
-               rules.StartingSiteSelection.Value == StartingSiteSelectionMode.AutomatedLandfall;
+        return rules.StartingSiteSelection.Value == StartingSiteSelectionMode.AutomatedLandfall;
     }
 
     public static void SyncPageLinkage(GeoscapeRuleSet? rules)
