@@ -51,6 +51,7 @@ public sealed class GeoscapeContactInteractionTests
     public void Cleanup()
     {
         WorldSelector_HandleWorldClicks_Patch.MouseTileOverride = null;
+        WorldSelector_SelectFirstOrNextFrom_Patch.ShiftHeldOverride = null;
         SensoryManager.IsExploredOverride = null;
         SensoryManager.Instance = null;
     }
@@ -347,8 +348,8 @@ public sealed class GeoscapeContactInteractionTests
         Assert.IsNotNull(options);
         Assert.IsTrue(options.Any(o => o.Label.StartsWith("Form caravan at")),
             "Right clicking own colony must offer 'Form caravan at'.");
-        Assert.IsTrue(options.Any(o => o.Label.StartsWith("Move caravan") && o.Label.Contains("to")),
-            "Right clicking own colony must offer recalling distant caravan back home.");
+        Assert.IsTrue(options.Any(o => o.Label.StartsWith("Recall caravan") && o.Label.Contains("Colony Alpha")),
+            "Right clicking own colony must offer recalling distant caravan back to the colony.");
     }
 
     [TestMethod]
@@ -412,5 +413,164 @@ public sealed class GeoscapeContactInteractionTests
 
         Assert.IsTrue(vanguardIndex < rearIndex,
             $"Closest caravan must precede distant caravan in intelligent suggestions. Vanguard index: {vanguardIndex}, Rear index: {rearIndex}");
+    }
+
+    [TestMethod]
+    public void BuildEntitySelectionOptions_UnidentifiedContact_ConcealsFactionCrestAndColour()
+    {
+        try
+        {
+            GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            SensoryManager.Instance = new SensoryManager(null!);
+            SensoryManager.IsExploredOverride = t => t.tileId == 350;
+            SensoryManager.IsIdentifiedOverride = _ => false;
+
+            var pirateFaction = new Faction
+            {
+                def = new FactionDef { isPlayer = false },
+                color = Color.red
+            };
+            var siteDef = new WorldObjectDef { defName = "PirateFortress", label = "Secret Pirate Base" };
+            var site = new Site { def = siteDef, ID = 9001 };
+            HarmonyLib.Traverse.Create(site).Field("tile").SetValue((PlanetTile)350);
+            HarmonyLib.Traverse.Create(site).Field("factionInt").SetValue(pirateFaction);
+
+            var options = WorldSelector_SelectFirstOrNextFrom_Patch.BuildEntitySelectionOptions(
+                new List<WorldObject> { site },
+                (PlanetTile)350);
+
+            Assert.IsNotNull(options);
+            Assert.AreEqual(2, options.Count); // 1 site + 1 tile
+            var siteOpt = options[0];
+            Assert.AreEqual("Unidentified Contact", siteOpt.Label);
+            Assert.AreNotEqual(Color.red, siteOpt.iconColor, "Must conceal pirate red faction colour for un-scanned contact.");
+            Assert.AreEqual(WorldObject_Visibility_Patch.UnknownSiteIconColor, siteOpt.iconColor, "Must use mystery amber colour for un-scanned contact.");
+        }
+        finally
+        {
+            SensoryManager.IsExploredOverride = null;
+            SensoryManager.IsIdentifiedOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void BuildIntelligentContextualOptions_UnidentifiedTargetSite_HidesRealSiteName()
+    {
+        try
+        {
+            GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            SensoryManager.Instance = new SensoryManager(null!);
+            SensoryManager.IsExploredOverride = t => t.tileId == 400 || t.tileId == 100;
+            SensoryManager.IsIdentifiedOverride = _ => false;
+
+            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+            var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+            HarmonyLib.Traverse.Create(caravan).Field("tile").SetValue((PlanetTile)100);
+            HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
+            HarmonyLib.Traverse.Create(caravan).Field("nameInt").SetValue("Alpha Team");
+
+            var enemyFaction = new Faction { def = new FactionDef { isPlayer = false } };
+            var siteDef = new WorldObjectDef { defName = "PirateFortress", label = "Secret Pirate Base" };
+            var site = new Site { def = siteDef, ID = 9002 };
+            HarmonyLib.Traverse.Create(site).Field("tile").SetValue((PlanetTile)400);
+            HarmonyLib.Traverse.Create(site).Field("factionInt").SetValue(enemyFaction);
+
+            var options = WorldSelector_HandleWorldClicks_Patch.BuildIntelligentContextualOptions(
+                (PlanetTile)400,
+                new List<Caravan> { caravan },
+                Enumerable.Empty<Settlement>());
+
+            Assert.IsNotNull(options);
+            Assert.IsTrue(options.Count >= 1);
+            Assert.IsFalse(options.Any(o => o.Label.Contains("Secret Pirate Base")),
+                "Right-click menu must never leak true name of unidentified enemy base.");
+            Assert.IsTrue(options.Any(o => o.Label.Contains("Tile 400")),
+                "Must refer to target hex without revealing classified site name.");
+        }
+        finally
+        {
+            SensoryManager.IsExploredOverride = null;
+            SensoryManager.IsIdentifiedOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void BuildIntelligentContextualOptions_ImpassableTileNearColony_SuppressesDispatchToSelf()
+    {
+        var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+        var map = (Map)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Map));
+
+        var settlement = new Settlement { ID = 3001 };
+        HarmonyLib.Traverse.Create(settlement).Field("tile").SetValue((PlanetTile)100);
+        HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+        HarmonyLib.Traverse.Create(settlement).Field("mapInt").SetValue(map);
+        HarmonyLib.Traverse.Create(settlement).Field("nameInt").SetValue("Coastal Base");
+
+        // Target tile is 100 itself (or closest passable tile is 100)
+        var options = WorldSelector_HandleWorldClicks_Patch.BuildIntelligentContextualOptions(
+            (PlanetTile)100,
+            Enumerable.Empty<Caravan>(),
+            new List<Settlement> { settlement });
+
+        Assert.IsNotNull(options);
+        // Only "Form caravan at Coastal Base" should be offered, NOT "Send caravan from Coastal Base to Coastal Base"
+        Assert.IsTrue(options.Any(o => o.Label == "Form caravan at Coastal Base"));
+        Assert.IsFalse(options.Any(o => o.Label.StartsWith("Send caravan from") && o.Label.Contains("to Coastal Base")),
+            "Colony must not offer sending caravan to its own tile.");
+        Assert.IsFalse(options.Any(o => o.Label.StartsWith("Dispatch Construction Expedition")),
+            "Colony must not offer deploying outposts on top of itself.");
+    }
+
+    [TestMethod]
+    public void OpenCaravanFormingDialog_InvalidTargetTile_OpensWithoutThrowing()
+    {
+        var map = (Map)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Map));
+        CaravanExpeditionUtility.OpenCaravanFormingDialog(map, PlanetTile.Invalid);
+    }
+
+    [TestMethod]
+    public void SelectFirstOrNextFrom_ShiftHeld_ConfiguresAdditiveOptionAction()
+    {
+        var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+        var settlement = new Settlement { ID = 1001 };
+        HarmonyLib.Traverse.Create(settlement).Field("tile").SetValue((PlanetTile)100);
+        HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+        HarmonyLib.Traverse.Create(settlement).Field("nameInt").SetValue("New Hope");
+
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        HarmonyLib.Traverse.Create(caravan).Field("tile").SetValue((PlanetTile)100);
+        HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
+        HarmonyLib.Traverse.Create(caravan).Field("nameInt").SetValue("Alpha Team");
+
+        var options = WorldSelector_SelectFirstOrNextFrom_Patch.BuildEntitySelectionOptions(
+            new List<WorldObject> { settlement, caravan },
+            (PlanetTile)100,
+            shiftHeldOnOpen: true);
+
+        Assert.IsNotNull(options);
+        Assert.AreEqual(3, options.Count);
+        Assert.IsNotNull(options[0].action);
+        options[0].action.Invoke();
+    }
+
+    [TestMethod]
+    public void ResolveEntityLabel_PlayerColony_IncludesColonyTagWithoutCrashing()
+    {
+        var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+        var settlement = new Settlement { ID = 1001 };
+        HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+        HarmonyLib.Traverse.Create(settlement).Field("nameInt").SetValue("New Hope");
+
+        // When map is null (headless unit tests), safely formats label without throwing NullReferenceException
+        string labelNoMap = WorldSelector_SelectFirstOrNextFrom_Patch.ResolveEntityLabel(settlement);
+        Assert.AreEqual("New Hope (Player Colony)", labelNoMap);
+    }
+
+    [TestMethod]
+    public void SelectUnderMouse_DisabledInSettings_ReturnsTrue()
+    {
+        GeoscapeMod.Settings.enableOverlappingEntitySelectionMenu = false;
+        bool result = WorldSelector_SelectUnderMouse_Patch.Prefix(null!, true);
+        Assert.IsTrue(result, "When disabled in settings, SelectUnderMouse prefix must allow vanilla execution.");
     }
 }

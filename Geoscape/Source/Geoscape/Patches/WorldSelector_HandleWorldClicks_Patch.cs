@@ -240,12 +240,22 @@ public static class WorldSelector_HandleWorldClicks_Patch
         }
 
         var allObjects = worldObjectsHolder?.AllWorldObjects;
+        Settlement? playerColonyAtDest = playerSettlements.FirstOrDefault(s => s.Tile == clickedTile);
         WorldObject_ListeningPost? post = allObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == effectiveTile);
-        WorldObject? destObj = allObjects?.FirstOrDefault(w => w.Tile == clickedTile && !(w is WorldObject_ListeningPost) && (w.Faction == null || !w.Faction.IsPlayer));
+        WorldObject? destObj = playerColonyAtDest ?? allObjects?.FirstOrDefault(w => w.Tile == clickedTile && !(w is WorldObject_ListeningPost));
+
+        string destName = $"Tile {effectiveTile.tileId}";
+        if (destObj != null)
+        {
+            bool isDestMasked = SensoryManager.ShouldMaskWorldObjectAsUnknown(destObj);
+            destName = isDestMasked
+                ? $"Unidentified Contact (Tile {effectiveTile.tileId})"
+                : destObj.LabelCap.ToString();
+        }
 
         string targetName = isImpassable
             ? $"Tile {clickedTile.tileId} (Nearest passable: Tile {effectiveTile.tileId})"
-            : (post != null ? post.LabelCap.ToString() : (destObj != null ? destObj.LabelCap.ToString() : $"Tile {effectiveTile.tileId}"));
+            : (post != null ? post.LabelCap.ToString() : destName);
 
         var candidateGroups = new List<(int dist, List<FloatMenuOption> groupOptions)>();
 
@@ -305,21 +315,45 @@ public static class WorldSelector_HandleWorldClicks_Patch
             }
             else
             {
-                // Movement to target
-                string moveLabel = $"Move caravan {caravan.LabelCap} to {targetName} ({distStr})";
-                caravanOptions.Add(new FloatMenuOption(moveLabel, () =>
+                // Movement / Recall to target
+                if (playerColonyAtDest != null)
                 {
-                    if (caravan.pather != null)
+                    string recallLabel = $"Recall caravan {caravan.LabelCap} to {playerColonyAtDest.LabelCap} ({distStr})";
+                    caravanOptions.Add(new FloatMenuOption(recallLabel, () =>
                     {
-                        caravan.pather.StartPath(effectiveTile, null, repathImmediately: true, resetPauseStatus: true);
-                        if (Find.WorldSelector != null)
+                        if (caravan.pather != null)
                         {
-                            Find.WorldSelector.ClearSelection();
-                            Find.WorldSelector.Select(caravan, playSound: true);
+                            caravan.pather.StartPath(
+                                effectiveTile,
+                                new CaravanArrivalAction_Enter(playerColonyAtDest),
+                                repathImmediately: true,
+                                resetPauseStatus: true);
+                            if (Find.WorldSelector != null)
+                            {
+                                Find.WorldSelector.ClearSelection();
+                                Find.WorldSelector.Select(caravan, playSound: true);
+                            }
+                            Messages.Message($"Caravan {caravan.LabelCap} recalled to {playerColonyAtDest.LabelCap}.", MessageTypeDefOf.TaskCompletion, false);
                         }
-                        Messages.Message($"Caravan {caravan.LabelCap} en route towards {targetName}.", MessageTypeDefOf.TaskCompletion, false);
-                    }
-                }, MenuOptionPriority.Default));
+                    }, MenuOptionPriority.Default));
+                }
+                else
+                {
+                    string moveLabel = $"Move caravan {caravan.LabelCap} to {targetName} ({distStr})";
+                    caravanOptions.Add(new FloatMenuOption(moveLabel, () =>
+                    {
+                        if (caravan.pather != null)
+                        {
+                            caravan.pather.StartPath(effectiveTile, null, repathImmediately: true, resetPauseStatus: true);
+                            if (Find.WorldSelector != null)
+                            {
+                                Find.WorldSelector.ClearSelection();
+                                Find.WorldSelector.Select(caravan, playSound: true);
+                            }
+                            Messages.Message($"Caravan {caravan.LabelCap} en route towards {targetName}.", MessageTypeDefOf.TaskCompletion, false);
+                        }
+                    }, MenuOptionPriority.Default));
+                }
 
                 if (post != null)
                 {
@@ -396,7 +430,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                     }
                 }, MenuOptionPriority.Default));
             }
-            else
+            else if (settlement.Tile != effectiveTile)
             {
                 string formCaravanLabel = $"Send caravan from {settlement.LabelCap} to {targetName} ({distStr})";
                 settlementOptions.Add(new FloatMenuOption(formCaravanLabel, () =>
@@ -523,9 +557,17 @@ public static class WorldSelector_HandleWorldClicks_Patch
             }
         }
 
+        string destName = $"Tile {effectiveTile.tileId}";
+        WorldObject? destObj = worldObjectsHolder?.AllWorldObjects?.FirstOrDefault(w => w.Tile == clickedTile && !(w is WorldObject_ListeningPost));
+        if (destObj != null)
+        {
+            bool isDestMasked = SensoryManager.ShouldMaskWorldObjectAsUnknown(destObj);
+            destName = isDestMasked ? $"Unidentified Contact (Tile {effectiveTile.tileId})" : destObj.LabelCap.ToString();
+        }
+
         string formCaravanLabel = isImpassable
             ? $"Form caravan towards Tile {clickedTile.tileId} (Nearest passable: Tile {effectiveTile.tileId})"
-            : $"Form caravan to Tile {effectiveTile.tileId}";
+            : $"Form caravan to {destName}";
 
         // 1. Standard Form Caravan to designated hex
         options.Add(new FloatMenuOption(formCaravanLabel, () =>

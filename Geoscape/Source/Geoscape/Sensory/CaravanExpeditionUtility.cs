@@ -286,13 +286,16 @@ public static class CaravanExpeditionUtility
 
     public static void OpenCaravanFormingDialog(Map map, PlanetTile targetTile)
     {
-        if (map == null || !targetTile.Valid) return;
+        if (map == null) return;
         var dialog = new Dialog_FormCaravan(map);
         if (Find.WindowStack != null)
         {
             Find.WindowStack.Add(dialog);
         }
-        AttachTargetRouteToDialog(dialog, targetTile);
+        if (targetTile.Valid)
+        {
+            AttachTargetRouteToDialog(dialog, targetTile);
+        }
     }
 
     private static void AttachTargetRouteToDialog(Dialog_FormCaravan dialog, PlanetTile targetTile)
