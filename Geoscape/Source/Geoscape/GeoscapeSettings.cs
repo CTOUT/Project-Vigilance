@@ -44,6 +44,7 @@ public class GeoscapeSettings : ModSettings
     public bool enableNighttimeSensoryReduction = true;
     public bool incursionsRestAtNight = true;
     public bool showIdentificationHorizon = true;
+    public RadarTerrainShadowStyle radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
     public StartingSiteSelectionMode startingSiteSelection = StartingSiteSelectionMode.AutomatedLandfall;
     public bool enableOverlappingEntitySelectionMenu = true;
     public bool enableIntelligentRightClick = true;
@@ -54,7 +55,7 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.SensoryRadar;
     private static readonly Vector2[] scrollPositions = new Vector2[4];
-    private static readonly float[] tabHeights = { 1240f, 520f, 660f, 480f };
+    private static readonly float[] tabHeights = { 1360f, 520f, 660f, 480f };
 
     public Color EffectiveRadarColor
     {
@@ -102,6 +103,7 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref useCustomIdentificationColor, "useCustomIdentificationColor", false);
         Scribe_Values.Look(ref radarIdentificationColor, "radarIdentificationColor", new Color(1.0f, 0.82f, 0.15f));
         Scribe_Values.Look(ref showIdentificationHorizon, "showIdentificationHorizon", true);
+        Scribe_Values.Look(ref radarTerrainShadowStyle, "radarTerrainShadowStyle", RadarTerrainShadowStyle.Both);
         Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.25f);
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
         Scribe_Values.Look(ref caravanScoutRadius, "caravanScoutRadius", 3.0f);
@@ -387,6 +389,45 @@ public class GeoscapeSettings : ModSettings
                     {
                         DrawCustomColorPicker(listing, idColorBarRect, ref radarIdentificationColor, IdentificationRingPresets, "Identification");
                     }
+
+                    listing.Gap(4f);
+                    listing.Label("Mountain Radar Shadow Visualisation (Model B+ Masking):");
+
+                    if (listing.RadioButton("Both (Dashed Contours & Cell Hatching)", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, tooltip: "Renders dashed amber ribbons around internal mountain shadows and diagonal scanline hatching across masked mountain hex surfaces within identification range."))
+                    {
+                        if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
+                        {
+                            radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
+                            NotifyRadarVisualsChanged();
+                        }
+                    }
+
+                    if (listing.RadioButton("Dashed Contours (Approach A)", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, tooltip: "Renders dashed amber ribbons enclosing internal mountain clusters and radar shadows inside identification range."))
+                    {
+                        if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
+                        {
+                            radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
+                            NotifyRadarVisualsChanged();
+                        }
+                    }
+
+                    if (listing.RadioButton("Cell Hatching (Approach C)", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, tooltip: "Renders subtle radar static and diagonal scanline hatching across masked mountain hex surfaces inside identification range."))
+                    {
+                        if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
+                        {
+                            radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
+                            NotifyRadarVisualsChanged();
+                        }
+                    }
+
+                    if (listing.RadioButton("None (Undecorated Shadows)", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, tooltip: "Hides visual shadow indicators on masked mountain tiles inside identification range."))
+                    {
+                        if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
+                        {
+                            radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
+                            NotifyRadarVisualsChanged();
+                        }
+                    }
                 }
             }
 
@@ -625,6 +666,7 @@ public class GeoscapeSettings : ModSettings
         enableNighttimeSensoryReduction = true;
         incursionsRestAtNight = true;
         showIdentificationHorizon = true;
+        radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
         enableOverlappingEntitySelectionMenu = true;
         enableIntelligentRightClick = true;
         NotifyRadarVisualsChanged();

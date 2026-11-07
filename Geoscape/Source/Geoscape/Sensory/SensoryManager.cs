@@ -74,6 +74,8 @@ public class SensoryManager : WorldComponent
     private readonly HashSet<int> currentActiveIdentifiedTileIds = new(256);
     private readonly HashSet<PlanetTile> tmpActiveVisionTiles = new(256);
     private readonly HashSet<PlanetTile> tmpActiveIdentifiedTiles = new(256);
+    private readonly HashSet<PlanetTile> tmpShadowCandidateTiles = new(64);
+    private readonly HashSet<PlanetTile> tmpPenetratedMaskedTiles = new(64);
     private readonly HashSet<int> newActiveVisionTileIds = new(256);
     private readonly List<PlanetTile> tmpNeighbors = new(6);
     private readonly Queue<(PlanetTile tile, int step)> bfsQueue = new(128);
@@ -685,29 +687,49 @@ public class SensoryManager : WorldComponent
     }
 
     /// <summary>
+    /// Optional hook for overriding neighbour expansion during topological BFS in unit tests.
+    /// </summary>
+    public static System.Action<PlanetTile, List<PlanetTile>>? TileNeighborsOverride { get; set; }
+
+    /// <summary>
+    /// Optional hook for active sensor providers in unit tests.
+    /// </summary>
+    public static System.Func<IReadOnlyList<ISensorProvider>>? ActiveSensorsOverride { get; set; }
+
+    /// <summary>
     /// Populates the provided set with all planet tiles currently enveloped by active sensors (colonies, caravans, radar stations).
-    /// Used by WorldDrawLayer_RadarCoverage to render tactical perimeter boundaries and holographic honeycomb grids.
-    /// Outputs tiles within optical identification range (45% detection radius) and closest distance to perimeter using exact topological rings.
+    /// Used by WorldDrawLayer_RadarCoverage to render tactical perimeter boundaries, identification horizons, and holographic honeycomb grids.
+    /// Outputs tiles within optical identification range, closest distance to perimeter using exact topological rings,
+    /// and mountain-masked radar shadow tiles inside identification range.
     /// </summary>
     public void PopulateActiveVisionTiles(
         HashSet<PlanetTile> outTiles,
         HashSet<PlanetTile>? outIdentifiedTiles = null,
-        Dictionary<PlanetTile, float>? outTileDistancesFromPerimeter = null)
+        Dictionary<PlanetTile, float>? outTileDistancesFromPerimeter = null,
+        HashSet<PlanetTile>? outMaskedShadowTiles = null)
     {
         outTiles.Clear();
         outIdentifiedTiles?.Clear();
         outTileDistancesFromPerimeter?.Clear();
+        outMaskedShadowTiles?.Clear();
+        tmpShadowCandidateTiles.Clear();
+        tmpPenetratedMaskedTiles.Clear();
 
-        if (Find.World?.grid == null)
+        if (Find.World?.grid == null && TileNeighborsOverride == null)
         {
             return;
         }
 
-        IReadOnlyList<ISensorProvider> sensors = GetActiveSensors();
+        IReadOnlyList<ISensorProvider> sensors = ActiveSensorsOverride != null ? ActiveSensorsOverride() : GetActiveSensors();
         for (int i = 0; i < sensors.Count; i++)
         {
             ISensorProvider sensor = sensors[i];
-            if (!sensor.SensorTile.Valid || sensor.SensorTile.Layer == null)
+            if (!sensor.SensorTile.Valid)
+            {
+                continue;
+            }
+
+            if (TileNeighborsOverride == null && sensor.SensorTile.Layer == null)
             {
                 continue;
             }
@@ -728,19 +750,34 @@ public class SensoryManager : WorldComponent
                 var (currentTile, currentStep) = bfsQueue.Dequeue();
                 outTiles.Add(currentTile);
 
-                if (outIdentifiedTiles != null && idRadiusSteps > 0 && currentStep <= idRadiusSteps)
+                if (idRadiusSteps > 0 && currentStep <= idRadiusSteps)
                 {
-                    bool isMasked = SensoryTerrainUtility.IsTargetMasked(currentTile);
-                    if (!isMasked || sensor.PenetratesTerrainMasking || currentStep <= 1)
+                    outIdentifiedTiles?.Add(currentTile);
+
+                    if (outMaskedShadowTiles != null && SensoryTerrainUtility.IsTargetMasked(currentTile))
                     {
-                        outIdentifiedTiles.Add(currentTile);
+                        if (sensor.PenetratesTerrainMasking || currentStep <= 1)
+                        {
+                            tmpPenetratedMaskedTiles.Add(currentTile);
+                        }
+                        else
+                        {
+                            tmpShadowCandidateTiles.Add(currentTile);
+                        }
                     }
                 }
 
                 if (currentStep < radiusSteps)
                 {
                     tmpNeighbors.Clear();
-                    currentTile.Layer.GetTileNeighbors(currentTile, tmpNeighbors);
+                    if (TileNeighborsOverride != null)
+                    {
+                        TileNeighborsOverride(currentTile, tmpNeighbors);
+                    }
+                    else if (currentTile.Layer != null)
+                    {
+                        currentTile.Layer.GetTileNeighbors(currentTile, tmpNeighbors);
+                    }
                     int nextStep = currentStep + 1;
                     for (int n = 0; n < tmpNeighbors.Count; n++)
                     {
@@ -753,6 +790,20 @@ public class SensoryManager : WorldComponent
                 }
             }
         }
+
+        if (outMaskedShadowTiles != null)
+        {
+            foreach (PlanetTile tile in tmpShadowCandidateTiles)
+            {
+                if (!tmpPenetratedMaskedTiles.Contains(tile))
+                {
+                    outMaskedShadowTiles.Add(tile);
+                }
+            }
+        }
+
+        tmpShadowCandidateTiles.Clear();
+        tmpPenetratedMaskedTiles.Clear();
 
         if (outTileDistancesFromPerimeter != null && outTiles.Count > 0)
         {
@@ -776,13 +827,20 @@ public class SensoryManager : WorldComponent
         // A tile is on the perimeter if at least one of its neighbours is outside activeTiles.
         foreach (PlanetTile tile in activeTiles)
         {
-            if (tile.Layer == null)
+            if (TileNeighborsOverride == null && tile.Layer == null)
             {
                 continue;
             }
 
             tmpNeighbors.Clear();
-            tile.Layer.GetTileNeighbors(tile, tmpNeighbors);
+            if (TileNeighborsOverride != null)
+            {
+                TileNeighborsOverride(tile, tmpNeighbors);
+            }
+            else if (tile.Layer != null)
+            {
+                tile.Layer.GetTileNeighbors(tile, tmpNeighbors);
+            }
 
             bool isPerimeter = false;
             for (int n = 0; n < tmpNeighbors.Count; n++)
@@ -816,13 +874,20 @@ public class SensoryManager : WorldComponent
         while (bfsQueue.Count > 0)
         {
             var (currentTile, currentDist) = bfsQueue.Dequeue();
-            if (currentTile.Layer == null)
+            if (TileNeighborsOverride == null && currentTile.Layer == null)
             {
                 continue;
             }
 
             tmpNeighbors.Clear();
-            currentTile.Layer.GetTileNeighbors(currentTile, tmpNeighbors);
+            if (TileNeighborsOverride != null)
+            {
+                TileNeighborsOverride(currentTile, tmpNeighbors);
+            }
+            else if (currentTile.Layer != null)
+            {
+                currentTile.Layer.GetTileNeighbors(currentTile, tmpNeighbors);
+            }
             int nextDist = currentDist + 1;
 
             for (int n = 0; n < tmpNeighbors.Count; n++)
