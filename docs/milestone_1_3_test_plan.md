@@ -1080,7 +1080,7 @@ _Objective: Validate seamless cross-layer satellite and station rendering betwee
 1. With active satellites and stations in orbit, switch to the World Map (`Tab`).
 2. Toggle between the planetary surface view and Odyssey orbit shell (using the `View orbit` / `View planet` toggle button or zooming between orbital and planetary scales):
    - **Verify Surface Layer:** Satellites and orbital stations tagged with `<fullyExpandedInSpace>true</fullyExpandedInSpace>` render clearly as expanding icons with their 3D quads visible over the globe.
-   - **Verify Orbit Layer:** Switching to `View orbit` renders satellites and stations smoothly along their 3D orbital trajectories around the planetary sphere.
+   - **Verify Orbit & Asteroid Layer:** Switching to `View orbit` or inspecting asteroid/orbital stations renders satellites and stations smoothly along their 3D orbital trajectories around the planetary sphere. `VisibleInBackground` and `TransitionPct_Patch` ensure 2D expanding icons remain drawn and selectable regardless of zoom level or layer selection.
    - **Verify Sensor Masking Adherence:** Satellites and orbital objects traversing unmonitored sectors in Fog of War remain masked outside active radar/lookout detection ranges, preventing cross-layer intelligence leaks.
 
 #### 27.2 Dynamic Faction Livery Colour Tinting

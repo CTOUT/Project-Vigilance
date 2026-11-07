@@ -4,6 +4,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.Sensory;
 
 namespace Geoscape.Tests;
@@ -633,6 +634,40 @@ public sealed class CaravanExpeditionTests
             OptimisticPathingUtility.IsTileUnexploredOverride = null;
             OptimisticPathingUtility.IsTileImpassableOverride = null;
             OptimisticPathingUtility.OnCaravanHaltedForTesting = null;
+        }
+    }
+
+    [TestMethod]
+    public void WorldRoutePlanner_Start_Patch_PrePopulatesDestinationWaypoint()
+    {
+        // Arrange
+        PlanetTile currentTile = (PlanetTile)50;
+        PlanetTile destTile = (PlanetTile)150;
+
+        var dialog = (Dialog_FormCaravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Dialog_FormCaravan));
+        HarmonyLib.Traverse.Create(dialog).Field("destinationTile").SetValue(destTile);
+
+        var planner = (WorldRoutePlanner)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(WorldRoutePlanner));
+        HarmonyLib.Traverse.Create(planner).Field("active").SetValue(true);
+        var waypoint0 = (RoutePlannerWaypoint)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(RoutePlannerWaypoint));
+        HarmonyLib.Traverse.Create(waypoint0).Field("tile").SetValue(currentTile);
+        var waypoints = new List<RoutePlannerWaypoint> { waypoint0 };
+        HarmonyLib.Traverse.Create(planner).Field("waypoints").SetValue(waypoints);
+
+        PlanetTile addedWaypoint = PlanetTile.Invalid;
+        WorldRoutePlanner_Start_Patch.OnWaypointAddedForTesting = t => addedWaypoint = t;
+
+        try
+        {
+            // Act
+            WorldRoutePlanner_Start_Patch.Postfix(planner, dialog);
+
+            // Assert: destination waypoint must be populated
+            Assert.AreEqual(destTile, addedWaypoint, "Route planner must add the destination waypoint when dialog has a valid destination tile.");
+        }
+        finally
+        {
+            WorldRoutePlanner_Start_Patch.OnWaypointAddedForTesting = null;
         }
     }
 }

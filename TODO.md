@@ -97,6 +97,10 @@
   - **Landing Cargo / Mission Assets:** Keep heavy starting resources (bulk steel, food crates, components) off-map in orbital staging pods, deploying via drop pods only when the player stakes their colony claim via Colony Beacon.
   - **Scenario Opt-In Architecture:** Configurable via `ExpeditionStartMode` (`Disabled`, `ScenarioDefault`, `ForceExpedition`) with XML `DefModExtension` support, automatically bypassing orbital/space starts (Odyssey, GravShips, SOS2).
 - [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
+- [ ] **Overlapping Entity Disambiguation Menu (X-COM Style Tactical Selector):**
+  - When multiple world objects, caravans, or settlements occupy identical or overlapping world hexes, clicking or right-clicking the co-located stack opens an X-COM style disambiguation menu displaying all entities with their faction heraldry, status summaries, and direct command options, eliminating click-target ambiguity.
+- [ ] **Smart Source-Agnostic Contextual Dispatch:**
+  - Enhance right-click functionality across the Geoscape globe to eliminate the prerequisite of selecting a specific origin settlement or caravan beforehand. Right-clicking an explored hex presents intelligent dispatch options (e.g. _"Send caravan from [Nearest Colony] to [Hex]"_ or _"Move [Caravan Name] to [Hex]"_) evaluated dynamically based on overland proximity and operational readiness.
 - [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
 - [ ] **Future Investigation: Elevation-Aware Visual Observation:**

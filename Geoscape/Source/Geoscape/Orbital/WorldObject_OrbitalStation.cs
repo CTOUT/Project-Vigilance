@@ -39,6 +39,8 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
     private Material? cachedFactionMat;
     private Faction? cachedFaction;
 
+    public override bool VisibleInBackground => true;
+
     public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
 
     public override Material Material

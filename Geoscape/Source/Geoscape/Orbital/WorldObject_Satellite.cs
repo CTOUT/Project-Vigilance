@@ -36,6 +36,8 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
     private Material? cachedFactionMat;
     private Faction? cachedFaction;
 
+    public override bool VisibleInBackground => true;
+
     public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
 
     public override Material Material

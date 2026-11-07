@@ -286,6 +286,26 @@ public static class CaravanExpeditionUtility
         {
             Find.WindowStack.Add(dialog);
         }
+        AttachTargetRouteToDialog(dialog, targetTile);
+    }
+
+    private static void AttachTargetRouteToDialog(Dialog_FormCaravan dialog, PlanetTile targetTile)
+    {
+        if (dialog == null || !targetTile.Valid) return;
+
+        // If WorldRoutePlanner was started in PostOpen, add the destination waypoint and stop route selection
+        if (Find.WorldRoutePlanner != null && Find.WorldRoutePlanner.Active)
+        {
+            Find.WorldRoutePlanner.TryAddWaypoint(targetTile, playSound: false);
+            Find.WorldRoutePlanner.Stop();
+        }
+
+        // Ensure Dialog_FormCaravan remains open on the window stack
+        if (Find.WindowStack != null && !Find.WindowStack.IsOpen(dialog))
+        {
+            Find.WindowStack.Add(dialog);
+        }
+
         dialog.Notify_ChoseRoute(targetTile);
     }
 
@@ -329,7 +349,7 @@ public static class CaravanExpeditionUtility
         {
             Find.WindowStack.Add(dialog);
         }
-        dialog.Notify_ChoseRoute(targetTile);
+        AttachTargetRouteToDialog(dialog, targetTile);
 
         // 3. Pre-select required construction materials in transferables list
         PreallocateConstructionMaterials(dialog, kind, stuffDef);
@@ -385,7 +405,7 @@ public static class CaravanExpeditionUtility
         {
             Find.WindowStack.Add(dialog);
         }
-        dialog.Notify_ChoseRoute(targetTile);
+        AttachTargetRouteToDialog(dialog, targetTile);
 
         Messages.Message($"[Project Vigilance] Dismantle expedition route set to {post.LabelCap} at Tile {targetTile}. Select colonist(s) and provisions to depart.", MessageTypeDefOf.CautionInput, false);
     }

@@ -33,7 +33,7 @@ public class GeoscapeSettings : ModSettings
     public bool usePlayerFactionColor = true;
     public Color radarCustomColor = new(0f, 0.90f, 1.0f);
     public float radarOutlineOpacity = 0.50f;
-    public float surveillanceDimming = 0.0f;
+    public float surveillanceDimming = 0.25f;
     public float colonyScoutRadius = 5.0f;
     public float caravanScoutRadius = 3.0f;
     public bool enableEarlyWarningLetters = true;
@@ -80,7 +80,7 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref radarCustomColor, "radarCustomColor", new Color(0f, 0.90f, 1.0f));
         Scribe_Values.Look(ref radarOutlineOpacity, "radarOutlineOpacity", 0.50f);
         Scribe_Values.Look(ref showIdentificationHorizon, "showIdentificationHorizon", true);
-        Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.0f);
+        Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.25f);
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
         Scribe_Values.Look(ref caravanScoutRadius, "caravanScoutRadius", 3.0f);
         Scribe_Values.Look(ref enableEarlyWarningLetters, "enableEarlyWarningLetters", true);
@@ -561,7 +561,7 @@ public class GeoscapeSettings : ModSettings
         usePlayerFactionColor = true;
         radarCustomColor = new Color(0f, 0.90f, 1.0f);
         radarOutlineOpacity = 0.50f;
-        surveillanceDimming = 0.0f;
+        surveillanceDimming = 0.25f;
         colonyScoutRadius = 5.0f;
         caravanScoutRadius = 3.0f;
         enableEarlyWarningLetters = true;

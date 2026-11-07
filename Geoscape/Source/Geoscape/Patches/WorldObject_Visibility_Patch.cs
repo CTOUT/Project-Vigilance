@@ -256,6 +256,58 @@ public static class WorldObject_Visibility_Patch
         }
     }
 
+    [HarmonyPatch(typeof(ExpandableWorldObjectsUtility), nameof(ExpandableWorldObjectsUtility.TransitionPct))]
+    public static class TransitionPct_Patch
+    {
+        public static void Postfix(WorldObject wo, ref float __result)
+        {
+            if (wo is IOrbitalEntity || wo is WorldObject_Satellite || wo is WorldObject_OrbitalStation)
+            {
+                if (ShouldHideWorldObject(wo))
+                {
+                    __result = 0f;
+                    return;
+                }
+
+                if (IsValidOrbitalLayerActive())
+                {
+                    // If viewing the Orbit/space layer (e.g. Odyssey Asteroid or Orbit layer), ensure expanding icon is fully visible
+                    PlanetLayer? sel = Find.WorldSelector?.SelectedLayer;
+                    if (sel?.Def?.isSpace == true || sel?.Def?.defName == "Orbit")
+                    {
+                        __result = Mathf.Max(__result, 1f);
+                    }
+                    else if (__result <= 0f)
+                    {
+                        // On planetary surface view, fallback to standard expanding icon transition
+                        __result = Mathf.Max(__result, ExpandableWorldObjectsUtility.ExpandMoreTransitionPct);
+                    }
+                }
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(WorldObjectSelectionUtility), nameof(WorldObjectSelectionUtility.HiddenBehindTerrainNow), typeof(WorldObject))]
+    public static class HiddenBehindTerrainNow_Patch
+    {
+        public static void Postfix(WorldObject o, ref bool __result)
+        {
+            if (!__result)
+            {
+                return;
+            }
+
+            if (o is IOrbitalEntity || o is WorldObject_Satellite || o is WorldObject_OrbitalStation)
+            {
+                if (!ShouldHideWorldObject(o) && IsValidOrbitalLayerActive())
+                {
+                    // Orbital entities in high planetary orbit should only be hidden if physically occluded by the planetary globe
+                    __result = WorldRendererUtility.HiddenBehindTerrainNow(o.DrawPos);
+                }
+            }
+        }
+    }
+
     // ---------------------------------------------------------
     // 2. 3D World Object Mesh Rendering (Zoomed In)
     // ---------------------------------------------------------
@@ -379,7 +431,7 @@ public static class WorldObject_Visibility_Patch
                 return true;
             }
 
-            if (SensoryManager.Instance != null && !SensoryManager.Instance.IsFeatureExplored(feature))
+            if (SensoryManager.Instance == null || !SensoryManager.Instance.IsFeatureExplored(feature))
             {
                 feature.alpha = 0f;
                 Color c = text.Color;
@@ -405,7 +457,7 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            if (SensoryManager.Instance != null && !SensoryManager.Instance.IsFeatureExplored(feature))
+            if (SensoryManager.Instance == null || !SensoryManager.Instance.IsFeatureExplored(feature))
             {
                 __result = false;
             }

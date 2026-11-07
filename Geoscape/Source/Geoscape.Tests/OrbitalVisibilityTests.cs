@@ -282,4 +282,61 @@ public sealed class OrbitalVisibilityTests
         Assert.AreEqual(62500, sat.Orbit.PeriodTicks,
             "Legacy satellite period (< 30,000 ticks) must migrate to storyteller-aligned 62,500 ticks.");
     }
+
+    [TestMethod]
+    public void WorldObject_Satellite_And_OrbitalStation_VisibleInBackground_ReturnsTrue()
+    {
+        WorldObject_Satellite sat = new();
+        WorldObject_OrbitalStation station = new();
+
+        Assert.IsTrue(sat.VisibleInBackground, "Satellites must be marked VisibleInBackground so they render across planetary and space views.");
+        Assert.IsTrue(station.VisibleInBackground, "Orbital stations must be marked VisibleInBackground so they render across planetary and space views.");
+    }
+
+    [TestMethod]
+    public void GeoscapeSettings_DefaultSurveillanceDimming_IsTwentyFivePercent()
+    {
+        GeoscapeSettings settings = new();
+        Assert.AreEqual(0.25f, settings.surveillanceDimming, 0.001f,
+            "Default surveillance background dimming must be 25% (0.25f) to provide immediate tactical contrast.");
+    }
+
+    private class MockWorldFeatureTextMesh : WorldFeatureTextMesh
+    {
+        private UnityEngine.Color col;
+        public override UnityEngine.Color Color { get => col; set => col = value; }
+        public override bool Active => true;
+        public override void SetActive(bool active) { }
+        public override string Text { get => ""; set { } }
+        public override UnityEngine.Vector3 Position => UnityEngine.Vector3.zero;
+        public override UnityEngine.Vector3 LocalPosition { get => UnityEngine.Vector3.zero; set { } }
+        public override UnityEngine.Quaternion Rotation { get => UnityEngine.Quaternion.identity; set { } }
+        public override float Size { set { } }
+        public override void WrapAroundPlanetSurface(PlanetLayer layer) { }
+        public override void Init() { }
+        public override void Destroy() { }
+    }
+
+    [TestMethod]
+    public void WorldFeatures_UpdateAlpha_Patch_FogOfWar_NullSensoryManager_SuppressesLabels()
+    {
+        // Arrange: Fog of War mode active, SensoryManager is null during world gen
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
+        SensoryManager.Instance = null;
+
+        WorldFeature feature = new() { alpha = 1.0f };
+        MockWorldFeatureTextMesh text = new() { Color = new UnityEngine.Color(1f, 1f, 1f, 1f) };
+
+        // Act
+        bool shouldExecuteVanilla = WorldObject_Visibility_Patch.WorldFeatures_UpdateAlpha_Patch.Prefix(text, feature);
+
+        // Assert: In Fog of War when SensoryManager is null, vanilla update must be bypassed and alpha forced to 0
+        Assert.IsFalse(shouldExecuteVanilla, "Prefix must return false to suppress vanilla text alpha calculation during world gen.");
+        Assert.AreEqual(0f, feature.alpha, 0.001f, "Feature alpha must be forced to 0.");
+        Assert.AreEqual(0f, text.Color.a, 0.001f, "Text mesh alpha must be forced to 0.");
+
+        bool isAltitudeGood = true;
+        WorldObject_Visibility_Patch.WorldFeatures_GoodCameraAltitudeFor_Patch.Postfix(feature, ref isAltitudeGood);
+        Assert.IsFalse(isAltitudeGood, "GoodCameraAltitudeFor must return false when SensoryManager is null in Fog of War.");
+    }
 }
