@@ -25,6 +25,25 @@ public static class OutpostMaterialUtility
     public const int AutomatedRelayComponentSalvage = 3;
     public const int SignalBeaconWoodSalvage = 112;
 
+    public static void GiveMaterialToCaravan(Caravan caravan, ThingDef def, int totalCount)
+    {
+        if (caravan == null || def == null || totalCount <= 0)
+        {
+            return;
+        }
+
+        int remaining = totalCount;
+        int stackLimit = Mathf.Max(1, def.stackLimit);
+        while (remaining > 0)
+        {
+            Thing thing = ThingMaker.MakeThing(def);
+            int countToTake = Mathf.Min(remaining, stackLimit);
+            thing.stackCount = countToTake;
+            remaining -= countToTake;
+            CaravanInventoryUtility.GiveThing(caravan, thing);
+        }
+    }
+
     public static int CountItem(Caravan caravan, ThingDef def)
     {
         if (caravan == null || def == null)

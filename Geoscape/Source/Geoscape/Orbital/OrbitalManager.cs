@@ -19,10 +19,21 @@ public class OrbitalManager : WorldComponent
 
     [ThreadStatic]
     private static OrbitalManager? testInstance;
+    private static OrbitalManager? cachedInstance;
 
     public static OrbitalManager? Instance
     {
-        get => testInstance ?? Find.World?.GetComponent<OrbitalManager>();
+        get
+        {
+            if (testInstance != null) return testInstance;
+            RimWorld.Planet.World? currentWorld = Find.World;
+            if (currentWorld == null) return null;
+            if (cachedInstance == null || cachedInstance.world != currentWorld)
+            {
+                cachedInstance = currentWorld.GetComponent<OrbitalManager>();
+            }
+            return cachedInstance;
+        }
         set => testInstance = value;
     }
 
@@ -81,6 +92,24 @@ public class OrbitalManager : WorldComponent
         {
             satellites.Remove(satellite);
         }
+    }
+
+    public WorldObject_Satellite? GetSatelliteById(int id)
+    {
+        for (int i = 0; i < satellites.Count; i++)
+        {
+            if (satellites[i].ID == id) return satellites[i];
+        }
+        return null;
+    }
+
+    public WorldObject_OrbitalStation? GetStationById(int id)
+    {
+        for (int i = 0; i < stations.Count; i++)
+        {
+            if (stations[i].ID == id) return stations[i];
+        }
+        return null;
     }
 
     public void RescanWorldObjects()

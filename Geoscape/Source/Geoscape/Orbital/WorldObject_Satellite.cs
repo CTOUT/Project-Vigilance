@@ -4,6 +4,7 @@ using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 using ProjectVigilance.Geoscape.Sensory;
+using ProjectVigilance.Geoscape.World;
 
 namespace ProjectVigilance.Geoscape.Orbital;
 
@@ -40,42 +41,13 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
     public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
 
-    public override Material Material
-    {
-        get
-        {
-            if (cachedFactionMat == null || cachedFaction != Faction)
-            {
-                cachedFaction = Faction;
-                Color color = Faction != null ? Faction.Color : Color.white;
-                if (def?.texture != null)
-                {
-                    cachedFactionMat = MaterialPool.MatFrom(
-                        def.texture,
-                        ShaderDatabase.WorldOverlayTransparentLit,
-                        color,
-                        WorldMaterials.WorldObjectRenderQueue);
-                }
-            }
-            return cachedFactionMat ?? base.Material;
-        }
-    }
+    public override Material Material =>
+        OrbitalVisibilityUtility.ResolveOrbitalMaterial(this, ref cachedFactionMat, ref cachedFaction) ?? base.Material;
 
-    public override void SetFaction(Faction newFaction)
-    {
-        if (Find.World != null)
-        {
-            base.SetFaction(newFaction);
-        }
-        else
-        {
-            HarmonyLib.Traverse.Create(this).Field("faction").SetValue(newFaction);
-        }
-        cachedFactionMat = null;
-        cachedFaction = null;
-    }
+    public override void SetFaction(Faction newFaction) =>
+        OrbitalVisibilityUtility.SetFactionSafe(this, newFaction, base.SetFaction, ref cachedFactionMat, ref cachedFaction);
 
-    public PlanetTile CurrentSubSatelliteTile => OrbitalFlightModel.CalculateSubSatelliteTile(orbit, Current.Game?.tickManager?.TicksGame ?? 0);
+    public PlanetTile CurrentSubSatelliteTile => OrbitalFlightModel.CalculateSubSatelliteTile(orbit, Current.Game?.tickManager?.TicksGame ?? 0, (PlanetTile)Tile);
 
     public Vector3 CurrentOrbitalPosition => OrbitalFlightModel.CalculateOrbitalPosition(
         orbit,
@@ -147,7 +119,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
         }
         else
         {
-            HarmonyLib.Traverse.Create(this).Field("tile").SetValue(newTile);
+            WorldObjectAccessUtility.SetTileRaw(this, newTile);
         }
     }
 
@@ -206,7 +178,8 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
     private void CheckServiceAreaProximity(int currentTick)
     {
-        WorldObject? parentStation = Find.World?.worldObjects?.AllWorldObjects.Find(wo => wo.ID == parentStationId);
+        WorldObject? parentStation = OrbitalManager.Instance?.GetStationById(parentStationId)
+            ?? Find.World?.worldObjects?.AllWorldObjects.Find(wo => wo.ID == parentStationId);
         if (parentStation != null && parentStation.Tile.Valid && Find.World?.grid != null)
         {
             Vector3 stationDir = Find.World.grid.GetTileCenter(parentStation.Tile).normalized;
@@ -226,7 +199,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
     public void UpdateSubSatelliteTile(int currentTick)
     {
-        PlanetTile newTile = OrbitalFlightModel.CalculateSubSatelliteTile(orbit, currentTick);
+        PlanetTile newTile = OrbitalFlightModel.CalculateSubSatelliteTile(orbit, currentTick, (PlanetTile)Tile);
         if (newTile.Valid && newTile != Tile)
         {
             SetTileSafe(newTile);

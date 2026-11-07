@@ -104,4 +104,33 @@ public class CompProperties_Radar : CompProperties
             yield return "CompProperties_Radar: penetratesTerrainMasking requires maxIntelligenceTier to be at least Classified.";
         }
     }
+
+    /// <summary>
+    /// Resolves the effective identification radius based on operational dish count, vantage bonus,
+    /// and maximum detection envelope capping.
+    /// </summary>
+    public int ResolveIdentificationRadius(int operationalDishCount, int vantageBonus = 0)
+    {
+        int baseId;
+        if (operationalDishCount >= 3)
+        {
+            baseId = identificationRadiusDish3;
+        }
+        else if (operationalDishCount == 2)
+        {
+            baseId = identificationRadiusDish2;
+        }
+        else
+        {
+            baseId = identificationRadiusDish1;
+        }
+
+        if (receivesVantageBonus && vantageBonus > 0)
+        {
+            baseId += SensoryTerrainUtility.GetIdentificationVantageBonus(vantageBonus);
+        }
+
+        int maxDetection = detectionRadius + (receivesVantageBonus ? vantageBonus : 0);
+        return Math.Min(baseId, maxDetection);
+    }
 }

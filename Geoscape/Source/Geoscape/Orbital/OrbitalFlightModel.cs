@@ -214,12 +214,10 @@ public static class OrbitalFlightModel
 
         Vector3 tileCenter = Find.World.grid.GetTileCenter(targetTile).normalized;
         float dot = Vector3.Dot(satelliteDir.normalized, tileCenter);
-        dot = Mathf.Clamp(dot, -1f, 1f);
-
-        float angularDistanceDeg = Mathf.Acos(dot) * Mathf.Rad2Deg;
         float maxAngularRadiusDeg = footprintRadiusInTiles * ApproxDegreesPerHexTile;
+        float minCos = Mathf.Cos(maxAngularRadiusDeg * Mathf.Deg2Rad);
 
-        return angularDistanceDeg <= maxAngularRadiusDeg;
+        return dot >= minCos;
     }
 
     /// <summary>
@@ -260,15 +258,13 @@ public static class OrbitalFlightModel
 
         Vector3 targetCenter = Find.World.grid.GetTileCenter(targetTile).normalized;
         float maxAngularRadiusDeg = footprintRadiusInTiles * ApproxDegreesPerHexTile;
+        float minCos = Mathf.Cos(maxAngularRadiusDeg * Mathf.Deg2Rad);
 
         int endTick = fromTick + lookaheadTicks;
         for (int t = fromTick; t < endTick; t += stepTicks)
         {
             Vector3 satDir = CalculateSubSatelliteDirection(parameters, t);
-            float dot = Mathf.Clamp(Vector3.Dot(satDir, targetCenter), -1f, 1f);
-            float angularDist = Mathf.Acos(dot) * Mathf.Rad2Deg;
-
-            if (angularDist <= maxAngularRadiusDeg)
+            if (Vector3.Dot(satDir, targetCenter) >= minCos)
             {
                 return t;
             }

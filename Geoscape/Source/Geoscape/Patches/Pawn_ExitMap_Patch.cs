@@ -135,29 +135,11 @@ public static class Pawn_ExitMap_Patch
 
                         if (recordHasCaptives)
                         {
-                            incursion.IsRetreating = true;
-                            if (ambushComp.CapturedColonists != null && ambushComp.CapturedColonists.Count > 0)
-                            {
-                                incursion.SetKidnappedColonists(new List<Pawn>(ambushComp.CapturedColonists));
-                            }
-                            else if (capturedPawns != null && capturedPawns.Count > 0)
-                            {
-                                incursion.SetKidnappedColonists(new List<Pawn>(capturedPawns));
-                            }
+                            var captives = (ambushComp.CapturedColonists != null && ambushComp.CapturedColonists.Count > 0)
+                                ? ambushComp.CapturedColonists
+                                : capturedPawns;
 
-                            if (livingHostiles.Count > 0)
-                            {
-                                incursion.SetRetreatingPawns(livingHostiles);
-                            }
-
-                            if (IncursionOriginResolver.TryResolveRetreatRoute(map.Tile, incursion.Faction, out var destTile, out var retreatPath, out var speed))
-                            {
-                                incursion.SetRetreatRoute(destTile, retreatPath, speed);
-                            }
-                            else
-                            {
-                                incursion.ReverseCourse("escaping with captives after engagement");
-                            }
+                            incursion.TransitionToOverlandRetreat(livingHostiles, captives, map);
 
                             Log.Message($"[Project Vigilance] Incursion {incursion.TrackingId} ({contactLabel}) abducted colonist(s) and is retreating on Geoscape towards {incursion.DestinationTile}.");
                             Messages.Message($"Enemy raid {contactLabel} has abducted colonist(s) and is retreating on the Geoscape!", incursion, MessageTypeDefOf.NegativeEvent);

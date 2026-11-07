@@ -14,6 +14,49 @@ namespace ProjectVigilance.Geoscape.Orbital;
 /// </summary>
 public static class OrbitalVisibilityUtility
 {
+    private static readonly System.Reflection.FieldInfo? WorldObjectFactionField =
+        HarmonyLib.AccessTools.Field(typeof(WorldObject), "faction");
+
+    public static Material? ResolveOrbitalMaterial(
+        WorldObject wo,
+        ref Material? cachedMat,
+        ref Faction? cachedFaction)
+    {
+        if (cachedMat == null || cachedFaction != wo.Faction)
+        {
+            cachedFaction = wo.Faction;
+            Color color = wo.Faction != null ? wo.Faction.Color : Color.white;
+            if (wo.def?.texture != null)
+            {
+                cachedMat = MaterialPool.MatFrom(
+                    wo.def.texture,
+                    ShaderDatabase.WorldOverlayTransparentLit,
+                    color,
+                    WorldMaterials.WorldObjectRenderQueue);
+            }
+        }
+        return cachedMat;
+    }
+
+    public static void SetFactionSafe(
+        WorldObject wo,
+        Faction newFaction,
+        Action<Faction> baseSetFaction,
+        ref Material? cachedMat,
+        ref Faction? cachedFaction)
+    {
+        if (Find.World != null)
+        {
+            baseSetFaction(newFaction);
+        }
+        else
+        {
+            WorldObjectFactionField?.SetValue(wo, newFaction);
+        }
+        cachedMat = null;
+        cachedFaction = null;
+    }
+
     /// <summary>
     /// Checks whether an orbital entity (satellite, orbital station, or space vessel) is currently
     /// detected and visible to the player under current campaign rules and technological infrastructure.

@@ -87,9 +87,20 @@ public class SensoryManager : WorldComponent
 
     [ThreadStatic]
     private static SensoryManager? testInstance;
+    private static SensoryManager? cachedInstance;
     public static SensoryManager? Instance
     {
-        get => testInstance ?? Find.World?.GetComponent<SensoryManager>();
+        get
+        {
+            if (testInstance != null) return testInstance;
+            RimWorld.Planet.World? currentWorld = Find.World;
+            if (currentWorld == null) return null;
+            if (cachedInstance == null || cachedInstance.world != currentWorld)
+            {
+                cachedInstance = currentWorld.GetComponent<SensoryManager>();
+            }
+            return cachedInstance;
+        }
         set => testInstance = value;
     }
 
@@ -131,6 +142,8 @@ public class SensoryManager : WorldComponent
         // Eagerly initialize explored bitset and execute sensory sweep
         // so player colonies and caravans are revealed before the globe renders.
         featureCenterTileCache.Clear();
+        featureCenterTilesIndexed = false;
+        featureCenterTilesSet.Clear();
         EnsureExploredArray();
         PerformSensorySweep();
 
@@ -672,42 +685,6 @@ public class SensoryManager : WorldComponent
     }
 
     /// <summary>
-    /// Executes a deterministic, zero-allocation topological BFS flood fill out to exactly maxSteps hops.
-    /// Guarantees mathematically symmetric hexagonal perimeters without spherical geodesic distortion or corner clipping.
-    /// </summary>
-    public void FloodFillTopological(PlanetTile root, int maxSteps, Action<PlanetTile, int> processor)
-    {
-        if (!root.Valid || Find.World?.grid == null || root.Layer == null || maxSteps < 0) return;
-
-        bfsQueue.Clear();
-        bfsVisitedTileIds.Clear();
-
-        bfsQueue.Enqueue((root, 0));
-        bfsVisitedTileIds.Add(root.tileId);
-
-        while (bfsQueue.Count > 0)
-        {
-            var (currentTile, currentStep) = bfsQueue.Dequeue();
-            processor(currentTile, currentStep);
-
-            if (currentStep < maxSteps)
-            {
-                tmpNeighbors.Clear();
-                currentTile.Layer.GetTileNeighbors(currentTile, tmpNeighbors);
-                int nextStep = currentStep + 1;
-                for (int i = 0; i < tmpNeighbors.Count; i++)
-                {
-                    PlanetTile neighbor = tmpNeighbors[i];
-                    if (neighbor.Valid && bfsVisitedTileIds.Add(neighbor.tileId))
-                    {
-                        bfsQueue.Enqueue((neighbor, nextStep));
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
     /// Populates the provided set with all planet tiles currently enveloped by active sensors (colonies, caravans, radar stations).
     /// Used by WorldDrawLayer_RadarCoverage to render tactical perimeter boundaries and holographic honeycomb grids.
     /// Outputs tiles within optical identification range (45% detection radius) and closest distance to perimeter using exact topological rings.
@@ -862,46 +839,12 @@ public class SensoryManager : WorldComponent
 
     public bool IsExplored(PlanetTile tile)
     {
-        if (isExploredOverride != null)
-        {
-            return isExploredOverride(tile);
-        }
-
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
-        {
-            return true;
-        }
-
         if (!tile.Valid)
         {
             return true;
         }
 
-        // Soft compatibility: respect external community fog mods (such as D4egon's World Fog of War)
-        if (ExternalFogCompatibility.IsExternalFogModActive && ExternalFogCompatibility.IsTileRevealedByExternalMod(tile.tileId))
-        {
-            return true;
-        }
-
-        if (exploredBytes == null)
-        {
-            EnsureExploredArray(tile.tileId + 1);
-            if (exploredBytes == null)
-            {
-                return false;
-            }
-        }
-
-        int tileId = tile.tileId;
-        int byteIndex = tileId >> 3;
-        int bitIndex = tileId & 7;
-
-        if (byteIndex >= exploredBytes.Length)
-        {
-            return false;
-        }
-
-        return (exploredBytes[byteIndex] & (1 << bitIndex)) != 0;
+        return IsTileIdExplored(tile.tileId);
     }
 
     public bool IsTileIdExplored(int tileId)
@@ -953,55 +896,32 @@ public class SensoryManager : WorldComponent
     /// </summary>
     public bool IsTileIdentified(PlanetTile tile)
     {
-        if (isIdentifiedOverride != null)
-        {
-            return isIdentifiedOverride(tile);
-        }
-
-        if (isExploredOverride != null)
-        {
-            return isExploredOverride(tile);
-        }
-
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
-        {
-            return true;
-        }
-
         if (!tile.Valid)
         {
             return true;
         }
 
-        if (identifiedBytes == null)
-        {
-            EnsureExploredArray(tile.tileId + 1);
-            if (identifiedBytes == null)
-            {
-                return false;
-            }
-        }
-
-        int tileId = tile.tileId;
-        int byteIndex = tileId >> 3;
-        int bitIndex = tileId & 7;
-
-        if (byteIndex >= identifiedBytes.Length)
-        {
-            return false;
-        }
-
-        return (identifiedBytes[byteIndex] & (1 << bitIndex)) != 0;
+        return IsTileIdIdentified(tile.tileId);
     }
 
     public bool IsTileIdIdentified(int tileId)
     {
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (tileId < 0)
         {
             return true;
         }
 
-        if (tileId < 0)
+        if (isIdentifiedOverride != null)
+        {
+            return isIdentifiedOverride(new PlanetTile(tileId));
+        }
+
+        if (isExploredOverride != null)
+        {
+            return isExploredOverride(new PlanetTile(tileId));
+        }
+
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }
@@ -1182,6 +1102,24 @@ public class SensoryManager : WorldComponent
     }
 
     private readonly Dictionary<int, int> featureCenterTileCache = new();
+    private readonly HashSet<int> featureCenterTilesSet = new();
+    private bool featureCenterTilesIndexed = false;
+
+    private void EnsureFeatureCenterTilesIndexed()
+    {
+        if (featureCenterTilesIndexed || Find.World?.features == null) return;
+        featureCenterTilesSet.Clear();
+        var features = Find.World.features.features;
+        for (int i = 0; i < features.Count; i++)
+        {
+            int c = GetFeatureCenterTile(features[i]);
+            if (c >= 0)
+            {
+                featureCenterTilesSet.Add(c);
+            }
+        }
+        featureCenterTilesIndexed = true;
+    }
 
     public int GetFeatureCenterTile(WorldFeature feature)
     {
@@ -1359,14 +1297,10 @@ public class SensoryManager : WorldComponent
                     // Check if a landmark or mountain range center was on this tile
                     if (!revealedAnyFeature && Find.World?.features != null)
                     {
-                        var features = Find.World.features.features;
-                        for (int f = 0; f < features.Count; f++)
+                        EnsureFeatureCenterTilesIndexed();
+                        if (featureCenterTilesSet.Contains(tileId))
                         {
-                            if (GetFeatureCenterTile(features[f]) == tileId)
-                            {
-                                revealedAnyFeature = true;
-                                break;
-                            }
+                            revealedAnyFeature = true;
                         }
                     }
                 }

@@ -33,110 +33,63 @@ public sealed class SensoryTerrainModelTests
         Assert.IsFalse(masked);
     }
 
+    private sealed class MockTerrainSensor : ISensorProvider
+    {
+        public int IdentificationRadiusInTiles { get; set; } = 10;
+        public float DetectionRadiusInTiles => 24f;
+        public IntelligenceTier MaxIntelligenceTier { get; set; } = IntelligenceTier.Classified;
+        public bool PenetratesTerrainMasking { get; set; }
+        public bool IsSensorActive => true;
+        public bool IsStationary => true;
+        public bool IsTechnological => true;
+        public bool IsOceanicSonar => false;
+        public string SensorLabel => "Mock Sensor";
+        public RimWorld.Planet.PlanetTile SensorTile => (RimWorld.Planet.PlanetTile)0;
+        public RimWorld.Planet.WorldObject? Source => null;
+    }
+
     [TestMethod]
     public void TerrainMaskingGating_MountainousTileWithoutPenetration_HeldAtContactTier()
     {
-        // Scenario: Incursion is inside identification radius, but target tile is Mountainous
-        // and sensor lacks SIGINT/Spacer penetration.
-        // Expected: Intelligence tier held at Contact.
-
-        // Arrange
-        bool isTargetMasked = true;
-        bool penetratesTerrainMasking = false;
-        IntelligenceTier sensorMaxTier = IntelligenceTier.Classified;
-        int idSteps = 10;
-        int travDist = 5;
-
-        // Act
-        IntelligenceTier tier;
-        if (idSteps > 0 && travDist <= idSteps)
+        var sensor = new MockTerrainSensor
         {
-            if (isTargetMasked && !penetratesTerrainMasking)
-            {
-                tier = (sensorMaxTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : sensorMaxTier;
-            }
-            else
-            {
-                tier = sensorMaxTier;
-            }
-        }
-        else
-        {
-            tier = (sensorMaxTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : IntelligenceTier.Suspected;
-        }
+            IdentificationRadiusInTiles = 10,
+            PenetratesTerrainMasking = false,
+            MaxIntelligenceTier = IntelligenceTier.Classified
+        };
 
-        // Assert
+        IntelligenceTier tier = SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 5, isTargetMasked: true);
+
         Assert.AreEqual(IntelligenceTier.Contact, tier, "Masked target without penetration must be held at Contact tier.");
     }
 
     [TestMethod]
     public void TerrainMaskingGating_MountainousTileWithPenetration_ResolvesFullClassifiedTier()
     {
-        // Scenario: Incursion is inside identification radius on Mountainous tile,
-        // but sensor has penetration (e.g. Phased Array + SIGINT).
-        // Expected: Resolves full sensor tier.
-
-        // Arrange
-        bool isTargetMasked = true;
-        bool penetratesTerrainMasking = true;
-        IntelligenceTier sensorMaxTier = IntelligenceTier.Classified;
-        int idSteps = 10;
-        int travDist = 5;
-
-        // Act
-        IntelligenceTier tier;
-        if (idSteps > 0 && travDist <= idSteps)
+        var sensor = new MockTerrainSensor
         {
-            if (isTargetMasked && !penetratesTerrainMasking)
-            {
-                tier = (sensorMaxTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : sensorMaxTier;
-            }
-            else
-            {
-                tier = sensorMaxTier;
-            }
-        }
-        else
-        {
-            tier = (sensorMaxTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : IntelligenceTier.Suspected;
-        }
+            IdentificationRadiusInTiles = 10,
+            PenetratesTerrainMasking = true,
+            MaxIntelligenceTier = IntelligenceTier.Classified
+        };
 
-        // Assert
+        IntelligenceTier tier = SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 5, isTargetMasked: true);
+
         Assert.AreEqual(IntelligenceTier.Classified, tier, "Masked target with penetration must resolve full Classified tier.");
     }
 
     [TestMethod]
     public void TerrainMaskingGating_UnmaskedTile_ResolvesFullAnalysedTier()
     {
-        // Scenario: Incursion is inside identification radius on Flat/Hills tile.
-        // Expected: Resolves full Analysed tier.
-
-        // Arrange
-        bool isTargetMasked = false;
-        bool penetratesTerrainMasking = false;
-        IntelligenceTier sensorMaxTier = IntelligenceTier.Analysed;
-        int idSteps = 10;
-        int travDist = 5;
-
-        // Act
-        IntelligenceTier tier;
-        if (idSteps > 0 && travDist <= idSteps)
+        var sensor = new MockTerrainSensor
         {
-            if (isTargetMasked && !penetratesTerrainMasking)
-            {
-                tier = (sensorMaxTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : sensorMaxTier;
-            }
-            else
-            {
-                tier = sensorMaxTier;
-            }
-        }
-        else
-        {
-            tier = (sensorMaxTier >= IntelligenceTier.Contact) ? IntelligenceTier.Contact : IntelligenceTier.Suspected;
-        }
+            IdentificationRadiusInTiles = 10,
+            PenetratesTerrainMasking = false,
+            MaxIntelligenceTier = IntelligenceTier.Analysed
+        };
 
-        // Assert
+        IntelligenceTier tier = SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 5, isTargetMasked: false);
+
         Assert.AreEqual(IntelligenceTier.Analysed, tier, "Unmasked target inside identification radius resolves full Analysed tier.");
     }
 
@@ -155,26 +108,25 @@ public sealed class SensoryTerrainModelTests
     public void OpticalAndRadarSensors_NormalizedIntegerRadii_MatchModelBPlusSpecifications()
     {
         // 1. High-Tech Radar with 1 Dish (baseline 10) on various terrains
-        int baseId1Dish = 10;
-        int flatRadarId = baseId1Dish + SensoryTerrainUtility.GetIdentificationVantageBonus(0);
-        int hillsRadarId = baseId1Dish + SensoryTerrainUtility.GetIdentificationVantageBonus(1);
-        int mtnRadarId = baseId1Dish + SensoryTerrainUtility.GetIdentificationVantageBonus(3);
-        Assert.AreEqual(10, flatRadarId, "1-dish radar on flat terrain gives 10 rings ID.");
-        Assert.AreEqual(11, hillsRadarId, "1-dish radar on hills gives 11 rings ID.");
-        Assert.AreEqual(12, mtnRadarId, "1-dish radar on mountains gives 12 rings ID.");
+        var radarProps1Dish = new CompProperties_Radar
+        {
+            detectionRadius = 24,
+            identificationRadiusDish1 = 10,
+            identificationRadiusDish2 = 17,
+            identificationRadiusDish3 = 22,
+            receivesVantageBonus = true
+        };
+        Assert.AreEqual(10, radarProps1Dish.ResolveIdentificationRadius(1, 0), "1-dish radar on flat terrain gives 10 rings ID.");
+        Assert.AreEqual(11, radarProps1Dish.ResolveIdentificationRadius(1, 1), "1-dish radar on hills gives 11 rings ID.");
+        Assert.AreEqual(12, radarProps1Dish.ResolveIdentificationRadius(1, 3), "1-dish radar on mountains gives 12 rings ID.");
 
         // 2. High-Tech Radar with 3 Dishes (baseline 22) capped by detection (24)
-        int baseId3Dishes = 22;
-        int mtn3DishId = System.Math.Min(24, baseId3Dishes + SensoryTerrainUtility.GetIdentificationVantageBonus(3));
-        Assert.AreEqual(24, mtn3DishId, "3-dish radar with vantage reaches maximum 24 detection boundary.");
+        Assert.AreEqual(24, radarProps1Dish.ResolveIdentificationRadius(3, 3), "3-dish radar with vantage reaches maximum 24 detection boundary.");
 
         // 3. Automated Relay / Manned Outposts (baseline 5 ID) with vantage
-        int flatRelayId = 5 + (0 >= 2 ? 1 : 0);
-        int hillsRelayId = 5 + (2 >= 2 ? 1 : 0);
-        int mtnRelayId = 5 + (3 >= 2 ? 1 : 0);
-        Assert.AreEqual(5, flatRelayId, "Automated relay baseline is 5 rings ID.");
-        Assert.AreEqual(6, hillsRelayId, "Automated relay on large hills reaches 6 rings ID.");
-        Assert.AreEqual(6, mtnRelayId, "Automated relay on mountains caps at 6 rings ID.");
+        Assert.AreEqual(5, WorldObject_ListeningPost.CalculateRadii(ListeningPostKind.AutomatedRelay, 0).identification, "Automated relay baseline is 5 rings ID.");
+        Assert.AreEqual(6, WorldObject_ListeningPost.CalculateRadii(ListeningPostKind.AutomatedRelay, 2).identification, "Automated relay on large hills reaches 6 rings ID.");
+        Assert.AreEqual(6, WorldObject_ListeningPost.CalculateRadii(ListeningPostKind.AutomatedRelay, 3).identification, "Automated relay on mountains caps at 6 rings ID.");
 
         // 4. Scout Horizon Colony Lookouts (baseline 2 ID)
         int flatColonyId = 2 + SensoryTerrainUtility.GetIdentificationVantageBonus(0);

@@ -4,6 +4,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Geoscape.World;
 
 namespace ProjectVigilance.Geoscape.Orbital;
 
@@ -43,35 +44,13 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
 
     public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
 
-    public override Material Material
-    {
-        get
-        {
-            if (cachedFactionMat == null || cachedFaction != Faction)
-            {
-                cachedFaction = Faction;
-                Color color = Faction != null ? Faction.Color : Color.white;
-                if (def?.texture != null)
-                {
-                    cachedFactionMat = MaterialPool.MatFrom(
-                        def.texture,
-                        ShaderDatabase.WorldOverlayTransparentLit,
-                        color,
-                        WorldMaterials.WorldObjectRenderQueue);
-                }
-            }
-            return cachedFactionMat ?? base.Material;
-        }
-    }
+    public override Material Material =>
+        OrbitalVisibilityUtility.ResolveOrbitalMaterial(this, ref cachedFactionMat, ref cachedFaction) ?? base.Material;
 
-    public override void SetFaction(Faction newFaction)
-    {
-        base.SetFaction(newFaction);
-        cachedFactionMat = null;
-        cachedFaction = null;
-    }
+    public override void SetFaction(Faction newFaction) =>
+        OrbitalVisibilityUtility.SetFactionSafe(this, newFaction, base.SetFaction, ref cachedFactionMat, ref cachedFaction);
 
-    public PlanetTile CurrentSubSatelliteTile => OrbitalFlightModel.CalculateSubSatelliteTile(orbit, Current.Game?.tickManager?.TicksGame ?? 0);
+    public PlanetTile CurrentSubSatelliteTile => OrbitalFlightModel.CalculateSubSatelliteTile(orbit, Current.Game?.tickManager?.TicksGame ?? 0, (PlanetTile)Tile);
 
     public Vector3 CurrentOrbitalPosition => OrbitalFlightModel.CalculateOrbitalPosition(
         orbit,
@@ -121,7 +100,7 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
 
     private void UpdateSubSatelliteTile(int currentTick)
     {
-        PlanetTile newTile = OrbitalFlightModel.CalculateSubSatelliteTile(orbit, currentTick);
+        PlanetTile newTile = OrbitalFlightModel.CalculateSubSatelliteTile(orbit, currentTick, (PlanetTile)Tile);
         if (newTile.Valid && newTile != Tile)
         {
             SetTileSafe(newTile);
@@ -136,7 +115,7 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
         }
         else
         {
-            HarmonyLib.Traverse.Create(this).Field("tile").SetValue(newTile);
+            WorldObjectAccessUtility.SetTileRaw(this, newTile);
         }
     }
 
@@ -178,7 +157,8 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
         for (int i = childSatelliteIds.Count - 1; i >= 0; i--)
         {
             int satId = childSatelliteIds[i];
-            if (Find.World.worldObjects.AllWorldObjects.Find(wo => wo.ID == satId) is not WorldObject_Satellite sat)
+            WorldObject_Satellite? sat = OrbitalManager.Instance?.GetSatelliteById(satId);
+            if (sat == null)
             {
                 // Lost or destroyed satellite; queue replenishment if not already queued
                 childSatelliteIds.RemoveAt(i);

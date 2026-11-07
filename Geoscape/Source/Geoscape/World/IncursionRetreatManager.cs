@@ -113,10 +113,7 @@ public class IncursionRetreatManager : WorldComponent
     {
         Faction faction = pawn.Faction;
         PlanetTile mapTile = map.Tile;
-        string mapLabel = map.Parent?.LabelCap ??
-                          Find.WorldObjects?.SettlementAt(mapTile)?.LabelCap ??
-                          Find.WorldObjects?.MapParentAt(mapTile)?.LabelCap ??
-                          (map.IsPlayerHome ? "your colony" : $"settlement at tile {mapTile.tileId}");
+        string mapLabel = SensoryNarrativeUtility.ResolveTargetSectorLabel(mapTile, map, map.IsPlayerHome ? "your colony" : "colony territory");
 
         RetreatBatch? batch = activeBatches.FirstOrDefault(b => b.originTile == mapTile && b.faction == faction);
 
@@ -271,9 +268,7 @@ public class IncursionRetreatManager : WorldComponent
         string factionName = batch.faction.Name;
         string settlementName = !string.IsNullOrWhiteSpace(batch.settlementName)
             ? batch.settlementName
-            : (Find.WorldObjects?.SettlementAt(originTile)?.LabelCap ??
-               Find.WorldObjects?.MapParentAt(originTile)?.LabelCap ??
-               (Find.Maps != null && Find.Maps.Any(m => m.Tile == originTile && m.IsPlayerHome) ? "your colony" : $"settlement at tile {originTile.tileId}"));
+            : SensoryNarrativeUtility.ResolveTargetSectorLabel(originTile, null, "your colony");
 
         Settlement? destSettlement = Find.WorldObjects?.SettlementAt(destinationTile);
         string destName = destSettlement != null

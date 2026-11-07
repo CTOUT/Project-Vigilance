@@ -6,30 +6,8 @@ namespace Geoscape.Tests;
 [TestClass]
 public sealed class InterferometryProgressionTests
 {
-    private static int ResolveIdentificationRadius(int operationalDishCount, CompProperties_Radar props, int vantageBonus = 0)
-    {
-        int baseId;
-        if (operationalDishCount >= 3)
-        {
-            baseId = props.identificationRadiusDish3;
-        }
-        else if (operationalDishCount == 2)
-        {
-            baseId = props.identificationRadiusDish2;
-        }
-        else
-        {
-            baseId = props.identificationRadiusDish1;
-        }
-
-        if (props.receivesVantageBonus && vantageBonus > 0)
-        {
-            baseId += SensoryTerrainUtility.GetIdentificationVantageBonus(vantageBonus);
-        }
-
-        int maxDetection = props.detectionRadius + (props.receivesVantageBonus ? vantageBonus : 0);
-        return System.Math.Min(baseId, maxDetection);
-    }
+    private static int ResolveIdentificationRadius(int operationalDishCount, CompProperties_Radar props, int vantageBonus = 0) =>
+        props.ResolveIdentificationRadius(operationalDishCount, vantageBonus);
 
     [TestMethod]
     public void DualRingPhasedArray_SingleDish_Returns10Rings()

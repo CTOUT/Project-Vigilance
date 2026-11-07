@@ -116,28 +116,29 @@ public static class CampaignRuleWidgets
         }
     }
 
-    public static void DrawVisibilityRadio(
+    public static void DrawRuleOptionRadio<T>(
         Listing_Standard listing,
-        VisibilityMode option,
+        T option,
         string label,
         string tooltip,
-        CampaignRule<VisibilityMode> rule,
+        CampaignRule<T> rule,
         GeoscapeCampaignRules? campaign,
         RuleEditContext ctx,
-        bool showLockPreview = false)
+        string? recommendationSuffix = null,
+        string blockedSuffix = " (Locked)") where T : notnull
     {
-        bool isSelected = rule.Value == option;
+        bool isSelected = EqualityComparer<T>.Default.Equals(rule.Value, option);
         RuleTransitionVerdict verdict = isSelected ? RuleTransitionVerdict.NoChange : rule.Evaluate(option, ctx);
 
         string displayLabel = label;
-        if (showLockPreview && (option == VisibilityMode.FogOfWar || option == VisibilityMode.ClassicHazeOfWar) && !displayLabel.Contains("(Recommended)"))
+        if (!string.IsNullOrEmpty(recommendationSuffix) && !displayLabel.Contains(recommendationSuffix))
         {
-            displayLabel += " (Recommended)";
+            displayLabel += recommendationSuffix;
         }
 
         if (verdict == RuleTransitionVerdict.Blocked)
         {
-            displayLabel += " (Locked - Cannot reverse)";
+            displayLabel += blockedSuffix;
         }
         else if (verdict == RuleTransitionVerdict.RequiresEscalationConfirmation)
         {
@@ -169,6 +170,20 @@ public static class CampaignRuleWidgets
         }
     }
 
+    public static void DrawVisibilityRadio(
+        Listing_Standard listing,
+        VisibilityMode option,
+        string label,
+        string tooltip,
+        CampaignRule<VisibilityMode> rule,
+        GeoscapeCampaignRules? campaign,
+        RuleEditContext ctx,
+        bool showLockPreview = false)
+    {
+        string? rec = (showLockPreview && (option == VisibilityMode.FogOfWar || option == VisibilityMode.ClassicHazeOfWar)) ? " (Recommended)" : null;
+        DrawRuleOptionRadio(listing, option, label, tooltip, rule, campaign, ctx, rec, " (Locked - Cannot reverse)");
+    }
+
     public static void DrawStartingSiteSelectionRadio(
         Listing_Standard listing,
         StartingSiteSelectionMode option,
@@ -179,34 +194,7 @@ public static class CampaignRuleWidgets
         RuleEditContext ctx,
         bool showLockPreview = false)
     {
-        bool isSelected = rule.Value == option;
-        RuleTransitionVerdict verdict = isSelected ? RuleTransitionVerdict.NoChange : rule.Evaluate(option, ctx);
-
-        string displayLabel = label;
-        if (verdict == RuleTransitionVerdict.Blocked)
-        {
-            displayLabel += " (Locked)";
-        }
-
-        bool disabled = verdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled;
-
-        if (disabled)
-        {
-            GUI.color = new Color(1f, 1f, 1f, 0.45f);
-        }
-
-        if (listing.RadioButton(displayLabel, isSelected, tooltip: tooltip))
-        {
-            if (!isSelected && !disabled)
-            {
-                HandleProposedChange(rule, option, verdict, campaign);
-            }
-        }
-
-        if (disabled)
-        {
-            GUI.color = Color.white;
-        }
+        DrawRuleOptionRadio(listing, option, label, tooltip, rule, campaign, ctx);
     }
 
     private static void HandleProposedChange<T>(

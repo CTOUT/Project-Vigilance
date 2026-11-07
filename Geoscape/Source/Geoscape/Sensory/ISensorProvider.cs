@@ -70,43 +70,8 @@ public interface ISensorProvider
     /// Evaluates whether this sensor can detect the specified target, and returns the traversal distance if detected.
     /// Eliminates redundant TraversalDistanceBetween calculations during sensory sweeps.
     /// </summary>
-    bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
-    {
-        distance = -1;
-        if (!IsSensorActive || !SensorTile.Valid || !target.CurrentTile.Valid)
-        {
-            return false;
-        }
-
-        if (Verse.Find.World?.grid != null && SensorTile.Layer != target.CurrentTile.Layer)
-        {
-            return false;
-        }
-
-        if (IsOceanicSonar)
-        {
-            var targetTileData = target.CurrentTile.Tile;
-            if (targetTileData == null || !targetTileData.WaterCovered)
-            {
-                return false;
-            }
-        }
-
-        int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        int d = SensoryManager.DistanceCalculationOverride != null
-            ? SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps)
-            : (Verse.Find.World?.grid != null
-                ? Verse.Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
-                : System.Math.Abs(SensorTile.tileId - target.CurrentTile.tileId));
-
-        if (d <= maxSteps)
-        {
-            distance = d;
-            return true;
-        }
-
-        return false;
-    }
+    bool TryGetDetectionDistance(IDetectableTarget target, out int distance) =>
+        SensorDetectionUtility.TryGetDetectionDistance(this, target, out distance);
 
     /// <summary>
     /// Evaluates whether this sensor can detect the specified target.

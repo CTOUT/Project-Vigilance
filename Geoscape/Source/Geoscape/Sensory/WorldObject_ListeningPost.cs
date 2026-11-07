@@ -5,6 +5,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Geoscape.World;
 
 namespace ProjectVigilance.Geoscape.Sensory;
 
@@ -155,46 +156,36 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     public PlanetTile SensorTile => Tile;
 
-    public float DetectionRadiusInTiles
+    /// <summary>
+    /// Evaluates the detection and identification radii for a listening post kind given vantage bonus and operational status.
+    /// </summary>
+    public static (float detection, int identification) CalculateRadii(ListeningPostKind kind, int vantageBonus, bool isSabotaged = false)
     {
-        get
+        if (isSabotaged)
         {
-            if (!IsSensorActive)
-            {
-                return 0f;
-            }
+            return (0f, 0);
+        }
 
-            if (kind == ListeningPostKind.AutomatedRelay)
-            {
-                // Baseline 12 traversal rings; elevated terrain grants +1 to +2 rings
-                int bonus = cachedVantageBonus > 0 ? Mathf.Min(2, cachedVantageBonus) : 0;
-                return 12f + bonus;
-            }
-
-            // Signal Beacon: Baseline 6 rings + full optical vantage bonus (+1 to +3 rings)
-            return 6f + cachedVantageBonus;
+        if (kind == ListeningPostKind.AutomatedRelay)
+        {
+            int bonus = vantageBonus > 0 ? Mathf.Min(2, vantageBonus) : 0;
+            float det = 12f + bonus;
+            int id = 5 + (bonus >= 2 ? 1 : 0);
+            return (det, id);
+        }
+        else
+        {
+            float det = 6f + vantageBonus;
+            int id = 0; // Unmanned signal beacon has 0 identification
+            return (det, id);
         }
     }
 
-    public int IdentificationRadiusInTiles
-    {
-        get
-        {
-            if (!IsSensorActive)
-            {
-                return 0;
-            }
+    public float DetectionRadiusInTiles =>
+        !IsSensorActive ? 0f : CalculateRadii(kind, cachedVantageBonus, isSabotaged).detection;
 
-            if (kind == ListeningPostKind.AutomatedRelay)
-            {
-                // Automated Relay: 5 rings baseline, +1 ring on elevated ground (Large Hills / Mountains)
-                return 5 + (cachedVantageBonus >= 2 ? 1 : 0);
-            }
-
-            // Signal Beacon: Unmanned optical signal beacon has 0 identification range (early-warning detection only)
-            return 0;
-        }
-    }
+    public int IdentificationRadiusInTiles =>
+        !IsSensorActive ? 0 : CalculateRadii(kind, cachedVantageBonus, isSabotaged).identification;
 
     public IntelligenceTier MaxIntelligenceTier => kind == ListeningPostKind.AutomatedRelay
         ? IntelligenceTier.Classified
@@ -202,8 +193,8 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     public bool IsSensorActive => (Find.World?.worldObjects != null ? Spawned : true) && !Destroyed && !isSabotaged && !isConstructing && !isDismantling;
 
-    public void SetTileRaw(PlanetTile t) => HarmonyLib.Traverse.Create(this).Field("tile").SetValue(t);
-    public void SetSpawnedRaw(bool s) => HarmonyLib.Traverse.Create(this).Field("spawned").SetValue(s);
+    public void SetTileRaw(PlanetTile t) => WorldObjectAccessUtility.SetTileRaw(this, t);
+    public void SetSpawnedRaw(bool s) => WorldObjectAccessUtility.SetSpawnedRaw(this, s);
 
     public bool IsStationary => true;
 
@@ -213,34 +204,8 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     public bool IsOceanicSonar => false;
 
-    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
-    {
-        distance = -1;
-        if (!IsSensorActive || !SensorTile.Valid || !target.CurrentTile.Valid)
-        {
-            return false;
-        }
-
-        if (Find.World?.grid != null && SensorTile.Layer != target.CurrentTile.Layer)
-        {
-            return false;
-        }
-
-        int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        int d = SensoryManager.DistanceCalculationOverride != null
-            ? SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps)
-            : (Find.World?.grid != null
-                ? Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
-                : Math.Abs(SensorTile.tileId - target.CurrentTile.tileId));
-
-        if (d <= maxSteps)
-        {
-            distance = d;
-            return true;
-        }
-
-        return false;
-    }
+    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance) =>
+        SensorDetectionUtility.TryGetDetectionDistance(this, target, out distance);
 
     public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
 
@@ -384,34 +349,17 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         if (!isConstructing) return;
 
         // Refund 100% of construction materials
-        if (kind == ListeningPostKind.AutomatedRelay)
+        if (caravan != null)
         {
-            if (caravan != null)
+            if (kind == ListeningPostKind.AutomatedRelay)
             {
-                Thing steel = ThingMaker.MakeThing(ThingDefOf.Steel);
-                steel.stackCount = OutpostMaterialUtility.AutomatedRelaySteelCost;
-                CaravanInventoryUtility.GiveThing(caravan, steel);
-
-                Thing comp = ThingMaker.MakeThing(ThingDefOf.ComponentIndustrial);
-                comp.stackCount = OutpostMaterialUtility.AutomatedRelayComponentCost;
-                CaravanInventoryUtility.GiveThing(caravan, comp);
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedRelaySteelCost);
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedRelayComponentCost);
             }
-        }
-        else
-        {
-            if (caravan != null)
+            else
             {
                 ThingDef refundDef = stuffDef ?? ThingDefOf.WoodLog;
-                int remaining = OutpostMaterialUtility.SignalBeaconWoodOrStoneCost;
-                int stackLimit = Mathf.Max(1, refundDef.stackLimit);
-                while (remaining > 0)
-                {
-                    Thing salvaged = ThingMaker.MakeThing(refundDef);
-                    int countToTake = Mathf.Min(remaining, stackLimit);
-                    salvaged.stackCount = countToTake;
-                    remaining -= countToTake;
-                    CaravanInventoryUtility.GiveThing(caravan, salvaged);
-                }
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, refundDef, OutpostMaterialUtility.SignalBeaconWoodOrStoneCost);
             }
         }
 
@@ -530,30 +478,17 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     /// </summary>
     public void Dismantle(Caravan caravan)
     {
-        if (kind == ListeningPostKind.AutomatedRelay)
+        if (caravan != null)
         {
-            // Initial: 100 Steel, 4 Components -> 75% salvage: 75 Steel, 3 Components
-            Thing steel = ThingMaker.MakeThing(ThingDefOf.Steel);
-            steel.stackCount = 75;
-            CaravanInventoryUtility.GiveThing(caravan, steel);
-
-            Thing comp = ThingMaker.MakeThing(ThingDefOf.ComponentIndustrial);
-            comp.stackCount = 3;
-            CaravanInventoryUtility.GiveThing(caravan, comp);
-        }
-        else
-        {
-            // Initial: 150 Wood/Stone -> 75% salvage: 112 items
-            ThingDef refundDef = stuffDef ?? ThingDefOf.WoodLog;
-            int remaining = 112;
-            int stackLimit = Mathf.Max(1, refundDef.stackLimit);
-            while (remaining > 0)
+            if (kind == ListeningPostKind.AutomatedRelay)
             {
-                Thing salvaged = ThingMaker.MakeThing(refundDef);
-                int countToTake = Mathf.Min(remaining, stackLimit);
-                salvaged.stackCount = countToTake;
-                remaining -= countToTake;
-                CaravanInventoryUtility.GiveThing(caravan, salvaged);
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedRelaySteelSalvage);
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedRelayComponentSalvage);
+            }
+            else
+            {
+                ThingDef refundDef = stuffDef ?? ThingDefOf.WoodLog;
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, refundDef, OutpostMaterialUtility.SignalBeaconWoodSalvage);
             }
         }
 
@@ -571,9 +506,9 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             int steel = OutpostMaterialUtility.CountItem(caravan, ThingDefOf.Steel);
             int comp = OutpostMaterialUtility.CountItem(caravan, ThingDefOf.ComponentIndustrial);
 
-            if (steel < 25 || comp < 1)
+            if (steel < OutpostMaterialUtility.AutomatedRelaySteelRepairCost || comp < OutpostMaterialUtility.AutomatedRelayComponentRepairCost)
             {
-                missingDescription = $"Requires 25 Steel (have {steel}) and 1 Component (have {comp}).";
+                missingDescription = $"Requires {OutpostMaterialUtility.AutomatedRelaySteelRepairCost} Steel (have {steel}) and {OutpostMaterialUtility.AutomatedRelayComponentRepairCost} Component (have {comp}).";
                 return false;
             }
 
@@ -583,9 +518,9 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         else
         {
             int woodOrStone = OutpostMaterialUtility.CountWoodOrStone(caravan);
-            if (woodOrStone < 30)
+            if (woodOrStone < OutpostMaterialUtility.SignalBeaconWoodOrStoneRepairCost)
             {
-                missingDescription = $"Requires 30 Wood or Stone blocks (have {woodOrStone}).";
+                missingDescription = $"Requires {OutpostMaterialUtility.SignalBeaconWoodOrStoneRepairCost} Wood or Stone blocks (have {woodOrStone}).";
                 return false;
             }
 
@@ -598,12 +533,12 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     {
         if (kind == ListeningPostKind.AutomatedRelay)
         {
-            OutpostMaterialUtility.TakeItem(caravan, ThingDefOf.Steel, 25);
-            OutpostMaterialUtility.TakeItem(caravan, ThingDefOf.ComponentIndustrial, 1);
+            OutpostMaterialUtility.TakeItem(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedRelaySteelRepairCost);
+            OutpostMaterialUtility.TakeItem(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedRelayComponentRepairCost);
         }
         else
         {
-            OutpostMaterialUtility.TakeWoodOrStone(caravan, 30);
+            OutpostMaterialUtility.TakeWoodOrStone(caravan, OutpostMaterialUtility.SignalBeaconWoodOrStoneRepairCost);
         }
     }
 

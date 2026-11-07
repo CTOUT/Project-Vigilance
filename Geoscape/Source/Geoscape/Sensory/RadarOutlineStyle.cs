@@ -21,34 +21,3 @@ public enum RadarOutlineStyle
     /// </summary>
     None = 2
 }
-
-/// <summary>
-/// Selectable color palettes for tactical radar ranges and sensor overlays.
-/// </summary>
-public enum RadarColorPalette
-{
-    /// <summary>
-    /// Holographic tactical cyan (#00E5FF) - matching the Project Vigilance preview and sci-fi HUDs.
-    /// </summary>
-    TacticalCyan = 0,
-
-    /// <summary>
-    /// Warm surveillance amber (#FFC107) - military command center radar aesthetic.
-    /// </summary>
-    SurveillanceAmber = 1,
-
-    /// <summary>
-    /// Military phosphor emerald (#00E676) - classic green CRT radar sweep look.
-    /// </summary>
-    EmeraldPhosphor = 2,
-
-    /// <summary>
-    /// Threat perimeter crimson (#FF1744) - high-visibility tactical alert border.
-    /// </summary>
-    CrimsonAlert = 3,
-
-    /// <summary>
-    /// Neutral monochrome HUD white (#ECEFF1) - sleek clean aesthetic.
-    /// </summary>
-    GhostWhite = 4
-}

@@ -1,4 +1,5 @@
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 
 namespace ProjectVigilance.Geoscape.Sensory;
@@ -11,6 +12,44 @@ namespace ProjectVigilance.Geoscape.Sensory;
 /// </summary>
 public static class SensoryNarrativeUtility
 {
+    /// <summary>
+    /// Resolves a readable target name or sector designation for a planet tile,
+    /// checking maps, settlements, and world objects before falling back to tile ID coordinates.
+    /// </summary>
+    public static string ResolveTargetSectorLabel(PlanetTile tile, Map? targetMap = null, string fallback = "colony territory")
+    {
+        if (targetMap?.Parent != null)
+        {
+            return targetMap.Parent.LabelCap;
+        }
+
+        if (Current.Game != null && tile.Valid)
+        {
+            Map? map = Current.Game.FindMap(tile);
+            if (map?.Parent != null)
+            {
+                return map.Parent.LabelCap;
+            }
+        }
+
+        if (Find.World?.worldObjects != null && tile.Valid)
+        {
+            var settlement = Find.World.worldObjects.SettlementAt(tile);
+            if (settlement != null)
+            {
+                return settlement.LabelCap;
+            }
+
+            var mapParent = Find.World.worldObjects.MapParentAt(tile);
+            if (mapParent != null)
+            {
+                return mapParent.LabelCap;
+            }
+        }
+
+        return tile.Valid ? $"territory at tile {tile.tileId}" : fallback;
+    }
+
     /// <summary>
     /// Returns true if the player faction has a Neolithic or Medieval tech level.
     /// </summary>

@@ -424,39 +424,7 @@ public class MapComponent_OverlandAmbush : MapComponent
                     else if (record.escapedPawns.Count > 0)
                     {
                         // Raiders successfully exited the battlefield and continue their overland march / retreat
-                        record.incursion.SetCommittedPawns(record.escapedPawns);
-                        record.incursion.SetRetreatingPawns(record.escapedPawns);
-                        record.incursion.IsRetreating = true;
-                        record.incursion.IsEngagedInTacticalMap = false;
-                        record.incursion.IsIdentified = true;
-                        record.incursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
-                        record.incursion.MarkMapMet(map.Parent?.ID ?? map.uniqueID);
-
-                        int mapCaravanCooldown = Find.TickManager.TicksGame + 15000;
-                        var localCaravans = Find.WorldObjects?.Caravans?.Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == map.Tile);
-                        if (localCaravans != null)
-                        {
-                            foreach (var c in localCaravans)
-                            {
-                                record.incursion.MarkCaravanMet(c.ID);
-                                record.incursion.SetCaravanCooldown(c.ID, mapCaravanCooldown);
-                            }
-                        }
-
-                        if (record.capturedColonists.Count > 0)
-                        {
-                            record.incursion.SetKidnappedColonists(new List<Pawn>(record.capturedColonists));
-                        }
-
-                        // Resolve retreat route back to faction stronghold
-                        if (IncursionOriginResolver.TryResolveRetreatRoute(map.Tile, record.incursion.Faction, out var destTile, out var retreatPath, out var speed))
-                        {
-                            record.incursion.SetRetreatRoute(destTile, retreatPath, speed);
-                        }
-                        else
-                        {
-                            record.incursion.ReverseCourse("escaping with survivors/captives after engagement");
-                        }
+                        record.incursion.TransitionToOverlandRetreat(record.escapedPawns, record.capturedColonists, map);
 
                         Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) escaped battlefield with {record.escapedPawns.Count} survivors and {record.capturedColonists.Count} captive(s). Continuing on Geoscape towards {record.incursion.DestinationTile}.");
                         Messages.Message($"Enemy raid {record.contactLabel} has broken off the engagement and is retreating on the Geoscape with {record.escapedPawns.Count} survivor(s)!", record.incursion, MessageTypeDefOf.NeutralEvent);
@@ -486,38 +454,7 @@ public class MapComponent_OverlandAmbush : MapComponent
 
                         if (escapedHostiles.Count > 0)
                         {
-                            sourceIncursion.SetCommittedPawns(escapedHostiles);
-                            sourceIncursion.SetRetreatingPawns(escapedHostiles);
-                            sourceIncursion.IsRetreating = true;
-                            sourceIncursion.IsEngagedInTacticalMap = false;
-                            sourceIncursion.IsIdentified = true;
-                            sourceIncursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
-                            sourceIncursion.MarkMapMet(map.Parent?.ID ?? map.uniqueID);
-
-                            int mapCaravanCooldown = Find.TickManager.TicksGame + 15000;
-                            var localCaravans = Find.WorldObjects?.Caravans?.Where(c => c != null && c.Spawned && c.Faction == Faction.OfPlayer && c.Tile == map.Tile);
-                            if (localCaravans != null)
-                            {
-                                foreach (var c in localCaravans)
-                                {
-                                    sourceIncursion.MarkCaravanMet(c.ID);
-                                    sourceIncursion.SetCaravanCooldown(c.ID, mapCaravanCooldown);
-                                }
-                            }
-
-                            if (capturedColonists.Count > 0)
-                            {
-                                sourceIncursion.SetKidnappedColonists(new List<Pawn>(capturedColonists));
-                            }
-
-                            if (IncursionOriginResolver.TryResolveRetreatRoute(map.Tile, sourceIncursion.Faction, out var destTile, out var retreatPath, out var speed))
-                            {
-                                sourceIncursion.SetRetreatRoute(destTile, retreatPath, speed);
-                            }
-                            else
-                            {
-                                sourceIncursion.ReverseCourse("escaping with survivors/captives after engagement");
-                            }
+                            sourceIncursion.TransitionToOverlandRetreat(escapedHostiles, capturedColonists, map);
 
                             Log.Message($"[Project Vigilance] Incursion {sourceIncursion.TrackingId} escaped battlefield with {escapedHostiles.Count} survivors and {capturedColonists.Count} captive(s). Continuing on Geoscape towards {sourceIncursion.DestinationTile}.");
                         }
@@ -1143,26 +1080,7 @@ public class MapComponent_OverlandAmbush : MapComponent
 
                     if (survivors.Count > 0)
                     {
-                        record.incursion.SetCommittedPawns(survivors);
-                        record.incursion.SetRetreatingPawns(survivors);
-                        record.incursion.IsRetreating = true;
-                        record.incursion.IsEngagedInTacticalMap = false;
-                        record.incursion.IsIdentified = true;
-                        record.incursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
-
-                        if (record.capturedColonists.Count > 0)
-                        {
-                            record.incursion.SetKidnappedColonists(new List<Pawn>(record.capturedColonists));
-                        }
-
-                        if (IncursionOriginResolver.TryResolveRetreatRoute(map.Tile, record.incursion.Faction, out var destTile, out var retreatPath, out var speed))
-                        {
-                            record.incursion.SetRetreatRoute(destTile, retreatPath, speed);
-                        }
-                        else
-                        {
-                            record.incursion.ReverseCourse("escaping with survivors after map deinit");
-                        }
+                        record.incursion.TransitionToOverlandRetreat(survivors, record.capturedColonists, map);
                         Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) evacuated upon map deinit with {survivors.Count} survivors.");
                     }
                     else
@@ -1207,12 +1125,7 @@ public class MapComponent_OverlandAmbush : MapComponent
 
             if (survivors.Count > 0)
             {
-                sourceIncursion.SetCommittedPawns(survivors);
-                sourceIncursion.SetRetreatingPawns(survivors);
-                sourceIncursion.IsRetreating = true;
-                sourceIncursion.IsEngagedInTacticalMap = false;
-                sourceIncursion.IsIdentified = true;
-                sourceIncursion.CurrentIntelligenceTier = IntelligenceTier.Classified;
+                sourceIncursion.TransitionToOverlandRetreat(survivors, capturedColonists, map);
             }
             else
             {

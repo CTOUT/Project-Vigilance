@@ -37,6 +37,12 @@ public sealed class OutpostConstructionDirective
 /// </summary>
 public static class CaravanExpeditionUtility
 {
+    private static readonly System.Reflection.FieldInfo? DestinationTileField =
+        AccessTools.Field(typeof(LordJob_FormAndSendCaravan), "destinationTile");
+
+    private static readonly System.Reflection.FieldInfo? TransferablesField =
+        AccessTools.Field(typeof(Dialog_FormCaravan), "transferables");
+
     private static readonly object syncLock = new();
     private static readonly Dictionary<int, OutpostConstructionDirective> pendingDirectives = new();
 
@@ -327,23 +333,7 @@ public static class CaravanExpeditionUtility
         });
 
         // 2. Open standard Form Caravan dialog configured for route
-        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: () =>
-        {
-            bool isForming = settlement.Map?.lordManager?.lords != null &&
-                             settlement.Map.lordManager.lords.Any(l =>
-                             {
-                                 if (l.LordJob is LordJob_FormAndSendCaravan f)
-                                 {
-                                     PlanetTile dest = Traverse.Create(f).Field("destinationTile").GetValue<PlanetTile>();
-                                     return dest == targetTile || !dest.Valid;
-                                 }
-                                 return false;
-                             });
-            if (!isForming)
-            {
-                ClearPendingDirective(targetTile);
-            }
-        });
+        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: CreateOnFormCaravanClosedCallback(settlement.Map, targetTile));
 
         if (Find.WindowStack != null)
         {
@@ -383,23 +373,7 @@ public static class CaravanExpeditionUtility
         });
 
         // 2. Open standard Form Caravan dialog configured for route
-        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: () =>
-        {
-            bool isForming = settlement.Map?.lordManager?.lords != null &&
-                             settlement.Map.lordManager.lords.Any(l =>
-                             {
-                                 if (l.LordJob is LordJob_FormAndSendCaravan f)
-                                 {
-                                     PlanetTile dest = Traverse.Create(f).Field("destinationTile").GetValue<PlanetTile>();
-                                     return dest == targetTile || !dest.Valid;
-                                 }
-                                 return false;
-                             });
-            if (!isForming)
-            {
-                ClearPendingDirective(targetTile);
-            }
-        });
+        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: CreateOnFormCaravanClosedCallback(settlement.Map, targetTile));
 
         if (Find.WindowStack != null)
         {
@@ -410,11 +384,34 @@ public static class CaravanExpeditionUtility
         Messages.Message($"[Project Vigilance] Dismantle expedition route set to {post.LabelCap} at Tile {targetTile}. Select colonist(s) and provisions to depart.", MessageTypeDefOf.CautionInput, false);
     }
 
+    private static Action CreateOnFormCaravanClosedCallback(Map map, PlanetTile targetTile)
+    {
+        return () =>
+        {
+            bool isForming = map?.lordManager?.lords != null &&
+                             map.lordManager.lords.Any(l =>
+                             {
+                                 if (l.LordJob is LordJob_FormAndSendCaravan f)
+                                 {
+                                     PlanetTile dest = DestinationTileField != null && DestinationTileField.GetValue(f) is PlanetTile pt
+                                         ? pt
+                                         : (PlanetTile)0;
+                                     return dest == targetTile || !dest.Valid;
+                                 }
+                                 return false;
+                             });
+            if (!isForming)
+            {
+                ClearPendingDirective(targetTile);
+            }
+        };
+    }
+
     public static void PreallocateConstructionMaterials(Dialog_FormCaravan dialog, ListeningPostKind kind, ThingDef? stuffDef)
     {
         if (dialog == null) return;
 
-        List<TransferableOneWay>? transferables = Traverse.Create(dialog).Field("transferables").GetValue<List<TransferableOneWay>>();
+        List<TransferableOneWay>? transferables = TransferablesField?.GetValue(dialog) as List<TransferableOneWay>;
         if (transferables == null) return;
 
         if (kind == ListeningPostKind.AutomatedRelay)

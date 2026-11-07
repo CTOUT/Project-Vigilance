@@ -329,34 +329,8 @@ public class ScoutHorizonSensor : ISensorProvider
         }
     }
 
-    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
-    {
-        distance = -1;
-        if (!IsSensorActive || !SensorTile.Valid || !target.CurrentTile.Valid)
-        {
-            return false;
-        }
-
-        if (Find.World?.grid != null && SensorTile.Layer != target.CurrentTile.Layer)
-        {
-            return false;
-        }
-
-        int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        int d = SensoryManager.DistanceCalculationOverride != null
-            ? SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps)
-            : (Find.World?.grid != null
-                ? Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
-                : Math.Abs(SensorTile.tileId - target.CurrentTile.tileId));
-
-        if (d <= maxSteps)
-        {
-            distance = d;
-            return true;
-        }
-
-        return false;
-    }
+    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance) =>
+        SensorDetectionUtility.TryGetDetectionDistance(this, target, out distance);
 
     public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
 }

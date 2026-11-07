@@ -16,7 +16,6 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
     private ThingOwner<Thing> goods;
     private TraderKindDef? traderKind;
     private int randomPriceFactorSeed;
-    private bool wasAnnounced;
 
     public new IThingHolder? ParentHolder => base.ParentHolder;
 
@@ -191,7 +190,6 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
         Scribe_Deep.Look(ref goods, "goods", this);
         Scribe_Defs.Look(ref traderKind, "traderKind");
         Scribe_Values.Look(ref randomPriceFactorSeed, "randomPriceFactorSeed", 0);
-        Scribe_Values.Look(ref wasAnnounced, "wasAnnounced", false);
 
         goods ??= new ThingOwner<Thing>(this);
     }

@@ -311,41 +311,14 @@ public static class WorldObject_Visibility_Patch
     // ---------------------------------------------------------
     // 2. 3D World Object Mesh Rendering (Zoomed In)
     // ---------------------------------------------------------
-    [HarmonyPatch(typeof(WorldDrawLayer_WorldObjects_Expandable), "ShouldSkip")]
-    public static class Expandable_ShouldSkip_Patch
+    [HarmonyPatch]
+    public static class WorldObjects_ShouldSkip_Patch
     {
-        public static void Postfix(WorldObject worldObject, ref bool __result)
-        {
-            if (worldObject is IOrbitalEntity || worldObject is WorldObject_Satellite || worldObject is WorldObject_OrbitalStation)
-            {
-                if (ShouldHideWorldObject(worldObject))
-                {
-                    __result = true;
-                    return;
-                }
+        public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
+            "ShouldSkip",
+            typeof(WorldDrawLayer_WorldObjects_Expandable),
+            typeof(WorldDrawLayer_WorldObjects_NonExpandable));
 
-                if (__result && IsValidOrbitalLayerActive())
-                {
-                    __result = false;
-                    return;
-                }
-            }
-
-            if (__result)
-            {
-                return;
-            }
-
-            if (ShouldHideWorldObject(worldObject))
-            {
-                __result = true;
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(WorldDrawLayer_WorldObjects_NonExpandable), "ShouldSkip")]
-    public static class NonExpandable_ShouldSkip_Patch
-    {
         public static void Postfix(WorldObject worldObject, ref bool __result)
         {
             if (worldObject is IOrbitalEntity || worldObject is WorldObject_Satellite || worldObject is WorldObject_OrbitalStation)

@@ -13,6 +13,13 @@ namespace ProjectVigilance.Geoscape.Patches;
 [HarmonyPatch(typeof(WorldRoutePlanner), nameof(WorldRoutePlanner.Start), typeof(Dialog_FormCaravan))]
 public static class WorldRoutePlanner_Start_Patch
 {
+    private static readonly System.Reflection.FieldInfo? DestinationTileField =
+        AccessTools.Field(typeof(Dialog_FormCaravan), "destinationTile");
+    private static readonly System.Reflection.FieldInfo? MapField =
+        AccessTools.Field(typeof(Dialog_FormCaravan), "map");
+    private static readonly System.Reflection.FieldInfo? WaypointsField =
+        AccessTools.Field(typeof(WorldRoutePlanner), "waypoints");
+
     [System.ThreadStatic]
     public static System.Action<PlanetTile>? OnWaypointAddedForTesting;
 
@@ -20,13 +27,15 @@ public static class WorldRoutePlanner_Start_Patch
     {
         if (formCaravanDialog != null && __instance != null && __instance.Active)
         {
-            PlanetTile dest = Traverse.Create(formCaravanDialog).Field("destinationTile").GetValue<PlanetTile>();
-            Map? map = Traverse.Create(formCaravanDialog).Field("map").GetValue<Map>();
+            PlanetTile dest = DestinationTileField != null && DestinationTileField.GetValue(formCaravanDialog) is PlanetTile pt
+                ? pt
+                : PlanetTile.Invalid;
+            Map? map = MapField?.GetValue(formCaravanDialog) as Map;
             PlanetTile currentTile = map != null ? map.Tile : PlanetTile.Invalid;
 
             if (dest.Valid && (!currentTile.Valid || dest != currentTile))
             {
-                var waypoints = Traverse.Create(__instance).Field("waypoints").GetValue<List<RoutePlannerWaypoint>>();
+                var waypoints = WaypointsField?.GetValue(__instance) as List<RoutePlannerWaypoint>;
                 if (waypoints != null && waypoints.Count == 1)
                 {
                     if (OnWaypointAddedForTesting != null)

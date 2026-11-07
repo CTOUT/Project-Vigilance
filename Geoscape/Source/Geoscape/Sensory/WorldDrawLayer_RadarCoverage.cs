@@ -382,19 +382,6 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         yield break;
     }
 
-    private static Color32 GetPaletteBaseColor(RadarColorPalette palette)
-    {
-        return palette switch
-        {
-            RadarColorPalette.TacticalCyan => new Color32(0, 230, 255, 255),
-            RadarColorPalette.SurveillanceAmber => new Color32(255, 195, 40, 255),
-            RadarColorPalette.EmeraldPhosphor => new Color32(20, 240, 110, 255),
-            RadarColorPalette.CrimsonAlert => new Color32(255, 45, 75, 255),
-            RadarColorPalette.GhostWhite => new Color32(230, 240, 250, 255),
-            _ => new Color32(0, 230, 255, 255)
-        };
-    }
-
     public static Color GetAutomaticIdentificationColor(Color baseColor)
     {
         Color.RGBToHSV(baseColor, out float h, out float s, out float v);

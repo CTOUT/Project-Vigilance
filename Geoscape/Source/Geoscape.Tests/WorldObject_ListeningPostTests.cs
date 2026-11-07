@@ -9,27 +9,8 @@ namespace Geoscape.Tests;
 [TestClass]
 public sealed class WorldObject_ListeningPostTests
 {
-    private static (float detection, int identification) CalculateRadii(ListeningPostKind kind, int vantageBonus, bool isSabotaged)
-    {
-        if (isSabotaged)
-        {
-            return (0f, 0);
-        }
-
-        if (kind == ListeningPostKind.AutomatedRelay)
-        {
-            int bonus = vantageBonus > 0 ? Mathf.Min(2, vantageBonus) : 0;
-            float det = 12f + bonus;
-            int id = 5 + (bonus >= 2 ? 1 : 0);
-            return (det, id);
-        }
-        else
-        {
-            float det = 6f + vantageBonus;
-            int id = 0; // Unmanned signal beacon has 0 identification
-            return (det, id);
-        }
-    }
+    private static (float detection, int identification) CalculateRadii(ListeningPostKind kind, int vantageBonus, bool isSabotaged) =>
+        WorldObject_ListeningPost.CalculateRadii(kind, vantageBonus, isSabotaged);
 
     [TestMethod]
     public void AutomatedRelay_FlatTerrain_Returns12DetectionAnd5Identification()

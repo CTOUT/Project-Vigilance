@@ -9,6 +9,9 @@ namespace ProjectVigilance.Geoscape.World;
 public static class IncursionArrivalManager
 {
     private static bool isExecutingArrival;
+    private static readonly System.Reflection.FieldInfo? LastThreatBigTickField =
+        AccessTools.Field(typeof(StoryState), "lastThreatBigTick");
+
     private static WorldObject_Incursion? currentExecutingIncursion;
 
     public static bool IsExecutingArrival
@@ -203,9 +206,7 @@ public static class IncursionArrivalManager
         // neither friendly visitors nor hostile raids with requireColonistsPresent can engage.
         if (!hasConsciousColonists)
         {
-            string settlementName = targetMap.Parent?.LabelCap ??
-                                    Find.WorldObjects?.SettlementAt(targetMap.Tile)?.LabelCap ??
-                                    (targetMap.IsPlayerHome ? "your colony" : $"settlement at tile {targetMap.Tile.tileId}");
+            string settlementName = SensoryNarrativeUtility.ResolveTargetSectorLabel(targetMap.Tile, targetMap, targetMap.IsPlayerHome ? "your colony" : "colony territory");
             string groupDesc = incursion.GetIdentifiedGroupLabel();
             string fName = incursion.Faction?.Name ?? (isHostileToPlayer ? "enemy forces" : "peaceful travellers");
 
@@ -267,21 +268,16 @@ public static class IncursionArrivalManager
 
                 if (GeoscapeRules.ResetThreatCooldownOnArrival &&
                     incursion.IncidentDef.category == IncidentCategoryDefOf.ThreatBig &&
-                    targetMap.storyState != null)
+                    targetMap.storyState != null &&
+                    LastThreatBigTickField != null)
                 {
-                    var lastThreatField = Traverse.Create(targetMap.storyState).Field("lastThreatBigTick");
-                    if (lastThreatField.FieldExists())
-                    {
-                        lastThreatField.SetValue(Find.TickManager.TicksGame);
-                        Log.Message($"[Project Vigilance] Reset Storyteller LastThreatBigTick to current game tick ({Find.TickManager.TicksGame}) upon incursion arrival.");
-                    }
+                    LastThreatBigTickField.SetValue(targetMap.storyState, Find.TickManager.TicksGame);
+                    Log.Message($"[Project Vigilance] Reset Storyteller LastThreatBigTick to current game tick ({Find.TickManager.TicksGame}) upon incursion arrival.");
                 }
             }
             else if (!success)
             {
-                string settlementName = targetMap.Parent?.LabelCap ??
-                                        Find.WorldObjects?.SettlementAt(targetMap.Tile)?.LabelCap ??
-                                        (targetMap.IsPlayerHome ? "your colony" : $"settlement at tile {targetMap.Tile.tileId}");
+                string settlementName = SensoryNarrativeUtility.ResolveTargetSectorLabel(targetMap.Tile, targetMap, targetMap.IsPlayerHome ? "your colony" : "colony territory");
                 string groupDesc = incursion.GetIdentifiedGroupLabel();
                 string fName = incursion.Faction?.Name ?? (isHostileToPlayer ? "enemy forces" : "approaching force");
                 string failMsg = incursion.GroupKind == IncursionGroupKind.HostileWarband

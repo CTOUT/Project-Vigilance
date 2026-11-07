@@ -177,10 +177,21 @@ public class ContactRegistry : WorldComponent
 
     [ThreadStatic]
     private static ContactRegistry? testInstance;
+    private static ContactRegistry? cachedInstance;
 
     public static ContactRegistry? Instance
     {
-        get => testInstance ?? Find.World?.GetComponent<ContactRegistry>();
+        get
+        {
+            if (testInstance != null) return testInstance;
+            RimWorld.Planet.World? currentWorld = Find.World;
+            if (currentWorld == null) return null;
+            if (cachedInstance == null || cachedInstance.world != currentWorld)
+            {
+                cachedInstance = currentWorld.GetComponent<ContactRegistry>();
+            }
+            return cachedInstance;
+        }
         set => testInstance = value;
     }
 

@@ -176,71 +176,10 @@ public class CompRadar : ThingComp, ISensorProvider
     /// 2 dishes = identificationRadiusDish2
     /// 3+ dishes = identificationRadiusDish3
     /// </summary>
-    public int IdentificationRadiusInTiles
-    {
-        get
-        {
-            int count = OperationalDishCount;
-            int baseId;
-            if (count >= 3)
-            {
-                baseId = Props.identificationRadiusDish3;
-            }
-            else if (count == 2)
-            {
-                baseId = Props.identificationRadiusDish2;
-            }
-            else
-            {
-                baseId = Props.identificationRadiusDish1;
-            }
+    public int IdentificationRadiusInTiles => Props.ResolveIdentificationRadius(OperationalDishCount, cachedVantageBonus);
 
-            if (Props.receivesVantageBonus && cachedVantageBonus > 0)
-            {
-                baseId += SensoryTerrainUtility.GetIdentificationVantageBonus(cachedVantageBonus);
-            }
-
-            return Mathf.Min(baseId, Mathf.RoundToInt(DetectionRadiusInTiles));
-        }
-    }
-
-    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
-    {
-        distance = -1;
-        if (!IsSensorActive || !SensorTile.Valid || !target.CurrentTile.Valid)
-        {
-            return false;
-        }
-
-        if (Find.World?.grid != null && SensorTile.Layer != target.CurrentTile.Layer)
-        {
-            return false;
-        }
-
-        if (IsOceanicSonar)
-        {
-            var targetTileData = target.CurrentTile.Tile;
-            if (targetTileData == null || !targetTileData.WaterCovered)
-            {
-                return false;
-            }
-        }
-
-        int maxSteps = Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles));
-        int d = SensoryManager.DistanceCalculationOverride != null
-            ? SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps)
-            : (Find.World?.grid != null
-                ? Find.World.grid.TraversalDistanceBetween(SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
-                : Math.Abs(SensorTile.tileId - target.CurrentTile.tileId));
-
-        if (d <= maxSteps)
-        {
-            distance = d;
-            return true;
-        }
-
-        return false;
-    }
+    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance) =>
+        SensorDetectionUtility.TryGetDetectionDistance(this, target, out distance);
 
     public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
 

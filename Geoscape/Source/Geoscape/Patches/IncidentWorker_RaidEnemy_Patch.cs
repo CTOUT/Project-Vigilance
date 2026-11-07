@@ -12,6 +12,9 @@ namespace ProjectVigilance.Geoscape.Patches;
 [HarmonyPatch(typeof(IncidentWorker_RaidEnemy), "TryExecuteWorker")]
 public static class IncidentWorker_RaidEnemy_Patch
 {
+    private static readonly System.Reflection.MethodInfo? TryResolveRaidFactionMethod =
+        AccessTools.Method(typeof(IncidentWorker_RaidEnemy), "TryResolveRaidFaction");
+
     [HarmonyPrefix]
     public static bool Prefix(IncidentWorker_RaidEnemy __instance, IncidentParms parms, ref bool __result)
     {
@@ -30,7 +33,7 @@ public static class IncidentWorker_RaidEnemy_Patch
         // 3. If faction, strategy, or arrival mode are not yet resolved (e.g. from debug actions), resolve them now
         if (parms.faction == null)
         {
-            bool resolvedFaction = Traverse.Create(__instance).Method("TryResolveRaidFaction", parms).GetValue<bool>();
+            bool resolvedFaction = TryResolveRaidFactionMethod?.Invoke(__instance, new object[] { parms }) as bool? == true;
             if (!resolvedFaction)
             {
                 return true;

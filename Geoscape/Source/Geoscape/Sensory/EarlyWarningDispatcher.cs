@@ -77,10 +77,7 @@ public static class EarlyWarningDispatcher
     public static void DispatchContactLetter(WorldObject_Incursion incursion, ISensorProvider sensor)
     {
         Map? targetMap = (Current.Game != null && incursion.DestinationTile.Valid) ? Current.Game.FindMap(incursion.DestinationTile) : null;
-        string targetName = targetMap?.Parent?.LabelCap ??
-                            Find.World?.worldObjects?.SettlementAt(incursion.DestinationTile)?.LabelCap ??
-                            Find.World?.worldObjects?.MapParentAt(incursion.DestinationTile)?.LabelCap ??
-                            (incursion.DestinationTile.Valid ? $"territory at tile {incursion.DestinationTile.tileId}" : "colony territory");
+        string targetName = SensoryNarrativeUtility.ResolveTargetSectorLabel(incursion.DestinationTile, targetMap);
 
         string title = SensoryNarrativeUtility.GetContactLetterTitle(sensor, incursion.TrackingId);
         string text = SensoryNarrativeUtility.GetContactLetterBody(sensor, targetName, incursion.SpeedTilesPerDay, incursion.TrackingId);
@@ -91,10 +88,7 @@ public static class EarlyWarningDispatcher
     public static void DispatchClassifiedLetter(WorldObject_Incursion incursion, ISensorProvider sensor)
     {
         Map? targetMap = (Current.Game != null && incursion.DestinationTile.Valid) ? Current.Game.FindMap(incursion.DestinationTile) : null;
-        string targetName = targetMap?.Parent?.LabelCap ??
-                            Find.World?.worldObjects?.SettlementAt(incursion.DestinationTile)?.LabelCap ??
-                            Find.World?.worldObjects?.MapParentAt(incursion.DestinationTile)?.LabelCap ??
-                            (incursion.DestinationTile.Valid ? $"territory at tile {incursion.DestinationTile.tileId}" : "colony territory");
+        string targetName = SensoryNarrativeUtility.ResolveTargetSectorLabel(incursion.DestinationTile, targetMap);
 
         float actualRemainingTiles = Math.Max(0f, (incursion.PathTiles.Count - incursion.CurrentPathIndex) - incursion.TileProgress);
         float remainingHours = (actualRemainingTiles / Math.Max(0.1f, incursion.SpeedTilesPerDay)) * 24f;

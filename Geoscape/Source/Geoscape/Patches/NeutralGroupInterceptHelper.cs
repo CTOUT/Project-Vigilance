@@ -8,6 +8,9 @@ namespace ProjectVigilance.Geoscape.Patches;
 
 public static class NeutralGroupInterceptHelper
 {
+    private static readonly System.Reflection.MethodInfo? TryResolveParmsMethod =
+        AccessTools.Method(typeof(IncidentWorker_NeutralGroup), "TryResolveParms");
+
     public static bool TryIntercept(IncidentWorker __instance, IncidentParms parms, ref bool __result)
     {
         // 1. If currently executing an arrival, allow normal execution
@@ -25,7 +28,7 @@ public static class NeutralGroupInterceptHelper
         // 3. Pre-resolve faction and incident parameters if unset
         if (parms.faction == null)
         {
-            bool resolved = Traverse.Create(__instance).Method("TryResolveParms", parms).GetValue<bool>();
+            bool resolved = TryResolveParmsMethod?.Invoke(__instance, new object[] { parms }) as bool? == true;
             if (!resolved || parms.faction == null)
             {
                 // Fall back to picking a candidate non-hostile faction directly if TryResolveParms failed on empty map

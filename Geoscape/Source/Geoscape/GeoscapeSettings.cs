@@ -317,36 +317,7 @@ public class GeoscapeSettings : ModSettings
                 }
                 else
                 {
-                    string hexStr = "#" + ColorUtility.ToHtmlStringRGB(radarCustomColor);
-                    string newHex = Widgets.TextField(new Rect(colorBarRect.x + 44f, colorBarRect.y, 90f, 26f), hexStr);
-                    if (newHex != hexStr && ColorUtility.TryParseHtmlString(newHex, out Color parsed))
-                    {
-                        radarCustomColor = parsed;
-                        NotifyRadarVisualsChanged();
-                    }
-
-                    float presetStart = colorBarRect.x + 144f;
-                    float presetWidth = (colorBarRect.width - 144f) / 5f;
-                    DrawPresetButton(new Rect(presetStart + presetWidth * 0, colorBarRect.y, presetWidth - 4f, 26f), new Color(0f, 0.90f, 1f), "Cyan");
-                    DrawPresetButton(new Rect(presetStart + presetWidth * 1, colorBarRect.y, presetWidth - 4f, 26f), new Color(1f, 0.76f, 0.16f), "Amber");
-                    DrawPresetButton(new Rect(presetStart + presetWidth * 2, colorBarRect.y, presetWidth - 4f, 26f), new Color(0.08f, 0.94f, 0.43f), "Emerald");
-                    DrawPresetButton(new Rect(presetStart + presetWidth * 3, colorBarRect.y, presetWidth - 4f, 26f), new Color(1f, 0.18f, 0.29f), "Crimson");
-                    DrawPresetButton(new Rect(presetStart + presetWidth * 4, colorBarRect.y, presetWidth - 4f, 26f), new Color(0.90f, 0.94f, 0.98f), "White");
-
-                    listing.Label($"Red: {Mathf.RoundToInt(radarCustomColor.r * 255f)}");
-                    float r = listing.Slider(radarCustomColor.r, 0f, 1f);
-                    listing.Label($"Green: {Mathf.RoundToInt(radarCustomColor.g * 255f)}");
-                    float g = listing.Slider(radarCustomColor.g, 0f, 1f);
-                    listing.Label($"Blue: {Mathf.RoundToInt(radarCustomColor.b * 255f)}");
-                    float b = listing.Slider(radarCustomColor.b, 0f, 1f);
-
-                    if (Mathf.Abs(r - radarCustomColor.r) > 0.005f ||
-                        Mathf.Abs(g - radarCustomColor.g) > 0.005f ||
-                        Mathf.Abs(b - radarCustomColor.b) > 0.005f)
-                    {
-                        radarCustomColor = new Color(r, g, b, 1f);
-                        NotifyRadarVisualsChanged();
-                    }
+                    DrawCustomColorPicker(listing, colorBarRect, ref radarCustomColor, RadarPerimeterPresets);
                 }
 
                 listing.Label($"Detection Perimeter Intensity: {radarOutlineOpacity:P0}");
@@ -410,36 +381,7 @@ public class GeoscapeSettings : ModSettings
                     }
                     else
                     {
-                        string hexStr = "#" + ColorUtility.ToHtmlStringRGB(radarIdentificationColor);
-                        string newHex = Widgets.TextField(new Rect(idColorBarRect.x + 44f, idColorBarRect.y, 90f, 26f), hexStr);
-                        if (newHex != hexStr && ColorUtility.TryParseHtmlString(newHex, out Color parsed))
-                        {
-                            radarIdentificationColor = parsed;
-                            NotifyRadarVisualsChanged();
-                        }
-
-                        float presetStart = idColorBarRect.x + 144f;
-                        float presetWidth = (idColorBarRect.width - 144f) / 5f;
-                        DrawPresetButton(new Rect(presetStart + presetWidth * 0, idColorBarRect.y, presetWidth - 4f, 26f), "Gold", () => radarIdentificationColor = new Color(1f, 0.82f, 0.15f));
-                        DrawPresetButton(new Rect(presetStart + presetWidth * 1, idColorBarRect.y, presetWidth - 4f, 26f), "Cyan", () => radarIdentificationColor = new Color(0f, 0.90f, 1f));
-                        DrawPresetButton(new Rect(presetStart + presetWidth * 2, idColorBarRect.y, presetWidth - 4f, 26f), "Emerald", () => radarIdentificationColor = new Color(0.08f, 0.94f, 0.43f));
-                        DrawPresetButton(new Rect(presetStart + presetWidth * 3, idColorBarRect.y, presetWidth - 4f, 26f), "Crimson", () => radarIdentificationColor = new Color(1f, 0.18f, 0.29f));
-                        DrawPresetButton(new Rect(presetStart + presetWidth * 4, idColorBarRect.y, presetWidth - 4f, 26f), "White", () => radarIdentificationColor = new Color(0.90f, 0.94f, 0.98f));
-
-                        listing.Label($"Identification Red: {Mathf.RoundToInt(radarIdentificationColor.r * 255f)}");
-                        float idR = listing.Slider(radarIdentificationColor.r, 0f, 1f);
-                        listing.Label($"Identification Green: {Mathf.RoundToInt(radarIdentificationColor.g * 255f)}");
-                        float idG = listing.Slider(radarIdentificationColor.g, 0f, 1f);
-                        listing.Label($"Identification Blue: {Mathf.RoundToInt(radarIdentificationColor.b * 255f)}");
-                        float idB = listing.Slider(radarIdentificationColor.b, 0f, 1f);
-
-                        if (Mathf.Abs(idR - radarIdentificationColor.r) > 0.005f ||
-                            Mathf.Abs(idG - radarIdentificationColor.g) > 0.005f ||
-                            Mathf.Abs(idB - radarIdentificationColor.b) > 0.005f)
-                        {
-                            radarIdentificationColor = new Color(idR, idG, idB, 1f);
-                            NotifyRadarVisualsChanged();
-                        }
+                        DrawCustomColorPicker(listing, idColorBarRect, ref radarIdentificationColor, IdentificationRingPresets, "Identification");
                     }
                 }
             }
@@ -672,6 +614,70 @@ public class GeoscapeSettings : ModSettings
         OnVisibilityModeChanged();
     }
 
+    private static readonly (string label, Color color)[] RadarPerimeterPresets = new[]
+    {
+        ("Cyan", new Color(0f, 0.90f, 1f)),
+        ("Amber", new Color(1f, 0.76f, 0.16f)),
+        ("Emerald", new Color(0.08f, 0.94f, 0.43f)),
+        ("Crimson", new Color(1f, 0.18f, 0.29f)),
+        ("White", new Color(0.90f, 0.94f, 0.98f))
+    };
+
+    private static readonly (string label, Color color)[] IdentificationRingPresets = new[]
+    {
+        ("Gold", new Color(1f, 0.82f, 0.15f)),
+        ("Cyan", new Color(0f, 0.90f, 1f)),
+        ("Emerald", new Color(0.08f, 0.94f, 0.43f)),
+        ("Crimson", new Color(1f, 0.18f, 0.29f)),
+        ("White", new Color(0.90f, 0.94f, 0.98f))
+    };
+
+    private void DrawCustomColorPicker(
+        Listing_Standard listing,
+        Rect colorBarRect,
+        ref Color color,
+        (string label, Color color)[] presets,
+        string labelPrefix = "")
+    {
+        string hexStr = "#" + ColorUtility.ToHtmlStringRGB(color);
+        string newHex = Widgets.TextField(new Rect(colorBarRect.x + 44f, colorBarRect.y, 90f, 26f), hexStr);
+        if (newHex != hexStr && ColorUtility.TryParseHtmlString(newHex, out Color parsed))
+        {
+            color = parsed;
+            NotifyRadarVisualsChanged();
+        }
+
+        float presetStart = colorBarRect.x + 144f;
+        float presetWidth = (colorBarRect.width - 144f) / presets.Length;
+        for (int i = 0; i < presets.Length; i++)
+        {
+            var p = presets[i];
+            Rect btnRect = new Rect(presetStart + presetWidth * i, colorBarRect.y, presetWidth - 4f, 26f);
+            if (Widgets.ButtonText(btnRect, p.label))
+            {
+                color = p.color;
+                usePlayerFactionColor = false;
+                NotifyRadarVisualsChanged();
+            }
+        }
+
+        string prefix = string.IsNullOrEmpty(labelPrefix) ? "" : labelPrefix + " ";
+        listing.Label($"{prefix}Red: {Mathf.RoundToInt(color.r * 255f)}");
+        float r = listing.Slider(color.r, 0f, 1f);
+        listing.Label($"{prefix}Green: {Mathf.RoundToInt(color.g * 255f)}");
+        float g = listing.Slider(color.g, 0f, 1f);
+        listing.Label($"{prefix}Blue: {Mathf.RoundToInt(color.b * 255f)}");
+        float b = listing.Slider(color.b, 0f, 1f);
+
+        if (Mathf.Abs(r - color.r) > 0.005f ||
+            Mathf.Abs(g - color.g) > 0.005f ||
+            Mathf.Abs(b - color.b) > 0.005f)
+        {
+            color = new Color(r, g, b, 1f);
+            NotifyRadarVisualsChanged();
+        }
+    }
+
     private void DrawPresetButton(Rect rect, string label, Action onSelect)
     {
         if (Widgets.ButtonText(rect, label))
@@ -679,15 +685,6 @@ public class GeoscapeSettings : ModSettings
             onSelect();
             NotifyRadarVisualsChanged();
         }
-    }
-
-    private void DrawPresetButton(Rect rect, Color color, string label)
-    {
-        DrawPresetButton(rect, label, () =>
-        {
-            radarCustomColor = color;
-            usePlayerFactionColor = false;
-        });
     }
 
     private void NotifyRadarVisualsChanged()

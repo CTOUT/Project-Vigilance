@@ -58,9 +58,20 @@ public class HazeReconnaissanceManager : WorldComponent
 
     [ThreadStatic]
     private static HazeReconnaissanceManager? testInstance;
+    private static HazeReconnaissanceManager? cachedInstance;
     public static HazeReconnaissanceManager? Instance
     {
-        get => testInstance ?? Find.World?.GetComponent<HazeReconnaissanceManager>();
+        get
+        {
+            if (testInstance != null) return testInstance;
+            RimWorld.Planet.World? currentWorld = Find.World;
+            if (currentWorld == null) return null;
+            if (cachedInstance == null || cachedInstance.world != currentWorld)
+            {
+                cachedInstance = currentWorld.GetComponent<HazeReconnaissanceManager>();
+            }
+            return cachedInstance;
+        }
         set => testInstance = value;
     }
 
@@ -394,7 +405,7 @@ public class HazeReconnaissanceManager : WorldComponent
             WorldObject? wo = FindWorldObjectById(kvp.Key);
             bool isSpawned = hasWorldObjects
                 ? wo?.Spawned == true
-                : (wo != null && (HarmonyLib.Traverse.Create(wo).Field("spawned").GetValue<bool?>() ?? true));
+                : (wo != null && WorldObjectAccessUtility.GetSpawnedRaw(wo));
 
             if (wo == null || wo.Destroyed || !isSpawned)
             {
