@@ -195,14 +195,14 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         if (drawOutlines && activeTilesCache.Count > 0)
         {
             Color32 baseColor = (Color32)GeoscapeMod.Settings.EffectiveRadarColor;
-            Color32 idColor = GetIdentificationHorizonColor(GeoscapeMod.Settings.EffectiveRadarColor);
+            Color32 idColor = (Color32)GeoscapeMod.Settings.EffectiveIdentificationColor;
 
             byte alphaPerimeter = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity) * 255);
             Color32 perimeterColor = baseColor;
             perimeterColor.a = alphaPerimeter;
 
             Color32 idRingColor = idColor;
-            idRingColor.a = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity * 0.95f) * 255);
+            idRingColor.a = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.identificationRingOpacity) * 255);
 
             // Extract all topological edges across active sensor tiles
             edgesCache.Clear();
@@ -319,7 +319,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                         halfWidth = 0.012f;
                     }
 
-                    byte interiorAlpha = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity * factor) * 255);
+                    byte interiorAlpha = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.honeycombGridOpacity * factor) * 255);
                     color = baseColor;
                     color.a = interiorAlpha;
                 }
@@ -395,7 +395,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         };
     }
 
-    private static Color32 GetIdentificationHorizonColor(Color baseColor)
+    public static Color GetAutomaticIdentificationColor(Color baseColor)
     {
         Color.RGBToHSV(baseColor, out float h, out float s, out float v);
         float newHue;
@@ -410,8 +410,12 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             newHue = 0.52f; // ~187 degrees, electric tactical cyan
         }
 
-        Color idColor = Color.HSVToRGB(newHue, 0.95f, 1.0f);
-        return (Color32)idColor;
+        return Color.HSVToRGB(newHue, 0.95f, 1.0f);
+    }
+
+    public static Color32 GetIdentificationHorizonColor(Color baseColor)
+    {
+        return (Color32)GetAutomaticIdentificationColor(baseColor);
     }
 
     private LayerSubMesh GetOrCreateSubMesh(int neededVerts, ref int subMeshIndex)

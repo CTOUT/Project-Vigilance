@@ -760,22 +760,6 @@ public class SensoryManager : WorldComponent
                     }
                 }
 
-                if (outTileDistancesFromPerimeter != null)
-                {
-                    float hexesFromPerim = Mathf.Max(0f, radiusSteps - currentStep);
-                    if (outTileDistancesFromPerimeter.TryGetValue(currentTile, out float curMin))
-                    {
-                        if (hexesFromPerim < curMin)
-                        {
-                            outTileDistancesFromPerimeter[currentTile] = hexesFromPerim;
-                        }
-                    }
-                    else
-                    {
-                        outTileDistancesFromPerimeter[currentTile] = hexesFromPerim;
-                    }
-                }
-
                 if (currentStep < radiusSteps)
                 {
                     tmpNeighbors.Clear();
@@ -789,6 +773,88 @@ public class SensoryManager : WorldComponent
                             bfsQueue.Enqueue((neighbor, nextStep));
                         }
                     }
+                }
+            }
+        }
+
+        if (outTileDistancesFromPerimeter != null && outTiles.Count > 0)
+        {
+            ComputeInwardPerimeterDistances(outTiles, outTileDistancesFromPerimeter);
+        }
+    }
+
+    /// <summary>
+    /// Executes a multi-source BFS starting from the true outer boundary of all active vision tiles,
+    /// propagating inward so that each tile's recorded distance reflects its true topological hex distance
+    /// from the outer perimeter of the unified sensor envelope.
+    /// </summary>
+    internal void ComputeInwardPerimeterDistances(
+        HashSet<PlanetTile> activeTiles,
+        Dictionary<PlanetTile, float> outDistances)
+    {
+        outDistances.Clear();
+        bfsQueue.Clear();
+
+        // 1. Identify all tiles that lie on the true outer perimeter of activeTiles.
+        // A tile is on the perimeter if at least one of its neighbours is outside activeTiles.
+        foreach (PlanetTile tile in activeTiles)
+        {
+            if (tile.Layer == null)
+            {
+                continue;
+            }
+
+            tmpNeighbors.Clear();
+            tile.Layer.GetTileNeighbors(tile, tmpNeighbors);
+
+            bool isPerimeter = false;
+            for (int n = 0; n < tmpNeighbors.Count; n++)
+            {
+                PlanetTile neighbor = tmpNeighbors[n];
+                if (!neighbor.Valid || !activeTiles.Contains(neighbor))
+                {
+                    isPerimeter = true;
+                    break;
+                }
+            }
+
+            if (isPerimeter)
+            {
+                outDistances[tile] = 0f;
+                bfsQueue.Enqueue((tile, 0));
+            }
+        }
+
+        // Fail-safe for total planetary coverage (all tiles active)
+        if (bfsQueue.Count == 0 && activeTiles.Count > 0)
+        {
+            foreach (PlanetTile tile in activeTiles)
+            {
+                outDistances[tile] = 3f;
+            }
+            return;
+        }
+
+        // 2. Propagate multi-source BFS inward from the outer perimeter
+        while (bfsQueue.Count > 0)
+        {
+            var (currentTile, currentDist) = bfsQueue.Dequeue();
+            if (currentTile.Layer == null)
+            {
+                continue;
+            }
+
+            tmpNeighbors.Clear();
+            currentTile.Layer.GetTileNeighbors(currentTile, tmpNeighbors);
+            int nextDist = currentDist + 1;
+
+            for (int n = 0; n < tmpNeighbors.Count; n++)
+            {
+                PlanetTile neighbor = tmpNeighbors[n];
+                if (neighbor.Valid && activeTiles.Contains(neighbor) && !outDistances.ContainsKey(neighbor))
+                {
+                    outDistances[neighbor] = nextDist;
+                    bfsQueue.Enqueue((neighbor, nextDist));
                 }
             }
         }

@@ -33,6 +33,10 @@ public class GeoscapeSettings : ModSettings
     public bool usePlayerFactionColor = true;
     public Color radarCustomColor = new(0f, 0.90f, 1.0f);
     public float radarOutlineOpacity = 0.50f;
+    public float identificationRingOpacity = 0.65f;
+    public float honeycombGridOpacity = 0.40f;
+    public bool useCustomIdentificationColor = false;
+    public Color radarIdentificationColor = new(1.0f, 0.82f, 0.15f);
     public float surveillanceDimming = 0.25f;
     public float colonyScoutRadius = 5.0f;
     public float caravanScoutRadius = 3.0f;
@@ -48,7 +52,7 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.SensoryRadar;
     private static readonly Vector2[] scrollPositions = new Vector2[4];
-    private static readonly float[] tabHeights = { 860f, 520f, 660f, 480f };
+    private static readonly float[] tabHeights = { 1180f, 520f, 660f, 480f };
 
     public Color EffectiveRadarColor
     {
@@ -66,6 +70,18 @@ public class GeoscapeSettings : ModSettings
         }
     }
 
+    public Color EffectiveIdentificationColor
+    {
+        get
+        {
+            if (useCustomIdentificationColor)
+            {
+                return radarIdentificationColor;
+            }
+            return WorldDrawLayer_RadarCoverage.GetAutomaticIdentificationColor(EffectiveRadarColor);
+        }
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
@@ -79,6 +95,10 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref usePlayerFactionColor, "usePlayerFactionColor", true);
         Scribe_Values.Look(ref radarCustomColor, "radarCustomColor", new Color(0f, 0.90f, 1.0f));
         Scribe_Values.Look(ref radarOutlineOpacity, "radarOutlineOpacity", 0.50f);
+        Scribe_Values.Look(ref identificationRingOpacity, "identificationRingOpacity", 0.65f);
+        Scribe_Values.Look(ref honeycombGridOpacity, "honeycombGridOpacity", 0.40f);
+        Scribe_Values.Look(ref useCustomIdentificationColor, "useCustomIdentificationColor", false);
+        Scribe_Values.Look(ref radarIdentificationColor, "radarIdentificationColor", new Color(1.0f, 0.82f, 0.15f));
         Scribe_Values.Look(ref showIdentificationHorizon, "showIdentificationHorizon", true);
         Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.25f);
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
@@ -329,12 +349,23 @@ public class GeoscapeSettings : ModSettings
                     }
                 }
 
-                listing.Label($"Radar Outline Intensity: {radarOutlineOpacity:P0}");
+                listing.Label($"Detection Perimeter Intensity: {radarOutlineOpacity:P0}");
                 float newOpacity = listing.Slider(radarOutlineOpacity, 0f, 1f);
                 if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.005f)
                 {
                     radarOutlineOpacity = newOpacity;
                     NotifyRadarVisualsChanged();
+                }
+
+                if (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid)
+                {
+                    listing.Label($"Honeycomb Grid Intensity: {honeycombGridOpacity:P0}");
+                    float newGridOpacity = listing.Slider(honeycombGridOpacity, 0f, 1f);
+                    if (Mathf.Abs(newGridOpacity - honeycombGridOpacity) > 0.005f)
+                    {
+                        honeycombGridOpacity = newGridOpacity;
+                        NotifyRadarVisualsChanged();
+                    }
                 }
 
                 bool prevShowId = showIdentificationHorizon;
@@ -345,6 +376,71 @@ public class GeoscapeSettings : ModSettings
                 if (prevShowId != showIdentificationHorizon)
                 {
                     NotifyRadarVisualsChanged();
+                }
+
+                if (showIdentificationHorizon)
+                {
+                    listing.Label($"Identification Horizon Intensity: {identificationRingOpacity:P0}");
+                    float newIdOpacity = listing.Slider(identificationRingOpacity, 0f, 1f);
+                    if (Mathf.Abs(newIdOpacity - identificationRingOpacity) > 0.005f)
+                    {
+                        identificationRingOpacity = newIdOpacity;
+                        NotifyRadarVisualsChanged();
+                    }
+
+                    bool prevUseCustomIdColor = useCustomIdentificationColor;
+                    listing.CheckboxLabeled(
+                        "Use Custom Identification Color",
+                        ref useCustomIdentificationColor,
+                        "Select an explicit custom color for the identification horizon ring rather than automatically deriving a contrasting complementary hue from the detection perimeter.");
+                    if (prevUseCustomIdColor != useCustomIdentificationColor)
+                    {
+                        NotifyRadarVisualsChanged();
+                    }
+
+                    Color activeIdColor = EffectiveIdentificationColor;
+                    Rect idColorBarRect = listing.GetRect(28f);
+                    Widgets.DrawBoxSolid(new Rect(idColorBarRect.x, idColorBarRect.y, 36f, 26f), activeIdColor);
+
+                    if (!useCustomIdentificationColor)
+                    {
+                        Widgets.Label(
+                            new Rect(idColorBarRect.x + 44f, idColorBarRect.y + 3f, idColorBarRect.width - 44f, 24f),
+                            $"Auto-contrasting complementary hue (#{ColorUtility.ToHtmlStringRGB(activeIdColor)})");
+                    }
+                    else
+                    {
+                        string hexStr = "#" + ColorUtility.ToHtmlStringRGB(radarIdentificationColor);
+                        string newHex = Widgets.TextField(new Rect(idColorBarRect.x + 44f, idColorBarRect.y, 90f, 26f), hexStr);
+                        if (newHex != hexStr && ColorUtility.TryParseHtmlString(newHex, out Color parsed))
+                        {
+                            radarIdentificationColor = parsed;
+                            NotifyRadarVisualsChanged();
+                        }
+
+                        float presetStart = idColorBarRect.x + 144f;
+                        float presetWidth = (idColorBarRect.width - 144f) / 5f;
+                        DrawPresetButton(new Rect(presetStart + presetWidth * 0, idColorBarRect.y, presetWidth - 4f, 26f), "Gold", () => radarIdentificationColor = new Color(1f, 0.82f, 0.15f));
+                        DrawPresetButton(new Rect(presetStart + presetWidth * 1, idColorBarRect.y, presetWidth - 4f, 26f), "Cyan", () => radarIdentificationColor = new Color(0f, 0.90f, 1f));
+                        DrawPresetButton(new Rect(presetStart + presetWidth * 2, idColorBarRect.y, presetWidth - 4f, 26f), "Emerald", () => radarIdentificationColor = new Color(0.08f, 0.94f, 0.43f));
+                        DrawPresetButton(new Rect(presetStart + presetWidth * 3, idColorBarRect.y, presetWidth - 4f, 26f), "Crimson", () => radarIdentificationColor = new Color(1f, 0.18f, 0.29f));
+                        DrawPresetButton(new Rect(presetStart + presetWidth * 4, idColorBarRect.y, presetWidth - 4f, 26f), "White", () => radarIdentificationColor = new Color(0.90f, 0.94f, 0.98f));
+
+                        listing.Label($"Identification Red: {Mathf.RoundToInt(radarIdentificationColor.r * 255f)}");
+                        float idR = listing.Slider(radarIdentificationColor.r, 0f, 1f);
+                        listing.Label($"Identification Green: {Mathf.RoundToInt(radarIdentificationColor.g * 255f)}");
+                        float idG = listing.Slider(radarIdentificationColor.g, 0f, 1f);
+                        listing.Label($"Identification Blue: {Mathf.RoundToInt(radarIdentificationColor.b * 255f)}");
+                        float idB = listing.Slider(radarIdentificationColor.b, 0f, 1f);
+
+                        if (Mathf.Abs(idR - radarIdentificationColor.r) > 0.005f ||
+                            Mathf.Abs(idG - radarIdentificationColor.g) > 0.005f ||
+                            Mathf.Abs(idB - radarIdentificationColor.b) > 0.005f)
+                        {
+                            radarIdentificationColor = new Color(idR, idG, idB, 1f);
+                            NotifyRadarVisualsChanged();
+                        }
+                    }
                 }
             }
 
@@ -561,6 +657,10 @@ public class GeoscapeSettings : ModSettings
         usePlayerFactionColor = true;
         radarCustomColor = new Color(0f, 0.90f, 1.0f);
         radarOutlineOpacity = 0.50f;
+        identificationRingOpacity = 0.65f;
+        honeycombGridOpacity = 0.40f;
+        useCustomIdentificationColor = false;
+        radarIdentificationColor = new Color(1.0f, 0.82f, 0.15f);
         surveillanceDimming = 0.25f;
         colonyScoutRadius = 5.0f;
         caravanScoutRadius = 3.0f;
@@ -572,14 +672,22 @@ public class GeoscapeSettings : ModSettings
         OnVisibilityModeChanged();
     }
 
-    private void DrawPresetButton(Rect rect, Color color, string label)
+    private void DrawPresetButton(Rect rect, string label, Action onSelect)
     {
         if (Widgets.ButtonText(rect, label))
         {
-            radarCustomColor = color;
-            usePlayerFactionColor = false;
+            onSelect();
             NotifyRadarVisualsChanged();
         }
+    }
+
+    private void DrawPresetButton(Rect rect, Color color, string label)
+    {
+        DrawPresetButton(rect, label, () =>
+        {
+            radarCustomColor = color;
+            usePlayerFactionColor = false;
+        });
     }
 
     private void NotifyRadarVisualsChanged()
