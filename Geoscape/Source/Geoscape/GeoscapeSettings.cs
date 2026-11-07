@@ -45,6 +45,8 @@ public class GeoscapeSettings : ModSettings
     public bool incursionsRestAtNight = true;
     public bool showIdentificationHorizon = true;
     public StartingSiteSelectionMode startingSiteSelection = StartingSiteSelectionMode.AutomatedLandfall;
+    public bool enableOverlappingEntitySelectionMenu = true;
+    public bool enableIntelligentRightClick = true;
 
     // =========================================================================
     // Transient UI State (Tabs, Scrolling & Dynamic Sizing)
@@ -52,7 +54,7 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.SensoryRadar;
     private static readonly Vector2[] scrollPositions = new Vector2[4];
-    private static readonly float[] tabHeights = { 1180f, 520f, 660f, 480f };
+    private static readonly float[] tabHeights = { 1240f, 520f, 660f, 480f };
 
     public Color EffectiveRadarColor
     {
@@ -107,6 +109,8 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref enableNighttimeSensoryReduction, "enableNighttimeSensoryReduction", true);
         Scribe_Values.Look(ref incursionsRestAtNight, "incursionsRestAtNight", true);
         Scribe_Values.Look(ref startingSiteSelection, "startingSiteSelection", StartingSiteSelectionMode.AutomatedLandfall);
+        Scribe_Values.Look(ref enableOverlappingEntitySelectionMenu, "enableOverlappingEntitySelectionMenu", true);
+        Scribe_Values.Look(ref enableIntelligentRightClick, "enableIntelligentRightClick", true);
     }
 
     // =========================================================================
@@ -395,6 +399,17 @@ public class GeoscapeSettings : ModSettings
             }
         }
 
+        listing.Gap();
+        listing.CheckboxLabeled(
+            "X-COM Style Contact Disambiguation Menu",
+            ref enableOverlappingEntitySelectionMenu,
+            "When entities overlap on the planetary Geoscape (such as a caravan stationed at a colony), open a tactical selection menu rather than blindly cycling.");
+
+        listing.CheckboxLabeled(
+            "Intelligent Geoscape Right-Click Dispatch",
+            ref enableIntelligentRightClick,
+            "Allow right-clicking anywhere on the Geoscape without selecting a source first, intelligently suggesting actions from the nearest colonies and caravans.");
+
         if (!inCampaign)
         {
             rules.WriteToDefaults(this);
@@ -610,6 +625,8 @@ public class GeoscapeSettings : ModSettings
         enableNighttimeSensoryReduction = true;
         incursionsRestAtNight = true;
         showIdentificationHorizon = true;
+        enableOverlappingEntitySelectionMenu = true;
+        enableIntelligentRightClick = true;
         NotifyRadarVisualsChanged();
         OnVisibilityModeChanged();
     }

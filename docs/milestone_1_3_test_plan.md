@@ -62,6 +62,8 @@ To make testing as efficient as possible, every test case is categorised into a 
 | **TC-21** | Mutability Enforcement & Immutable Rule Locking                                 | • Once campaign starts and review window closes, all 7 Immutable rules (`colonyScoutRadius`, `caravanScoutRadius`, `enableNighttimeSensoryReduction`, `incursionsRestAtNight`, `synchronizeMultiVectorRaids`, `enableTacticalIngressFlanking`, `resetThreatCooldownOnArrival`) are greyed out with `(Locked)` suffix.<br>• Reverse visibility transitions (e.g. `PlanetarySurveillance` $\rightarrow$ `FogOfWar`) are greyed out with `(Locked - Cannot reverse)` suffix.<br>• Sliders and checkboxes reject interaction when DevMode is disabled; 0 changes recorded to ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `🟢 Automated Pass`     | Mod Settings / Incursions & Sensory Tabs           |
 | **TC-23** | Automatic Override Invalidation on DevMode Toggle                               | • Toggling `Prefs.DevMode` off in Options immediately deactivates `UnsafeRuleOverride.Requested` and sets `Effective` to false.<br>• Active campaign ledger records `DevOverrideDisabled` with note `Developer mode switched off`.<br>• Mutability constraints immediately re-engage in Mod Settings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `🟢 Automated Pass`     | Options / Mod Settings / Audit Ledger              |
 | **TC-24** | Override Session Ephemerality Across Loads & Restarts                           | • Enabling unsafe override and saving game does not persist override flag into save XML.<br>• Loading save while DevMode is active logs `DevOverrideEnabled` (`Override active when campaign was loaded`).<br>• Restarting RimWorld executable launches with override disabled by default, preventing accidental unintended rule mutations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `🟢 Automated Pass`     | Save/Load Menu / Game Restart                      |
+| **TC-29** | Overlapping Entity Disambiguation Menu (X-COM Style Tactical Selector)          | • When multiple selectable world entities occupy identical/overlapping world coordinates or screen positions, left-clicking or cycling invokes an X-COM style disambiguation float menu.<br>• Menu displays distinct entity entries with faction crests/colours, entity type labels, operational status, member count, and ground sector targeting (`Select Tile X`).<br>• Shift-clicking toggles multi-selection or single-entity deselection without closing the selector.<br>• Settings toggle `enableOverlappingEntitySelectionMenu` allows toggling back to vanilla cycling behaviour.<br>• Un-scanned or concealed entities outside radar identification horizons are cleanly masked as "Unidentified Contact".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `🔴 Focus 1: Immediate` | World Map / Multi-Contact Stack                    |
+| **TC-30** | Smart Source-Agnostic Contextual Dispatch                                       | • Right-clicking any explored world hex without selecting an origin entity presents intelligent contextual orders.<br>• Identifies player caravans and colonies, sorted by proximity to the target.<br>• Generates clear directives: `"Move caravan [CaravanName] to [Target] ([N] tiles away)"` and `"Send caravan from [ColonyName] to [Target] ([N] tiles away)"`.<br>• Targeting player colonies provides local caravan formation and recall actions.<br>• Targeting active listening posts offers outpost dismantle expeditions.<br>• Classic Haze / Fog of War mode suppresses unmonitored terrain leaks and offers optimistic exploration routes.<br>• Settings toggle `enableIntelligentRightClick` allows reverting to vanilla right-click behaviour.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `🔴 Focus 1: Immediate` | World Map / Contextual Float Menu                  |
 
 ---
 
@@ -1177,6 +1179,90 @@ _Objective: Validate that campaign setup on an uncharted globe under Fog of War 
 
 ---
 
+### Test 29: Overlapping Entity Disambiguation Menu (X-COM Style Tactical Selector) (`TC-29`) — 🔴 Focus 1: Immediate
+
+**Purpose:** Verify that when multiple selectable entities (such as caravans, settlements, and world outposts) occupy identical or overlapping planetary hexes or screen positions, selecting the stack presents an X-COM style contact disambiguation float menu instead of silently cycling through candidates.
+
+#### 29.1 Multi-Entity Disambiguation Float Menu
+
+1. Deploy or move a player caravan onto a player settlement, or spawn an incursion/visitor caravan directly on top of an existing settlement/outpost.
+2. Left-click the overlapping stack on the World Map.
+3. **Verify Float Menu Display:**
+   - Instead of immediately selecting one entity and requiring blind clicks to cycle, a float menu opens listing each selectable entity present at the location.
+   - Each option displays the entity's label, faction crest/livery colour, status description, and pawn/member count (e.g. `Colony (5 pawns)`, `Caravan (3 pawns)`).
+   - The menu includes a dedicated ground sector option: `"Select Tile [TileID]"` to target the underlying terrain sector.
+
+#### 29.2 Modifier Shift-Click Toggle Selection
+
+1. With an overlapping stack on the globe, hold `Shift` and left-click the stack.
+2. Select an entity from the disambiguation menu.
+3. **Verify Selection State:**
+   - The selected entity is added to the active selection (or deselected if already selected) without clearing other selected world objects.
+
+#### 29.3 Sensory Masking & Unidentified Contacts
+
+1. Under Fog of War or Classic Haze, locate an unmonitored or outer-detection contact (e.g. dynamic camp or bandit staging ground outside identification range).
+2. Click the contact stack when overlapping.
+3. **Verify Masking:** The entry displays `"Unidentified Contact"` with a generic mystery badge, preventing information leaks before sensor identification.
+
+#### 29.4 Mod Settings Toggle
+
+1. Navigate to `Options → Mod Options → Project Vigilance: Geoscape → General / Overlapping Contacts`.
+2. Toggle off `Enable Overlapping Entity Selection Menu`.
+3. Left-click an overlapping entity stack.
+4. **Verify Vanilla Fallback:** Clicking immediately selects and cycles candidates using vanilla RimWorld cycling mechanics. Re-enabling the option restores the X-COM disambiguation menu.
+
+---
+
+### Test 30: Smart Source-Agnostic Contextual Dispatch (`TC-30`) — 🔴 Focus 1: Immediate
+
+**Purpose:** Verify that right-clicking any explored world hex on the Geoscape presents intelligent contextual dispatch options without requiring a source settlement or caravan to be pre-selected.
+
+#### 30.1 Source-Agnostic Movement & Dispatch Options
+
+1. Deselect all world objects (`Esc` or click on empty space).
+2. Right-click an explored, passable hex within reasonable distance of your colony and/or caravans.
+3. **Verify Context Menu Presentation:**
+   - A contextual float menu opens offering movement and dispatch actions.
+   - For active caravans: `"Move caravan [CaravanName] to [Target] ([N] tiles away)"`.
+   - For player colonies: `"Send caravan from [ColonyName] to [Target] ([N] tiles away)"`.
+   - Options are dynamically sorted by overland tile proximity (closest units/colonies listed first).
+
+#### 30.2 Proximity & Expedition Execution
+
+1. Select `"Send caravan from [ColonyName] to [Target]"`.
+2. **Verify Caravan Dialog:** Opens `Dialog_FormCaravan` targeting the clicked hex with automatic path confirmation.
+3. Select `"Move caravan [CaravanName] to [Target]"`.
+4. **Verify Route Assignment:** The caravan immediately plots or appends its travel route towards the destination.
+
+#### 30.3 Colony Self-Targeting Actions
+
+1. Right-click directly on a player colony without having it selected beforehand.
+2. **Verify Colony Actions:**
+   - Offers `"Form caravan at [ColonyName]"`.
+   - If distant player caravans exist, offers `"Recall caravan [CaravanName] to [ColonyName]"`.
+
+#### 30.4 Outpost Construction & Dismantle Actions
+
+1. Right-click an empty passable hex:
+   - If a nearby player caravan carries necessary construction supplies (Steel, Components, Wood, or Stone), displays `"Establish Automated Listening Post"` or `"Construct Signal Beacon"`.
+2. Right-click an active player listening post:
+   - Displays `"Dismantle Outpost (Recover 75% Materials)"` offering to dispatch nearby caravans to salvage the station.
+
+#### 30.5 Fog-of-War Exploration Routing
+
+1. Under `Classic Haze` / `Fog of War`, right-click an unrevealed black hex.
+2. **Verify Anti-Leak Guard:** Impassability status of unrevealed hexes is not leaked into the menu; options offer exploration directives rather than blocked error notifications.
+
+#### 30.6 Mod Settings Toggle
+
+1. Navigate to `Options → Mod Options → Project Vigilance: Geoscape`.
+2. Toggle off `Enable Intelligent Right-Click Dispatch`.
+3. Right-click on the world map with no entity selected.
+4. **Verify Fallback:** Vanilla right-click behaviour is maintained (no menu is spawned when no source is selected).
+
+---
+
 ## In-Game Verification Sign-Off Checklist
 
 ### Priority 1: Active In-Game Focus (Immediate)
@@ -1189,6 +1275,8 @@ _Objective: Validate that campaign setup on an uncharted globe under Fog of War 
 - [ ] 🔴 **TC-18:** Wizard default campaign creation (`FogOfWar`) and pinned `CampaignCreated` ledger snapshot verified.
 - [ ] 🔴 **TC-27:** Dual-layer orbital rendering across Surface and Orbit layers (`<fullyExpandedInSpace>`), shroud masking adherence, and dynamic faction livery colour tinting verified.
 - [ ] 🔴 **TC-28:** Uncharted globe starting site selection automated landfall paradigm, black globe bypass under Fog of War / Hardcore Vigilance, optional manual globe targeting fallback, and Step 3 vanilla compatibility verified.
+- [ ] 🔴 **TC-29:** Overlapping entity disambiguation menu, faction livery rendering, status details, shift-click toggle, and sensory masking verified.
+- [ ] 🔴 **TC-30:** Smart source-agnostic contextual dispatch, proximity ordering, move/send caravan formatting, and fog-of-war exploration routing verified.
 
 ### Priority 2: Core Colony Playtest
 

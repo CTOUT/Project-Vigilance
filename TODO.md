@@ -87,6 +87,13 @@
   - **DevMode-Gated Session-Only Override:** `allowUnsafeRuleTransitions` requires active `Prefs.DevMode`, resets on game exit, and clears automatically when DevMode is turned off.
   - **Legacy Save Migration:** Adopt current ModSettings defaults on first load of pre-1.3 saves, opening a 1-day review window with a deferred notification letter.
 - [x] **Cross-Platform Linux & Windows Deployment Pipeline:** Added native Bash deployment automation script ([`scripts/deploy-geoscape.sh`](scripts/deploy-geoscape.sh)) and cross-platform PowerShell ([`scripts/deploy-geoscape.ps1`](scripts/deploy-geoscape.ps1)) supporting both Linux / CachyOS (symlinks, `~/.local/share` paths, `--skip-build` / `--copy` modes) and Windows (NTFS junctions). Implemented cross-platform MSBuild OS detection and non-blocking assembly rotation across game launches.
+- [x] **Overlapping Entity Disambiguation Menu (X-COM Style Tactical Selector):**
+  - Harmony prefix on `WorldSelector.SelectFirstOrNextFrom` intercepting multi-entity clicks on co-located world objects, settlements, and caravans.
+  - Presents an X-COM style contact disambiguation float menu with faction crests, contact status descriptions, member counts, and sector selection (`Select Tile X`), eliminating click ambiguity while preserving modifier Shift-click selection and sensory masking.
+- [x] **Smart Source-Agnostic Contextual Dispatch:**
+  - Enhanced right-click interaction in `WorldSelector.HandleWorldClicks` eliminating the requirement to pre-select an origin settlement or caravan.
+  - Dynamically discovers player caravans and colonies, sorted by proximity to target, presenting clear contextual options (_"Move caravan [CaravanName] to [Target] ([N] tiles away)"_ and _"Send caravan from [ColonyName] to [Target] ([N] tiles away)"_).
+  - Integrates listening post dismantle expeditions, caravan formation, and fog-of-war exploration routing.
 
 ---
 
@@ -97,10 +104,6 @@
   - **Landing Cargo / Mission Assets:** Keep heavy starting resources (bulk steel, food crates, components) off-map in orbital staging pods, deploying via drop pods only when the player stakes their colony claim via Colony Beacon.
   - **Scenario Opt-In Architecture:** Configurable via `ExpeditionStartMode` (`Disabled`, `ScenarioDefault`, `ForceExpedition`) with XML `DefModExtension` support, automatically bypassing orbital/space starts (Odyssey, GravShips, SOS2).
 - [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
-- [ ] **Overlapping Entity Disambiguation Menu (X-COM Style Tactical Selector):**
-  - When multiple world objects, caravans, or settlements occupy identical or overlapping world hexes, clicking or right-clicking the co-located stack opens an X-COM style disambiguation menu displaying all entities with their faction heraldry, status summaries, and direct command options, eliminating click-target ambiguity.
-- [ ] **Smart Source-Agnostic Contextual Dispatch:**
-  - Enhance right-click functionality across the Geoscape globe to eliminate the prerequisite of selecting a specific origin settlement or caravan beforehand. Right-clicking an explored hex presents intelligent dispatch options (e.g. _"Send caravan from [Nearest Colony] to [Hex]"_ or _"Move [Caravan Name] to [Hex]"_) evaluated dynamically based on overland proximity and operational readiness.
 - [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
 - [ ] **Future Investigation: Elevation-Aware Visual Observation:**
