@@ -24,17 +24,12 @@ public static class WorldPathing_FindPath_Patch
             __state = OptimisticPathingUtility.Active;
 
             bool isPlayerContext = (caravan != null && caravan.Faction?.IsPlayer == true) ||
-                                  (caravan == null && (OptimisticPathingUtility.IsRoutePlannerActive || OptimisticPathingUtility.ForceActive));
+                                  (caravan == null && (OptimisticPathingUtility.IsPlayerPlanningRoute || OptimisticPathingUtility.ForceActive));
 
             if (isPlayerContext && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
                 OptimisticPathingUtility.Active = true;
             }
-        }
-
-        public static void Postfix(bool __state)
-        {
-            OptimisticPathingUtility.Active = __state;
         }
 
         public static Exception? Finalizer(Exception? __exception, bool __state)
@@ -76,8 +71,14 @@ public static class WorldPathing_FindPath_Patch
     {
         public static bool Prefix(PlanetTile startTile, PlanetTile destTile, ref bool __result)
         {
+            if (!startTile.Valid || !destTile.Valid)
+            {
+                __result = false;
+                return false;
+            }
+
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsPlayerPlanningRoute && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 __result = true;
                 return false;
@@ -93,8 +94,14 @@ public static class WorldPathing_FindPath_Patch
     {
         public static bool Prefix(PlanetTile tile, ref bool __result)
         {
+            if (!tile.Valid)
+            {
+                __result = false;
+                return false;
+            }
+
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsPlayerPlanningRoute && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tile))
                 {
@@ -113,8 +120,14 @@ public static class WorldPathing_FindPath_Patch
     {
         public static bool Prefix(PlanetTile tile, ref bool __result)
         {
+            if (!tile.Valid)
+            {
+                __result = false;
+                return false;
+            }
+
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsPlayerPlanningRoute && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tile))
                 {
@@ -133,8 +146,14 @@ public static class WorldPathing_FindPath_Patch
     {
         public static bool Prefix(PlanetTile tileID, ref bool __result)
         {
+            if (!tileID.Valid)
+            {
+                __result = true;
+                return false;
+            }
+
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsPlayerPlanningRoute && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tileID))
                 {
@@ -153,8 +172,14 @@ public static class WorldPathing_FindPath_Patch
     {
         public static bool Prefix(PlanetTile tile, ref float __result)
         {
+            if (!tile.Valid)
+            {
+                __result = 1000f;
+                return false;
+            }
+
             if (OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
-                (OptimisticPathingUtility.IsRoutePlannerActive && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
+                (OptimisticPathingUtility.IsPlayerPlanningRoute && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar))
             {
                 if (OptimisticPathingUtility.IsTileUnexplored(tile))
                 {
@@ -269,7 +294,7 @@ public static class WorldPathing_FindPath_Patch
 
     /// <summary>
     /// Guards against null transferables list in Dialog_FormCaravan if Notify_ChoseRoute
-    /// is called prior to Window.PostOpen() executing.
+    /// is called prior to Window.PostOpen() executing, and establishes optimistic pathing context.
     /// </summary>
     [HarmonyPatch(typeof(Dialog_FormCaravan), "SelectApproximateBestTravelSupplies")]
     public static class Dialog_FormCaravan_SelectApproximateBestTravelSupplies_Patch
@@ -277,14 +302,27 @@ public static class WorldPathing_FindPath_Patch
         private static readonly System.Reflection.FieldInfo transferablesField =
             AccessTools.Field(typeof(Dialog_FormCaravan), "transferables");
 
-        public static bool Prefix(Dialog_FormCaravan __instance)
+        public static bool Prefix(Dialog_FormCaravan __instance, out bool __state)
         {
+            __state = OptimisticPathingUtility.Active;
             var transferables = (List<TransferableOneWay>?)transferablesField?.GetValue(__instance);
             if (transferables == null)
             {
                 return false;
             }
+
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
+            {
+                OptimisticPathingUtility.Active = true;
+            }
+
             return true;
+        }
+
+        public static Exception? Finalizer(Exception? __exception, bool __state)
+        {
+            OptimisticPathingUtility.Active = __state;
+            return __exception;
         }
     }
 }

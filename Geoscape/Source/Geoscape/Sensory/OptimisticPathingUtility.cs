@@ -51,7 +51,57 @@ public static class OptimisticPathingUtility
         return GetCaravan(pather)?.Faction?.IsPlayer == true;
     }
 
-    public static bool IsRoutePlannerActive => Find.WorldRoutePlanner != null && Find.WorldRoutePlanner.Active;
+    [ThreadStatic]
+    public static int ActiveFormCaravanCount;
+
+    public static bool IsRoutePlannerActive
+    {
+        get
+        {
+            try
+            {
+                return Find.WorldRoutePlanner != null && Find.WorldRoutePlanner.Active;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Checks whether the player is actively forming a caravan via Dialog_FormCaravan.
+    /// </summary>
+    public static bool IsFormCaravanActive
+    {
+        get
+        {
+            if (ActiveFormCaravanCount > 0)
+            {
+                return true;
+            }
+
+            try
+            {
+                if (Find.WindowStack != null && Find.WindowStack.IsOpen<Dialog_FormCaravan>())
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // In headless tests or mock environments WindowStack may be null
+            }
+
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Evaluates whether the player is in any caravan route planning or caravan formation context.
+    /// </summary>
+    public static bool IsPlayerPlanningRoute =>
+        IsRoutePlannerActive || IsFormCaravanActive;
 
     public struct Scope : IDisposable
     {
