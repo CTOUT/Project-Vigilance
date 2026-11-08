@@ -212,6 +212,15 @@ public static class SensoryNarrativeUtility
     }
 
     /// <summary>
+    /// Returns the world map label for an anomalous landmark, ancient ruin, or otherworldly structure
+    /// that has been detected but not yet identified.
+    /// </summary>
+    public static string GetUnknownLandmarkLabel()
+    {
+        return IsLowTech ? "unknown landmark" : "unidentified landmark";
+    }
+
+    /// <summary>
     /// Returns the inspect pane status text for an unidentified static site or settlement.
     /// </summary>
     public static string GetUnknownSiteInspectString()
@@ -225,6 +234,19 @@ public static class SensoryNarrativeUtility
     }
 
     /// <summary>
+    /// Returns the inspect pane status text for an anomalous landmark, monolith, or ancient complex.
+    /// </summary>
+    public static string GetUnknownLandmarkInspectString()
+    {
+        if (IsLowTech)
+        {
+            return "Status: Unidentified Landmark\nOur scouts report ancient architectural formations or otherworldly shapes rising from the wilderness. Move closer with a caravan to inspect.";
+        }
+
+        return "Status: Anomalous Landmark\nLong-range sensors register prominent architectural geometry or exotic energy signatures at these coordinates. Dispatch an expedition or expand sensor coverage to classify.";
+    }
+
+    /// <summary>
     /// Returns the atmospheric info card / tooltip description for an unidentified static site or settlement.
     /// </summary>
     public static string GetUnknownSiteDescription()
@@ -235,5 +257,18 @@ public static class SensoryNarrativeUtility
         }
 
         return "An unidentified surface site detected beyond identification range. Sensor telemetry confirms artificial structures or encampment signatures at these coordinates, but closer reconnaissance is required to determine site classification and faction ownership.";
+    }
+
+    /// <summary>
+    /// Returns the atmospheric info card description for an anomalous landmark or ancient structure.
+    /// </summary>
+    public static string GetUnknownLandmarkDescription()
+    {
+        if (IsLowTech)
+        {
+            return "Ancient megaliths, monolithic ruins, or otherworldly formations sighted across the frontier. Closer exploration is required to uncover their nature.";
+        }
+
+        return "An anomalous surface structure detected beyond identification range. Sensor telemetry confirms pre-collapse architectural remnants or unusual energy resonance at these coordinates.";
     }
 }

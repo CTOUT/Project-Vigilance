@@ -210,7 +210,15 @@ public class GeoscapeSettings : ModSettings
         Rect bannerRect = listing.GetRect(28f);
         if (campaign != null)
         {
-            if (UnsafeRuleOverride.Effective)
+            if (campaign.HasExternalModifications)
+            {
+                Widgets.DrawBoxSolid(bannerRect, new Color(0.5f, 0.1f, 0.1f, 0.65f));
+                Widgets.DrawHighlight(bannerRect);
+                GUI.color = new Color(1f, 0.35f, 0.35f);
+                Widgets.Label(bannerRect.ContractedBy(4f), "Active Save: EXTERNAL SAVE MODIFICATION DETECTED (Active rules diverge from audit ledger)");
+                GUI.color = Color.white;
+            }
+            else if (UnsafeRuleOverride.Effective)
             {
                 Widgets.DrawBoxSolid(bannerRect, new Color(0.4f, 0.1f, 0.1f, 0.5f));
                 Widgets.DrawHighlight(bannerRect);
@@ -606,9 +614,25 @@ public class GeoscapeSettings : ModSettings
 
             string statusText = $"• Active Profile: {campaign.Rules.DetectCurrentProfile().GetDisplayName()}\n" +
                                 $"• Schema Version: v{campaign.SchemaVersion}\n" +
+                                $"• Campaign Integrity: {campaign.IntegrityStatusLabel}\n" +
                                 $"• Review Window: {(campaign.ReviewWindowOpen ? "Open (Day 1 Grace Period)" : "Locked")}\n" +
                                 $"• Ledger Records: {campaign.Ledger.Count} entries";
             listing.Label(statusText);
+
+            if (campaign.HasExternalModifications)
+            {
+                RuleChangeRecord? lastMod = campaign.Ledger.LastOrDefault(r => r.kind == RuleChangeKind.ExternalModification);
+                if (lastMod != null)
+                {
+                    listing.Gap(4f);
+                    Rect warnRect = listing.GetRect(44f);
+                    Widgets.DrawBoxSolid(warnRect, new Color(0.35f, 0.08f, 0.08f, 0.6f));
+                    Widgets.DrawBox(warnRect);
+                    GUI.color = new Color(1f, 0.45f, 0.45f);
+                    Widgets.Label(warnRect.ContractedBy(6f), $"[Save Integrity Warning] {lastMod.note}");
+                    GUI.color = Color.white;
+                }
+            }
 
             if (campaign.ReviewWindowOpen)
             {

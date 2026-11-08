@@ -47,6 +47,21 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
         // 1. If the player caravan is standing on the clicked hex (Immediate local deployment)
         if (caravan.Tile == clickedTile)
         {
+            Settlement? localSettlement = Find.WorldObjects?.SettlementAt(clickedTile);
+            if (localSettlement != null)
+            {
+                if (caravan.pather != null && caravan.pather.Moving)
+                {
+                    __result ??= new List<FloatMenuOption>();
+                    __result.Add(new FloatMenuOption($"Halt & hold position outside {localSettlement.Label}", () =>
+                    {
+                        caravan.pather.StopDead();
+                        Messages.Message($"Caravan {caravan.LabelCap} halted outside {localSettlement.Label}.", caravan, MessageTypeDefOf.TaskCompletion, historical: false);
+                    }, MenuOptionPriority.High));
+                }
+                return;
+            }
+
             bool hasOutpost = Find.WorldObjects?.AllWorldObjects != null &&
                               Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
 
@@ -198,119 +213,161 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 return;
             }
 
-            // 3. Distant Explored Passable Tile: Allow queued travel + construction
+            // 3. Distant Explored Passable Tile: Allow queued travel + construction / staging
             if (Find.World != null && !Find.World.Impassable(clickedTile))
             {
-                bool hasOutpost = Find.WorldObjects?.AllWorldObjects != null &&
-                                  Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
+                __result ??= new List<FloatMenuOption>();
 
-                if (!hasOutpost)
+                Settlement? targetSettlement = Find.WorldObjects?.SettlementAt(clickedTile);
+                if (targetSettlement != null)
                 {
-                    __result ??= new List<FloatMenuOption>();
+                    // Target tile contains an established settlement: offer staging outside the settlement
+                    string holdLabel = targetSettlement.Faction?.IsPlayer == true
+                        ? $"Move to hex (Hold position outside {targetSettlement.Label})"
+                        : $"Move to hex (Hold position outside {targetSettlement.LabelCap})";
 
-                    // Move here
-                    __result.Add(new FloatMenuOption($"Move to Tile {clickedTile}", () =>
-                    {
-                        caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
-                    }, MenuOptionPriority.Default));
-
-                    // Travel and deploy Automated Listening Post
-                    bool canAffordRelay = OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out string missingRelay);
-                    string relayLabel = canAffordRelay
-                        ? $"Travel and deploy Automated Listening Post ({OutpostMaterialUtility.AutomatedRelaySteelCost} Steel, {OutpostMaterialUtility.AutomatedRelayComponentCost} Components)"
-                        : $"Travel and deploy Automated Listening Post ({missingRelay})";
-
-                    __result.Add(new FloatMenuOption(relayLabel, () =>
-                    {
-                        if (OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out _))
+                    __result.Add(new FloatMenuOption(
+                        holdLabel,
+                        () =>
                         {
                             caravan.pather.StartPath(
                                 clickedTile,
-                                new CaravanArrivalAction_ConstructOutpost(clickedTile, ListeningPostKind.AutomatedRelay),
+                                new CaravanArrivalAction_HoldPosition(clickedTile, targetSettlement.Label),
                                 repathImmediately: true,
                                 resetPauseStatus: true);
-                            Messages.Message($"Caravan {caravan.LabelCap} en route to deploy automated listening post at Tile {clickedTile}.", MessageTypeDefOf.PositiveEvent, false);
-                        }
-                    }, MenuOptionPriority.Default)
-                    {
-                        Disabled = !canAffordRelay
-                    });
-
-                    // Travel and construct Signal Beacon
-                    bool canAffordBeacon = OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out string missingBeacon);
-                    if (!canAffordBeacon)
-                    {
-                        __result.Add(new FloatMenuOption($"Travel and construct Signal Beacon ({missingBeacon})", null, MenuOptionPriority.Default)
-                        {
-                            Disabled = true
-                        });
-                    }
-                    else
-                    {
-                        List<ThingDef> materials = OutpostMaterialUtility.GetAvailableBeaconMaterials(caravan);
-                        List<ThingDef> completeMaterials = materials.Where(m => OutpostMaterialUtility.CountItem(caravan, m) >= OutpostMaterialUtility.SignalBeaconWoodOrStoneCost).ToList();
-
-                        if (completeMaterials.Count > 0)
-                        {
-                            for (int m = 0; m < completeMaterials.Count; m++)
-                            {
-                                ThingDef mat = completeMaterials[m];
-                                string beaconLabel = $"Travel and construct Signal Beacon ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} {mat.LabelCap})";
-                                __result.Add(new FloatMenuOption(beaconLabel, () =>
-                                {
-                                    if (OutpostMaterialUtility.CountItem(caravan, mat) >= OutpostMaterialUtility.SignalBeaconWoodOrStoneCost)
-                                    {
-                                        caravan.pather.StartPath(
-                                            clickedTile,
-                                            new CaravanArrivalAction_ConstructOutpost(clickedTile, ListeningPostKind.SignalBeacon, mat),
-                                            repathImmediately: true,
-                                            resetPauseStatus: true);
-                                        Messages.Message($"Caravan {caravan.LabelCap} en route to construct signal beacon at Tile {clickedTile}.", MessageTypeDefOf.PositiveEvent, false);
-                                    }
-                                }, MenuOptionPriority.Default));
-                            }
-                        }
-                        else
-                        {
-                            string beaconLabel = $"Travel and construct Signal Beacon ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} Wood/Stone)";
-                            __result.Add(new FloatMenuOption(beaconLabel, () =>
-                            {
-                                if (OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _))
-                                {
-                                    caravan.pather.StartPath(
-                                        clickedTile,
-                                        new CaravanArrivalAction_ConstructOutpost(clickedTile, ListeningPostKind.SignalBeacon),
-                                        repathImmediately: true,
-                                        resetPauseStatus: true);
-                                    Messages.Message($"Caravan {caravan.LabelCap} en route to construct signal beacon at Tile {clickedTile}.", MessageTypeDefOf.PositiveEvent, false);
-                                }
-                            }, MenuOptionPriority.Default));
-                        }
-                    }
+                        },
+                        MenuOptionPriority.Default));
                 }
                 else
                 {
-                    WorldObject_ListeningPost? post = Find.WorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
-                    if (post != null)
+                    bool hasOutpost = Find.WorldObjects?.AllWorldObjects != null &&
+                                      Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
+
+                    if (!hasOutpost)
                     {
-                        __result ??= new List<FloatMenuOption>();
-
                         // Move here
-                        __result.Add(new FloatMenuOption($"Move to Tile {clickedTile}", () =>
-                        {
-                            caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
-                        }, MenuOptionPriority.Default));
+                        __result.Add(new FloatMenuOption(
+                            $"Move to Tile {clickedTile.tileId}",
+                            () =>
+                            {
+                                caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
+                            },
+                            MenuOptionPriority.Default));
 
-                        // Travel and Dismantle
-                        __result.Add(new FloatMenuOption($"Travel and Dismantle {post.LabelCap} (Recover 75% Materials)", () =>
+                        // Travel and deploy Automated Listening Post
+                        bool canAffordRelay = OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out string missingRelay);
+                        string relayLabel = canAffordRelay
+                            ? $"Travel and deploy Automated Listening Post ({OutpostMaterialUtility.AutomatedRelaySteelCost} Steel, {OutpostMaterialUtility.AutomatedRelayComponentCost} Components)"
+                            : $"Travel and deploy Automated Listening Post ({missingRelay})";
+
+                        __result.Add(new FloatMenuOption(
+                            relayLabel,
+                            () =>
+                            {
+                                if (OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out _))
+                                {
+                                    caravan.pather.StartPath(
+                                        clickedTile,
+                                        new CaravanArrivalAction_ConstructOutpost(clickedTile, ListeningPostKind.AutomatedRelay),
+                                        repathImmediately: true,
+                                        resetPauseStatus: true);
+                                    Messages.Message($"Caravan {caravan.LabelCap} en route to deploy automated listening post at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                }
+                            },
+                            MenuOptionPriority.Default)
                         {
-                            caravan.pather.StartPath(
-                                clickedTile,
-                                new CaravanArrivalAction_DismantleOutpost(post, clickedTile),
-                                repathImmediately: true,
-                                resetPauseStatus: true);
-                            Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {clickedTile}.", MessageTypeDefOf.PositiveEvent, false);
-                        }, MenuOptionPriority.Default));
+                            Disabled = !canAffordRelay
+                        });
+
+                        // Travel and construct Signal Beacon
+                        bool canAffordBeacon = OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out string missingBeacon);
+                        if (!canAffordBeacon)
+                        {
+                            __result.Add(new FloatMenuOption(
+                                $"Travel and construct Signal Beacon ({missingBeacon})",
+                                null,
+                                MenuOptionPriority.Default)
+                            {
+                                Disabled = true
+                            });
+                        }
+                        else
+                        {
+                            List<ThingDef> materials = OutpostMaterialUtility.GetAvailableBeaconMaterials(caravan);
+                            List<ThingDef> completeMaterials = materials.Where(m => OutpostMaterialUtility.CountItem(caravan, m) >= OutpostMaterialUtility.SignalBeaconWoodOrStoneCost).ToList();
+
+                            if (completeMaterials.Count > 0)
+                            {
+                                for (int m = 0; m < completeMaterials.Count; m++)
+                                {
+                                    ThingDef mat = completeMaterials[m];
+                                    string beaconLabel = $"Travel and construct Signal Beacon ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} {mat.LabelCap})";
+                                    __result.Add(new FloatMenuOption(
+                                        beaconLabel,
+                                        () =>
+                                        {
+                                            if (OutpostMaterialUtility.CountItem(caravan, mat) >= OutpostMaterialUtility.SignalBeaconWoodOrStoneCost)
+                                            {
+                                                caravan.pather.StartPath(
+                                                    clickedTile,
+                                                    new CaravanArrivalAction_ConstructOutpost(clickedTile, ListeningPostKind.SignalBeacon, mat),
+                                                    repathImmediately: true,
+                                                    resetPauseStatus: true);
+                                                Messages.Message($"Caravan {caravan.LabelCap} en route to construct signal beacon at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                            }
+                                        },
+                                        MenuOptionPriority.Default));
+                                }
+                            }
+                            else
+                            {
+                                string beaconLabel = $"Travel and construct Signal Beacon ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} Wood/Stone)";
+                                __result.Add(new FloatMenuOption(
+                                    beaconLabel,
+                                    () =>
+                                    {
+                                        if (OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _))
+                                        {
+                                            caravan.pather.StartPath(
+                                                clickedTile,
+                                                new CaravanArrivalAction_ConstructOutpost(clickedTile, ListeningPostKind.SignalBeacon),
+                                                repathImmediately: true,
+                                                resetPauseStatus: true);
+                                            Messages.Message($"Caravan {caravan.LabelCap} en route to construct signal beacon at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                        }
+                                    },
+                                    MenuOptionPriority.Default));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        WorldObject_ListeningPost? post = Find.WorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
+                        if (post != null)
+                        {
+                            // Move here
+                            __result.Add(new FloatMenuOption(
+                                $"Move to Tile {clickedTile.tileId}",
+                                () =>
+                                {
+                                    caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
+                                },
+                                MenuOptionPriority.Default));
+
+                            // Travel and Dismantle
+                            __result.Add(new FloatMenuOption(
+                                $"Travel and Dismantle {post.LabelCap} (Recover 75% Materials)",
+                                () =>
+                                {
+                                    caravan.pather.StartPath(
+                                        clickedTile,
+                                        new CaravanArrivalAction_DismantleOutpost(post, clickedTile),
+                                        repathImmediately: true,
+                                        resetPauseStatus: true);
+                                    Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                },
+                                MenuOptionPriority.Default));
+                        }
                     }
                 }
             }
@@ -319,7 +376,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
             {
                 __result ??= new List<FloatMenuOption>();
 
-                __result.Add(new FloatMenuOption($"Tile {clickedTile} is impassable (Mountain / Ocean)", null, MenuOptionPriority.Default)
+                __result.Add(new FloatMenuOption($"Tile {clickedTile.tileId} is impassable (Mountain / Ocean)", null, MenuOptionPriority.Default)
                 {
                     Disabled = true
                 });
@@ -327,10 +384,13 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 PlanetTile bestNearby = CaravanUtility.BestGotoDestNear(clickedTile, caravan);
                 if (bestNearby.Valid && bestNearby != caravan.Tile)
                 {
-                    __result.Add(new FloatMenuOption($"Move to nearest passable tile (Tile {bestNearby})", () =>
-                    {
-                        caravan.pather.StartPath(bestNearby, null, repathImmediately: true, resetPauseStatus: true);
-                    }, MenuOptionPriority.Default));
+                    __result.Add(new FloatMenuOption(
+                        $"Move to nearest passable tile (Tile {bestNearby.tileId})",
+                        () =>
+                        {
+                            caravan.pather.StartPath(bestNearby, null, repathImmediately: true, resetPauseStatus: true);
+                        },
+                        MenuOptionPriority.Default));
 
                     bool hasOutpostNearby = Find.WorldObjects?.AllWorldObjects != null &&
                                             Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == bestNearby);
@@ -339,42 +399,48 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                     {
                         bool canAffordRelay = OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out string missingRelay);
                         string relayLabel = canAffordRelay
-                            ? $"Travel and deploy Automated Listening Post (Nearest: Tile {bestNearby})"
-                            : $"Travel and deploy Automated Listening Post (Nearest: Tile {bestNearby}) ({missingRelay})";
+                            ? $"Travel and deploy Automated Listening Post (Nearest: Tile {bestNearby.tileId})"
+                            : $"Travel and deploy Automated Listening Post (Nearest: Tile {bestNearby.tileId}) ({missingRelay})";
 
-                        __result.Add(new FloatMenuOption(relayLabel, () =>
-                        {
-                            if (OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out _))
+                        __result.Add(new FloatMenuOption(
+                            relayLabel,
+                            () =>
                             {
-                                caravan.pather.StartPath(
-                                    bestNearby,
-                                    new CaravanArrivalAction_ConstructOutpost(bestNearby, ListeningPostKind.AutomatedRelay),
-                                    repathImmediately: true,
-                                    resetPauseStatus: true);
-                                Messages.Message($"Caravan {caravan.LabelCap} en route to deploy automated listening post at Tile {bestNearby}.", MessageTypeDefOf.PositiveEvent, false);
-                            }
-                        }, MenuOptionPriority.Default)
+                                if (OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out _))
+                                {
+                                    caravan.pather.StartPath(
+                                        bestNearby,
+                                        new CaravanArrivalAction_ConstructOutpost(bestNearby, ListeningPostKind.AutomatedRelay),
+                                        repathImmediately: true,
+                                        resetPauseStatus: true);
+                                    Messages.Message($"Caravan {caravan.LabelCap} en route to deploy automated listening post at Tile {bestNearby.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                }
+                            },
+                            MenuOptionPriority.Default)
                         {
                             Disabled = !canAffordRelay
                         });
 
                         bool canAffordBeacon = OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out string missingBeacon);
                         string beaconLabel = canAffordBeacon
-                            ? $"Travel and construct Signal Beacon (Nearest: Tile {bestNearby})"
-                            : $"Travel and construct Signal Beacon (Nearest: Tile {bestNearby}) ({missingBeacon})";
+                            ? $"Travel and construct Signal Beacon (Nearest: Tile {bestNearby.tileId})"
+                            : $"Travel and construct Signal Beacon (Nearest: Tile {bestNearby.tileId}) ({missingBeacon})";
 
-                        __result.Add(new FloatMenuOption(beaconLabel, () =>
-                        {
-                            if (OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _))
+                        __result.Add(new FloatMenuOption(
+                            beaconLabel,
+                            () =>
                             {
-                                caravan.pather.StartPath(
-                                    bestNearby,
-                                    new CaravanArrivalAction_ConstructOutpost(bestNearby, ListeningPostKind.SignalBeacon),
-                                    repathImmediately: true,
-                                    resetPauseStatus: true);
-                                Messages.Message($"Caravan {caravan.LabelCap} en route to construct signal beacon at Tile {bestNearby}.", MessageTypeDefOf.PositiveEvent, false);
-                            }
-                        }, MenuOptionPriority.Default)
+                                if (OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _))
+                                {
+                                    caravan.pather.StartPath(
+                                        bestNearby,
+                                        new CaravanArrivalAction_ConstructOutpost(bestNearby, ListeningPostKind.SignalBeacon),
+                                        repathImmediately: true,
+                                        resetPauseStatus: true);
+                                    Messages.Message($"Caravan {caravan.LabelCap} en route to construct signal beacon at Tile {bestNearby.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                }
+                            },
+                            MenuOptionPriority.Default)
                         {
                             Disabled = !canAffordBeacon
                         });

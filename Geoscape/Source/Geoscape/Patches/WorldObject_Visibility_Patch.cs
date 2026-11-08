@@ -583,7 +583,7 @@ public static class WorldObject_Visibility_Patch
     }
 
     // ---------------------------------------------------------
-    // 6. Detection-Only Unknown Site Masking (Settlements, Sites, Outposts, Camps)
+    // 6. Detection-Only Unknown Site Masking (Settlements, Sites, Outposts, Camps, Landmarks)
     // ---------------------------------------------------------
     [HarmonyPatch]
     public static class UnknownSite_Label_Patch
@@ -599,7 +599,9 @@ public static class WorldObject_Visibility_Patch
         {
             if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
             {
-                __result = SensoryNarrativeUtility.GetUnknownSiteLabel();
+                __result = LandmarkSensoryUtility.IsAnomalousStructure(__instance)
+                    ? SensoryNarrativeUtility.GetUnknownLandmarkLabel()
+                    : SensoryNarrativeUtility.GetUnknownSiteLabel();
                 return false;
             }
             return true;
@@ -620,7 +622,9 @@ public static class WorldObject_Visibility_Patch
         {
             if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
             {
-                __result = GetUnknownSiteExpandingTexture();
+                __result = LandmarkSensoryUtility.IsAnomalousStructure(__instance)
+                    ? LandmarkSensoryUtility.GetUnknownLandmarkExpandingTexture()
+                    : GetUnknownSiteExpandingTexture();
                 return false;
             }
             return true;
@@ -640,7 +644,9 @@ public static class WorldObject_Visibility_Patch
         {
             if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
             {
-                __result = UnknownSiteIconColor;
+                __result = LandmarkSensoryUtility.IsAnomalousStructure(__instance)
+                    ? LandmarkSensoryUtility.TacticalCyan
+                    : UnknownSiteIconColor;
                 return false;
             }
             return true;
@@ -678,7 +684,9 @@ public static class WorldObject_Visibility_Patch
         {
             if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
             {
-                __result = GetUnknownSiteWorldMaterial();
+                __result = LandmarkSensoryUtility.IsAnomalousStructure(__instance)
+                    ? LandmarkSensoryUtility.GetUnknownLandmarkWorldMaterial()
+                    : GetUnknownSiteWorldMaterial();
                 return false;
             }
             return true;
@@ -702,7 +710,9 @@ public static class WorldObject_Visibility_Patch
         {
             if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
             {
-                __result = SensoryNarrativeUtility.GetUnknownSiteInspectString();
+                __result = LandmarkSensoryUtility.IsAnomalousStructure(__instance)
+                    ? SensoryNarrativeUtility.GetUnknownLandmarkInspectString()
+                    : SensoryNarrativeUtility.GetUnknownSiteInspectString();
                 return false;
             }
             return true;
@@ -721,7 +731,9 @@ public static class WorldObject_Visibility_Patch
         {
             if (SensoryManager.ShouldMaskWorldObjectAsUnknown(__instance))
             {
-                __result = SensoryNarrativeUtility.GetUnknownSiteDescription();
+                __result = LandmarkSensoryUtility.IsAnomalousStructure(__instance)
+                    ? SensoryNarrativeUtility.GetUnknownLandmarkDescription()
+                    : SensoryNarrativeUtility.GetUnknownSiteDescription();
                 return false;
             }
             return true;

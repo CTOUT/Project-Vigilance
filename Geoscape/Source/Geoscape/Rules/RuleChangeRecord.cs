@@ -32,7 +32,10 @@ public enum RuleChangeKind
     DevOverrideEnabled,
 
     /// <summary>Developer override disabled.</summary>
-    DevOverrideDisabled
+    DevOverrideDisabled,
+
+    /// <summary>External unrecorded save-file modification detected on load.</summary>
+    ExternalModification
 }
 
 /// <summary>

@@ -27,6 +27,24 @@ public enum CampaignEntryPath
 }
 
 /// <summary>
+/// Authoritative governance and integrity status of an active campaign save.
+/// </summary>
+public enum CampaignIntegrityStatus
+{
+    /// <summary>Active rules match replayed audit ledger history perfectly.</summary>
+    Governed,
+
+    /// <summary>Campaign is within the initial 1-day review grace window.</summary>
+    ReviewActive,
+
+    /// <summary>Developer Mode unsafe override has been activated or used.</summary>
+    DeveloperOverride,
+
+    /// <summary>Active rules diverge from audit ledger without recorded authorization.</summary>
+    ExternallyModified
+}
+
+/// <summary>
 /// WorldComponent holding authoritative campaign rules, audit ledger, and legacy migration lifecycle for the active save.
 /// </summary>
 public sealed class GeoscapeCampaignRules : WorldComponent
@@ -55,6 +73,40 @@ public sealed class GeoscapeCampaignRules : WorldComponent
     public IReadOnlyList<RuleChangeRecord> Ledger => ledger;
     public int SchemaVersion => schemaVersion;
     public int ReviewWindowEndsAtTick => reviewWindowEndsAtTick;
+
+    public bool HasExternalModifications => ledger.Any(r => r.kind == RuleChangeKind.ExternalModification);
+
+    public CampaignIntegrityStatus IntegrityStatus
+    {
+        get
+        {
+            if (HasExternalModifications)
+            {
+                return CampaignIntegrityStatus.ExternallyModified;
+            }
+
+            if (ledger.Any(r => r.kind == RuleChangeKind.UnsafeChange) || UnsafeRuleOverride.Effective)
+            {
+                return CampaignIntegrityStatus.DeveloperOverride;
+            }
+
+            if (ReviewWindowOpen)
+            {
+                return CampaignIntegrityStatus.ReviewActive;
+            }
+
+            return CampaignIntegrityStatus.Governed;
+        }
+    }
+
+    public string IntegrityStatusLabel => IntegrityStatus switch
+    {
+        CampaignIntegrityStatus.Governed => "Governed & Verified",
+        CampaignIntegrityStatus.ReviewActive => "Review Period Active",
+        CampaignIntegrityStatus.DeveloperOverride => "Developer Override Used",
+        CampaignIntegrityStatus.ExternallyModified => "External Modification Detected",
+        _ => "Unknown"
+    };
 
     [ThreadStatic]
     private static GeoscapeCampaignRules? testInstance;
@@ -220,11 +272,88 @@ public sealed class GeoscapeCampaignRules : WorldComponent
                 break;
 
             case CampaignEntryPath.ActiveSave:
-                // Normal governed save; rules restored via ExposeData
+                ReconcileLedgerOnLoad();
                 break;
         }
 
         UnsafeRuleOverride.Notify_CampaignActivated(this, fromLoad);
+    }
+
+    /// <summary>
+    /// Replays historical ledger transitions against the pinned Day-0 baseline to verify save file integrity.
+    /// If direct external modifications to the XML are detected, logs an audit record detailing the discrepancy.
+    /// </summary>
+    public void ReconcileLedgerOnLoad()
+    {
+        RuleChangeRecord? pinned = ledger.FirstOrDefault(r => r.IsPinned);
+        if (pinned == null || string.IsNullOrEmpty(pinned.note))
+        {
+            return;
+        }
+
+        int separatorIdx = pinned.note.IndexOf(" | ", StringComparison.Ordinal);
+        if (separatorIdx < 0)
+        {
+            return;
+        }
+
+        string snapshotStr = pinned.note.Substring(separatorIdx + 3);
+        var expectedValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Parse key=value tokens
+        string[] tokens = snapshotStr.Split(new[] { "; " }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (string token in tokens)
+        {
+            int eqIdx = token.IndexOf('=');
+            if (eqIdx > 0 && eqIdx < token.Length - 1)
+            {
+                string k = token.Substring(0, eqIdx).Trim();
+                string v = token.Substring(eqIdx + 1).Trim();
+                expectedValues[k] = v;
+            }
+        }
+
+        // Replay subsequent legitimate transitions
+        for (int i = 0; i < ledger.Count; i++)
+        {
+            RuleChangeRecord r = ledger[i];
+            if (r.IsPinned)
+            {
+                continue;
+            }
+
+            if (r.kind is RuleChangeKind.ReviewWindowEdit or RuleChangeKind.Escalation or RuleChangeKind.UnsafeChange)
+            {
+                if (!string.IsNullOrEmpty(r.ruleKey) && r.to != null)
+                {
+                    expectedValues[r.ruleKey] = r.to;
+                }
+            }
+        }
+
+        // Compare expected vs live rules
+        var diffs = new List<string>();
+        foreach (ICampaignRule rule in rules.All)
+        {
+            if (expectedValues.TryGetValue(rule.Key, out string? expectedVal))
+            {
+                if (!string.Equals(rule.CurrentValueLabel, expectedVal, StringComparison.OrdinalIgnoreCase))
+                {
+                    diffs.Add($"{rule.Key} (expected '{expectedVal}', active '{rule.CurrentValueLabel}')");
+                }
+            }
+        }
+
+        if (diffs.Count > 0)
+        {
+            string diffNote = $"Direct save modification detected: {string.Join(", ", diffs)}";
+            RuleChangeRecord? lastMod = ledger.LastOrDefault(r => r.kind == RuleChangeKind.ExternalModification);
+            if (lastMod == null || lastMod.note != diffNote)
+            {
+                Record(RuleChangeKind.ExternalModification, note: diffNote);
+                Log.Warning($"[Project Vigilance] Savegame integrity discrepancy: {diffNote}");
+            }
+        }
     }
 
     private void BeginModAdoption()
