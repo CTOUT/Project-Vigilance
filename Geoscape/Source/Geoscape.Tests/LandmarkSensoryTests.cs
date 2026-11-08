@@ -50,7 +50,9 @@ public sealed class LandmarkSensoryTests
             "AncientHeatVent",
             "AncientQuarry",
             "Harbor",
-            "TerraformingScar"
+            "TerraformingScar",
+            "InsectMegahive",
+            "Mechhive"
         };
 
         foreach (string defName in manMade)
@@ -96,18 +98,39 @@ public sealed class LandmarkSensoryTests
         WorldObjectDef monolithDef = new() { defName = "FallenMonolith" };
         WorldObjectDef ancientComplexDef = new() { defName = "AncientComplex" };
         WorldObjectDef ruinsDef = new() { defName = "AncientRuins" };
+        WorldObjectDef insectHiveDef = new() { defName = "InsectMegahive" };
+        WorldObjectDef mechhiveDef = new() { defName = "Mechhive" };
         WorldObjectDef normalSettlementDef = new() { defName = "Settlement" };
 
         WorldObject monolithObj = new() { def = monolithDef };
         WorldObject complexObj = new() { def = ancientComplexDef };
         WorldObject ruinsObj = new() { def = ruinsDef };
+        WorldObject insectHiveObj = new() { def = insectHiveDef };
+        WorldObject mechhiveObj = new() { def = mechhiveDef };
         WorldObject normalObj = new() { def = normalSettlementDef };
 
         Assert.IsTrue(LandmarkSensoryUtility.IsAnomalousStructure(monolithObj));
         Assert.IsTrue(LandmarkSensoryUtility.IsAnomalousStructure(complexObj));
         Assert.IsTrue(LandmarkSensoryUtility.IsAnomalousStructure(ruinsObj));
+        Assert.IsTrue(LandmarkSensoryUtility.IsAnomalousStructure(insectHiveObj));
+        Assert.IsTrue(LandmarkSensoryUtility.IsAnomalousStructure(mechhiveObj));
         Assert.IsFalse(LandmarkSensoryUtility.IsAnomalousStructure(normalObj));
         Assert.IsFalse(LandmarkSensoryUtility.IsAnomalousStructure(null));
+    }
+
+    [TestMethod]
+    public void IsAnomalousStructure_IdentifiesInsectHiveSiteParts()
+    {
+        EnsureEnvironmentInitialised();
+
+        Site siteWithInfestation = new();
+        SitePartDef infestedDef = new() { defName = "OpportunitySite_AncientInfestedSettlement" };
+        siteWithInfestation.parts = new System.Collections.Generic.List<SitePart>
+        {
+            new SitePart(siteWithInfestation, infestedDef, null)
+        };
+
+        Assert.IsTrue(LandmarkSensoryUtility.IsAnomalousStructure(siteWithInfestation));
     }
 
     [TestMethod]

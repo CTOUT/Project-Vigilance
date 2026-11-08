@@ -234,16 +234,16 @@ public static class SensoryNarrativeUtility
     }
 
     /// <summary>
-    /// Returns the inspect pane status text for an anomalous landmark, monolith, or ancient complex.
+    /// Returns the inspect pane status text for an anomalous landmark, monolith, insect megahive, or ancient complex.
     /// </summary>
     public static string GetUnknownLandmarkInspectString()
     {
         if (IsLowTech)
         {
-            return "Status: Unidentified Landmark\nOur scouts report ancient architectural formations or otherworldly shapes rising from the wilderness. Move closer with a caravan to inspect.";
+            return "Status: Unidentified Landmark\nOur scouts report ancient architectural formations, massive insectoid mounds, or otherworldly shapes rising from the wilderness. Move closer with a caravan to inspect.";
         }
 
-        return "Status: Anomalous Landmark\nLong-range sensors register prominent architectural geometry or exotic energy signatures at these coordinates. Dispatch an expedition or expand sensor coverage to classify.";
+        return "Status: Anomalous Landmark\nLong-range sensors register prominent architectural geometry, massive chitinous hive resonance, or exotic energy signatures at these coordinates. Dispatch an expedition or expand sensor coverage to classify.";
     }
 
     /// <summary>
@@ -260,15 +260,15 @@ public static class SensoryNarrativeUtility
     }
 
     /// <summary>
-    /// Returns the atmospheric info card description for an anomalous landmark or ancient structure.
+    /// Returns the atmospheric info card description for an anomalous landmark, megahive, or ancient structure.
     /// </summary>
     public static string GetUnknownLandmarkDescription()
     {
         if (IsLowTech)
         {
-            return "Ancient megaliths, monolithic ruins, or otherworldly formations sighted across the frontier. Closer exploration is required to uncover their nature.";
+            return "Ancient megaliths, monolithic ruins, or massive insectoid mounds sighted across the frontier. Closer exploration is required to uncover their nature.";
         }
 
-        return "An anomalous surface structure detected beyond identification range. Sensor telemetry confirms pre-collapse architectural remnants or unusual energy resonance at these coordinates.";
+        return "An anomalous surface structure detected beyond identification range. Sensor telemetry confirms pre-collapse architectural remnants, megahive bio-signatures, or unusual energy resonance at these coordinates.";
     }
 }

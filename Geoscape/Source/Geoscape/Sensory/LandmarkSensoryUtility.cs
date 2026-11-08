@@ -41,11 +41,17 @@ public static class LandmarkSensoryUtility
         "AncientHeatVent",
         "AncientQuarry",
         "Harbor",
-        "TerraformingScar"
+        "TerraformingScar",
+        // Insectoid megahives, lairs, and mechanoid hive bases
+        "Mechhive",
+        "InsectMegahive",
+        "InfestedHive",
+        "InsectLair",
+        "Megahive"
     };
 
     /// <summary>
-    /// Evaluates whether a WorldObject represents a man-made, anomalous, or otherworldly structure
+    /// Evaluates whether a WorldObject represents a man-made, anomalous, insect megahive, or otherworldly structure
     /// that should be demarcated with the cyan discovery marker rather than the threat question mark.
     /// </summary>
     public static bool IsAnomalousStructure(WorldObject? wo)
@@ -68,7 +74,8 @@ public static class LandmarkSensoryUtility
                 defName.Equals("AncientRuins", StringComparison.OrdinalIgnoreCase) ||
                 defName.Equals("AncientShrine", StringComparison.OrdinalIgnoreCase) ||
                 defName.Equals("HermeticCrate", StringComparison.OrdinalIgnoreCase) ||
-                defName.Equals("Archonexus", StringComparison.OrdinalIgnoreCase))
+                defName.Equals("Archonexus", StringComparison.OrdinalIgnoreCase) ||
+                defName.Equals("Mechhive", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -77,7 +84,12 @@ public static class LandmarkSensoryUtility
                 defName.IndexOf("Ancient", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 defName.IndexOf("Complex", StringComparison.OrdinalIgnoreCase) >= 0 ||
                 defName.IndexOf("Shrine", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                defName.IndexOf("Archotech", StringComparison.OrdinalIgnoreCase) >= 0)
+                defName.IndexOf("Archotech", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                defName.IndexOf("Megahive", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                defName.IndexOf("Insect", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                defName.IndexOf("Hive", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                defName.IndexOf("Infest", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                defName.IndexOf("PitGate", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return true;
             }
@@ -94,7 +106,12 @@ public static class LandmarkSensoryUtility
                         partDefName.IndexOf("Complex", StringComparison.OrdinalIgnoreCase) >= 0 ||
                         partDefName.IndexOf("Monolith", StringComparison.OrdinalIgnoreCase) >= 0 ||
                         partDefName.IndexOf("Shrine", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                        partDefName.IndexOf("Ruins", StringComparison.OrdinalIgnoreCase) >= 0)
+                        partDefName.IndexOf("Ruins", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        partDefName.IndexOf("Megahive", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        partDefName.IndexOf("Insect", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        partDefName.IndexOf("Hive", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        partDefName.IndexOf("Infest", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        partDefName.IndexOf("PitGate", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         return true;
                     }
@@ -124,7 +141,11 @@ public static class LandmarkSensoryUtility
         if (defName.StartsWith("Ancient", StringComparison.OrdinalIgnoreCase) ||
             defName.StartsWith("Abandoned", StringComparison.OrdinalIgnoreCase) ||
             defName.StartsWith("Ruins", StringComparison.OrdinalIgnoreCase) ||
-            defName.StartsWith("FrozenRuins", StringComparison.OrdinalIgnoreCase))
+            defName.StartsWith("FrozenRuins", StringComparison.OrdinalIgnoreCase) ||
+            defName.IndexOf("Megahive", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            defName.IndexOf("Insect", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            defName.IndexOf("Hive", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            defName.IndexOf("Infest", StringComparison.OrdinalIgnoreCase) >= 0)
         {
             return true;
         }
