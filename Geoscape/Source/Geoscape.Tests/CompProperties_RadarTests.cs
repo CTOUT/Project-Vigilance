@@ -173,5 +173,14 @@ public sealed class CompProperties_RadarTests
         // Assert
         Assert.IsTrue(errors.Any(e => e.Contains("penetratesTerrainMasking requires maxIntelligenceTier to be at least Classified")));
     }
+
+    [TestMethod]
+    public void CompSigintConsole_GetOfflineReason_Unspawned_ReturnsUnspawned()
+    {
+        var console = new CompSigintConsole();
+        Assert.IsFalse(console.IsOperational);
+        Assert.AreEqual("Unspawned", console.GetOfflineReason());
+        Assert.AreEqual(0, console.LinkedDishesCount);
+    }
 }
 

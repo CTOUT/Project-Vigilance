@@ -232,9 +232,10 @@
       <li Class="CompProperties_Flickable"/>
       <li Class="CompProperties_Breakdownable"/>
       <li Class="CompProperties_Facility">
-        <maxSimultaneous>1</maxSimultaneous>
-        <maxDistance>5.9</maxDistance>
+        <maxSimultaneous>4</maxSimultaneous>
+        <maxDistance>12.9</maxDistance>
       </li>
+      <li Class="ProjectVigilance.Geoscape.Sensory.CompProperties_SigintConsole"/>
     </comps>
     <placeWorkers>
       <li>PlaceWorker_ShowFacilitiesConnections</li>

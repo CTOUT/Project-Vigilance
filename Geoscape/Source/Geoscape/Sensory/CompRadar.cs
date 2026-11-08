@@ -37,36 +37,62 @@ public class CompRadar : ThingComp, ISensorProvider
     {
         get
         {
-            if (parent == null || !parent.Spawned || parent.Destroyed)
+            if (parent == null || !parent.Spawned || parent.Destroyed || parent.Map == null)
             {
                 return false;
             }
 
-            var affected = parent.GetComp<CompAffectedByFacilities>();
-            if (affected == null)
+            // 1. Direct facility link to this dish
+            if (IsDirectlyLinkedToActiveSigint(parent))
             {
-                return false;
+                return true;
             }
 
-            var linked = affected.LinkedFacilitiesListForReading;
-            if (linked == null || linked.Count == 0)
+            // 2. Compound interferometry sharing: If any operational peer dish of this def on the local map
+            // has an active linked SIGINT console, the entire interferometric array shares decrypted signals intelligence.
+            var buildings = parent.Map.listerBuildings?.AllBuildingsColonistOfDef(parent.def);
+            if (buildings != null)
             {
-                return false;
-            }
-
-            for (int i = 0; i < linked.Count; i++)
-            {
-                Thing facility = linked[i];
-                if (facility != null && facility.Spawned && !facility.Destroyed &&
-                    facility.def.defName == "Geoscape_SigintConsole" &&
-                    affected.IsFacilityActive(facility))
+                for (int i = 0; i < buildings.Count; i++)
                 {
-                    return true;
+                    Building peer = buildings[i];
+                    if (peer != parent && peer.Spawned && !peer.Destroyed && IsDirectlyLinkedToActiveSigint(peer))
+                    {
+                        return true;
+                    }
                 }
             }
 
             return false;
         }
+    }
+
+    private static bool IsDirectlyLinkedToActiveSigint(Thing building)
+    {
+        var affected = building.TryGetComp<CompAffectedByFacilities>();
+        if (affected == null)
+        {
+            return false;
+        }
+
+        var linked = affected.LinkedFacilitiesListForReading;
+        if (linked == null || linked.Count == 0)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < linked.Count; i++)
+        {
+            Thing facility = linked[i];
+            if (facility != null && facility.Spawned && !facility.Destroyed &&
+                facility.def.defName == "Geoscape_SigintConsole" &&
+                affected.IsFacilityActive(facility))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     #region ISensorProvider Implementation
@@ -359,7 +385,8 @@ public class CompRadar : ThingComp, ISensorProvider
 
         if (HasActiveSigintConsole)
         {
-            sb.AppendLine("SIGINT Decryption: Linked (Analysed Tier & Terrain Penetration)");
+            string linkType = IsDirectlyLinkedToActiveSigint(parent) ? "Directly Linked" : "Array Linked";
+            sb.AppendLine($"SIGINT Decryption: {linkType} (Analysed Tier & Terrain Penetration)");
         }
 
         if (IsOceanicSonar)
@@ -400,7 +427,8 @@ public class CompRadar : ThingComp, ISensorProvider
 
         if (HasActiveSigintConsole)
         {
-            descBuilder.AppendLine("SIGINT Decryption: Linked (Analysed Tier & Terrain Penetration)");
+            string linkType = IsDirectlyLinkedToActiveSigint(parent) ? "Directly Linked" : "Array Linked";
+            descBuilder.AppendLine($"SIGINT Decryption: {linkType} (Analysed Tier & Terrain Penetration)");
         }
 
         if (IsOceanicSonar)

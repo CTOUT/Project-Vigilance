@@ -335,4 +335,77 @@ public sealed class OrbitalLogisticsTests
         StringAssert.Contains(inspect, "Orbital Velocity:");
         StringAssert.Contains(inspect, "Autonomous Mission (Drifting Ground Track)");
     }
+
+    [TestMethod]
+    public void OrbitalFlightModel_CalculateOrbitalPosition_LogarithmicScaling_KeepsGeostationaryCloseToGlobe()
+    {
+        // Low Earth Orbit (500 km)
+        OrbitalParameters leo = new(
+            altitudeKm: 500f,
+            periodTicks: 3600,
+            inclinationDeg: 45f,
+            ascendingNodeDeg: 0f,
+            precessionRateDegPerDay: 0f,
+            meanAnomalyEpochDeg: 0f,
+            orbitalDriftDegPerDay: 0f,
+            epochTick: 0);
+
+        Vector3 posLeo = OrbitalFlightModel.CalculateOrbitalPosition(leo, 0, basePlanetRadius: 100f);
+        float rLeo = posLeo.magnitude;
+
+        // High Geostationary Orbit (35,786 km)
+        OrbitalParameters geo = new(
+            altitudeKm: 35786f,
+            periodTicks: 60000,
+            inclinationDeg: 0f,
+            ascendingNodeDeg: 0f,
+            precessionRateDegPerDay: 0f,
+            meanAnomalyEpochDeg: 0f,
+            orbitalDriftDegPerDay: 0f,
+            epochTick: 0);
+
+        Vector3 posGeo = OrbitalFlightModel.CalculateOrbitalPosition(geo, 0, basePlanetRadius: 100f);
+        float rGeo = posGeo.magnitude;
+
+        // Assert: LEO should be just above surface (115 - 122 units)
+        Assert.IsTrue(rLeo >= 115f && rLeo <= 122f, $"LEO position radius was {rLeo:F2}, expected [115, 122]");
+
+        // Assert: GEO must not blow out to deep space (~472 units), but remain framed around the planet (130 - 137 units)
+        Assert.IsTrue(rGeo >= 130f && rGeo <= 137f, $"GEO position radius was {rGeo:F2}, expected [130, 137]");
+        Assert.IsTrue(rGeo > rLeo + 10f, $"GEO radius ({rGeo:F2}) must be distinctly higher than LEO ({rLeo:F2})");
+    }
+
+    [TestMethod]
+    public void WorldObject_DrawPos_Patch_SpaceObjects_StratifiesDeterministically()
+    {
+        try
+        {
+            WorldObject_DrawPos_Patch.IsSpaceObjectOverride = _ => true;
+
+            WorldObject woSpace = new()
+            {
+                ID = 42,
+                def = new WorldObjectDef { defName = "Odyssey_SpaceStation" }
+            };
+
+            Vector3 basePos = new Vector3(100f, 0f, 0f);
+            Vector3 resultPos = basePos;
+
+            WorldObject_DrawPos_Patch.Postfix(woSpace, ref resultPos);
+
+            // Stratification must modify radius within bounded range [-5f, +7f]
+            float delta = resultPos.magnitude - basePos.magnitude;
+            Assert.IsTrue(delta >= -5.01f && delta <= 7.01f, $"Radial jitter {delta:F2} outside expected [-5, +7] range.");
+            Assert.AreNotEqual(0f, delta, 0.001f, "Radial jitter should be non-zero for space objects.");
+
+            // Calling again with same ID must produce identical deterministic position
+            Vector3 repeatPos = basePos;
+            WorldObject_DrawPos_Patch.Postfix(woSpace, ref repeatPos);
+            Assert.AreEqual(resultPos.x, repeatPos.x, 0.001f);
+        }
+        finally
+        {
+            WorldObject_DrawPos_Patch.IsSpaceObjectOverride = null;
+        }
+    }
 }

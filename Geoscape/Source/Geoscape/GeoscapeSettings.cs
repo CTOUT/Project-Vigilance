@@ -57,7 +57,7 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.SensoryRadar;
     private static readonly Vector2[] scrollPositions = new Vector2[4];
-    private static readonly float[] tabHeights = { 1480f, 520f, 660f, 480f };
+    private static readonly float[] tabHeights = { 580f, 520f, 660f, 480f };
 
     public Color EffectiveRadarColor
     {
@@ -158,7 +158,8 @@ public class GeoscapeSettings : ModSettings
         // 2. Scrollable Content View
         Rect contentRect = new Rect(inRect.x, inRect.y + 44f, inRect.width, inRect.height - 44f);
         int tabIndex = (int)currentTab;
-        Rect viewRect = new Rect(0f, 0f, contentRect.width - 24f, tabHeights[tabIndex]);
+        bool hasScrollbar = tabHeights[tabIndex] > contentRect.height;
+        Rect viewRect = new Rect(0f, 0f, contentRect.width - (hasScrollbar ? 24f : 0f), Mathf.Max(tabHeights[tabIndex], contentRect.height));
 
         Widgets.BeginScrollView(contentRect, ref scrollPositions[tabIndex], viewRect);
         Listing_Standard listing = new();
@@ -180,7 +181,7 @@ public class GeoscapeSettings : ModSettings
                 break;
         }
 
-        tabHeights[tabIndex] = Mathf.Max(listing.CurHeight + 40f, contentRect.height);
+        tabHeights[tabIndex] = Mathf.Max(listing.CurHeight + 20f, contentRect.height);
         listing.End();
         Widgets.EndScrollView();
     }
@@ -270,41 +271,72 @@ public class GeoscapeSettings : ModSettings
             CampaignRulesPanel.DrawLookoutScoutingSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
 
             Text.Font = GameFont.Medium;
-            listing.Label("Tactical Radar Overlay & Range Outlines (X-COM Style)");
+            listing.Label("Tactical Radar Overlay & Range Outlines");
             Text.Font = GameFont.Small;
             listing.GapLine();
 
-            if (listing.RadioButton("Boundary Ring & Honeycomb Grid (Preview Style)", radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid, tooltip: "Renders glowing perimeter boundary rings and an interior hexagonal holographic grid over active sensor envelopes."))
+            // Two-column layout for radar visual styling:
+            // Left: Overlay Mode & Outer Detection Perimeter
+            // Right: Identification Horizon & Mountain Radar Shadows
+            float totalWidth = listing.ColumnWidth;
+            float colWidth = (totalWidth - 16f) / 2f;
+
+            float colHeight = (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid) ? 320f : 280f;
+            if (!usePlayerFactionColor || useCustomIdentificationColor)
             {
-                if (radarOutlineStyle != RadarOutlineStyle.BoundaryAndGrid)
-                {
-                    radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
-                    NotifyRadarVisualsChanged();
-                }
+                colHeight += 120f;
             }
 
-            if (listing.RadioButton("Boundary Ring Only (Clean Perimeter)", radarOutlineStyle == RadarOutlineStyle.BoundaryOnly, tooltip: "Renders only the outer glowing perimeter boundary ring around active radar coverage."))
-            {
-                if (radarOutlineStyle != RadarOutlineStyle.BoundaryOnly)
-                {
-                    radarOutlineStyle = RadarOutlineStyle.BoundaryOnly;
-                    NotifyRadarVisualsChanged();
-                }
-            }
+            Rect twoColRect = listing.GetRect(colHeight);
+            Rect leftRect = new Rect(twoColRect.x, twoColRect.y, colWidth, twoColRect.height);
+            Rect rightRect = new Rect(twoColRect.x + colWidth + 16f, twoColRect.y, colWidth, twoColRect.height);
 
-            if (listing.RadioButton("None (Undecorated Globe)", radarOutlineStyle == RadarOutlineStyle.None, tooltip: "Hides radar range outlines entirely."))
+            // Left Column: Visual Style & Outer Detection Perimeter
+            Listing_Standard leftListing = new();
+            leftListing.Begin(leftRect);
             {
-                if (radarOutlineStyle != RadarOutlineStyle.None)
-                {
-                    radarOutlineStyle = RadarOutlineStyle.None;
-                    NotifyRadarVisualsChanged();
-                }
-            }
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.9f, 1f);
+                leftListing.Label("VISUAL OVERLAY STYLE");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
 
-            if (radarOutlineStyle != RadarOutlineStyle.None)
-            {
+                if (leftListing.RadioButton("Boundary Ring & Honeycomb Grid", radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid, tooltip: "Renders glowing perimeter boundary rings and an interior hexagonal holographic grid over active sensor envelopes."))
+                {
+                    if (radarOutlineStyle != RadarOutlineStyle.BoundaryAndGrid)
+                    {
+                        radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
+                        NotifyRadarVisualsChanged();
+                    }
+                }
+
+                if (leftListing.RadioButton("Boundary Ring Only (Clean Perimeter)", radarOutlineStyle == RadarOutlineStyle.BoundaryOnly, tooltip: "Renders only the outer glowing perimeter boundary ring around active radar coverage."))
+                {
+                    if (radarOutlineStyle != RadarOutlineStyle.BoundaryOnly)
+                    {
+                        radarOutlineStyle = RadarOutlineStyle.BoundaryOnly;
+                        NotifyRadarVisualsChanged();
+                    }
+                }
+
+                if (leftListing.RadioButton("None (Undecorated Globe)", radarOutlineStyle == RadarOutlineStyle.None, tooltip: "Hides radar range outlines entirely."))
+                {
+                    if (radarOutlineStyle != RadarOutlineStyle.None)
+                    {
+                        radarOutlineStyle = RadarOutlineStyle.None;
+                        NotifyRadarVisualsChanged();
+                    }
+                }
+
+                leftListing.Gap(6f);
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.9f, 1f);
+                leftListing.Label("OUTER DETECTION HORIZON");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+
                 bool prevUseFaction = usePlayerFactionColor;
-                listing.CheckboxLabeled(
+                leftListing.CheckboxLabeled(
                     "Use Player Faction Color",
                     ref usePlayerFactionColor,
                     "Automatically matches radar and boundary outlines to your player faction's primary banner color.");
@@ -314,8 +346,8 @@ public class GeoscapeSettings : ModSettings
                 }
 
                 Color activeColor = EffectiveRadarColor;
-                Rect colorBarRect = listing.GetRect(28f);
-                Widgets.DrawBoxSolid(new Rect(colorBarRect.x, colorBarRect.y, 36f, 26f), activeColor);
+                Rect colorBarRect = leftListing.GetRect(26f);
+                Widgets.DrawBoxSolid(new Rect(colorBarRect.x, colorBarRect.y, 32f, 24f), activeColor);
 
                 Faction? playerFaction = (Current.ProgramState == ProgramState.Playing && Current.Game != null && Find.FactionManager != null)
                     ? Faction.OfPlayerSilentFail
@@ -324,22 +356,22 @@ public class GeoscapeSettings : ModSettings
                 if (usePlayerFactionColor && playerFaction != null)
                 {
                     Widgets.Label(
-                        new Rect(colorBarRect.x + 44f, colorBarRect.y + 3f, colorBarRect.width - 44f, 24f),
-                        $"Synced to {playerFaction.Name} (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
+                        new Rect(colorBarRect.x + 38f, colorBarRect.y + 2f, colorBarRect.width - 38f, 24f),
+                        $"Synced: {playerFaction.Name} (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
                 }
                 else if (usePlayerFactionColor)
                 {
                     Widgets.Label(
-                        new Rect(colorBarRect.x + 44f, colorBarRect.y + 3f, colorBarRect.width - 44f, 24f),
-                        $"Synced to Player Faction color during gameplay (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
+                        new Rect(colorBarRect.x + 38f, colorBarRect.y + 2f, colorBarRect.width - 38f, 24f),
+                        $"Synced to Player Faction (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
                 }
                 else
                 {
-                    DrawCustomColorPicker(listing, colorBarRect, ref radarCustomColor, RadarPerimeterPresets);
+                    DrawCustomColorPicker(leftListing, colorBarRect, ref radarCustomColor, RadarPerimeterPresets);
                 }
 
-                listing.Label($"Detection Perimeter Intensity: {radarOutlineOpacity:P0}");
-                float newOpacity = listing.Slider(radarOutlineOpacity, 0f, 1f);
+                leftListing.Label($"Detection Perimeter Intensity: {radarOutlineOpacity:P0}");
+                float newOpacity = leftListing.Slider(radarOutlineOpacity, 0f, 1f);
                 if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.005f)
                 {
                     radarOutlineOpacity = newOpacity;
@@ -348,20 +380,32 @@ public class GeoscapeSettings : ModSettings
 
                 if (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid)
                 {
-                    listing.Label($"Honeycomb Grid Intensity: {honeycombGridOpacity:P0}");
-                    float newGridOpacity = listing.Slider(honeycombGridOpacity, 0f, 1f);
+                    leftListing.Label($"Honeycomb Grid Intensity: {honeycombGridOpacity:P0}");
+                    float newGridOpacity = leftListing.Slider(honeycombGridOpacity, 0f, 1f);
                     if (Mathf.Abs(newGridOpacity - honeycombGridOpacity) > 0.005f)
                     {
                         honeycombGridOpacity = newGridOpacity;
                         NotifyRadarVisualsChanged();
                     }
                 }
+            }
+            leftListing.End();
+
+            // Right Column: Inner Identification Horizon & Mountain Radar Shadows
+            Listing_Standard rightListing = new();
+            rightListing.Begin(rightRect);
+            {
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.9f, 1f);
+                rightListing.Label("INNER IDENTIFICATION HORIZON");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
 
                 bool prevShowId = showIdentificationHorizon;
-                listing.CheckboxLabeled(
+                rightListing.CheckboxLabeled(
                     "Show Identification Horizon",
                     ref showIdentificationHorizon,
-                    "Renders an inner concentric tactical horizon ring marking the transition where contact tracks are classified into faction and force intelligence. Expanded outward across discrete integer traversal rings by multi-dish radar interferometry.");
+                    "Renders an inner concentric tactical horizon ring marking the transition where contact tracks are classified into faction and force intelligence.");
                 if (prevShowId != showIdentificationHorizon)
                 {
                     NotifyRadarVisualsChanged();
@@ -369,8 +413,8 @@ public class GeoscapeSettings : ModSettings
 
                 if (showIdentificationHorizon)
                 {
-                    listing.Label($"Identification Horizon Intensity: {identificationRingOpacity:P0}");
-                    float newIdOpacity = listing.Slider(identificationRingOpacity, 0f, 1f);
+                    rightListing.Label($"Identification Horizon Intensity: {identificationRingOpacity:P0}");
+                    float newIdOpacity = rightListing.Slider(identificationRingOpacity, 0f, 1f);
                     if (Mathf.Abs(newIdOpacity - identificationRingOpacity) > 0.005f)
                     {
                         identificationRingOpacity = newIdOpacity;
@@ -378,71 +422,77 @@ public class GeoscapeSettings : ModSettings
                     }
 
                     bool prevUseCustomIdColor = useCustomIdentificationColor;
-                    listing.CheckboxLabeled(
+                    rightListing.CheckboxLabeled(
                         "Use Custom Identification Color",
                         ref useCustomIdentificationColor,
-                        "Select an explicit custom color for the identification horizon ring rather than automatically deriving a contrasting complementary hue from the detection perimeter.");
+                        "Select an explicit custom color rather than auto-deriving a complementary hue from the detection perimeter.");
                     if (prevUseCustomIdColor != useCustomIdentificationColor)
                     {
                         NotifyRadarVisualsChanged();
                     }
 
                     Color activeIdColor = EffectiveIdentificationColor;
-                    Rect idColorBarRect = listing.GetRect(28f);
-                    Widgets.DrawBoxSolid(new Rect(idColorBarRect.x, idColorBarRect.y, 36f, 26f), activeIdColor);
+                    Rect idColorBarRect = rightListing.GetRect(26f);
+                    Widgets.DrawBoxSolid(new Rect(idColorBarRect.x, idColorBarRect.y, 32f, 24f), activeIdColor);
 
                     if (!useCustomIdentificationColor)
                     {
                         Widgets.Label(
-                            new Rect(idColorBarRect.x + 44f, idColorBarRect.y + 3f, idColorBarRect.width - 44f, 24f),
-                            $"Auto-contrasting complementary hue (#{ColorUtility.ToHtmlStringRGB(activeIdColor)})");
+                            new Rect(idColorBarRect.x + 38f, idColorBarRect.y + 2f, idColorBarRect.width - 38f, 24f),
+                            $"Auto Complementary (#{ColorUtility.ToHtmlStringRGB(activeIdColor)})");
                     }
                     else
                     {
-                        DrawCustomColorPicker(listing, idColorBarRect, ref radarIdentificationColor, IdentificationRingPresets, "Identification");
+                        DrawCustomColorPicker(rightListing, idColorBarRect, ref radarIdentificationColor, IdentificationRingPresets, "Identification");
                     }
+                }
 
-                    listing.Gap(4f);
-                    listing.Label("Mountain Radar Shadow Visualisation (Model B+ Masking):");
+                rightListing.Gap(6f);
+                Text.Font = GameFont.Tiny;
+                GUI.color = new Color(0.7f, 0.9f, 1f);
+                rightListing.Label("MOUNTAIN RADAR SHADOWS (MODEL B+)");
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
 
-                    if (listing.RadioButton("Both (Dashed Contours & Cell Hatching)", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, tooltip: "Renders dashed amber ribbons around internal mountain shadows and diagonal scanline hatching across masked mountain hex surfaces within identification range."))
+                if (rightListing.RadioButton("Both (Dashed & Hatching)", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, tooltip: "Renders dashed amber ribbons around internal mountain shadows and diagonal scanline hatching across masked mountain hex surfaces within identification range."))
+                {
+                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
                     {
-                        if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
-                        {
-                            radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
-                            NotifyRadarVisualsChanged();
-                        }
+                        radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
+                        NotifyRadarVisualsChanged();
                     }
+                }
 
-                    if (listing.RadioButton("Dashed Contours (Approach A)", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, tooltip: "Renders dashed amber ribbons enclosing internal mountain clusters and radar shadows inside identification range."))
+                if (rightListing.RadioButton("Dashed Contours Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, tooltip: "Renders dashed amber ribbons enclosing internal mountain clusters and radar shadows inside identification range."))
+                {
+                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
                     {
-                        if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
-                        {
-                            radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
-                            NotifyRadarVisualsChanged();
-                        }
+                        radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
+                        NotifyRadarVisualsChanged();
                     }
+                }
 
-                    if (listing.RadioButton("Cell Hatching (Approach C)", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, tooltip: "Renders subtle radar static and diagonal scanline hatching across masked mountain hex surfaces inside identification range."))
+                if (rightListing.RadioButton("Cell Hatching Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, tooltip: "Renders subtle radar static and diagonal scanline hatching across masked mountain hex surfaces inside identification range."))
+                {
+                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
                     {
-                        if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
-                        {
-                            radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
-                            NotifyRadarVisualsChanged();
-                        }
+                        radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
+                        NotifyRadarVisualsChanged();
                     }
+                }
 
-                    if (listing.RadioButton("None (Undecorated Shadows)", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, tooltip: "Hides visual shadow indicators on masked mountain tiles inside identification range."))
+                if (rightListing.RadioButton("None (Undecorated)", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, tooltip: "Hides visual shadow indicators on masked mountain tiles inside identification range."))
+                {
+                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
                     {
-                        if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
-                        {
-                            radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
-                            NotifyRadarVisualsChanged();
-                        }
+                        radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
+                        NotifyRadarVisualsChanged();
                     }
                 }
             }
+            rightListing.End();
 
+            listing.Gap(6f);
             listing.Label($"Surveillance Background Dimming: {surveillanceDimming:P0}");
             float newDimming = listing.Slider(surveillanceDimming, 0.0f, 1.0f);
             if (Mathf.Abs(newDimming - surveillanceDimming) > 0.005f)
@@ -454,7 +504,7 @@ public class GeoscapeSettings : ModSettings
 
         listing.Gap();
         listing.CheckboxLabeled(
-            "X-COM Style Contact Disambiguation Menu",
+            "Tactical Contact Disambiguation Menu",
             ref enableOverlappingEntitySelectionMenu,
             "When entities overlap on the planetary Geoscape (such as a caravan stationed at a colony), open a tactical selection menu rather than blindly cycling.");
 

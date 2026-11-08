@@ -96,7 +96,10 @@ public static class OrbitalFlightModel
     }
 
     /// <summary>
-    /// Computes the 3D position vector for world rendering, including altitude scaling above the planet surface.
+    /// Computes the 3D position vector for world rendering, using clamped logarithmic altitude scaling
+    /// and deterministic orbital shell stratification above the planet surface.
+    /// Clamps visual altitude between 14 and 35 units above the globe so high-orbit stations (35,786 km)
+    /// remain gracefully framed around the planet rather than lost in deep space.
     /// </summary>
     public static Vector3 CalculateOrbitalPosition(
         OrbitalParameters parameters,
@@ -105,7 +108,21 @@ public static class OrbitalFlightModel
         float altitudeRenderOffset = 15f)
     {
         Vector3 dir = CalculateSubSatelliteDirection(parameters, currentTick);
-        float renderRadius = basePlanetRadius + altitudeRenderOffset + (parameters.AltitudeKm * 0.01f);
+
+        // Non-linear logarithmic altitude scaling:
+        // Clamped between 150 km (Low LEO) and 40,000 km (High GEO)
+        float clampedAlt = Mathf.Clamp(parameters.AltitudeKm, 150f, 40000f);
+        float logNorm = Mathf.Clamp01((Mathf.Log10(clampedAlt) - 2.176f) / (4.602f - 2.176f));
+
+        // Base visual altitude ranges from 14f (LEO, r ~ 114) to 34f (GEO, r ~ 134)
+        float visualAlt = Mathf.Lerp(14f, 34f, logNorm);
+
+        // Deterministic pseudo-random altitude jitter based on orbital parameters hash
+        // Prevents satellites and stations with identical orbital parameters from sharing the exact same altitude ring
+        int hash = parameters.GetHashCode() & 0x7FFFFFFF;
+        float jitter = (((hash % 100) - 50) / 50f) * 1.5f;
+
+        float renderRadius = basePlanetRadius + visualAlt + jitter;
         return dir * renderRadius;
     }
 
