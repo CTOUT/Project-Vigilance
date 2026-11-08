@@ -20,7 +20,7 @@ To make testing as efficient as possible, every test case is categorised into a 
 ### Recommended Testing Sequence
 
 1. **Step 1: Campaign Setup & Automated Landfall**  
-   Start a new game $\rightarrow$ Verify `Page_GeoscapeRules` presets & modal dialog (🟢 **TC-17**), generate under Fog of War to verify black globe bypass into pawns/ideology (🔴 **TC-28**), and check the Day-0 audit ledger (🔴 **TC-18**).
+   Start a new game $\rightarrow$ Verify `Page_GeoscapeRules` presets & modal dialog (🟢 **TC-17**), generate under Fog of War to verify black globe bypass into pawns/ideology (🟢 **TC-28**), and check the Day-0 audit ledger (🟢 **TC-18**).
 2. **Step 2: Colony Radar Infrastructure & Holographic Visuals**  
    Switch to colony map $\rightarrow$ Construct 1, 2, and 3 Spacer Phased Arrays to test interferometry progression (🔴 **TC-01**), toggle the 3D honeycomb holographic overlay on the World Map (🔴 **TC-04**), and observe dual-layer orbit rendering with faction livery tints (🔴 **TC-27**).
 3. **Step 3: 4X Outposts & Early Warning Incursions**  
@@ -40,9 +40,7 @@ To make testing as efficient as possible, every test case is categorised into a 
 | **TC-04** | Tactical Radar Overlay & Globe UX                                               | • Native 3D mesh overlay renders glowing perimeter boundary rings and hexagonal holographic honeycomb grid on the globe.<br>• Configurable display modes: `Boundary & Grid`, `Boundary Only`, `None`.<br>• 5 colour palettes: Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White.<br>• Mountain radar shadow visualisations: `Both`, `Dashed Contours`, `Cell Hatching`, `None`.<br>• Inward distance fade, continuous identification horizon, and dynamic sensor movement updates.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `🔴 Focus 1: Immediate` | World Map / Mod Settings                           |
 | **TC-05** | Lightweight Geoscape Outposts & 4X Context Actions                              | • **4X Colony Dispatch:** Right-clicking explored passable hex with Colony selected opens contextual dispatch menu (`Form caravan`, `Dispatch Construction Expedition: Automated Relay / Signal Beacon`).<br>• **Automated Supply Pre-Allocation:** Pre-selects exact build materials in `Dialog_FormCaravan` item list and locks destination route.<br>• **Distant Caravan Orders:** Right-clicking distant hex with caravan selected offers move and queued travel + construct.<br>• **Material Tracking:** Tracks consumed material (`stuffDef`), updating world label (e.g. `Granite blocks Signal Beacon`) and inspect string.<br>• **Zero-TPS execution:** 100% unmanned, no `WorldPawns`, no map generated.<br>• **Incursion Sabotage & Salvage:** Hostile traversal sabotages sensor; caravan repair (25% cost) and dismantle (75% salvage partitioned into valid stacks respecting `stackLimit`, e.g. 75 + 37 items, preventing infinite wood transmutation).<br>• **Upright Icon Consistency:** Outpost and sensor icons remain upright and camera-aligned regardless of zoom level or latitude.                                                                                                                                                                                                                                                                                                                               | `🔴 Focus 1: Immediate` | World Map / Colony & Caravan Float Menu            |
 | **TC-06** | Two-Stage Early Warning & Non-Peeking Escalation                                | • Stage 1 ($R_{detect}$ boundary crossing): Amber alert letter (`ThreatSmall`), pulsing amber blip, masked faction, concealed threat points, hidden path.<br>• Stage 2 ($R_{id}$ boundary crossing): Red alert letter (`ThreatBig` hostile / `PositiveEvent` friendly), faction crest, known destination path.<br>• Direct high-spec entry: Incursions spawning within $R_{id}$ trigger Stage 2 directly without replaying Stage 1.<br>• Classification preservation: Re-entering mountainous masking does not regress known intelligence.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | `🔴 Focus 1: Immediate` | World Map / Letter Stack / Inspector               |
-| **TC-18** | Default Campaign Creation & Day-0 Snapshot                                      | • Generating world without altering `Page_GeoscapeRules` adopts factory defaults (`FogOfWar`).<br>• Pins initial `CampaignCreated` Day-0 snapshot record in ledger with full rule state.<br>• Transient draft remains cleared.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `🔴 Focus 1: Immediate` | World Generation / Audit Ledger                    |
 | **TC-27** | Dual-Layer Orbital Rendering & Faction Colour Tinting                           | • Satellites and orbital stations tagged with `<fullyExpandedInSpace>true</fullyExpandedInSpace>` render in both Surface and Odyssey Orbit layers when detected or revealed.<br>• Unidentified or unmonitored orbital objects remain shrouded outside active sensor horizons.<br>• 2D expanding icons and 3D mesh quads dynamically inherit faction livery colours (`Faction.Color`, e.g. Voidborn pink, Pirate crimson, Player emerald green) for immediate tactical identification.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `🔴 Focus 1: Immediate` | World Map (Surface & Orbit Layers) / Inspector     |
-| **TC-28** | Uncharted Globe Starting Site Selection & Automated Landfall Paradigm           | • **Automated Landfall (Recommended):** World generation under Fog of War and Hardcore Vigilance automatically designates a valid, habitable land sector via `TileFinder.RandomStartingTile()` upon clicking `Generate` on `Page_CreateWorldParams` (Step 5), completely skipping `Page_SelectStartingSite` and advancing directly to Ideology / Pawns.<br>• **Manual Globe Targeting Opt-In:** Players aiming for specific polar/equatorial latitudes can toggle `Manual Globe Targeting` in `Dialog_GeoscapeCampaignRules`; advancing without selecting a tile auto-picks a viable tile without vanilla errors.<br>• **Planetary Surveillance & Omniscient:** Retains full orbital cartography and manual site selection.<br>• **Ambiguous Rejection (Manual Mode):** Settle attempts on unexplored ocean or impassable mountains under Fog of War display `"Unviable landing coordinates: Selected sector cannot support a colony drop."` rather than explicit terrain leaks.<br>• **Blind Touchdown (Manual Mode):** Confirmation dialog prompts for toxic pollution (Biotech), extreme climate, and harsh biomes are suppressed under Fog of War, landing blind.<br>• **Faction Proximity Masking:** Proximity diplomatic warnings are suppressed so hidden bases are not revealed.<br>• **Step 3 Vanilla Compatibility:** `Page_SelectStoryteller` remains 100% vanilla, guaranteeing zero conflicts with storyteller and UI mods. | `🔴 Focus 1: Immediate` | Campaign Creation Wizard / Starting Site Selection |
 | **TC-29** | Overlapping Entity Disambiguation Menu (X-COM Style Tactical Selector)          | • When multiple selectable world entities occupy identical/overlapping world coordinates or screen positions, left-clicking or cycling invokes an X-COM style disambiguation float menu.<br>• Menu displays distinct entity entries with faction crests/colours, entity type labels, operational status, member count, and ground sector targeting (`Select Tile X`).<br>• Shift-clicking toggles multi-selection or single-entity deselection without closing the selector.<br>• Settings toggle `enableOverlappingEntitySelectionMenu` allows toggling back to vanilla cycling behaviour.<br>• Un-scanned or concealed entities outside radar identification horizons are cleanly masked as "Unidentified Contact".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `🔴 Focus 1: Immediate` | World Map / Multi-Contact Stack                    |
 | **TC-30** | Smart Source-Agnostic Contextual Dispatch                                       | • Right-clicking any explored world hex without selecting an origin entity presents intelligent contextual orders.<br>• Identifies player caravans and colonies, sorted by proximity to the target.<br>• Clamps top-level menu to nearest $N$ caravans (default 3) and $M$ colonies (default 2), preventing screen overflow.<br>• Provides `"Other caravans (N more)... >"` and `"Other colonies (N more)... >"` drilldown sub-menus with `< Back` navigation.<br>• Collapses multiple beacon building materials into a clean sub-menu drilldown.<br>• Generates clear directives: `"Move caravan [CaravanName] to [Target] ([N] tiles away)"` and `"Send caravan from [ColonyName] to [Target] ([N] tiles away)"`.<br>• Targeting player colonies provides local caravan formation and recall actions.<br>• Targeting active listening posts offers outpost dismantle expeditions.<br>• Classic Haze / Fog of War mode suppresses unmonitored terrain leaks and offers optimistic exploration routes.<br>• Settings toggle `enableIntelligentRightClick` allows reverting to vanilla right-click behaviour.                                                                                                                                                                                                                                                                                                                             | `🔴 Focus 1: Immediate` | World Map / Contextual Float Menu                  |
 | **TC-02** | Model B+ Vantage & Mountain Masking                                             | • Origin Vantage: Lookouts gain $+1$ to $+3$ rings on hills/mountains; high-tech radars gain $+1$ to $+2$ rings to $R_{id}$.<br>• Target Terrain Masking: Incursions in `Mountainous` hexes remain held at Contact tier (amber blip) even within $R_{id}$.<br>• Terrain Exit: Moving into open plains immediately elevates to Classified/Analysed.<br>• SIGINT Console: Linked facility penetrates terrain masking and unlocks Tier 4 Analysed telemetry.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `🟡 Focus 2: Playtest`  | World Map / Inspector / Dev Console                |
@@ -63,9 +61,11 @@ To make testing as efficient as possible, every test case is categorised into a 
 | **TC-11** | Scribe Save/Load & Outpost Removal Resilience                                   | • Saving and loading with active radars, outposts, incursions, aftermath sites, and concealed haze sites produces 0 Scribe errors and 0 duplicate IDs.<br>• Deleting an outpost via dev tools or external mod leaves no dangling references; next sweep clears entry cleanly.<br>• Outpost `stuffDef` is serialised via `Scribe_Defs.Look`, maintaining construction material fidelity across saves.<br>• Expired or despawned dynamic sites leave zero dangling `ConcealedSiteRecord` entries upon save/load.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `🟢 Automated Pass`     | Save/Load Menu / Debug Log                         |
 | **TC-16** | Cross-Campaign Save Isolation & Pinned Rules                                    | • Campaign A created under `FogOfWar`. Campaign B created under `Omniscient`.<br>• Reloading Campaign A restores `FogOfWar`; reloading Campaign B restores `Omniscient`.<br>• Global `ModSettings` defaults are untouched by save loads and do not cross-contaminate active saves.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `🟢 Automated Pass`     | World Map / Mod Settings / Save System             |
 | **TC-17** | Native Campaign Creation Wizard Page (`Page_GeoscapeRules`) & Profile Selection | • Stitched seamlessly into the campaign creation sequence between Storyteller selection (`Page_SelectStoryteller`) and World Parameters (`Page_CreateWorldParams`) via `PageUtility_StitchedPages_Patch`.<br>• $2 \times 2$ profile card selection grid: **Fog of War** (Recommended default), **Planetary Surveillance**, **Hardcore Vigilance**, and **Omniscient**.<br>• Dedicated Anomaly-style modal window (`Dialog_GeoscapeCampaignRules`) launched via `Customise Individual Rules...` preserves full-height uncompressed profile cards, eliminates text truncation, and enables fine-grained rule tuning with live custom profile detection upon close.<br>• Standard Next/Back navigation links correctly forward to world generation and back to storyteller selection; consumes draft and commits Day-0 `CampaignCreated` ledger snapshot upon world generation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `🟢 In-Game Pass`       | Campaign Creation Wizard (`Page_GeoscapeRules`)    |
+| **TC-18** | Default Campaign Creation & Day-0 Snapshot                                      | • Generating world without altering `Page_GeoscapeRules` adopts factory defaults (`FogOfWar`).<br>• Pins initial `CampaignCreated` Day-0 snapshot record in ledger with full rule state.<br>• Transient draft remains cleared.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `🟢 In-Game Pass`       | World Generation / Audit Ledger                    |
 | **TC-21** | Mutability Enforcement & Immutable Rule Locking                                 | • Once campaign starts and review window closes, all 7 Immutable rules (`colonyScoutRadius`, `caravanScoutRadius`, `enableNighttimeSensoryReduction`, `incursionsRestAtNight`, `synchronizeMultiVectorRaids`, `enableTacticalIngressFlanking`, `resetThreatCooldownOnArrival`) are greyed out with `(Locked)` suffix.<br>• Reverse visibility transitions (e.g. `PlanetarySurveillance` $\rightarrow$ `FogOfWar`) are greyed out with `(Locked - Cannot reverse)` suffix.<br>• Sliders and checkboxes reject interaction when DevMode is disabled; 0 changes recorded to ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | `🟢 Automated Pass`     | Mod Settings / Incursions & Sensory Tabs           |
 | **TC-23** | Automatic Override Invalidation on DevMode Toggle                               | • Toggling `Prefs.DevMode` off in Options immediately deactivates `UnsafeRuleOverride.Requested` and sets `Effective` to false.<br>• Active campaign ledger records `DevOverrideDisabled` with note `Developer mode switched off`.<br>• Mutability constraints immediately re-engage in Mod Settings.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `🟢 Automated Pass`     | Options / Mod Settings / Audit Ledger              |
 | **TC-24** | Override Session Ephemerality Across Loads & Restarts                           | • Enabling unsafe override and saving game does not persist override flag into save XML.<br>• Loading save while DevMode is active logs `DevOverrideEnabled` (`Override active when campaign was loaded`).<br>• Restarting RimWorld executable launches with override disabled by default, preventing accidental unintended rule mutations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `🟢 Automated Pass`     | Save/Load Menu / Game Restart                      |
+| **TC-28** | Uncharted Globe Starting Site Selection & Automated Landfall Paradigm           | • **Automated Landfall (Recommended):** World generation under Fog of War and Hardcore Vigilance automatically designates a valid, habitable land sector via `TileFinder.RandomStartingTile()` upon clicking `Generate` on `Page_CreateWorldParams` (Step 5), completely skipping `Page_SelectStartingSite` and advancing directly to Ideology / Pawns.<br>• **Manual Globe Targeting Opt-In:** Players aiming for specific polar/equatorial latitudes can toggle `Manual Globe Targeting` in `Dialog_GeoscapeCampaignRules`; advancing without selecting a tile auto-picks a viable tile without vanilla errors.<br>• **Planetary Surveillance & Omniscient:** Retains full orbital cartography and manual site selection.<br>• **Ambiguous Rejection (Manual Mode):** Settle attempts on unexplored ocean or impassable mountains under Fog of War display `"Unviable landing coordinates: Selected sector cannot support a colony drop."` rather than explicit terrain leaks.<br>• **Blind Touchdown (Manual Mode):** Confirmation dialog prompts for toxic pollution (Biotech), extreme climate, and harsh biomes are suppressed under Fog of War, landing blind.<br>• **Faction Proximity Masking:** Proximity diplomatic warnings are suppressed so hidden bases are not revealed.<br>• **Step 3 Vanilla Compatibility:** `Page_SelectStoryteller` remains 100% vanilla, guaranteeing zero conflicts with storyteller and UI mods. | `🟢 In-Game Pass`       | Campaign Creation Wizard / Starting Site Selection |
 
 ---
 
@@ -355,22 +355,6 @@ _Objective: Validate Stage 1 outer boundary alert, Stage 2 inner identification 
 
 ---
 
-### Test 18: Default Campaign Creation & Day-0 Snapshot (`TC-18`) — 🔴 Focus 1: Immediate
-
-_Objective: Validate campaign creation when wizard defaults are accepted without modification._
-
-1. From the Main Menu, initiate a new game and proceed through `Page_GeoscapeRules` without altering any cards or settings.
-2. Embark onto the colony map.
-3. Open `Options → Mod Settings → Project Vigilance: Geoscape`:
-   - **Verify Visibility:** Operates under `FogOfWar` (Recommended default).
-   - **Verify Lookout Horizons:** Colony horizon is 5.0 hexes; Caravan lookout is 3.0 hexes.
-4. Switch to `About & Diagnostics` tab:
-   - **Verify Active Profile:** Displays `Fog of War (Recommended)`.
-   - **Verify Ledger Origin:** Day-0 pinned record displays:
-     > `CampaignCreated | Defaults | visibilityMode=FogOfWar ...`
-
----
-
 ### Test 27: Dual-Layer Orbital Rendering & Faction Colour Tinting (`TC-27`) — 🔴 Focus 1: Immediate
 
 _Objective: Validate seamless cross-layer satellite and station rendering between planetary surface and Odyssey orbit views, visibility mask adherence, and dynamic faction livery tinting._
@@ -397,83 +381,6 @@ _Objective: Validate seamless cross-layer satellite and station rendering betwee
      - **Verify:** Satellites or stations with null faction display clean neutral baseline monochrome tinting.
 2. Select an orbital object:
    - **Verify Inspect Panel:** Faction name, crest, and telemetry update consistently with the visual livery.
-
----
-
-### Test 28: Uncharted Globe Starting Site Selection & Automated Landfall Paradigm (`TC-28`) — 🔴 Focus 1: Immediate
-
-_Objective: Validate that campaign setup on an uncharted globe under Fog of War seamlessly implements automated landfall—skipping purposeless clicking on a dark sphere while ensuring valid plot designation—preserves manual targeting when opted into or when playing with revealed geography, and leaves Step 3 storyteller selection 100% vanilla for maximum mod compatibility._
-
-#### 28.1 Automated Landfall under Fog of War & Hardcore Vigilance (Default Flow)
-
-1. From the Main Menu, click **New colony** $\rightarrow$ select scenario (e.g. Crashlanded) $\rightarrow$ select Storyteller (e.g. Cassandra Classic).
-2. On `Page_GeoscapeRules` (Step 4), ensure **Fog of War** (or **Hardcore Vigilance**) is selected:
-   - **Verify Summary:** The overview panel displays `Starting Site Selection: Automated Landfall`.
-3. Click `Next` to advance to `Page_CreateWorldParams` (Step 5).
-4. Configure globe parameters (e.g. 50% coverage, seed, map size via `Advanced settings: Edit...`).
-5. Click **Generate**:
-   - **Verify Automated Landfall:** World generation completes and advances **directly to Ideology preset or Colonist selection** (`Page_ChooseIdeoPreset` or `Page_ConfigureStartingPawns`).
-   - **Verify Black Globe Skipped:** `Page_SelectStartingSite` is completely bypassed.
-   - **Verify Diagnostic Log:** Inspect console/debug log to verify `[Project Vigilance] Automated landfall designated starting tile {candidate}.`
-6. Click `Back` on Ideology / Colonist selection:
-   - **Verify Bidirectional Navigation:** Navigates back directly to `Page_CreateWorldParams`.
-   - **Verify Back to Rules:** Clicking `Back` again navigates back to `Page_GeoscapeRules`.
-7. Embark into the colony:
-   - **Verify Valid Landfall:** Colony map generates on a valid, habitable, non-ocean land tile.
-   - Switch to World Map (`Tab`): The dark, fogged globe renders with active lookout vision centred on the colony.
-
-#### 28.2 Optional Manual Globe Targeting under Fog of War
-
-1. Start a new campaign $\rightarrow$ reach `Page_GeoscapeRules` with **Fog of War** active.
-2. Click **Customise Individual Rules...**:
-   - In `Landing Site Selection`, toggle **Manual Globe Targeting**.
-   - Close dialog (`X` or `Esc`).
-   - **Verify Status:** Active profile indicates `Active Profile: Custom`.
-3. Click `Next` $\rightarrow$ click `Generate` on `Page_CreateWorldParams`:
-   - **Verify Globe Screen Shown:** `Page_SelectStartingSite` is presented with the planetary globe shrouded in darkness.
-4. Without selecting a hex, click `Next`:
-   - **Verify Fallback Auto-Designation:** Instead of blocking with the vanilla error _"Must select a starting site"_, a message displays:
-     > _"Random landing site automatically designated."_
-   - The setup smoothly advances to Ideology / Colonist selection.
-5. Alternatively, rotate the globe, click on a preferred sector (e.g. polar or equatorial latitude), and click `Next`:
-   - Colony establishes in the chosen latitude.
-
-#### 28.3 Planetary Surveillance & Omniscient Preservation
-
-1. Start a new campaign $\rightarrow$ select **Planetary Surveillance** (or **Omniscient**) on `Page_GeoscapeRules`.
-2. Click `Next` $\rightarrow$ click `Generate` on `Page_CreateWorldParams`:
-   - **Verify Full Cartography:** `Page_SelectStartingSite` opens normally with full orbital cartography, revealed terrain, biomes, and standard manual site selection.
-
-#### 28.4 Automated Landfall on Planetary Surveillance / Omniscient (Custom Rules)
-
-1. Start a new campaign $\rightarrow$ select **Planetary Surveillance** (or **Omniscient**) on `Page_GeoscapeRules`.
-2. Click `Customise Individual Rules...` $\rightarrow$ set `Starting Site Selection` to **Automated Landfall**.
-3. Click `Close` $\rightarrow$ click `Next` $\rightarrow$ click `Generate` on `Page_CreateWorldParams`:
-   - **Verify Black Globe Skipped:** `Page_SelectStartingSite` is completely bypassed.
-   - The setup smoothly designates a valid random starting site and advances directly to Ideology / Colonist selection.
-
-#### 28.5 Ambiguous Landing Rejection on Physically Impossible Tiles (Manual Targeting)
-
-1. Under `Fog of War` with `Manual Globe Targeting` enabled, locate an unexplored/fogged ocean or deep water hex in the black shroud.
-2. Attempt to settle on the hex:
-   - **Verify Rejection Message:** Displays ambiguous rejection message:
-     > _"Unviable landing coordinates: Selected sector cannot support a colony drop."_
-3. Attempt to settle on an unexplored impassable mountain hex:
-   - **Verify Rejection Message:** Displays the exact same ambiguous telemetry message without disclosing mountain terrain or impassability.
-
-#### 28.6 Blind Touchdown on Environmental Hazard Sectors (Manual Targeting)
-
-1. Under `Fog of War` with `Manual Globe Targeting` enabled, select an unexplored sector containing hazards (toxic pollution, extreme desert, ice sheet).
-2. Click `Next`:
-   - **Verify Hazard Suppression:** No hazard confirmation dialog pops up; settle proceeds blind.
-   - **Verify Proximity Goodwill Suppression:** Proximity diplomatic warnings are suppressed so hidden faction bases in the shroud are not revealed.
-3. Switch to `Planetary Surveillance`:
-   - **Verify Informed Confirmation:** Selecting a polluted or hazardous hex prompts the standard vanilla confirmation dialog before embarking.
-
-#### 28.7 Step 3 Storyteller Screen Mod Compatibility
-
-1. On `Page_SelectStoryteller` (Step 3), verify the page is 100% vanilla without modded text overlays or button injections.
-2. All Project Vigilance simulation rules, mutability constraints, and profile descriptions remain contained exclusively within `Page_GeoscapeRules` and `Dialog_GeoscapeCampaignRules`.
 
 ---
 
@@ -1246,6 +1153,22 @@ _Objective: Validate the native campaign creation wizard page (`Page_GeoscapeRul
 
 ---
 
+### Test 18: Default Campaign Creation & Day-0 Snapshot (TC-18) — 🟢 In-Game Pass
+
+_Objective: Validate campaign creation when wizard defaults are accepted without modification._
+
+1. From the Main Menu, initiate a new game and proceed through Page_GeoscapeRules without altering any cards or settings.
+2. Embark onto the colony map.
+3. Open Options → Mod Settings → Project Vigilance: Geoscape:
+   - **Verify Visibility:** Operates under FogOfWar (Recommended default).
+   - **Verify Lookout Horizons:** Colony horizon is 5.0 hexes; Caravan lookout is 3.0 hexes.
+4. Switch to About & Diagnostics tab:
+   - **Verify Active Profile:** Displays Fog of War (Recommended).
+   - **Verify Ledger Origin:** Day-0 pinned record displays:
+     > CampaignCreated | Defaults | visibilityMode=FogOfWar ...
+
+---
+
 ### Test 21: Mutability Enforcement & Immutable Rule Locking (`TC-21`) — 🟢 Automated Pass
 
 _Objective: Validate that Immutable rules lock permanently and reverse visibility transitions are rejected outside developer mode._
@@ -1300,6 +1223,83 @@ _Objective: Validate that unsafe override flag is never written to save XML and 
 
 ---
 
+### Test 28: Uncharted Globe Starting Site Selection & Automated Landfall Paradigm (`TC-28`) — 🟢 In-Game Pass
+
+_Objective: Validate that campaign setup on an uncharted globe under Fog of War seamlessly implements automated landfall—skipping purposeless clicking on a dark sphere while ensuring valid plot designation—preserves manual targeting when opted into or when playing with revealed geography, and leaves Step 3 storyteller selection 100% vanilla for maximum mod compatibility._
+
+#### 28.1 Automated Landfall under Fog of War & Hardcore Vigilance (Default Flow)
+
+1. From the Main Menu, click **New colony** $\rightarrow$ select scenario (e.g. Crashlanded) $\rightarrow$ select Storyteller (e.g. Cassandra Classic).
+2. On `Page_GeoscapeRules` (Step 4), ensure **Fog of War** (or **Hardcore Vigilance**) is selected:
+   - **Verify Summary:** The overview panel displays `Starting Site Selection: Automated Landfall`.
+3. Click `Next` to advance to `Page_CreateWorldParams` (Step 5).
+4. Configure globe parameters (e.g. 50% coverage, seed, map size via `Advanced settings: Edit...`).
+5. Click **Generate**:
+   - **Verify Automated Landfall:** World generation completes and advances **directly to Ideology preset or Colonist selection** (`Page_ChooseIdeoPreset` or `Page_ConfigureStartingPawns`).
+   - **Verify Black Globe Skipped:** `Page_SelectStartingSite` is completely bypassed.
+   - **Verify Diagnostic Log:** Inspect console/debug log to verify `[Project Vigilance] Automated landfall designated starting tile {candidate}.`
+6. Click `Back` on Ideology / Colonist selection:
+   - **Verify Bidirectional Navigation:** Navigates back directly to `Page_CreateWorldParams`.
+   - **Verify Back to Rules:** Clicking `Back` again navigates back to `Page_GeoscapeRules`.
+7. Embark into the colony:
+   - **Verify Valid Landfall:** Colony map generates on a valid, habitable, non-ocean land tile.
+   - Switch to World Map (`Tab`): The dark, fogged globe renders with active lookout vision centred on the colony.
+
+#### 28.2 Optional Manual Globe Targeting under Fog of War
+
+1. Start a new campaign $\rightarrow$ reach `Page_GeoscapeRules` with **Fog of War** active.
+2. Click **Customise Individual Rules...**:
+   - In `Landing Site Selection`, toggle **Manual Globe Targeting**.
+   - Close dialog (`X` or `Esc`).
+   - **Verify Status:** Active profile indicates `Active Profile: Custom`.
+3. Click `Next` $\rightarrow$ click `Generate` on `Page_CreateWorldParams`:
+   - **Verify Globe Screen Shown:** `Page_SelectStartingSite` is presented with the planetary globe shrouded in darkness.
+4. Without selecting a hex, click `Next`:
+   - **Verify Fallback Auto-Designation:** Instead of blocking with the vanilla error _"Must select a starting site"_, a message displays:
+     > _"Random landing site automatically designated."_
+   - The setup smoothly advances to Ideology / Colonist selection.
+5. Alternatively, rotate the globe, click on a preferred sector (e.g. polar or equatorial latitude), and click `Next`:
+   - Colony establishes in the chosen latitude.
+
+#### 28.3 Planetary Surveillance & Omniscient Preservation
+
+1. Start a new campaign $\rightarrow$ select **Planetary Surveillance** (or **Omniscient**) on `Page_GeoscapeRules`.
+2. Click `Next` $\rightarrow$ click `Generate` on `Page_CreateWorldParams`:
+   - **Verify Full Cartography:** `Page_SelectStartingSite` opens normally with full orbital cartography, revealed terrain, biomes, and standard manual site selection.
+
+#### 28.4 Automated Landfall on Planetary Surveillance / Omniscient (Custom Rules)
+
+1. Start a new campaign $\rightarrow$ select **Planetary Surveillance** (or **Omniscient**) on `Page_GeoscapeRules`.
+2. Click `Customise Individual Rules...` $\rightarrow$ set `Starting Site Selection` to **Automated Landfall**.
+3. Click `Close` $\rightarrow$ click `Next` $\rightarrow$ click `Generate` on `Page_CreateWorldParams`:
+   - **Verify Black Globe Skipped:** `Page_SelectStartingSite` is completely bypassed.
+   - The setup smoothly designates a valid random starting site and advances directly to Ideology / Colonist selection.
+
+#### 28.5 Ambiguous Landing Rejection on Physically Impossible Tiles (Manual Targeting)
+
+1. Under `Fog of War` with `Manual Globe Targeting` enabled, locate an unexplored/fogged ocean or deep water hex in the black shroud.
+2. Attempt to settle on the hex:
+   - **Verify Rejection Message:** Displays ambiguous rejection message:
+     > _"Unviable landing coordinates: Selected sector cannot support a colony drop."_
+3. Attempt to settle on an unexplored impassable mountain hex:
+   - **Verify Rejection Message:** Displays the exact same ambiguous telemetry message without disclosing mountain terrain or impassability.
+
+#### 28.6 Blind Touchdown on Environmental Hazard Sectors (Manual Targeting)
+
+1. Under `Fog of War` with `Manual Globe Targeting` enabled, select an unexplored sector containing hazards (toxic pollution, extreme desert, ice sheet).
+2. Click `Next`:
+   - **Verify Hazard Suppression:** No hazard confirmation dialog pops up; settle proceeds blind.
+   - **Verify Proximity Goodwill Suppression:** Proximity diplomatic warnings are suppressed so hidden faction bases in the shroud are not revealed.
+3. Switch to `Planetary Surveillance`:
+   - **Verify Informed Confirmation:** Selecting a polluted or hazardous hex prompts the standard vanilla confirmation dialog before embarking.
+
+#### 28.7 Step 3 Storyteller Screen Mod Compatibility
+
+1. On `Page_SelectStoryteller` (Step 3), verify the page is 100% vanilla without modded text overlays or button injections.
+2. All Project Vigilance simulation rules, mutability constraints, and profile descriptions remain contained exclusively within `Page_GeoscapeRules` and `Dialog_GeoscapeCampaignRules`.
+
+---
+
 ## In-Game Verification Sign-Off Checklist
 
 ### Priority 1: Active In-Game Focus (Immediate)
@@ -1308,9 +1308,7 @@ _Objective: Validate that unsafe override flag is never written to save XML and 
 - [ ] 🔴 **TC-04:** 3D holographic honeycomb mesh and boundary rings verified across display styles and colour palettes.
 - [ ] 🔴 **TC-05:** 4X Colony right-click expedition dispatch, automated supply pre-allocation, zero-TPS listening post deployment, stuffDef material tracking, stack-partitioned dismantle salvage (75 + 37 items), hostile sabotage, and repair verified.
 - [ ] 🔴 **TC-06:** Two-stage early warning non-peeking escalation and direct entry bypass verified.
-- [ ] 🔴 **TC-18:** Wizard default campaign creation (`FogOfWar`) and pinned `CampaignCreated` ledger snapshot verified.
 - [ ] 🔴 **TC-27:** Dual-layer orbital rendering across Surface and Orbit layers (`<fullyExpandedInSpace>`), shroud masking adherence, and dynamic faction livery colour tinting verified.
-- [ ] 🔴 **TC-28:** Uncharted globe starting site selection automated landfall paradigm, black globe bypass under Fog of War / Hardcore Vigilance, optional manual globe targeting fallback, and Step 3 vanilla compatibility verified.
 - [ ] 🔴 **TC-29:** Overlapping entity disambiguation menu, faction livery rendering, status details, shift-click toggle, and sensory masking verified.
 - [ ] 🔴 **TC-30:** Smart source-agnostic contextual dispatch, proximity ordering, move/send caravan formatting, and fog-of-war exploration routing verified.
 
@@ -1340,6 +1338,8 @@ _Objective: Validate that unsafe override flag is never written to save XML and 
 - [ ] 🟢 **TC-11:** Scribe save/load persistence, stuffDef material serialisation, and defensive outpost removal resilience verified.
 - [ ] 🟢 **TC-16:** Cross-campaign save isolation and independent per-save gameplay rule persistence (`FogOfWar` vs `Omniscient`) verified.
 - [x] 🟢 **TC-17:** Native campaign creation wizard page (`Page_GeoscapeRules`), $2 \times 2$ profile grid, Anomaly-style modal dialog (`Dialog_GeoscapeCampaignRules`), and Day-0 draft consumption verified (In-Game Pass).
+- [x] 🟢 **TC-18:** Default campaign creation wizard defaults (`FogOfWar`) and pinned `CampaignCreated` Day-0 audit ledger snapshot verified (In-Game Pass).
 - [ ] 🟢 **TC-21:** Mutability constraints, Immutable rule locking, and reverse visibility transition blocking (Fog of War) verified.
 - [ ] 🟢 **TC-23:** Immediate unsafe override revocation and `DevOverrideDisabled` ledger logging upon turning off DevMode verified.
 - [ ] 🟢 **TC-24:** Session-only ephemerality (zero XML persistence) and restart safety verified.
+- [x] 🟢 **TC-28:** Uncharted globe starting site selection automated landfall paradigm, black globe bypass under Fog of War / Hardcore Vigilance, optional manual globe targeting fallback, and Step 3 vanilla compatibility verified (In-Game Pass).
