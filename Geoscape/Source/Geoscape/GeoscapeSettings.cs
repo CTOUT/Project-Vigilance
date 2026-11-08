@@ -48,6 +48,8 @@ public class GeoscapeSettings : ModSettings
     public StartingSiteSelectionMode startingSiteSelection = StartingSiteSelectionMode.AutomatedLandfall;
     public bool enableOverlappingEntitySelectionMenu = true;
     public bool enableIntelligentRightClick = true;
+    public int maxContextualCaravansShown = 3;
+    public int maxContextualColoniesShown = 2;
 
     // =========================================================================
     // Transient UI State (Tabs, Scrolling & Dynamic Sizing)
@@ -55,7 +57,7 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.SensoryRadar;
     private static readonly Vector2[] scrollPositions = new Vector2[4];
-    private static readonly float[] tabHeights = { 1360f, 520f, 660f, 480f };
+    private static readonly float[] tabHeights = { 1480f, 520f, 660f, 480f };
 
     public Color EffectiveRadarColor
     {
@@ -113,6 +115,8 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref startingSiteSelection, "startingSiteSelection", StartingSiteSelectionMode.AutomatedLandfall);
         Scribe_Values.Look(ref enableOverlappingEntitySelectionMenu, "enableOverlappingEntitySelectionMenu", true);
         Scribe_Values.Look(ref enableIntelligentRightClick, "enableIntelligentRightClick", true);
+        Scribe_Values.Look(ref maxContextualCaravansShown, "maxContextualCaravansShown", 3);
+        Scribe_Values.Look(ref maxContextualColoniesShown, "maxContextualColoniesShown", 2);
     }
 
     // =========================================================================
@@ -451,6 +455,16 @@ public class GeoscapeSettings : ModSettings
             ref enableIntelligentRightClick,
             "Allow right-clicking anywhere on the Geoscape without selecting a source first, intelligently suggesting actions from the nearest colonies and caravans.");
 
+        if (enableIntelligentRightClick)
+        {
+            listing.Gap(4f);
+            listing.Label($"Max Contextual Caravans Displayed: {maxContextualCaravansShown}", tooltip: "Limits the number of nearest player caravans directly displayed on the right-click menu. Additional caravans can be accessed via a drilldown sub-menu.");
+            maxContextualCaravansShown = Mathf.RoundToInt(listing.Slider(maxContextualCaravansShown, 1f, 8f));
+
+            listing.Label($"Max Contextual Colonies Displayed: {maxContextualColoniesShown}", tooltip: "Limits the number of nearest player colonies directly displayed on the right-click menu. Additional colonies can be accessed via a drilldown sub-menu.");
+            maxContextualColoniesShown = Mathf.RoundToInt(listing.Slider(maxContextualColoniesShown, 1f, 5f));
+        }
+
         if (!inCampaign)
         {
             rules.WriteToDefaults(this);
@@ -669,6 +683,8 @@ public class GeoscapeSettings : ModSettings
         radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
         enableOverlappingEntitySelectionMenu = true;
         enableIntelligentRightClick = true;
+        maxContextualCaravansShown = 3;
+        maxContextualColoniesShown = 2;
         NotifyRadarVisualsChanged();
         OnVisibilityModeChanged();
     }

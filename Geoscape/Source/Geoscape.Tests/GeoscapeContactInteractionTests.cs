@@ -51,9 +51,13 @@ public sealed class GeoscapeContactInteractionTests
     public void Cleanup()
     {
         WorldSelector_HandleWorldClicks_Patch.MouseTileOverride = null;
+        WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = null;
         WorldSelector_SelectFirstOrNextFrom_Patch.ShiftHeldOverride = null;
         SensoryManager.IsExploredOverride = null;
         SensoryManager.Instance = null;
+        CaravanExpeditionUtility.BeaconMaterialsOverride = null;
+        GeoscapeMod.Settings.maxContextualCaravansShown = 3;
+        GeoscapeMod.Settings.maxContextualColoniesShown = 2;
     }
 
     // =========================================================================
@@ -572,5 +576,232 @@ public sealed class GeoscapeContactInteractionTests
         GeoscapeMod.Settings.enableOverlappingEntitySelectionMenu = false;
         bool result = WorldSelector_SelectUnderMouse_Patch.Prefix(null!, true);
         Assert.IsTrue(result, "When disabled in settings, SelectUnderMouse prefix must allow vanilla execution.");
+    }
+
+    [TestMethod]
+    public void BuildIntelligentContextualOptions_CaravansExceedLimit_ClampsDirectOptionsAndAddsDrilldown()
+    {
+        var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+        var caravans = new List<Caravan>();
+
+        for (int i = 1; i <= 5; i++)
+        {
+            var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+            HarmonyLib.Traverse.Create(caravan).Field("tile").SetValue((PlanetTile)(200 + i));
+            HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
+            HarmonyLib.Traverse.Create(caravan).Field("nameInt").SetValue($"Caravan {i}");
+            caravans.Add(caravan);
+        }
+
+        GeoscapeMod.Settings.maxContextualCaravansShown = 3;
+
+        var options = WorldSelector_HandleWorldClicks_Patch.BuildIntelligentContextualOptions(
+            (PlanetTile)200,
+            caravans,
+            Enumerable.Empty<Settlement>());
+
+        Assert.IsNotNull(options);
+
+        // Top 3 caravans should be directly listed
+        Assert.IsTrue(options.Any(o => o.Label.Contains("Caravan 1")));
+        Assert.IsTrue(options.Any(o => o.Label.Contains("Caravan 2")));
+        Assert.IsTrue(options.Any(o => o.Label.Contains("Caravan 3")));
+
+        // Caravans 4 and 5 must NOT appear directly in the top menu
+        Assert.IsFalse(options.Any(o => o.Label.Contains("Caravan 4")));
+        Assert.IsFalse(options.Any(o => o.Label.Contains("Caravan 5")));
+
+        // Sub-menu drilldown option must be present for the 2 clamped caravans
+        var moreOption = options.FirstOrDefault(o => o.Label.StartsWith("Other caravans (2 more)... >"));
+        Assert.IsNotNull(moreOption, "Must offer 'Other caravans (2 more)... >' drilldown option.");
+        Assert.IsNotNull(moreOption.action, "Drilldown option must have a valid non-null click action.");
+
+        // Invoking the sub-menu action in headless mode should not throw
+        moreOption.action.Invoke();
+    }
+
+    [TestMethod]
+    public void BuildIntelligentContextualOptions_ColoniesExceedLimit_ClampsDirectOptionsAndAddsDrilldown()
+    {
+        var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+        var settlements = new List<Settlement>();
+
+        for (int i = 1; i <= 4; i++)
+        {
+            var map = (Map)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Map));
+            var settlement = new Settlement { ID = 4000 + i };
+            HarmonyLib.Traverse.Create(settlement).Field("tile").SetValue((PlanetTile)(300 + i * 2));
+            HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+            HarmonyLib.Traverse.Create(settlement).Field("mapInt").SetValue(map);
+            HarmonyLib.Traverse.Create(settlement).Field("nameInt").SetValue($"Outpost {i}");
+            settlements.Add(settlement);
+        }
+
+        GeoscapeMod.Settings.maxContextualColoniesShown = 2;
+
+        var options = WorldSelector_HandleWorldClicks_Patch.BuildIntelligentContextualOptions(
+            (PlanetTile)300,
+            Enumerable.Empty<Caravan>(),
+            settlements);
+
+        Assert.IsNotNull(options);
+
+        // Top 2 settlements should be directly listed
+        Assert.IsTrue(options.Any(o => o.Label.Contains("Outpost 1")));
+        Assert.IsTrue(options.Any(o => o.Label.Contains("Outpost 2")));
+
+        // Settlements 3 and 4 must NOT appear directly in the top menu
+        Assert.IsFalse(options.Any(o => o.Label.Contains("Outpost 3")));
+        Assert.IsFalse(options.Any(o => o.Label.Contains("Outpost 4")));
+
+        // Sub-menu drilldown option must be present for the 2 clamped settlements
+        var moreOption = options.FirstOrDefault(o => o.Label.StartsWith("Other colonies (2 more)... >"));
+        Assert.IsNotNull(moreOption, "Must offer 'Other colonies (2 more)... >' drilldown option.");
+        Assert.IsNotNull(moreOption.action, "Drilldown option must have a valid non-null click action.");
+
+        // Invoking the sub-menu action in headless mode should not throw
+        moreOption.action.Invoke();
+    }
+
+    [TestMethod]
+    public void BuildIntelligentContextualOptions_Unexplored_ClampsCaravansAndColonies()
+    {
+        try
+        {
+            GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            SensoryManager.Instance = new SensoryManager(null!);
+            SensoryManager.IsExploredOverride = _ => false; // Everything unexplored
+
+            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+            var caravans = new List<Caravan>();
+            for (int i = 1; i <= 4; i++)
+            {
+                var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+                HarmonyLib.Traverse.Create(caravan).Field("tile").SetValue((PlanetTile)(500 + i));
+                HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
+                HarmonyLib.Traverse.Create(caravan).Field("nameInt").SetValue($"Scout {i}");
+                caravans.Add(caravan);
+            }
+
+            var settlements = new List<Settlement>();
+            for (int i = 1; i <= 3; i++)
+            {
+                var map = (Map)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Map));
+                var settlement = new Settlement { ID = 5000 + i };
+                HarmonyLib.Traverse.Create(settlement).Field("tile").SetValue((PlanetTile)(510 + i * 2));
+                HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+                HarmonyLib.Traverse.Create(settlement).Field("mapInt").SetValue(map);
+                HarmonyLib.Traverse.Create(settlement).Field("nameInt").SetValue($"Base {i}");
+                settlements.Add(settlement);
+            }
+
+            GeoscapeMod.Settings.maxContextualCaravansShown = 2;
+            GeoscapeMod.Settings.maxContextualColoniesShown = 1;
+
+            var options = WorldSelector_HandleWorldClicks_Patch.BuildIntelligentContextualOptions(
+                (PlanetTile)500,
+                caravans,
+                settlements);
+
+            Assert.IsNotNull(options);
+
+            // Exactly 2 caravans and 1 settlement directly visible
+            Assert.IsTrue(options.Any(o => o.Label.Contains("Scout 1")));
+            Assert.IsTrue(options.Any(o => o.Label.Contains("Scout 2")));
+            Assert.IsFalse(options.Any(o => o.Label.Contains("Scout 3")));
+
+            Assert.IsTrue(options.Any(o => o.Label.Contains("Base 1")));
+            Assert.IsFalse(options.Any(o => o.Label.Contains("Base 2")));
+
+            // Both drilldowns present
+            var moreCaravans = options.FirstOrDefault(o => o.Label.StartsWith("Other caravans towards unexplored (2 more)... >"));
+            Assert.IsNotNull(moreCaravans, "Must offer unexplored caravan drilldown.");
+            moreCaravans.action?.Invoke();
+
+            var moreColonies = options.FirstOrDefault(o => o.Label.StartsWith("Other colonies towards unexplored (2 more)... >"));
+            Assert.IsNotNull(moreColonies, "Must offer unexplored colony drilldown.");
+            moreColonies.action?.Invoke();
+        }
+        finally
+        {
+            SensoryManager.IsExploredOverride = null;
+            SensoryManager.Instance = null;
+        }
+    }
+
+    [TestMethod]
+    public void BuildSettlementDispatchOptions_MultipleBeaconMaterials_CollapsesToDrilldown()
+    {
+        try
+        {
+            var slateDef = new ThingDef { defName = "BlocksSlate" };
+            var graniteDef = new ThingDef { defName = "BlocksGranite" };
+            CaravanExpeditionUtility.BeaconMaterialsOverride = _ => new List<ThingDef> { slateDef, graniteDef };
+
+            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+            var map = (Map)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Map));
+            WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = _ => map;
+            var settlement = new Settlement { ID = 6001 };
+            HarmonyLib.Traverse.Create(settlement).Field("tile").SetValue((PlanetTile)100);
+            HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+            HarmonyLib.Traverse.Create(settlement).Field("nameInt").SetValue("Mining Colony");
+
+            var options = WorldSelector_HandleWorldClicks_Patch.BuildSettlementDispatchOptions(settlement, (PlanetTile)105);
+
+            Assert.IsNotNull(options);
+
+            // Must NOT have multiple flat beacon material options
+            Assert.AreEqual(0, options.Count(o => o.Label.Contains("BlocksSlate")), "Must not list materials on flat menu.");
+            Assert.AreEqual(0, options.Count(o => o.Label.Contains("BlocksGranite")), "Must not list materials on flat menu.");
+
+            // Must have a single drilldown option
+            var beaconSubmenu = options.FirstOrDefault(o => o.Label.Contains("Signal Beacon... > (2 material types available)"));
+            Assert.IsNotNull(beaconSubmenu, "Must collapse multiple beacon materials into a single drilldown option.");
+
+            beaconSubmenu.action?.Invoke();
+        }
+        finally
+        {
+            CaravanExpeditionUtility.BeaconMaterialsOverride = null;
+            WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void BuildSettlementContextualOptions_MultipleBeaconMaterials_CollapsesToDrilldown()
+    {
+        try
+        {
+            var slateDef = new ThingDef { defName = "BlocksSlate" };
+            var marbleDef = new ThingDef { defName = "BlocksMarble" };
+            var woodDef = new ThingDef { defName = "WoodLog" };
+            CaravanExpeditionUtility.BeaconMaterialsOverride = _ => new List<ThingDef> { woodDef, slateDef, marbleDef };
+
+            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+            var map = (Map)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Map));
+            WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = _ => map;
+            var settlement = new Settlement { ID = 7001 };
+            HarmonyLib.Traverse.Create(settlement).Field("tile").SetValue((PlanetTile)200);
+            HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+            HarmonyLib.Traverse.Create(settlement).Field("nameInt").SetValue("Forward Base");
+
+            var options = WorldSelector_HandleWorldClicks_Patch.BuildIntelligentContextualOptions(
+                (PlanetTile)8921,
+                Enumerable.Empty<Caravan>(),
+                new List<Settlement> { settlement });
+
+            Assert.IsNotNull(options);
+
+            // Must collapse 3 materials into 1 drilldown line
+            var beaconSubmenu = options.FirstOrDefault(o => o.Label.Contains("Signal Beacon... > (3 material types available)"));
+            Assert.IsNotNull(beaconSubmenu, "Contextual right-click menu must collapse multiple beacon materials into drilldown.");
+
+            beaconSubmenu.action?.Invoke();
+        }
+        finally
+        {
+            CaravanExpeditionUtility.BeaconMaterialsOverride = null;
+            WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = null;
+        }
     }
 }

@@ -252,8 +252,18 @@ public static class CaravanExpeditionUtility
                currentComponents >= OutpostMaterialUtility.AutomatedRelayComponentCost;
     }
 
+    /// <summary>
+    /// Optional hook for overriding available beacon materials during headless unit tests.
+    /// </summary>
+    public static System.Func<Map, List<ThingDef>>? BeaconMaterialsOverride { get; set; }
+
     public static List<ThingDef> GetAvailableColonyBeaconMaterials(Map map)
     {
+        if (BeaconMaterialsOverride != null)
+        {
+            return BeaconMaterialsOverride(map);
+        }
+
         var result = new List<ThingDef>();
         if (map?.resourceCounter == null)
         {
