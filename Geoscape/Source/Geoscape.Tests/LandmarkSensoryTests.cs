@@ -4,6 +4,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Geoscape;
 using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.Sensory;
 
@@ -173,5 +174,26 @@ public sealed class LandmarkSensoryTests
         // Amber threat indicator is predominantly warm/red (high red, low blue)
         Assert.IsTrue(amber.r > 0.9f);
         Assert.IsTrue(amber.b < 0.3f);
+    }
+
+    [TestMethod]
+    public void Landmarks_DrawStandard_SuppressesUnidentifiedManMadeLandmarks()
+    {
+        // When visibility is ClassicHazeOfWar and sensory manager is null or tile unexplored, DrawStandard is suppressed
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        
+        // Landmark with Ruins defName
+        var def = new RimWorld.LandmarkDef { defName = "Ruins" };
+        var lm = new RimWorld.Landmark { def = def };
+        var tile = (PlanetTile)100;
+
+        // With SensoryManager.Instance == null, Prefix returns true
+        bool allow = WorldObject_Visibility_Patch.Landmarks_DrawStandard_Patch.Prefix(lm, tile);
+        Assert.IsTrue(allow);
+
+        // When VisibilityMode is Omniscient, Prefix always returns true regardless
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.Omniscient;
+        allow = WorldObject_Visibility_Patch.Landmarks_DrawStandard_Patch.Prefix(lm, tile);
+        Assert.IsTrue(allow);
     }
 }

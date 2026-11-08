@@ -354,16 +354,28 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch(typeof(WorldDrawLayer_Landmarks), "DrawStandard", typeof(Landmark), typeof(PlanetTile))]
     public static class Landmarks_DrawStandard_Patch
     {
-        public static bool Prefix(PlanetTile tile)
+        public static bool Prefix(Landmark landmark, PlanetTile tile)
         {
             if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
                 return true;
             }
 
-            if (SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(tile))
+            SensoryManager? sensory = SensoryManager.Instance;
+            if (sensory != null)
             {
-                return false;
+                if (!sensory.IsExplored(tile))
+                {
+                    return false;
+                }
+
+                // If this is an anomalous or man-made landmark, suppress physical 3D mesh rendering until the sector is identified
+                if (landmark?.def != null &&
+                    LandmarkSensoryUtility.IsManMadeLandmarkDef(landmark.def.defName) &&
+                    !sensory.IsTileIdentified(tile))
+                {
+                    return false;
+                }
             }
 
             return true;
@@ -386,8 +398,23 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            // Return a filtered copy rather than mutating vanilla's cachedLandmarksToShow static list in-place
-            __result = __result.Where(t => sensory.IsExplored(t)).ToList();
+            // Return a filtered copy rather than mutating vanilla's cachedLandmarksToShow static list in-place.
+            // If the landmark is anomalous or man-made, conceal the vanilla expanding icon until the sector is identified.
+            __result = __result.Where(t =>
+            {
+                if (!sensory.IsExplored(t))
+                {
+                    return false;
+                }
+
+                Landmark? lm = Find.WorldGrid?[t]?.Landmark;
+                if (lm?.def != null && LandmarkSensoryUtility.IsManMadeLandmarkDef(lm.def.defName))
+                {
+                    return sensory.IsTileIdentified(t);
+                }
+
+                return true;
+            }).ToList();
         }
     }
 
