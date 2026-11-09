@@ -244,6 +244,16 @@ public static class WorldObject_Visibility_Patch
                 }
             }
 
+            // Maintain visibility of player settlements, outposts, and caravans when viewing the orbital planet layer
+            if (wo.Faction?.IsPlayer == true && (wo is MapParent || wo is Caravan || wo is WorldObject_ListeningPost))
+            {
+                if (IsValidOrbitalLayerActive())
+                {
+                    __result = false;
+                    return;
+                }
+            }
+
             if (__result)
             {
                 return;
@@ -284,6 +294,15 @@ public static class WorldObject_Visibility_Patch
                     }
                 }
             }
+            else if (wo.Faction?.IsPlayer == true && (wo is MapParent || wo is Caravan || wo is WorldObject_ListeningPost))
+            {
+                // When viewing the orbital planet layer, ensure player surface colonies, outposts, and caravans remain fully expanded
+                PlanetLayer? sel = Find.WorldSelector?.SelectedLayer;
+                if (sel?.Def?.isSpace == true || sel?.Def?.defName == "Orbit")
+                {
+                    __result = Mathf.Max(__result, 1f);
+                }
+            }
         }
     }
 
@@ -302,7 +321,33 @@ public static class WorldObject_Visibility_Patch
                 if (!ShouldHideWorldObject(o) && IsValidOrbitalLayerActive())
                 {
                     // Orbital entities in high planetary orbit should only be hidden if physically occluded by the planetary globe
-                    __result = WorldRendererUtility.HiddenBehindTerrainNow(o.DrawPos);
+                    if (Current.ProgramState == ProgramState.Playing && Current.Game != null && Find.WorldCameraDriver != null)
+                    {
+                        __result = WorldRendererUtility.HiddenBehindTerrainNow(o.DrawPos);
+                    }
+                    else
+                    {
+                        __result = false;
+                    }
+                    return;
+                }
+            }
+
+            // Maintain visibility of player settlements, outposts, and caravans when viewing the orbital planet layer
+            if (o.Faction?.IsPlayer == true && (o is MapParent || o is Caravan || o is WorldObject_ListeningPost))
+            {
+                if (IsValidOrbitalLayerActive())
+                {
+                    // Player surface colonies, outposts, and caravans remain visible on the globe in orbit view
+                    // unless physically occluded behind planetary terrain on the far side of the planet
+                    if (Current.ProgramState == ProgramState.Playing && Current.Game != null && Find.WorldCameraDriver != null)
+                    {
+                        __result = WorldRendererUtility.HiddenBehindTerrainNow(o.DrawPos);
+                    }
+                    else
+                    {
+                        __result = false;
+                    }
                 }
             }
         }
