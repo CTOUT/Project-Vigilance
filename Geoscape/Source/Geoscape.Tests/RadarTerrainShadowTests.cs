@@ -265,6 +265,60 @@ public sealed class RadarTerrainShadowTests
     }
 
     [TestMethod]
+    public void PopulateActiveVisionTiles_DifferentLayerInstances_IdentifiesAndPenetratesByTileId()
+    {
+        // Sensor A uses Layer1; Sensor B uses Layer2 (or null layer)
+        var mockLayer2 = (PlanetLayer)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(PlanetLayer));
+        PlanetTile TileLayer2(int id) => new PlanetTile(id, mockLayer2);
+
+        var graph = new Dictionary<int, List<PlanetTile>>
+        {
+            [0] = new() { MakeTile(1) },
+            [1] = new() { MakeTile(0), MakeTile(2) },
+            [2] = new() { MakeTile(1) }
+        };
+
+        SensoryManager.TileNeighborsOverride = (tile, list) =>
+        {
+            if (graph.TryGetValue(tile.tileId, out var neighbors))
+            {
+                list.AddRange(neighbors);
+            }
+        };
+
+        var sensorA = new TestSensor
+        {
+            SensorTile = MakeTile(0),
+            DetectionRadiusInTiles = 3f,
+            IdentificationRadiusInTiles = 3,
+            PenetratesTerrainMasking = false
+        };
+
+        var sensorB = new TestSensor
+        {
+            SensorTile = TileLayer2(0),
+            DetectionRadiusInTiles = 3f,
+            IdentificationRadiusInTiles = 3,
+            PenetratesTerrainMasking = true
+        };
+
+        SensoryManager.ActiveSensorsOverride = () => new[] { sensorA, sensorB };
+        SensoryTerrainUtility.TargetMaskedOverride = t => t.tileId == 2;
+
+        var sensory = new SensoryManager(null!);
+        var activeTiles = new HashSet<PlanetTile>();
+        var idTiles = new HashSet<PlanetTile>();
+        var shadowTiles = new HashSet<PlanetTile>();
+
+        // Act
+        sensory.PopulateActiveVisionTiles(activeTiles, idTiles, null, shadowTiles);
+
+        // Assert: Even if PlanetTile instances have different PlanetLayer references,
+        // tileId-based resolution ensures penetrating Sensor B clears shadow for tile 2.
+        Assert.AreEqual(0, shadowTiles.Count, "Penetrating sensor must clear shadow across any layer reference.");
+    }
+
+    [TestMethod]
     public void PopulateActiveVisionTiles_CloseSightlineDistanceOne_NotShadowed()
     {
         // Tile 1 is Mountainous and immediately adjacent to the radar station (step 1)

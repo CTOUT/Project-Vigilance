@@ -19,6 +19,8 @@ public class CompRadar : ThingComp, ISensorProvider
     private int cachedTrackedCount;
     private int cachedVantageBonus;
     private int lastTrackedUpdateTick = -1;
+    private bool lastSigintActive;
+    private int lastOperationalDishes = -1;
 
     public CompProperties_Radar Props => (CompProperties_Radar)props;
 
@@ -51,7 +53,7 @@ public class CompRadar : ThingComp, ISensorProvider
             // 2. Compound interferometry sharing: If any operational peer dish of this def on the local map
             // has an active linked SIGINT console, the entire interferometric array shares decrypted signals intelligence.
             var buildings = parent.Map.listerBuildings?.AllBuildingsColonistOfDef(parent.def);
-            if (buildings != null)
+            if (buildings != null && buildings.Count > 0)
             {
                 for (int i = 0; i < buildings.Count; i++)
                 {
@@ -59,6 +61,21 @@ public class CompRadar : ThingComp, ISensorProvider
                     if (peer != parent && peer.Spawned && !peer.Destroyed && IsDirectlyLinkedToActiveSigint(peer))
                     {
                         return true;
+                    }
+                }
+            }
+            else if (parent.Map.listerThings != null)
+            {
+                var things = parent.Map.listerThings.ThingsOfDef(parent.def);
+                if (things != null)
+                {
+                    for (int i = 0; i < things.Count; i++)
+                    {
+                        Thing peer = things[i];
+                        if (peer != parent && peer.Spawned && !peer.Destroyed && IsDirectlyLinkedToActiveSigint(peer))
+                        {
+                            return true;
+                        }
                     }
                 }
             }
@@ -85,10 +102,18 @@ public class CompRadar : ThingComp, ISensorProvider
         {
             Thing facility = linked[i];
             if (facility != null && facility.Spawned && !facility.Destroyed &&
-                facility.def.defName == "Geoscape_SigintConsole" &&
-                affected.IsFacilityActive(facility))
+                facility.def.defName == "Geoscape_SigintConsole")
             {
-                return true;
+                var sigint = facility.TryGetComp<CompSigintConsole>();
+                if (sigint != null && sigint.IsOperational)
+                {
+                    return true;
+                }
+
+                if (affected.IsFacilityActive(facility))
+                {
+                    return true;
+                }
             }
         }
 
@@ -319,6 +344,8 @@ public class CompRadar : ThingComp, ISensorProvider
             cachedVantageBonus = 0;
         }
 
+        lastSigintActive = HasActiveSigintConsole;
+        lastOperationalDishes = OperationalDishCount;
         SensoryManager.Instance?.RegisterSensor(this);
         UpdatePowerState();
     }
@@ -335,6 +362,15 @@ public class CompRadar : ThingComp, ISensorProvider
         if (parent.IsHashIntervalTick(SensoryManager.SweepIntervalTicks))
         {
             UpdatePowerState();
+
+            bool sigintActive = HasActiveSigintConsole;
+            int dishCount = OperationalDishCount;
+            if (sigintActive != lastSigintActive || dishCount != lastOperationalDishes)
+            {
+                lastSigintActive = sigintActive;
+                lastOperationalDishes = dishCount;
+                WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
+            }
         }
     }
 

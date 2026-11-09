@@ -57,7 +57,7 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.SensoryRadar;
     private static readonly Vector2[] scrollPositions = new Vector2[4];
-    private static readonly float[] tabHeights = { 580f, 520f, 660f, 480f };
+    private static readonly float[] tabHeights = { 960f, 520f, 660f, 480f };
 
     public Color EffectiveRadarColor
     {
@@ -158,8 +158,7 @@ public class GeoscapeSettings : ModSettings
         // 2. Scrollable Content View
         Rect contentRect = new Rect(inRect.x, inRect.y + 44f, inRect.width, inRect.height - 44f);
         int tabIndex = (int)currentTab;
-        bool hasScrollbar = tabHeights[tabIndex] > contentRect.height;
-        Rect viewRect = new Rect(0f, 0f, contentRect.width - (hasScrollbar ? 24f : 0f), Mathf.Max(tabHeights[tabIndex], contentRect.height));
+        Rect viewRect = new Rect(0f, 0f, contentRect.width - 24f, Mathf.Max(tabHeights[tabIndex], contentRect.height));
 
         Widgets.BeginScrollView(contentRect, ref scrollPositions[tabIndex], viewRect);
         Listing_Standard listing = new();
@@ -275,226 +274,210 @@ public class GeoscapeSettings : ModSettings
             Text.Font = GameFont.Small;
             listing.GapLine();
 
-            // Two-column layout for radar visual styling:
-            // Left: Overlay Mode & Outer Detection Perimeter
-            // Right: Identification Horizon & Mountain Radar Shadows
-            float totalWidth = listing.ColumnWidth;
-            float colWidth = (totalWidth - 16f) / 2f;
-
-            float colHeight = (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid) ? 320f : 280f;
-            if (!usePlayerFactionColor || useCustomIdentificationColor)
+            // 1. Overlay Mode
+            if (listing.RadioButton("Boundary Ring & Honeycomb Grid", radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid, tooltip: "Renders glowing perimeter boundary rings and an interior hexagonal holographic grid over active sensor envelopes."))
             {
-                colHeight += 120f;
+                if (radarOutlineStyle != RadarOutlineStyle.BoundaryAndGrid)
+                {
+                    radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
+                    NotifyRadarVisualsChanged();
+                }
             }
 
-            Rect twoColRect = listing.GetRect(colHeight);
-            Rect leftRect = new Rect(twoColRect.x, twoColRect.y, colWidth, twoColRect.height);
-            Rect rightRect = new Rect(twoColRect.x + colWidth + 16f, twoColRect.y, colWidth, twoColRect.height);
-
-            // Left Column: Visual Style & Outer Detection Perimeter
-            Listing_Standard leftListing = new();
-            leftListing.Begin(leftRect);
+            if (listing.RadioButton("Boundary Ring Only (Clean Perimeter)", radarOutlineStyle == RadarOutlineStyle.BoundaryOnly, tooltip: "Renders only the outer glowing perimeter boundary ring around active radar coverage."))
             {
-                Text.Font = GameFont.Tiny;
-                GUI.color = new Color(0.7f, 0.9f, 1f);
-                leftListing.Label("VISUAL OVERLAY STYLE");
-                GUI.color = Color.white;
-                Text.Font = GameFont.Small;
-
-                if (leftListing.RadioButton("Boundary Ring & Honeycomb Grid", radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid, tooltip: "Renders glowing perimeter boundary rings and an interior hexagonal holographic grid over active sensor envelopes."))
+                if (radarOutlineStyle != RadarOutlineStyle.BoundaryOnly)
                 {
-                    if (radarOutlineStyle != RadarOutlineStyle.BoundaryAndGrid)
-                    {
-                        radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
-                        NotifyRadarVisualsChanged();
-                    }
+                    radarOutlineStyle = RadarOutlineStyle.BoundaryOnly;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (listing.RadioButton("None (Undecorated Globe)", radarOutlineStyle == RadarOutlineStyle.None, tooltip: "Hides radar range outlines entirely."))
+            {
+                if (radarOutlineStyle != RadarOutlineStyle.None)
+                {
+                    radarOutlineStyle = RadarOutlineStyle.None;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            // 2. Outer Detection Perimeter
+            listing.Gap(6f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.9f, 1f);
+            listing.Label("OUTER DETECTION PERIMETER");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            bool prevUseFaction = usePlayerFactionColor;
+            listing.CheckboxLabeled(
+                "Use Player Faction Color",
+                ref usePlayerFactionColor,
+                "Automatically matches radar and boundary outlines to your player faction's primary banner color.");
+            if (prevUseFaction != usePlayerFactionColor)
+            {
+                NotifyRadarVisualsChanged();
+            }
+
+            Color activeColor = EffectiveRadarColor;
+            Rect colorBarRect = listing.GetRect(26f);
+            Widgets.DrawBoxSolid(new Rect(colorBarRect.x, colorBarRect.y, 32f, 24f), activeColor);
+
+            Faction? playerFaction = (Current.ProgramState == ProgramState.Playing && Current.Game != null && Find.FactionManager != null)
+                ? Faction.OfPlayerSilentFail
+                : null;
+
+            if (usePlayerFactionColor && playerFaction != null)
+            {
+                Widgets.Label(
+                    new Rect(colorBarRect.x + 38f, colorBarRect.y + 2f, colorBarRect.width - 38f, 24f),
+                    $"Synced: {playerFaction.Name} (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
+            }
+            else if (usePlayerFactionColor)
+            {
+                Widgets.Label(
+                    new Rect(colorBarRect.x + 38f, colorBarRect.y + 2f, colorBarRect.width - 38f, 24f),
+                    $"Synced to Player Faction (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
+            }
+            else
+            {
+                DrawCustomColorPicker(listing, colorBarRect, ref radarCustomColor, RadarPerimeterPresets);
+            }
+
+            Rect detSliderRect = listing.GetRect(26f);
+            Widgets.Label(new Rect(detSliderRect.x, detSliderRect.y, 250f, 24f), $"Detection Perimeter Intensity: {radarOutlineOpacity:P0}");
+            float newOpacity = Widgets.HorizontalSlider(
+                new Rect(detSliderRect.x + 255f, detSliderRect.y + 2f, detSliderRect.width - 255f, 20f),
+                radarOutlineOpacity, 0f, 1f);
+            if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.005f)
+            {
+                radarOutlineOpacity = newOpacity;
+                NotifyRadarVisualsChanged();
+            }
+
+            if (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid)
+            {
+                Rect gridSliderRect = listing.GetRect(26f);
+                Widgets.Label(new Rect(gridSliderRect.x, gridSliderRect.y, 250f, 24f), $"Honeycomb Grid Intensity: {honeycombGridOpacity:P0}");
+                float newGridOpacity = Widgets.HorizontalSlider(
+                    new Rect(gridSliderRect.x + 255f, gridSliderRect.y + 2f, gridSliderRect.width - 255f, 20f),
+                    honeycombGridOpacity, 0f, 1f);
+                if (Mathf.Abs(newGridOpacity - honeycombGridOpacity) > 0.005f)
+                {
+                    honeycombGridOpacity = newGridOpacity;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            // 3. Inner Identification Horizon
+            listing.Gap(6f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.9f, 1f);
+            listing.Label("INNER IDENTIFICATION HORIZON");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            bool prevShowId = showIdentificationHorizon;
+            listing.CheckboxLabeled(
+                "Show Identification Horizon",
+                ref showIdentificationHorizon,
+                "Renders an inner concentric tactical horizon ring marking the transition where contact tracks are classified into faction and force intelligence.");
+            if (prevShowId != showIdentificationHorizon)
+            {
+                NotifyRadarVisualsChanged();
+            }
+
+            if (showIdentificationHorizon)
+            {
+                Rect idSliderRect = listing.GetRect(26f);
+                Widgets.Label(new Rect(idSliderRect.x, idSliderRect.y, 250f, 24f), $"Identification Horizon Intensity: {identificationRingOpacity:P0}");
+                float newIdOpacity = Widgets.HorizontalSlider(
+                    new Rect(idSliderRect.x + 255f, idSliderRect.y + 2f, idSliderRect.width - 255f, 20f),
+                    identificationRingOpacity, 0f, 1f);
+                if (Mathf.Abs(newIdOpacity - identificationRingOpacity) > 0.005f)
+                {
+                    identificationRingOpacity = newIdOpacity;
+                    NotifyRadarVisualsChanged();
                 }
 
-                if (leftListing.RadioButton("Boundary Ring Only (Clean Perimeter)", radarOutlineStyle == RadarOutlineStyle.BoundaryOnly, tooltip: "Renders only the outer glowing perimeter boundary ring around active radar coverage."))
-                {
-                    if (radarOutlineStyle != RadarOutlineStyle.BoundaryOnly)
-                    {
-                        radarOutlineStyle = RadarOutlineStyle.BoundaryOnly;
-                        NotifyRadarVisualsChanged();
-                    }
-                }
-
-                if (leftListing.RadioButton("None (Undecorated Globe)", radarOutlineStyle == RadarOutlineStyle.None, tooltip: "Hides radar range outlines entirely."))
-                {
-                    if (radarOutlineStyle != RadarOutlineStyle.None)
-                    {
-                        radarOutlineStyle = RadarOutlineStyle.None;
-                        NotifyRadarVisualsChanged();
-                    }
-                }
-
-                leftListing.Gap(6f);
-                Text.Font = GameFont.Tiny;
-                GUI.color = new Color(0.7f, 0.9f, 1f);
-                leftListing.Label("OUTER DETECTION HORIZON");
-                GUI.color = Color.white;
-                Text.Font = GameFont.Small;
-
-                bool prevUseFaction = usePlayerFactionColor;
-                leftListing.CheckboxLabeled(
-                    "Use Player Faction Color",
-                    ref usePlayerFactionColor,
-                    "Automatically matches radar and boundary outlines to your player faction's primary banner color.");
-                if (prevUseFaction != usePlayerFactionColor)
+                bool prevUseCustomIdColor = useCustomIdentificationColor;
+                listing.CheckboxLabeled(
+                    "Use Custom Identification Color",
+                    ref useCustomIdentificationColor,
+                    "Select an explicit custom color rather than auto-deriving a complementary hue from the detection perimeter.");
+                if (prevUseCustomIdColor != useCustomIdentificationColor)
                 {
                     NotifyRadarVisualsChanged();
                 }
 
-                Color activeColor = EffectiveRadarColor;
-                Rect colorBarRect = leftListing.GetRect(26f);
-                Widgets.DrawBoxSolid(new Rect(colorBarRect.x, colorBarRect.y, 32f, 24f), activeColor);
+                Color activeIdColor = EffectiveIdentificationColor;
+                Rect idColorBarRect = listing.GetRect(26f);
+                Widgets.DrawBoxSolid(new Rect(idColorBarRect.x, idColorBarRect.y, 32f, 24f), activeIdColor);
 
-                Faction? playerFaction = (Current.ProgramState == ProgramState.Playing && Current.Game != null && Find.FactionManager != null)
-                    ? Faction.OfPlayerSilentFail
-                    : null;
-
-                if (usePlayerFactionColor && playerFaction != null)
+                if (!useCustomIdentificationColor)
                 {
                     Widgets.Label(
-                        new Rect(colorBarRect.x + 38f, colorBarRect.y + 2f, colorBarRect.width - 38f, 24f),
-                        $"Synced: {playerFaction.Name} (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
-                }
-                else if (usePlayerFactionColor)
-                {
-                    Widgets.Label(
-                        new Rect(colorBarRect.x + 38f, colorBarRect.y + 2f, colorBarRect.width - 38f, 24f),
-                        $"Synced to Player Faction (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
+                        new Rect(idColorBarRect.x + 38f, idColorBarRect.y + 2f, idColorBarRect.width - 38f, 24f),
+                        $"Auto Complementary: Synced to Perimeter (#{ColorUtility.ToHtmlStringRGB(activeIdColor)})");
                 }
                 else
                 {
-                    DrawCustomColorPicker(leftListing, colorBarRect, ref radarCustomColor, RadarPerimeterPresets);
-                }
-
-                leftListing.Label($"Detection Perimeter Intensity: {radarOutlineOpacity:P0}");
-                float newOpacity = leftListing.Slider(radarOutlineOpacity, 0f, 1f);
-                if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.005f)
-                {
-                    radarOutlineOpacity = newOpacity;
-                    NotifyRadarVisualsChanged();
-                }
-
-                if (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid)
-                {
-                    leftListing.Label($"Honeycomb Grid Intensity: {honeycombGridOpacity:P0}");
-                    float newGridOpacity = leftListing.Slider(honeycombGridOpacity, 0f, 1f);
-                    if (Mathf.Abs(newGridOpacity - honeycombGridOpacity) > 0.005f)
-                    {
-                        honeycombGridOpacity = newGridOpacity;
-                        NotifyRadarVisualsChanged();
-                    }
+                    DrawCustomColorPicker(listing, idColorBarRect, ref radarIdentificationColor, IdentificationRingPresets, "Identification");
                 }
             }
-            leftListing.End();
 
-            // Right Column: Inner Identification Horizon & Mountain Radar Shadows
-            Listing_Standard rightListing = new();
-            rightListing.Begin(rightRect);
-            {
-                Text.Font = GameFont.Tiny;
-                GUI.color = new Color(0.7f, 0.9f, 1f);
-                rightListing.Label("INNER IDENTIFICATION HORIZON");
-                GUI.color = Color.white;
-                Text.Font = GameFont.Small;
-
-                bool prevShowId = showIdentificationHorizon;
-                rightListing.CheckboxLabeled(
-                    "Show Identification Horizon",
-                    ref showIdentificationHorizon,
-                    "Renders an inner concentric tactical horizon ring marking the transition where contact tracks are classified into faction and force intelligence.");
-                if (prevShowId != showIdentificationHorizon)
-                {
-                    NotifyRadarVisualsChanged();
-                }
-
-                if (showIdentificationHorizon)
-                {
-                    rightListing.Label($"Identification Horizon Intensity: {identificationRingOpacity:P0}");
-                    float newIdOpacity = rightListing.Slider(identificationRingOpacity, 0f, 1f);
-                    if (Mathf.Abs(newIdOpacity - identificationRingOpacity) > 0.005f)
-                    {
-                        identificationRingOpacity = newIdOpacity;
-                        NotifyRadarVisualsChanged();
-                    }
-
-                    bool prevUseCustomIdColor = useCustomIdentificationColor;
-                    rightListing.CheckboxLabeled(
-                        "Use Custom Identification Color",
-                        ref useCustomIdentificationColor,
-                        "Select an explicit custom color rather than auto-deriving a complementary hue from the detection perimeter.");
-                    if (prevUseCustomIdColor != useCustomIdentificationColor)
-                    {
-                        NotifyRadarVisualsChanged();
-                    }
-
-                    Color activeIdColor = EffectiveIdentificationColor;
-                    Rect idColorBarRect = rightListing.GetRect(26f);
-                    Widgets.DrawBoxSolid(new Rect(idColorBarRect.x, idColorBarRect.y, 32f, 24f), activeIdColor);
-
-                    if (!useCustomIdentificationColor)
-                    {
-                        Widgets.Label(
-                            new Rect(idColorBarRect.x + 38f, idColorBarRect.y + 2f, idColorBarRect.width - 38f, 24f),
-                            $"Auto Complementary (#{ColorUtility.ToHtmlStringRGB(activeIdColor)})");
-                    }
-                    else
-                    {
-                        DrawCustomColorPicker(rightListing, idColorBarRect, ref radarIdentificationColor, IdentificationRingPresets, "Identification");
-                    }
-                }
-
-                rightListing.Gap(6f);
-                Text.Font = GameFont.Tiny;
-                GUI.color = new Color(0.7f, 0.9f, 1f);
-                rightListing.Label("MOUNTAIN RADAR SHADOWS (MODEL B+)");
-                GUI.color = Color.white;
-                Text.Font = GameFont.Small;
-
-                if (rightListing.RadioButton("Both (Dashed & Hatching)", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, tooltip: "Renders dashed amber ribbons around internal mountain shadows and diagonal scanline hatching across masked mountain hex surfaces within identification range."))
-                {
-                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
-                    {
-                        radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
-                        NotifyRadarVisualsChanged();
-                    }
-                }
-
-                if (rightListing.RadioButton("Dashed Contours Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, tooltip: "Renders dashed amber ribbons enclosing internal mountain clusters and radar shadows inside identification range."))
-                {
-                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
-                    {
-                        radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
-                        NotifyRadarVisualsChanged();
-                    }
-                }
-
-                if (rightListing.RadioButton("Cell Hatching Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, tooltip: "Renders subtle radar static and diagonal scanline hatching across masked mountain hex surfaces inside identification range."))
-                {
-                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
-                    {
-                        radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
-                        NotifyRadarVisualsChanged();
-                    }
-                }
-
-                if (rightListing.RadioButton("None (Undecorated)", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, tooltip: "Hides visual shadow indicators on masked mountain tiles inside identification range."))
-                {
-                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
-                    {
-                        radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
-                        NotifyRadarVisualsChanged();
-                    }
-                }
-            }
-            rightListing.End();
-
+            // 4. Mountain Radar Shadows
             listing.Gap(6f);
-            listing.Label($"Surveillance Background Dimming: {surveillanceDimming:P0}");
-            float newDimming = listing.Slider(surveillanceDimming, 0.0f, 1.0f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.9f, 1f);
+            listing.Label("MOUNTAIN RADAR SHADOWS (MODEL B+)");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            if (listing.RadioButton("Both (Dashed Contours & Cell Hatching)", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, tooltip: "Renders dashed amber ribbons around internal mountain shadows and diagonal scanline hatching across masked mountain hex surfaces within identification range."))
+            {
+                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
+                {
+                    radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (listing.RadioButton("Dashed Contours Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, tooltip: "Renders dashed amber ribbons enclosing internal mountain clusters and radar shadows inside identification range."))
+            {
+                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
+                {
+                    radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (listing.RadioButton("Cell Hatching Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, tooltip: "Renders subtle radar static and diagonal scanline hatching across masked mountain hex surfaces inside identification range."))
+            {
+                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
+                {
+                    radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (listing.RadioButton("None (Undecorated)", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, tooltip: "Hides visual shadow indicators on masked mountain tiles inside identification range."))
+            {
+                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
+                {
+                    radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            // 5. Background Dimming
+            listing.Gap(6f);
+            Rect dimSliderRect = listing.GetRect(26f);
+            Widgets.Label(new Rect(dimSliderRect.x, dimSliderRect.y, 250f, 24f), $"Surveillance Background Dimming: {surveillanceDimming:P0}");
+            float newDimming = Widgets.HorizontalSlider(
+                new Rect(dimSliderRect.x + 255f, dimSliderRect.y + 2f, dimSliderRect.width - 255f, 20f),
+                surveillanceDimming, 0.0f, 1.0f);
             if (Mathf.Abs(newDimming - surveillanceDimming) > 0.005f)
             {
                 surveillanceDimming = newDimming;
@@ -811,12 +794,17 @@ public class GeoscapeSettings : ModSettings
         }
 
         string prefix = string.IsNullOrEmpty(labelPrefix) ? "" : labelPrefix + " ";
-        listing.Label($"{prefix}Red: {Mathf.RoundToInt(color.r * 255f)}");
-        float r = listing.Slider(color.r, 0f, 1f);
-        listing.Label($"{prefix}Green: {Mathf.RoundToInt(color.g * 255f)}");
-        float g = listing.Slider(color.g, 0f, 1f);
-        listing.Label($"{prefix}Blue: {Mathf.RoundToInt(color.b * 255f)}");
-        float b = listing.Slider(color.b, 0f, 1f);
+        Rect rRow = listing.GetRect(22f);
+        Widgets.Label(new Rect(rRow.x, rRow.y, 90f, 22f), $"{prefix}Red: {Mathf.RoundToInt(color.r * 255f)}");
+        float r = Widgets.HorizontalSlider(new Rect(rRow.x + 95f, rRow.y + 2f, rRow.width - 95f, 18f), color.r, 0f, 1f);
+
+        Rect gRow = listing.GetRect(22f);
+        Widgets.Label(new Rect(gRow.x, gRow.y, 90f, 22f), $"{prefix}Green: {Mathf.RoundToInt(color.g * 255f)}");
+        float g = Widgets.HorizontalSlider(new Rect(gRow.x + 95f, gRow.y + 2f, gRow.width - 95f, 18f), color.g, 0f, 1f);
+
+        Rect bRow = listing.GetRect(22f);
+        Widgets.Label(new Rect(bRow.x, bRow.y, 90f, 22f), $"{prefix}Blue: {Mathf.RoundToInt(color.b * 255f)}");
+        float b = Widgets.HorizontalSlider(new Rect(bRow.x + 95f, bRow.y + 2f, bRow.width - 95f, 18f), color.b, 0f, 1f);
 
         if (Mathf.Abs(r - color.r) > 0.005f ||
             Mathf.Abs(g - color.g) > 0.005f ||
