@@ -58,7 +58,7 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.Sensory;
     private static readonly Vector2[] scrollPositions = new Vector2[5];
-    private static readonly float[] tabHeights = { 460f, 440f, 320f, 480f, 420f };
+    private static readonly float[] tabHeights = { 460f, 580f, 320f, 480f, 420f };
 
     public Color EffectiveRadarColor
     {
@@ -138,19 +138,30 @@ public class GeoscapeSettings : ModSettings
             Rect tabBtnRect = new Rect(tabRowRect.x + i * (tabWidth + spacing), tabRowRect.y, tabWidth, 30f);
             bool isSelected = currentTab == (GeoscapeSettingsTab)i;
 
-            if (isSelected)
-            {
-                Widgets.DrawHighlightSelected(tabBtnRect);
-                Widgets.DrawBoxSolid(new Rect(tabBtnRect.x, tabBtnRect.yMax - 3f, tabBtnRect.width, 3f), new Color(0f, 0.85f, 1f));
-            }
-
-            if (Widgets.ButtonText(tabBtnRect, tabLabels[i]))
+            // Draw button text; when selected, skip default grey background so custom highlight is visible
+            if (Widgets.ButtonText(tabBtnRect, tabLabels[i], drawBackground: !isSelected))
             {
                 if (currentTab != (GeoscapeSettingsTab)i)
                 {
                     currentTab = (GeoscapeSettingsTab)i;
                     SoundDefOf.Click?.PlayOneShotOnCamera();
                 }
+            }
+
+            if (isSelected)
+            {
+                // Active tab background and selection glow
+                Widgets.DrawBoxSolid(tabBtnRect, new Color(0.12f, 0.22f, 0.32f, 0.85f));
+                Widgets.DrawHighlightSelected(tabBtnRect);
+                Widgets.DrawBoxSolid(new Rect(tabBtnRect.x, tabBtnRect.yMax - 3f, tabBtnRect.width, 3f), new Color(0f, 0.85f, 1f));
+
+                // Re-render crisp cyan tab label over the active highlight
+                TextAnchor prevAnchor = Text.Anchor;
+                Text.Anchor = TextAnchor.MiddleCenter;
+                GUI.color = new Color(0.4f, 0.95f, 1f);
+                Widgets.Label(tabBtnRect, tabLabels[i]);
+                GUI.color = Color.white;
+                Text.Anchor = prevAnchor;
             }
         }
 
@@ -296,35 +307,62 @@ public class GeoscapeSettings : ModSettings
         Text.Font = GameFont.Medium;
         listing.Label("Tactical Radar Overlay & Range Outlines");
         Text.Font = GameFont.Small;
-        listing.GapLine();
+        listing.Gap(4f);
 
-        // 1. Overlay Mode
-        if (listing.RadioButton("Boundary Ring & Honeycomb Grid", radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid, tooltip: "Renders glowing perimeter boundary rings and an interior hexagonal holographic grid over active sensor envelopes."))
-        {
-            if (radarOutlineStyle != RadarOutlineStyle.BoundaryAndGrid)
-            {
-                radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
-                NotifyRadarVisualsChanged();
-            }
-        }
+        // 1. Header: Live HUD Scope Preview & Tactical Overlay Mode
+        float headerHeight = 186f;
+        Rect headerRect = listing.GetRect(headerHeight);
 
-        if (listing.RadioButton("Boundary Ring Only (Clean Perimeter)", radarOutlineStyle == RadarOutlineStyle.BoundaryOnly, tooltip: "Renders only the outer glowing perimeter boundary ring around active radar coverage."))
-        {
-            if (radarOutlineStyle != RadarOutlineStyle.BoundaryOnly)
-            {
-                radarOutlineStyle = RadarOutlineStyle.BoundaryOnly;
-                NotifyRadarVisualsChanged();
-            }
-        }
+        float previewSize = 180f;
+        Rect previewRect = new Rect(headerRect.x, headerRect.y, previewSize, previewSize);
+        Rect modeColRect = new Rect(headerRect.x + previewSize + 16f, headerRect.y, headerRect.width - previewSize - 16f, headerHeight);
 
-        if (listing.RadioButton("None (Undecorated Globe)", radarOutlineStyle == RadarOutlineStyle.None, tooltip: "Hides radar range outlines entirely."))
+        DrawRadarScopePreview(previewRect);
+
+        Listing_Standard modeListing = new();
+        modeListing.Begin(modeColRect);
         {
-            if (radarOutlineStyle != RadarOutlineStyle.None)
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.9f, 1f);
+            modeListing.Label("TACTICAL RADAR OVERLAY MODE");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            if (modeListing.RadioButton("Boundary Ring & Honeycomb Grid", radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid, tooltip: "Renders glowing perimeter boundary rings and an interior hexagonal holographic grid over active sensor envelopes."))
             {
-                radarOutlineStyle = RadarOutlineStyle.None;
-                NotifyRadarVisualsChanged();
+                if (radarOutlineStyle != RadarOutlineStyle.BoundaryAndGrid)
+                {
+                    radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
+                    NotifyRadarVisualsChanged();
+                }
             }
+
+            if (modeListing.RadioButton("Boundary Ring Only (Clean Perimeter)", radarOutlineStyle == RadarOutlineStyle.BoundaryOnly, tooltip: "Renders only the outer glowing perimeter boundary ring around active radar coverage."))
+            {
+                if (radarOutlineStyle != RadarOutlineStyle.BoundaryOnly)
+                {
+                    radarOutlineStyle = RadarOutlineStyle.BoundaryOnly;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (modeListing.RadioButton("None (Undecorated Globe)", radarOutlineStyle == RadarOutlineStyle.None, tooltip: "Hides radar range outlines entirely."))
+            {
+                if (radarOutlineStyle != RadarOutlineStyle.None)
+                {
+                    radarOutlineStyle = RadarOutlineStyle.None;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            modeListing.Gap(6f);
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.85f, 0.95f);
+            modeListing.Label("Real-time telemetry scope reacts live to all colour, intensity, horizon, and mountain shadow controls below.");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
         }
+        modeListing.End();
 
         listing.GapLine();
 
@@ -521,6 +559,225 @@ public class GeoscapeSettings : ModSettings
             surveillanceDimming = newDimming;
             NotifyRadarVisualsChanged();
         }
+    }
+
+    // =========================================================================
+    // Tactical Radar Scope Live Preview
+    // =========================================================================
+
+    private void DrawRadarScopePreview(Rect rect)
+    {
+        // 1. CRT Scope Background & Tactical Bezel
+        Widgets.DrawBoxSolid(rect, new Color(0.03f, 0.05f, 0.08f, 0.95f));
+
+        if (surveillanceDimming > 0.01f)
+        {
+            Widgets.DrawBoxSolid(rect, new Color(0f, 0f, 0f, surveillanceDimming * 0.45f));
+        }
+
+        // Tactical Corner Accents
+        Color cornerCol = new Color(0f, 0.85f, 1f, 0.75f);
+        float cornerLen = 8f;
+        Widgets.DrawLine(new Vector2(rect.x, rect.y), new Vector2(rect.x + cornerLen, rect.y), cornerCol, 1.5f);
+        Widgets.DrawLine(new Vector2(rect.x, rect.y), new Vector2(rect.x, rect.y + cornerLen), cornerCol, 1.5f);
+        Widgets.DrawLine(new Vector2(rect.xMax, rect.y), new Vector2(rect.xMax - cornerLen, rect.y), cornerCol, 1.5f);
+        Widgets.DrawLine(new Vector2(rect.xMax, rect.y), new Vector2(rect.xMax, rect.y + cornerLen), cornerCol, 1.5f);
+        Widgets.DrawLine(new Vector2(rect.x, rect.yMax), new Vector2(rect.x + cornerLen, rect.yMax), cornerCol, 1.5f);
+        Widgets.DrawLine(new Vector2(rect.x, rect.yMax), new Vector2(rect.x, rect.yMax - cornerLen), cornerCol, 1.5f);
+        Widgets.DrawLine(new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMax - cornerLen, rect.yMax), cornerCol, 1.5f);
+        Widgets.DrawLine(new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMax, rect.y - cornerLen), cornerCol, 1.5f);
+
+        Widgets.DrawBox(rect, 1, BaseContent.GreyTex);
+
+        Vector2 center = rect.center;
+        float maxR = (rect.width / 2f) - 10f;
+        float outerR = maxR * 0.90f;
+        float idR = outerR * 0.58f;
+
+        // 2. Faint CRT Range Rings & Cardinal Crosshairs
+        Color crtGridCol = new Color(0.12f, 0.28f, 0.35f, 0.35f);
+        DrawCircleOutline(center, maxR * 0.35f, crtGridCol, 1f, 24);
+        DrawCircleOutline(center, maxR * 0.70f, crtGridCol, 1f, 32);
+        DrawCircleOutline(center, maxR, crtGridCol, 1f, 36);
+
+        Color crossCol = new Color(0.15f, 0.35f, 0.42f, 0.4f);
+        Widgets.DrawLine(new Vector2(rect.x + 6f, center.y), new Vector2(center.x - 8f, center.y), crossCol, 1f);
+        Widgets.DrawLine(new Vector2(center.x + 8f, center.y), new Vector2(rect.xMax - 6f, center.y), crossCol, 1f);
+        Widgets.DrawLine(new Vector2(center.x, rect.y + 6f), new Vector2(center.x, center.y - 8f), crossCol, 1f);
+        Widgets.DrawLine(new Vector2(center.x, center.y + 8f), new Vector2(center.x, rect.yMax - 6f), crossCol, 1f);
+
+        // 3. Honeycomb Grid
+        if (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid)
+        {
+            Color hexCol = EffectiveRadarColor;
+            hexCol.a *= Mathf.Clamp01(honeycombGridOpacity * 0.5f);
+            DrawHoneycombPattern(center, outerR, hexCol);
+        }
+
+        // 4. Mountain Shadow Wedge
+        if (radarOutlineStyle != RadarOutlineStyle.None && radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
+        {
+            DrawMountainShadowWedge(center, idR * 0.85f, outerR, radarTerrainShadowStyle);
+        }
+
+        // 5. Inner Identification Horizon
+        if (showIdentificationHorizon && radarOutlineStyle != RadarOutlineStyle.None)
+        {
+            Color idCol = EffectiveIdentificationColor;
+            idCol.a *= Mathf.Clamp01(identificationRingOpacity);
+            DrawCircleOutline(center, idR, idCol, 2f, 32);
+        }
+
+        // 6. Outer Detection Perimeter
+        if (radarOutlineStyle != RadarOutlineStyle.None)
+        {
+            Color outerCol = EffectiveRadarColor;
+            outerCol.a *= Mathf.Clamp01(radarOutlineOpacity);
+            DrawCircleOutline(center, outerR, outerCol, 2f, 36);
+        }
+
+        // 7. Telemetry Blips
+        Widgets.DrawBoxSolid(new Rect(center.x - 3f, center.y - 3f, 6f, 6f), new Color(0f, 0.95f, 1f, 0.95f));
+
+        Vector2 idContactPos = center + new Vector2(-idR * 0.55f, idR * 0.40f);
+        Widgets.DrawBoxSolid(new Rect(idContactPos.x - 2.5f, idContactPos.y - 2.5f, 5f, 5f), new Color(0.25f, 1f, 0.5f, 0.9f));
+
+        Vector2 unkContactPos = center + new Vector2(outerR * 0.70f, -outerR * 0.45f);
+        Widgets.DrawBoxSolid(new Rect(unkContactPos.x - 2.5f, unkContactPos.y - 2.5f, 5f, 5f), new Color(1f, 0.8f, 0.2f, 0.95f));
+
+        // 8. Overlays
+        Text.Font = GameFont.Tiny;
+        GUI.color = new Color(0f, 0.85f, 1f, 0.85f);
+        Widgets.Label(new Rect(rect.x + 5f, rect.y + 3f, 95f, 16f), "HUD SCOPE");
+
+        GUI.color = new Color(1f, 0.85f, 0.2f, 0.9f);
+        Widgets.Label(new Rect(unkContactPos.x + 4f, unkContactPos.y - 6f, 12f, 14f), "?");
+
+        GUI.color = new Color(0.4f, 1f, 0.6f, 0.85f);
+        Widgets.Label(new Rect(idContactPos.x + 4f, idContactPos.y - 6f, 26f, 14f), "TR-1");
+
+        GUI.color = new Color(0.55f, 0.7f, 0.8f, 0.65f);
+        Text.Anchor = TextAnchor.LowerRight;
+        string modeTag = radarOutlineStyle switch
+        {
+            RadarOutlineStyle.BoundaryAndGrid => "GRID",
+            RadarOutlineStyle.BoundaryOnly => "PERIM",
+            _ => "CLEAN"
+        };
+        Widgets.Label(new Rect(rect.xMax - 54f, rect.yMax - 18f, 50f, 16f), modeTag);
+        Text.Anchor = TextAnchor.UpperLeft;
+        GUI.color = Color.white;
+        Text.Font = GameFont.Small;
+    }
+
+    private static void DrawCircleOutline(Vector2 center, float radius, Color color, float width, int segments)
+    {
+        if (radius <= 0f || color.a <= 0.005f) return;
+
+        float step = Mathf.PI * 2f / segments;
+        Vector2 prev = center + new Vector2(Mathf.Cos(0f), Mathf.Sin(0f)) * radius;
+
+        for (int i = 1; i <= segments; i++)
+        {
+            float angle = i * step;
+            Vector2 curr = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+            Widgets.DrawLine(prev, curr, color, width);
+            prev = curr;
+        }
+    }
+
+    private static void DrawHoneycombPattern(Vector2 center, float maxRadius, Color color)
+    {
+        if (color.a <= 0.005f) return;
+
+        float r = 13f;
+        float w = Mathf.Sqrt(3f) * r;
+        float h = 1.5f * r;
+
+        for (int row = -3; row <= 3; row++)
+        {
+            for (int col = -3; col <= 3; col++)
+            {
+                float x = center.x + col * w + (((row & 1) != 0) ? (w * 0.5f) : 0f);
+                float y = center.y + row * h;
+                Vector2 hexCenter = new Vector2(x, y);
+
+                if (Vector2.Distance(center, hexCenter) > maxRadius - 5f)
+                    continue;
+
+                Vector2 p0 = hexCenter + new Vector2(0f, -r);
+                Vector2 p1 = hexCenter + new Vector2(w * 0.5f, -0.5f * r);
+                Vector2 p2 = hexCenter + new Vector2(w * 0.5f, 0.5f * r);
+                Vector2 p3 = hexCenter + new Vector2(0f, r);
+                Vector2 p4 = hexCenter + new Vector2(-w * 0.5f, 0.5f * r);
+                Vector2 p5 = hexCenter + new Vector2(-w * 0.5f, -0.5f * r);
+
+                Widgets.DrawLine(p0, p1, color, 1f);
+                Widgets.DrawLine(p1, p2, color, 1f);
+                Widgets.DrawLine(p2, p3, color, 1f);
+                Widgets.DrawLine(p3, p4, color, 1f);
+                Widgets.DrawLine(p4, p5, color, 1f);
+                Widgets.DrawLine(p5, p0, color, 1f);
+            }
+        }
+    }
+
+    private static void DrawMountainShadowWedge(Vector2 center, float innerR, float outerR, RadarTerrainShadowStyle style)
+    {
+        float startAngle = 0.52f;
+        float endAngle = 1.31f;
+
+        if (style == RadarTerrainShadowStyle.Both || style == RadarTerrainShadowStyle.CellHatching)
+        {
+            Color hatchCol = new Color(1f, 0.68f, 0.15f, 0.42f);
+            int hatchLines = 7;
+            for (int i = 0; i < hatchLines; i++)
+            {
+                float t = (i + 0.5f) / hatchLines;
+                float r = Mathf.Lerp(innerR + 3f, outerR - 3f, t);
+                float a1 = Mathf.Lerp(startAngle + 0.1f, endAngle - 0.2f, t);
+                float a2 = a1 + 0.22f;
+
+                Vector2 hStart = center + new Vector2(Mathf.Cos(a1), -Mathf.Sin(a1)) * (r - 4f);
+                Vector2 hEnd = center + new Vector2(Mathf.Cos(a2), -Mathf.Sin(a2)) * (r + 4f);
+                Widgets.DrawLine(hStart, hEnd, hatchCol, 1.5f);
+            }
+        }
+
+        if (style == RadarTerrainShadowStyle.Both || style == RadarTerrainShadowStyle.DashedContours)
+        {
+            Color contourCol = new Color(1f, 0.78f, 0.22f, 0.85f);
+            int dashSegments = 6;
+            for (int i = 0; i < dashSegments; i++)
+            {
+                if ((i & 1) == 0)
+                {
+                    float a1 = Mathf.Lerp(startAngle, endAngle, (float)i / dashSegments);
+                    float a2 = Mathf.Lerp(startAngle, endAngle, (float)(i + 1) / dashSegments);
+                    Vector2 p1 = center + new Vector2(Mathf.Cos(a1), -Mathf.Sin(a1)) * outerR;
+                    Vector2 p2 = center + new Vector2(Mathf.Cos(a2), -Mathf.Sin(a2)) * outerR;
+                    Widgets.DrawLine(p1, p2, contourCol, 1.5f);
+                }
+            }
+
+            Vector2 radInner1 = center + new Vector2(Mathf.Cos(startAngle), -Mathf.Sin(startAngle)) * innerR;
+            Vector2 radOuter1 = center + new Vector2(Mathf.Cos(startAngle), -Mathf.Sin(startAngle)) * outerR;
+            Widgets.DrawLine(radInner1, Vector2.Lerp(radInner1, radOuter1, 0.45f), contourCol, 1.5f);
+            Widgets.DrawLine(Vector2.Lerp(radInner1, radOuter1, 0.65f), radOuter1, contourCol, 1.5f);
+
+            Vector2 radInner2 = center + new Vector2(Mathf.Cos(endAngle), -Mathf.Sin(endAngle)) * innerR;
+            Vector2 radOuter2 = center + new Vector2(Mathf.Cos(endAngle), -Mathf.Sin(endAngle)) * outerR;
+            Widgets.DrawLine(radInner2, Vector2.Lerp(radInner2, radOuter2, 0.45f), contourCol, 1.5f);
+            Widgets.DrawLine(Vector2.Lerp(radInner2, radOuter2, 0.65f), radOuter2, contourCol, 1.5f);
+        }
+
+        float midAngle = (startAngle + endAngle) * 0.5f;
+        Vector2 mtnPos = center + new Vector2(Mathf.Cos(midAngle), -Mathf.Sin(midAngle)) * (innerR + 6f);
+        Text.Font = GameFont.Tiny;
+        GUI.color = new Color(1f, 0.75f, 0.25f, 0.9f);
+        Widgets.Label(new Rect(mtnPos.x - 6f, mtnPos.y - 7f, 16f, 14f), "▲");
+        GUI.color = Color.white;
+        Text.Font = GameFont.Small;
     }
 
     // =========================================================================

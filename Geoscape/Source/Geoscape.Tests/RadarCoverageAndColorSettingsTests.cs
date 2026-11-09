@@ -114,4 +114,28 @@ public sealed class RadarCoverageAndColorSettingsTests
         Color32 aliasResult = WorldDrawLayer_RadarCoverage.GetIdentificationHorizonColor(emerald);
         Assert.AreEqual((Color32)emeraldResult, aliasResult, "GetIdentificationHorizonColor alias must match GetAutomaticIdentificationColor.");
     }
+
+    [TestMethod]
+    public void RadarSettings_TabEnum_CoversExpectedTabs()
+    {
+        string[] names = System.Enum.GetNames(typeof(GeoscapeSettingsTab));
+        CollectionAssert.AreEqual(
+            new[] { "Sensory", "Radar", "Incursions", "Geoscape", "Diagnostics" },
+            names,
+            "GeoscapeSettingsTab must define all 5 expected navigation tabs.");
+    }
+
+    [TestMethod]
+    public void RadarSettings_LivePreviewPrerequisites_AreConsistent()
+    {
+        var settings = new GeoscapeSettings();
+
+        // Verify bounds for preview rendering math
+        Assert.IsTrue(settings.radarOutlineOpacity >= 0f && settings.radarOutlineOpacity <= 1f);
+        Assert.IsTrue(settings.honeycombGridOpacity >= 0f && settings.honeycombGridOpacity <= 1f);
+        Assert.IsTrue(settings.identificationRingOpacity >= 0f && settings.identificationRingOpacity <= 1f);
+        Assert.IsTrue(settings.surveillanceDimming >= 0f && settings.surveillanceDimming <= 1f);
+        Assert.IsTrue(System.Enum.IsDefined(typeof(RadarOutlineStyle), settings.radarOutlineStyle));
+        Assert.IsTrue(System.Enum.IsDefined(typeof(RadarTerrainShadowStyle), settings.radarTerrainShadowStyle));
+    }
 }
