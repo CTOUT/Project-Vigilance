@@ -184,6 +184,27 @@ public sealed class InterFactionEncounterTests
     }
 
     [TestMethod]
+    public void GroundedCaravanMeetingHelper_FindNearbyMeetingIncursion_InvalidTile_ReturnsNull()
+    {
+        var result = GroundedCaravanMeetingHelper.FindNearbyMeetingIncursion(PlanetTile.Invalid, isHostile: false);
+        Assert.IsNull(result, "Must return null when given invalid tile or uninitialized world.");
+    }
+
+    [TestMethod]
+    public void GroundedCaravanMeetingHelper_CreateGroundedIncursion_SafeFallbackWithoutThrowing()
+    {
+        var parms = new IncidentParms();
+        var inc = GroundedCaravanMeetingHelper.CreateGroundedIncursion(
+            (PlanetTile)100,
+            parms,
+            IncursionGroupKind.TradeCaravan,
+            isHostile: false,
+            out bool stagedAtDistance);
+
+        Assert.IsFalse(stagedAtDistance, "stagedAtDistance must default to false when route cannot be built.");
+    }
+
+    [TestMethod]
     public void WorldObject_Incursion_SetCurrentPathIndex_ClampsWithinPathBounds()
     {
         var inc = new WorldObject_Incursion();

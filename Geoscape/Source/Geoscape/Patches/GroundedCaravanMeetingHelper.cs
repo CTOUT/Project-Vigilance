@@ -4,6 +4,7 @@ using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
 
 namespace ProjectVigilance.Geoscape.Patches;
@@ -11,6 +12,8 @@ namespace ProjectVigilance.Geoscape.Patches;
 /// <summary>
 /// Facilitates grounding abstract storyteller caravan incidents (CaravanMeeting, CaravanDemand)
 /// into physical, persistent WorldObject_Incursion entities with realistic routes, inventory, and telemetry.
+/// Employs Shroud Staging (spawning in unmonitored Fog of War) or Physical Anchor Dispatch (settlements/camps)
+/// so entities never appear out of thin air on actively monitored tiles.
 /// </summary>
 public static class GroundedCaravanMeetingHelper
 {
@@ -29,24 +32,37 @@ public static class GroundedCaravanMeetingHelper
 
         // 1. Look for an existing friendly/neutral incursion on or adjacent to this tile
         WorldObject_Incursion? incursion = FindNearbyMeetingIncursion(caravanTile, isHostile: false);
-
-        // 2. If no incursion is present, instantiate a persistent incursion traversing this sector
-        if (incursion == null)
+        if (incursion != null)
         {
-            incursion = CreateGroundedIncursion(
-                caravanTile,
-                parms,
-                groupKind: IncursionGroupKind.TradeCaravan,
-                isHostile: false);
+            // Already physically intersecting or adjacent: execute friendly meeting immediately
+            IncursionInterceptionUtility.ExecuteFriendlyInterception(caravan, incursion);
+            result = true;
+            return false;
         }
+
+        // 2. If no incursion is present, instantiate a persistent incursion traversing this sector,
+        // staged in the Fog of War / shroud or at its origin settlement
+        incursion = CreateGroundedIncursion(
+            caravanTile,
+            parms,
+            groupKind: IncursionGroupKind.TradeCaravan,
+            isHostile: false,
+            out bool stagedAtDistance);
 
         if (incursion == null)
         {
             return true;
         }
 
-        // 3. Execute grounded friendly meeting
-        IncursionInterceptionUtility.ExecuteFriendlyInterception(caravan, incursion);
+        // 3. If staged at a distance, notify the player of approaching contact rather than modal interrupting!
+        if (stagedAtDistance)
+        {
+            NotifyApproachingContact(caravan, incursion, isHostile: false);
+        }
+        else
+        {
+            IncursionInterceptionUtility.ExecuteFriendlyInterception(caravan, incursion);
+        }
 
         result = true;
         return false;
@@ -67,24 +83,34 @@ public static class GroundedCaravanMeetingHelper
 
         // 1. Look for an existing hostile incursion on or adjacent to this tile
         WorldObject_Incursion? incursion = FindNearbyMeetingIncursion(caravanTile, isHostile: true);
-
-        // 2. If no incursion is present, instantiate a persistent hostile incursion
-        if (incursion == null)
+        if (incursion != null)
         {
-            incursion = CreateGroundedIncursion(
-                caravanTile,
-                parms,
-                groupKind: IncursionGroupKind.HostileWarband,
-                isHostile: true);
+            IncursionInterceptionUtility.ExecuteHostileDemand(caravan, incursion);
+            result = true;
+            return false;
         }
+
+        // 2. Instantiate persistent hostile incursion staged in shroud or origin
+        incursion = CreateGroundedIncursion(
+            caravanTile,
+            parms,
+            groupKind: IncursionGroupKind.HostileWarband,
+            isHostile: true,
+            out bool stagedAtDistance);
 
         if (incursion == null)
         {
             return true;
         }
 
-        // 3. Execute grounded hostile extortion demand
-        IncursionInterceptionUtility.ExecuteHostileDemand(caravan, incursion);
+        if (stagedAtDistance)
+        {
+            NotifyApproachingContact(caravan, incursion, isHostile: true);
+        }
+        else
+        {
+            IncursionInterceptionUtility.ExecuteHostileDemand(caravan, incursion);
+        }
 
         result = true;
         return false;
@@ -92,6 +118,8 @@ public static class GroundedCaravanMeetingHelper
 
     public static WorldObject_Incursion? FindNearbyMeetingIncursion(PlanetTile tile, bool isHostile)
     {
+        if (Current.Game == null || Find.World == null) return null;
+
         var worldObjects = Find.WorldObjects?.AllWorldObjects;
         if (worldObjects == null) return null;
 
@@ -135,6 +163,19 @@ public static class GroundedCaravanMeetingHelper
         IncursionGroupKind groupKind,
         bool isHostile)
     {
+        return CreateGroundedIncursion(currentTile, parms, groupKind, isHostile, out _);
+    }
+
+    public static WorldObject_Incursion? CreateGroundedIncursion(
+        PlanetTile currentTile,
+        IncidentParms parms,
+        IncursionGroupKind groupKind,
+        bool isHostile,
+        out bool stagedAtDistance)
+    {
+        stagedAtDistance = false;
+        if (parms == null || Current.Game == null || Find.World == null) return null;
+
         Faction? faction = parms.faction;
         Faction? playerFaction = Faction.OfPlayerSilentFail;
         if (faction == null)
@@ -298,14 +339,69 @@ public static class GroundedCaravanMeetingHelper
         }
 
         int pathIdx = routePath.IndexOf(currentTile);
+        int spawnIdx = pathIdx;
+
+        // Determine staging node along the inbound leg towards currentTile
+        if (pathIdx > 0)
+        {
+            int preferredDist = 5;
+            int bestShroudIdx = -1;
+            int bestDistDiff = int.MaxValue;
+
+            var sensory = SensoryManager.Instance;
+            bool isOmniscient = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient;
+
+            for (int i = pathIdx - 1; i >= 0; i--)
+            {
+                PlanetTile node = routePath[i];
+                int dist = pathIdx - i;
+
+                if (!isOmniscient && sensory != null)
+                {
+                    // Check if node is in the dark shroud (not actively monitored)
+                    bool isMonitored = sensory.HasActiveVision(node);
+                    if (!isMonitored)
+                    {
+                        int diff = Math.Abs(dist - preferredDist);
+                        if (diff < bestDistDiff)
+                        {
+                            bestDistDiff = diff;
+                            bestShroudIdx = i;
+                        }
+                    }
+                }
+            }
+
+            if (bestShroudIdx >= 0)
+            {
+                // Found an authentic shroud staging node along the highway!
+                spawnIdx = bestShroudIdx;
+                stagedAtDistance = true;
+            }
+            else if (isOmniscient || sensory != null)
+            {
+                // In Omniscient mode or complete radar coverage, no shroud tile exists.
+                // Fall back to physical origin anchor: spawn at origin settlement (routePath[0])!
+                spawnIdx = 0;
+                stagedAtDistance = true;
+            }
+            else
+            {
+                // Headless test fallback without active sensory manager
+                spawnIdx = Math.Max(0, pathIdx - 4);
+                stagedAtDistance = (spawnIdx != pathIdx);
+            }
+        }
+
+        PlanetTile spawnTile = routePath[spawnIdx];
 
         var incursion = (WorldObject_Incursion)WorldObjectMaker.MakeWorldObject(def);
         incursion.SetFaction(faction);
         incursion.SetExplicitGroupKind(groupKind);
         var incidentDef = isHostile ? IncidentDefOf.RaidEnemy : IncidentDefOf.TraderCaravanArrival;
         incursion.SetupIncursion(incidentDef, parms, originTile, destinationTile, routePath, speed);
-        incursion.Tile = currentTile;
-        incursion.SetCurrentPathIndex(pathIdx);
+        incursion.Tile = spawnTile;
+        incursion.SetCurrentPathIndex(spawnIdx);
 
         var pawns = IncursionInterceptionUtility.GetOrGenerateIncursionPawns(incursion);
         incursion.SetCommittedPawns(pawns);
@@ -314,5 +410,32 @@ public static class GroundedCaravanMeetingHelper
         ContactRegistry.Instance?.RegisterContact(incursion);
 
         return incursion;
+    }
+
+    private static void NotifyApproachingContact(Caravan caravan, WorldObject_Incursion incursion, bool isHostile)
+    {
+        int dist = (Find.WorldGrid != null && caravan.Tile.Valid && incursion.Tile.Valid)
+            ? UnityEngine.Mathf.RoundToInt(Find.WorldGrid.ApproxDistanceInTiles(caravan.Tile, incursion.Tile))
+            : 4;
+
+        string groupDesc = incursion.GetIdentifiedGroupLabel();
+        string factionName = incursion.Faction?.Name ?? (isHostile ? "hostile forces" : "peaceful travellers");
+        string destLabel = GetTileDestinationLabel(incursion.DestinationTile);
+
+        string messageText = isHostile
+            ? $"Warning: {caravan.LabelCap} spotted a {groupDesc} from {factionName} {dist} hexes away advancing along the road!"
+            : $"{caravan.LabelCap} spotted an approaching {groupDesc} from {factionName} {dist} hexes away en route to {destLabel}.";
+
+        MessageTypeDef msgType = isHostile ? MessageTypeDefOf.ThreatSmall : MessageTypeDefOf.PositiveEvent;
+        Messages.Message(messageText, incursion, msgType);
+    }
+
+    private static string GetTileDestinationLabel(PlanetTile destTile)
+    {
+        if (!destTile.Valid) return "their destination";
+        var settlement = Find.WorldObjects?.SettlementAt(destTile);
+        if (settlement != null) return settlement.LabelCap;
+        if (Find.AnyPlayerHomeMap?.Tile == destTile) return "your colony";
+        return $"tile {destTile.tileId}";
     }
 }
