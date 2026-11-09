@@ -12,6 +12,7 @@ namespace ProjectVigilance.Geoscape.Sensory;
 /// discovery markers for anomalous, man-made, and otherworldly landmarks on the Geoscape.
 /// Distinguishes high-interest points of discovery (cyan exclamation mark) from tactical threats (amber question mark).
 /// </summary>
+[StaticConstructorOnStartup]
 public static class LandmarkSensoryUtility
 {
     /// <summary>
