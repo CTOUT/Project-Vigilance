@@ -109,13 +109,23 @@ public static class SensoryTerrainUtility
         int idSteps = sensor.IdentificationRadiusInTiles;
         if (idSteps > 0 && travDist <= idSteps)
         {
+            int sigintRadius = sensor.SigintPenetrationRadiusInTiles;
+            bool penetratesMasking = sensor.PenetratesTerrainMasking && (sigintRadius <= 0 || travDist <= sigintRadius);
+
             // Close-range sightlines (travDist <= 1, immediate hex and adjacent) cannot be concealed by mountain masking.
             // Distant rugged valleys (travDist > 1) delay classification until entering open ground or penetrated by SIGINT.
-            if (isTargetMasked && !sensor.PenetratesTerrainMasking && travDist > 1)
+            if (isTargetMasked && !penetratesMasking && travDist > 1)
             {
                 return (sensor.MaxIntelligenceTier >= IntelligenceTier.Contact)
                     ? IntelligenceTier.Contact
                     : sensor.MaxIntelligenceTier;
+            }
+
+            // If the sensor relies on SIGINT correlator bandwidth for Analysed tier, but the target lies beyond
+            // that correlator radius (e.g. distance 15 with a 10-ring SIGINT radius), fall back to Classified tier.
+            if (sensor.MaxIntelligenceTier == IntelligenceTier.Analysed && sigintRadius > 0 && travDist > sigintRadius)
+            {
+                return IntelligenceTier.Classified;
             }
 
             return sensor.MaxIntelligenceTier;

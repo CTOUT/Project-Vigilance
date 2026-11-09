@@ -28,10 +28,10 @@ public class CompSigintConsole : ThingComp
     private bool lastOperationalState;
     private int lastLinkedDishCount = -1;
 
-    private CompPowerTrader? PowerTrader => powerTrader ??= parent.GetComp<CompPowerTrader>();
-    private CompFlickable? Flickable => flickable ??= parent.GetComp<CompFlickable>();
-    private CompBreakdownable? Breakdownable => breakdownable ??= parent.GetComp<CompBreakdownable>();
-    private CompFacility? Facility => facility ??= parent.GetComp<CompFacility>();
+    private CompPowerTrader? PowerTrader => powerTrader ??= parent?.GetComp<CompPowerTrader>();
+    private CompFlickable? Flickable => flickable ??= parent?.GetComp<CompFlickable>();
+    private CompBreakdownable? Breakdownable => breakdownable ??= parent?.GetComp<CompBreakdownable>();
+    private CompFacility? Facility => facility ??= parent?.GetComp<CompFacility>();
 
     public bool IsOperational
     {
@@ -87,81 +87,119 @@ public class CompSigintConsole : ThingComp
     }
 
     /// <summary>
-    /// Counts operational phased array radar dishes on the local map benefiting from this SIGINT mainframe.
-    /// Checks both direct facility connections and compound-wide phased arrays.
+    /// Counts all phased radar array dishes physically connected to this SIGINT console via CompFacility,
+    /// regardless of power state.
     /// </summary>
-    public int LinkedDishesCount
+    public int TotalLinkedDishesCount
     {
         get
         {
-            if (parent?.Map == null)
+            if (parent == null || !parent.Spawned || parent.Destroyed || parent.Map == null)
             {
                 return 0;
             }
 
-            // 1. Direct facility connections
             var linked = Facility?.LinkedBuildings;
-            if (linked != null && linked.Count > 0)
-            {
-                int facilityDishes = 0;
-                for (int i = 0; i < linked.Count; i++)
-                {
-                    Thing b = linked[i];
-                    if (b != null && b.Spawned && !b.Destroyed)
-                    {
-                        CompRadar? radar = b.TryGetComp<CompRadar>();
-                        if (radar != null && radar.IsSensorActive)
-                        {
-                            facilityDishes++;
-                        }
-                    }
-                }
-
-                if (facilityDishes > 0)
-                {
-                    return facilityDishes;
-                }
-            }
-
-            // 2. Compound-wide fallback across the local map
-            ThingDef? phasedArrayDef = DefDatabase<ThingDef>.GetNamedSilentFail("Geoscape_RadarLarge");
-            if (phasedArrayDef == null)
+            if (linked == null || linked.Count == 0)
             {
                 return 0;
             }
 
             int count = 0;
-            var buildings = parent.Map.listerBuildings?.AllBuildingsColonistOfDef(phasedArrayDef);
-            if (buildings != null && buildings.Count > 0)
+            for (int i = 0; i < linked.Count; i++)
             {
-                for (int i = 0; i < buildings.Count; i++)
+                Thing b = linked[i];
+                if (b != null && b.Spawned && !b.Destroyed && b.TryGetComp<CompRadar>() != null)
                 {
-                    Building b = buildings[i];
-                    CompRadar? radar = b.GetComp<CompRadar>();
+                    count++;
+                }
+            }
+
+            return count;
+        }
+    }
+
+    /// <summary>
+    /// Counts operational, powered phased radar array dishes physically connected to this SIGINT console via CompFacility.
+    /// </summary>
+    public int ActiveLinkedDishesCount
+    {
+        get
+        {
+            if (parent == null || !parent.Spawned || parent.Destroyed || parent.Map == null)
+            {
+                return 0;
+            }
+
+            var linked = Facility?.LinkedBuildings;
+            if (linked == null || linked.Count == 0)
+            {
+                return 0;
+            }
+
+            int count = 0;
+            for (int i = 0; i < linked.Count; i++)
+            {
+                Thing b = linked[i];
+                if (b != null && b.Spawned && !b.Destroyed)
+                {
+                    CompRadar? radar = b.TryGetComp<CompRadar>();
                     if (radar != null && radar.IsSensorActive)
                     {
                         count++;
                     }
                 }
             }
-            else if (parent.Map.listerThings != null)
+
+            return count;
+        }
+    }
+
+    /// <summary>
+    /// Backward-compatible alias for ActiveLinkedDishesCount.
+    /// </summary>
+    public int LinkedDishesCount => ActiveLinkedDishesCount;
+
+    /// <summary>
+    /// Resolves the active decryption bandwidth in tiles based on active linked dishes.
+    /// 1 active dish = 10 tiles.
+    /// 2 active dishes = 17 tiles.
+    /// 3+ active dishes = 22 tiles.
+    /// </summary>
+    public int DecryptionBandwidthInTiles
+    {
+        get
+        {
+            if (!IsOperational)
             {
-                // God-mode / dev-spawned building fallback
-                var things = parent.Map.listerThings.ThingsOfDef(phasedArrayDef);
-                if (things != null)
+                return 0;
+            }
+
+            int activeCount = ActiveLinkedDishesCount;
+            if (activeCount <= 0)
+            {
+                return 0;
+            }
+
+            var linked = Facility?.LinkedBuildings;
+            if (linked != null)
+            {
+                for (int i = 0; i < linked.Count; i++)
                 {
-                    for (int i = 0; i < things.Count; i++)
+                    CompRadar? radar = linked[i]?.TryGetComp<CompRadar>();
+                    if (radar != null)
                     {
-                        CompRadar? radar = things[i].TryGetComp<CompRadar>();
-                        if (radar != null && radar.IsSensorActive)
-                        {
-                            count++;
-                        }
+                        return radar.Props.ResolveIdentificationRadius(activeCount, 0);
                     }
                 }
             }
 
-            return count;
+            return activeCount switch
+            {
+                1 => 10,
+                2 => 17,
+                _ => 22
+            };
         }
     }
 
@@ -211,16 +249,25 @@ public class CompSigintConsole : ThingComp
         }
         else
         {
-            int linkedDishes = LinkedDishesCount;
-            sb.AppendLine("SIGINT Status: Operational (Active Decryption)");
-            if (linkedDishes > 0)
+            int totalLinked = TotalLinkedDishesCount;
+            int activeLinked = ActiveLinkedDishesCount;
+
+            if (totalLinked == 0)
             {
-                sb.AppendLine($"Linked Radar Array: {linkedDishes} {(linkedDishes == 1 ? "dish" : "dishes")}");
-                sb.AppendLine("Capabilities: Tier 4 (Analysed) Intel & Terrain Penetration");
+                sb.AppendLine("SIGINT Status: Standby (Awaiting Phased Radar Array Link)");
+                sb.AppendLine("Linked Radar Array: None (Within 12.9 tiles)");
+            }
+            else if (activeLinked == 0)
+            {
+                sb.AppendLine("SIGINT Status: Standby (Connected Radar Array Unpowered)");
+                sb.AppendLine($"Linked Radar Array: {totalLinked} {(totalLinked == 1 ? "dish" : "dishes")} (Offline)");
             }
             else
             {
-                sb.AppendLine("Linked Radar Array: None (Awaiting Phased Radar Array)");
+                int bandwidth = DecryptionBandwidthInTiles;
+                sb.AppendLine("SIGINT Status: Operational (Active Decryption)");
+                sb.AppendLine($"Linked Radar Array: {activeLinked} operational {(activeLinked == 1 ? "dish" : "dishes")}");
+                sb.AppendLine($"Decryption Bandwidth: {bandwidth} tiles (Tier 4 Intel & Mountain Penetration)");
             }
         }
 

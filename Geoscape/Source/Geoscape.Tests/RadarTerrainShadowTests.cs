@@ -25,6 +25,7 @@ public sealed class RadarTerrainShadowTests
         public int IdentificationRadiusInTiles { get; set; } = 3;
         public IntelligenceTier MaxIntelligenceTier { get; set; } = IntelligenceTier.Classified;
         public bool PenetratesTerrainMasking { get; set; } = false;
+        public int SigintPenetrationRadiusInTiles { get; set; } = 0;
         public bool IsSensorActive => true;
         public bool IsStationary => true;
         public bool IsTechnological => true;
@@ -770,5 +771,55 @@ public sealed class RadarTerrainShadowTests
 
         // We have outer perimeter quads, 1 solid ID horizon quad (4 verts), and 3 dashed quads (12 verts)
         Assert.IsTrue(totalVerts >= 16, "Must generate outer perimeter, solid ID horizon, and dashed contour ribbons.");
+    }
+
+    [TestMethod]
+    public void PopulateActiveVisionTiles_PartialSigintPenetration_ClearsShadowInsideBandwidthAndRetainsBeyond()
+    {
+        var graph = new Dictionary<int, List<PlanetTile>>
+        {
+            [0] = new() { MakeTile(1) },
+            [1] = new() { MakeTile(0), MakeTile(2) },
+            [2] = new() { MakeTile(1), MakeTile(3) },
+            [3] = new() { MakeTile(2) }
+        };
+        SensoryManager.TileNeighborsOverride = (tile, list) =>
+        {
+            if (graph.TryGetValue(tile.tileId, out var neighbors)) list.AddRange(neighbors);
+        };
+
+        var sensor = new TestSensor
+        {
+            SensorTile = MakeTile(0),
+            DetectionRadiusInTiles = 4f,
+            IdentificationRadiusInTiles = 3,
+            PenetratesTerrainMasking = true,
+            SigintPenetrationRadiusInTiles = 2 // Penetrates up to step 2, but step 3 remains shadowed
+        };
+        SensoryManager.ActiveSensorsOverride = () => new[] { sensor };
+
+        // Tiles 2 and 3 are rugged mountain valleys
+        SensoryTerrainUtility.TargetMaskedOverride = t => t.tileId == 2 || t.tileId == 3;
+
+        var sensory = new SensoryManager(null!);
+        SensoryManager.Instance = sensory;
+
+        var outTiles = new HashSet<PlanetTile>();
+        var outIdentifiedTiles = new HashSet<PlanetTile>();
+        var outShadowTiles = new HashSet<PlanetTile>();
+
+        sensory.PopulateActiveVisionTiles(
+            outTiles,
+            outIdentifiedTiles,
+            outTileDistancesFromPerimeter: null,
+            outMaskedShadowTiles: outShadowTiles);
+
+        // Tile 2 is at step 2 (within 2-ring SIGINT radius) -> must NOT be shadowed
+        Assert.IsFalse(outShadowTiles.Any(t => t.tileId == 2),
+            "Tile 2 at step 2 must be penetrated by the 2-ring SIGINT correlator.");
+
+        // Tile 3 is at step 3 (beyond 2-ring SIGINT radius) -> must BE shadowed
+        Assert.IsTrue(outShadowTiles.Any(t => t.tileId == 3),
+            "Tile 3 at step 3 must retain mountain shadow masking beyond the 2-ring SIGINT correlator.");
     }
 }

@@ -62,6 +62,12 @@ public interface ISensorProvider
     bool PenetratesTerrainMasking => false;
 
     /// <summary>
+    /// Maximum traversal ring distance within which this sensor can penetrate terrain masking.
+    /// For phased radar arrays with SIGINT, this scales with the number of operational dishes wired to the mainframe.
+    /// </summary>
+    int SigintPenetrationRadiusInTiles => PenetratesTerrainMasking ? IdentificationRadiusInTiles : 0;
+
+    /// <summary>
     /// Indicates whether this sensor is an oceanic sonar or hydrophone system.
     /// </summary>
     bool IsOceanicSonar => false;

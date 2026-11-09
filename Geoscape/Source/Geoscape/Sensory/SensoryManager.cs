@@ -68,7 +68,7 @@ public class SensoryManager : WorldComponent
     private readonly Dictionary<int, int> stationaryExploredRadius = new(64);
     private readonly Dictionary<int, int> stationaryIdentifiedRadius = new(64);
     private readonly Dictionary<int, PlanetTile> lastCaravanTiles = new(32);
-    private readonly Dictionary<ISensorProvider, (PlanetTile tile, float radius, int idRadius, bool penetratesMasking)> lastActiveSensorStates = new(128);
+    private readonly Dictionary<ISensorProvider, (PlanetTile tile, float radius, int idRadius, int sigintPenRadius, bool penetratesMasking)> lastActiveSensorStates = new(128);
     private readonly List<ISensorProvider> activeSensorsCache = new(128);
     private readonly HashSet<int> currentActiveVisionTileIds = new(256);
     private readonly HashSet<int> currentActiveIdentifiedTileIds = new(256);
@@ -413,12 +413,14 @@ public class SensoryManager : WorldComponent
 
                 float currentRadius = sensor.DetectionRadiusInTiles;
                 int currentIdRadius = sensor.IdentificationRadiusInTiles;
+                int currentPenRadius = sensor.SigintPenetrationRadiusInTiles;
                 PlanetTile currentTile = sensor.SensorTile;
 
                 bool sensorChangedOrNewlyActive = !lastActiveSensorStates.TryGetValue(sensor, out var prevState) ||
                     prevState.tile != currentTile ||
                     Mathf.Abs(prevState.radius - currentRadius) > 0.05f ||
                     prevState.idRadius != currentIdRadius ||
+                    prevState.sigintPenRadius != currentPenRadius ||
                     prevState.penetratesMasking != sensor.PenetratesTerrainMasking;
 
                 if (sensorChangedOrNewlyActive)
@@ -482,7 +484,7 @@ public class SensoryManager : WorldComponent
                     ISensorProvider s = activeSensors[i];
                     if (s.SensorTile.Valid)
                     {
-                        lastActiveSensorStates[s] = (s.SensorTile, s.DetectionRadiusInTiles, s.IdentificationRadiusInTiles, s.PenetratesTerrainMasking);
+                        lastActiveSensorStates[s] = (s.SensorTile, s.DetectionRadiusInTiles, s.IdentificationRadiusInTiles, s.SigintPenetrationRadiusInTiles, s.PenetratesTerrainMasking);
                     }
                 }
 
@@ -758,7 +760,9 @@ public class SensoryManager : WorldComponent
 
                     if (outMaskedShadowTiles != null && SensoryTerrainUtility.IsTargetMasked(currentTile))
                     {
-                        if (sensor.PenetratesTerrainMasking || currentStep <= 1)
+                        int penSteps = sensor.SigintPenetrationRadiusInTiles;
+                        bool penetratesAtStep = sensor.PenetratesTerrainMasking && (penSteps <= 0 || currentStep <= penSteps);
+                        if (penetratesAtStep || currentStep <= 1)
                         {
                             tmpPenetratedMaskedTileIds.Add(currentTile.tileId);
                         }

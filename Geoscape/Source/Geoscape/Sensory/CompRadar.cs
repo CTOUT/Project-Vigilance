@@ -21,6 +21,7 @@ public class CompRadar : ThingComp, ISensorProvider
     private int lastTrackedUpdateTick = -1;
     private bool lastSigintActive;
     private int lastOperationalDishes = -1;
+    private int lastSigintDishes = -1;
 
     public CompProperties_Radar Props => (CompProperties_Radar)props;
 
@@ -33,34 +34,34 @@ public class CompRadar : ThingComp, ISensorProvider
     /// <summary>
     /// Checks whether an operational Signals Intelligence (SIGINT) Decryption Console
     /// is linked to this radar installation via CompAffectedByFacilities.
-    /// A linked SIGINT console unlocks Tier 4 (Analysed) intelligence and penetrates terrain masking.
+    /// Requires this dish to be powered and at least one operational dish directly wired to SIGINT.
     /// </summary>
-    public bool HasActiveSigintConsole
+    public bool HasActiveSigintConsole => IsSensorActive && SigintOperationalDishCount > 0;
+
+    /// <summary>
+    /// Counts operational, powered phased array dishes on the map that are directly linked
+    /// to an operational, powered SIGINT Decryption Console.
+    /// Determines the active SIGINT correlator bandwidth and penetration radius.
+    /// </summary>
+    public int SigintOperationalDishCount
     {
         get
         {
-            if (parent == null || !parent.Spawned || parent.Destroyed || parent.Map == null)
+            if (parent?.Map == null)
             {
-                return false;
+                return 0;
             }
 
-            // 1. Direct facility link to this dish
-            if (IsDirectlyLinkedToActiveSigint(parent))
-            {
-                return true;
-            }
-
-            // 2. Compound interferometry sharing: If any operational peer dish of this def on the local map
-            // has an active linked SIGINT console, the entire interferometric array shares decrypted signals intelligence.
+            int count = 0;
             var buildings = parent.Map.listerBuildings?.AllBuildingsColonistOfDef(parent.def);
             if (buildings != null && buildings.Count > 0)
             {
                 for (int i = 0; i < buildings.Count; i++)
                 {
-                    Building peer = buildings[i];
-                    if (peer != parent && peer.Spawned && !peer.Destroyed && IsDirectlyLinkedToActiveSigint(peer))
+                    Building b = buildings[i];
+                    if (b != null && b.Spawned && !b.Destroyed && IsDirectlyLinkedToActiveSigint(b))
                     {
-                        return true;
+                        count++;
                     }
                 }
             }
@@ -71,21 +72,45 @@ public class CompRadar : ThingComp, ISensorProvider
                 {
                     for (int i = 0; i < things.Count; i++)
                     {
-                        Thing peer = things[i];
-                        if (peer != parent && peer.Spawned && !peer.Destroyed && IsDirectlyLinkedToActiveSigint(peer))
+                        Thing t = things[i];
+                        if (t != null && t.Spawned && !t.Destroyed && IsDirectlyLinkedToActiveSigint(t))
                         {
-                            return true;
+                            count++;
                         }
                     }
                 }
             }
 
-            return false;
+            return count;
         }
     }
 
-    private static bool IsDirectlyLinkedToActiveSigint(Thing building)
+    /// <summary>
+    /// Maximum traversal ring distance within which this phased array can penetrate mountain terrain masking
+    /// and resolve Tier 4 (Analysed) telemetry. Scales with the number of operational dishes wired to SIGINT.
+    /// 1 wired dish = 10 rings (single-dish aperture).
+    /// 2 wired dishes = 17 rings (dual-dish baseline).
+    /// 3+ wired dishes = 22 rings (tri-dish full compound aperture).
+    /// </summary>
+    public int SigintPenetrationRadiusInTiles =>
+        HasActiveSigintConsole
+            ? Props.ResolveIdentificationRadius(SigintOperationalDishCount, cachedVantageBonus)
+            : (Props.penetratesTerrainMasking ? IdentificationRadiusInTiles : 0);
+
+    public static bool IsDirectlyLinkedToActiveSigint(Thing building)
     {
+        if (building == null || !building.Spawned || building.Destroyed)
+        {
+            return false;
+        }
+
+        // CRITICAL: The radar dish itself MUST be active (powered, not broken down)
+        CompRadar? radar = building.TryGetComp<CompRadar>();
+        if (radar == null || !radar.IsSensorActive)
+        {
+            return false;
+        }
+
         var affected = building.TryGetComp<CompAffectedByFacilities>();
         if (affected == null)
         {
@@ -142,7 +167,7 @@ public class CompRadar : ThingComp, ISensorProvider
     public bool IsTechnological => parent?.def?.techLevel >= TechLevel.Industrial;
 
     public bool PenetratesTerrainMasking =>
-        Props.penetratesTerrainMasking || HasActiveSigintConsole;
+        Props.penetratesTerrainMasking || SigintPenetrationRadiusInTiles > 0;
 
     public bool IsOceanicSonar => Props.isOceanicSonar;
 
@@ -197,14 +222,14 @@ public class CompRadar : ThingComp, ISensorProvider
     {
         get
         {
-            if (parent?.Map?.listerBuildings == null)
+            if (parent?.Map == null)
             {
                 return IsSensorActive ? 1 : 0;
             }
 
             int count = 0;
-            var buildings = parent.Map.listerBuildings.AllBuildingsColonistOfDef(parent.def);
-            if (buildings != null)
+            var buildings = parent.Map.listerBuildings?.AllBuildingsColonistOfDef(parent.def);
+            if (buildings != null && buildings.Count > 0)
             {
                 for (int i = 0; i < buildings.Count; i++)
                 {
@@ -213,6 +238,21 @@ public class CompRadar : ThingComp, ISensorProvider
                     if (radar != null && radar.IsSensorActive)
                     {
                         count++;
+                    }
+                }
+            }
+            else if (parent.Map.listerThings != null)
+            {
+                var things = parent.Map.listerThings.ThingsOfDef(parent.def);
+                if (things != null)
+                {
+                    for (int i = 0; i < things.Count; i++)
+                    {
+                        CompRadar? radar = things[i].TryGetComp<CompRadar>();
+                        if (radar != null && radar.IsSensorActive)
+                        {
+                            count++;
+                        }
                     }
                 }
             }
@@ -346,6 +386,7 @@ public class CompRadar : ThingComp, ISensorProvider
 
         lastSigintActive = HasActiveSigintConsole;
         lastOperationalDishes = OperationalDishCount;
+        lastSigintDishes = SigintOperationalDishCount;
         SensoryManager.Instance?.RegisterSensor(this);
         UpdatePowerState();
     }
@@ -365,10 +406,12 @@ public class CompRadar : ThingComp, ISensorProvider
 
             bool sigintActive = HasActiveSigintConsole;
             int dishCount = OperationalDishCount;
-            if (sigintActive != lastSigintActive || dishCount != lastOperationalDishes)
+            int sigintDishes = SigintOperationalDishCount;
+            if (sigintActive != lastSigintActive || dishCount != lastOperationalDishes || sigintDishes != lastSigintDishes)
             {
                 lastSigintActive = sigintActive;
                 lastOperationalDishes = dishCount;
+                lastSigintDishes = sigintDishes;
                 WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
             }
         }
@@ -422,7 +465,9 @@ public class CompRadar : ThingComp, ISensorProvider
         if (HasActiveSigintConsole)
         {
             string linkType = IsDirectlyLinkedToActiveSigint(parent) ? "Directly Linked" : "Array Linked";
-            sb.AppendLine($"SIGINT Decryption: {linkType} (Analysed Tier & Terrain Penetration)");
+            int sigintDishes = SigintOperationalDishCount;
+            int sigintRadius = SigintPenetrationRadiusInTiles;
+            sb.AppendLine($"SIGINT Decryption: {linkType} ({sigintRadius} tiles bandwidth, {sigintDishes} active {(sigintDishes == 1 ? "dish" : "dishes")})");
         }
 
         if (IsOceanicSonar)
@@ -464,7 +509,9 @@ public class CompRadar : ThingComp, ISensorProvider
         if (HasActiveSigintConsole)
         {
             string linkType = IsDirectlyLinkedToActiveSigint(parent) ? "Directly Linked" : "Array Linked";
-            descBuilder.AppendLine($"SIGINT Decryption: {linkType} (Analysed Tier & Terrain Penetration)");
+            int sigintDishes = SigintOperationalDishCount;
+            int sigintRadius = SigintPenetrationRadiusInTiles;
+            descBuilder.AppendLine($"SIGINT Decryption: {linkType} ({sigintRadius} tiles bandwidth, {sigintDishes} active {(sigintDishes == 1 ? "dish" : "dishes")})");
         }
 
         if (IsOceanicSonar)

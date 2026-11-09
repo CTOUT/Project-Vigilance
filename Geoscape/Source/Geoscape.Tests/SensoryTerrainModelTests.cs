@@ -39,6 +39,7 @@ public sealed class SensoryTerrainModelTests
         public float DetectionRadiusInTiles => 24f;
         public IntelligenceTier MaxIntelligenceTier { get; set; } = IntelligenceTier.Classified;
         public bool PenetratesTerrainMasking { get; set; }
+        public int SigintPenetrationRadiusInTiles { get; set; } = 0;
         public bool IsSensorActive => true;
         public bool IsStationary => true;
         public bool IsTechnological => true;
@@ -135,6 +136,77 @@ public sealed class SensoryTerrainModelTests
         Assert.AreEqual(2, flatColonyId, "Colony lookouts on flat terrain gives 2 rings ID.");
         Assert.AreEqual(3, hillsColonyId, "Colony lookouts on large hills gives 3 rings ID.");
         Assert.AreEqual(4, mtnColonyId, "Colony lookouts on mountains gives 4 rings ID.");
+    }
+
+    [TestMethod]
+    public void ScaledSigintCorrelator_OneWiredDish_AnalysedInside10Rings_FallsBackBeyond10Rings()
+    {
+        // 3-dish array (22 rings ID horizon) with only 1 dish wired to SIGINT (10 rings bandwidth)
+        var sensor = new MockTerrainSensor
+        {
+            IdentificationRadiusInTiles = 22,
+            SigintPenetrationRadiusInTiles = 10,
+            PenetratesTerrainMasking = true,
+            MaxIntelligenceTier = IntelligenceTier.Analysed
+        };
+
+        // Within 10 rings: full Analysed tier & mountain penetration
+        Assert.AreEqual(IntelligenceTier.Analysed, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 5, isTargetMasked: true),
+            "Step 5 in mountains must resolve Analysed (penetrated by 10-ring SIGINT).");
+        Assert.AreEqual(IntelligenceTier.Analysed, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 10, isTargetMasked: false),
+            "Step 10 in open ground must resolve Analysed.");
+
+        // Beyond 10 rings (steps 11-22): falls back to Classified in open ground, or Contact in mountains
+        Assert.AreEqual(IntelligenceTier.Classified, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 15, isTargetMasked: false),
+            "Step 15 in open ground must fall back to Classified (beyond 10-ring SIGINT).");
+        Assert.AreEqual(IntelligenceTier.Contact, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 15, isTargetMasked: true),
+            "Step 15 in mountains must fall back to Contact (beyond 10-ring SIGINT).");
+
+        // Beyond 22 rings (detection boundary 24): Contact
+        Assert.AreEqual(IntelligenceTier.Contact, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 23, isTargetMasked: false),
+            "Step 23 must resolve Contact (outside 22-ring ID horizon, inside 24-ring detection).");
+    }
+
+    [TestMethod]
+    public void ScaledSigintCorrelator_TwoWiredDishes_AnalysedInside17Rings_FallsBackBeyond17Rings()
+    {
+        // 3-dish array (22 rings ID horizon) with 2 dishes wired to SIGINT (17 rings bandwidth)
+        var sensor = new MockTerrainSensor
+        {
+            IdentificationRadiusInTiles = 22,
+            SigintPenetrationRadiusInTiles = 17,
+            PenetratesTerrainMasking = true,
+            MaxIntelligenceTier = IntelligenceTier.Analysed
+        };
+
+        // Within 17 rings: Analysed
+        Assert.AreEqual(IntelligenceTier.Analysed, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 15, isTargetMasked: true),
+            "Step 15 in mountains must resolve Analysed (penetrated by 17-ring SIGINT).");
+
+        // Beyond 17 rings: Classified in open, Contact in mountains
+        Assert.AreEqual(IntelligenceTier.Classified, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 20, isTargetMasked: false),
+            "Step 20 in open ground must fall back to Classified (beyond 17-ring SIGINT).");
+        Assert.AreEqual(IntelligenceTier.Contact, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 20, isTargetMasked: true),
+            "Step 20 in mountains must fall back to Contact (beyond 17-ring SIGINT).");
+    }
+
+    [TestMethod]
+    public void ScaledSigintCorrelator_ThreeWiredDishes_AnalysedOutTo22Rings()
+    {
+        // 3-dish array with 3 dishes wired to SIGINT (22 rings bandwidth)
+        var sensor = new MockTerrainSensor
+        {
+            IdentificationRadiusInTiles = 22,
+            SigintPenetrationRadiusInTiles = 22,
+            PenetratesTerrainMasking = true,
+            MaxIntelligenceTier = IntelligenceTier.Analysed
+        };
+
+        // Full 22-ring penetration
+        Assert.AreEqual(IntelligenceTier.Analysed, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 20, isTargetMasked: true),
+            "Step 20 in mountains must resolve Analysed with full 3-dish SIGINT.");
+        Assert.AreEqual(IntelligenceTier.Analysed, SensoryTerrainUtility.EvaluateSensorTier(sensor, travDist: 22, isTargetMasked: true),
+            "Step 22 in mountains must resolve Analysed with full 3-dish SIGINT.");
     }
 }
 

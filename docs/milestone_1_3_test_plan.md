@@ -150,25 +150,40 @@ _Objective: Validate multi-dish interferometry progression, locked 250-tick swee
 5. Reconnect power to Dish 3:
    - **Verify:** The array restores Tier 3 synchronisation ($R_{id} = 22$ rings, locked 250-tick cadence) on the very next sweep.
 
-#### 1.5 SIGINT Compound Sharing & Terrain Penetration Re-Verification
+#### 1.5 Scaled SIGINT Correlator Fidelity & Strict Power Re-Verification (Option 1)
 
 1. On your colony map with 3 Spacer Phased Arrays constructed, construct one **SIGINT Decryption Console** (`Geoscape_SigintConsole`, Ultra tech).
-2. Note that the console facility reach is **12.9 cells** (linking to up to 4 dishes). Place the console within 12.9 cells of Dish 1 (even if Dish 2 and Dish 3 are further away).
-3. Connect power to the SIGINT console (requires 700 W).
-4. Select the SIGINT console and inspect the info panel:
-   - **Verify:** Status displays `SIGINT Status: Operational (Active Decryption)`.
-   - **Verify:** Linked array count displays `Linked Radar Array: 3 dishes`.
-   - **Verify:** Capabilities display `Capabilities: Tier 4 (Analysed) Intel & Terrain Penetration`.
-5. Select Dish 1 (directly linked to console):
-   - **Verify:** Inspect panel displays `SIGINT Decryption: Directly Linked (Analysed Tier & Terrain Penetration)`.
-6. Select Dish 2 or Dish 3 (compound peers on the same map):
-   - **Verify:** Inspect panel displays `SIGINT Decryption: Array Linked (Analysed Tier & Terrain Penetration)`.
-7. Switch to the World Map (`Tab`) and locate mountainous tiles within the 22-ring identification horizon:
-   - **Verify Terrain Penetration:** Masked mountain radar shadows (dashed contours and cell hatching) disappear within the array's identification envelope, as all dishes in the compound now penetrate mountain masking.
-   - Any hostile incursions traversing mountainous terrain within the identification horizon are immediately classified to Tier 4 (Analysed) with exact headcounts and manifests, rather than being delayed at Contact tier.
-8. Flick the SIGINT console power switch off:
-   - **Verify:** Inspect string on console updates to `SIGINT Status: Offline (Switched Off)`.
-   - **Verify:** Radar dishes revert to `Props.penetratesTerrainMasking = false` and mountain shadows reappear on the next world sweep.
+2. Note that the console facility reach is **12.9 cells** (linking to up to 4 dishes). Place the console within 12.9 cells of Dish 1 (with Dish 2 and Dish 3 positioned outside the console's 12.9-cell radius).
+3. Connect power to the SIGINT console (requires 700 W) and ensure Dish 1 is powered.
+4. **Single-Dish Wired Baseline (10 Rings Bandwidth):**
+   - Select the SIGINT console and inspect the info panel:
+     - **Verify:** Status displays `SIGINT Status: Operational (Active Decryption)`.
+     - **Verify:** Linked array count displays `Linked Radar Array: 1 operational dish`.
+     - **Verify:** Bandwidth displays `Decryption Bandwidth: 10 tiles (Tier 4 Intel & Mountain Penetration)`.
+   - Select Dish 1 (directly linked and powered):
+     - **Verify:** Inspect panel displays `SIGINT Decryption: Directly Linked (10 tiles bandwidth, 1 active dish)`.
+   - Select Dish 2 or Dish 3 (compound peers sharing telemetry):
+     - **Verify:** Inspect panel displays `SIGINT Decryption: Array Linked (10 tiles bandwidth, 1 active dish)`.
+   - Switch to the World Map (`Tab`) and observe mountainous terrain:
+     - **Verify Terrain Penetration:** Masked mountain radar shadows (dashed contours and cell hatching) are eliminated across rings 2–10. Beyond 10 rings (steps 11–22), mountain shadows **remain visible**!
+     - Incursions within 10 rings resolve Tier 4 (Analysed). Incursions between 11 and 22 rings fall back to Tier 3 (Classified) in open terrain, or Tier 2 (Contact) in mountain shadows.
+5. **Multi-Dish Scaled Expansion (17 & 22 Rings Bandwidth):**
+   - Relocate or construct conduits so Dish 2 is also within 12.9 cells of the SIGINT console (or link a second console):
+     - **Verify:** Console displays `Linked Radar Array: 2 operational dishes` and `Decryption Bandwidth: 17 tiles (Tier 4 Intel & Mountain Penetration)`.
+     - **Verify:** Mountain shadow elimination expands out to 17 rings.
+   - Wire all 3 dishes to the console within 12.9 cells:
+     - **Verify:** Console displays `Linked Radar Array: 3 operational dishes` and `Decryption Bandwidth: 22 tiles (Tier 4 Intel & Mountain Penetration)`.
+     - **Verify:** Mountain shadows are completely eliminated across the entire 22-ring identification horizon.
+6. **Strict Power Requirement & Graceful Degradation:**
+   - With only Dish 1 wired to SIGINT, cut power to Dish 1:
+     - **Verify:** Console immediately switches to `SIGINT Status: Standby (Connected Radar Array Unpowered)` and `Linked Radar Array: 1 dish (Offline)`.
+     - **Verify:** All dishes immediately lose SIGINT decryption telemetry.
+     - **Verify:** Mountain shadows immediately reappear on the World Map on the next sensory sweep.
+   - Reconnect power to Dish 1:
+     - **Verify:** Full decryption bandwidth restores seamlessly.
+   - Turn off the SIGINT console power switch:
+     - **Verify:** Console updates to `SIGINT Status: Offline (Switched Off)`.
+     - **Verify:** Radar array cleanly reverts to baseline Classified tier and mountain shadows reappear.
 
 ---
 
