@@ -40,7 +40,7 @@ npm-debug.log*
 *.swp
 *.old*
 
-# Local AI / Copilot subscriptions & external resources
+# Local AI / Copilot subscriptions, IDEs & handoff state
 .github/.copilot-subscriptions.json
 .github/agents/
 .github/instructions/
@@ -48,3 +48,10 @@ npm-debug.log*
 .github/hooks/
 .github/plugin/
 .github/workflows/*.md
+.agents/
+.kiro/
+.claude/
+.cursor/
+.cursorrules
+.gemini/
+.handoff_pending
