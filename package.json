@@ -6,6 +6,7 @@
   "scripts": {
     "spellcheck": "npx cspell \"**/*.md\" \"**/*.json\" \"**/*.yml\" \"**/*.cff\"",
     "format": "npx prettier --write .",
+    "format:check": "npx prettier --check .",
     "build:geoscape": "dotnet build Geoscape/Source/Geoscape.slnx",
     "deploy:geoscape": "pwsh -File ./scripts/deploy-geoscape.ps1",
     "deploy:geoscape:linux": "./scripts/deploy-geoscape.sh",

@@ -42,6 +42,6 @@
     [list]
     [*] Removed hardcoded fallback colony names ("the colony", "their stronghold"); letters and inspect strings dynamically query custom settlement names.
     [*] Resolved save-time dangling map references and cross-reference warnings on de-initialised battlefields.
-    [*] Zero-allocation hot-path collision loops and in-place vertex color updates for silky-smooth 60 FPS Geoscape panning.
+    [*] Zero-allocation hot-path collision loops and in-place vertex colour updates for silky-smooth 60 FPS Geoscape panning.
     [/list]
 [/list]
