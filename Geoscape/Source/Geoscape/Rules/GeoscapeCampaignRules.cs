@@ -49,7 +49,7 @@ public enum CampaignIntegrityStatus
 /// </summary>
 public sealed class GeoscapeCampaignRules : WorldComponent
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
     public const int ReviewWindowTicks = GenDate.TicksPerDay; // 60,000 ticks (1 in-game day)
     public const int MaxLedgerEntries = 100;
 
@@ -57,6 +57,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
     private List<RuleChangeRecord> ledger = new();
     private int schemaVersion;
     private int reviewWindowEndsAtTick = -1;
+    private string campaignId = string.Empty;
 
     // Transient lifecycle flags
     private bool loadedFromSave;
@@ -73,6 +74,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
     public IReadOnlyList<RuleChangeRecord> Ledger => ledger;
     public int SchemaVersion => schemaVersion;
     public int ReviewWindowEndsAtTick => reviewWindowEndsAtTick;
+    public string CampaignId => campaignId;
 
     public bool HasExternalModifications => ledger.Any(r => r.kind == RuleChangeKind.ExternalModification);
 
@@ -182,6 +184,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
     public GeoscapeCampaignRules() : base(null!)
     {
         schemaVersion = CurrentSchemaVersion;
+        campaignId = Guid.NewGuid().ToString("N");
         initialised = true;
     }
 
@@ -203,6 +206,11 @@ public sealed class GeoscapeCampaignRules : WorldComponent
 
     private void EnsureInitialised()
     {
+        if (string.IsNullOrEmpty(campaignId))
+        {
+            campaignId = Guid.NewGuid().ToString("N");
+        }
+
         if (initialised)
         {
             return;
@@ -210,7 +218,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
 
         initialised = true;
 
-        if (schemaVersion == 0)
+        if (schemaVersion == 0 && !loadedFromSave)
         {
             bool isWorldGen = Current.CreatingWorld != null;
             var source = SelectSnapshotSource(isWorldGen, NewCampaignRuleDraft.Current, GeoscapeMod.Settings);
@@ -236,7 +244,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
             return CampaignEntryPath.NewCampaign;
         }
 
-        if (loadedFromSave && schemaVersion >= CurrentSchemaVersion)
+        if (loadedFromSave)
         {
             return CampaignEntryPath.ActiveSave;
         }
@@ -281,19 +289,42 @@ public sealed class GeoscapeCampaignRules : WorldComponent
 
     /// <summary>
     /// Replays historical ledger transitions against the pinned Day-0 baseline to verify save file integrity.
-    /// If direct external modifications to the XML are detected, logs an audit record detailing the discrepancy.
+    /// If direct external modifications to the XML or audit signature forgeries are detected, logs an audit record detailing the discrepancy.
     /// </summary>
     public void ReconcileLedgerOnLoad()
     {
+        EnsureInitialised();
+
         RuleChangeRecord? pinned = ledger.FirstOrDefault(r => r.IsPinned);
         if (pinned == null || string.IsNullOrEmpty(pinned.note))
         {
+            RecordExternalModificationIfNew("Audit ledger corrupted or missing Day-0 baseline snapshot");
             return;
+        }
+
+        // Reject unsealed or downgraded schemas by enforcing strict cryptographic signature verification
+        if (schemaVersion < CurrentSchemaVersion)
+        {
+            RecordExternalModificationIfNew($"Audit ledger schema downgrade detected: expected v{CurrentSchemaVersion}, active v{schemaVersion}");
+        }
+
+        string currentPrevHash = RuleLedgerSigner.GenesisHash;
+        for (int i = 0; i < ledger.Count; i++)
+        {
+            RuleChangeRecord r = ledger[i];
+            if (!RuleLedgerSigner.VerifyRecordHash(r, currentPrevHash, campaignId))
+            {
+                RecordExternalModificationIfNew($"Audit ledger signature invalid: record #{i} ({r.kind}) tampering detected");
+                break;
+            }
+
+            currentPrevHash = r.hash!;
         }
 
         int separatorIdx = pinned.note.IndexOf(" | ", StringComparison.Ordinal);
         if (separatorIdx < 0)
         {
+            RecordExternalModificationIfNew("Audit ledger Day-0 baseline snapshot format invalid");
             return;
         }
 
@@ -337,7 +368,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
         {
             if (expectedValues.TryGetValue(rule.Key, out string? expectedVal))
             {
-                if (!string.Equals(rule.CurrentValueLabel, expectedVal, StringComparison.OrdinalIgnoreCase))
+                if (!AreRuleLabelsEquivalent(rule.CurrentValueLabel, expectedVal))
                 {
                     diffs.Add($"{rule.Key} (expected '{expectedVal}', active '{rule.CurrentValueLabel}')");
                 }
@@ -346,14 +377,30 @@ public sealed class GeoscapeCampaignRules : WorldComponent
 
         if (diffs.Count > 0)
         {
-            string diffNote = $"Direct save modification detected: {string.Join(", ", diffs)}";
-            RuleChangeRecord? lastMod = ledger.LastOrDefault(r => r.kind == RuleChangeKind.ExternalModification);
-            if (lastMod == null || lastMod.note != diffNote)
-            {
-                Record(RuleChangeKind.ExternalModification, note: diffNote);
-                Log.Warning($"[Project Vigilance] Savegame integrity discrepancy: {diffNote}");
-            }
+            RecordExternalModificationIfNew($"Direct save modification detected: {string.Join(", ", diffs)}");
         }
+    }
+
+    private void RecordExternalModificationIfNew(string note)
+    {
+        bool alreadyRecorded = ledger.Any(rec => rec.kind == RuleChangeKind.ExternalModification && rec.note == note);
+        if (!alreadyRecorded)
+        {
+            Record(RuleChangeKind.ExternalModification, note: note);
+            Log.Warning($"[Project Vigilance] Savegame integrity discrepancy: {note}");
+        }
+    }
+
+    private static bool AreRuleLabelsEquivalent(string currentLabel, string expectedLabel)
+    {
+        if (string.Equals(currentLabel, expectedLabel, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        string normCurrent = currentLabel.Replace(".0 ", " ");
+        string normExpected = expectedLabel.Replace(".0 ", " ");
+        return string.Equals(normCurrent, normExpected, StringComparison.OrdinalIgnoreCase);
     }
 
     private void BeginModAdoption()
@@ -525,6 +572,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
 
     public void Record(RuleChangeKind kind, string? ruleKey = null, string? from = null, string? to = null, string? note = null)
     {
+        EnsureInitialised();
         int now = CurrentTick;
 
         // Merge repeated edits to the same key within the same tick (e.g. dev-mode slider drags)
@@ -538,13 +586,19 @@ public sealed class GeoscapeCampaignRules : WorldComponent
                 {
                     last.note = note;
                 }
+
+                string prevH = ledger.Count > 1 ? (ledger[ledger.Count - 2].hash ?? RuleLedgerSigner.GenesisHash) : RuleLedgerSigner.GenesisHash;
+                last.hash = RuleLedgerSigner.ComputeRecordHash(prevH, last.tick, last.kind, last.ruleKey, last.from, last.to, last.note, campaignId);
                 return;
             }
         }
 
-        ledger.Add(new RuleChangeRecord(now, kind, ruleKey, from, to, note));
+        string prevHash = ledger.Count > 0 ? (ledger[ledger.Count - 1].hash ?? RuleLedgerSigner.GenesisHash) : RuleLedgerSigner.GenesisHash;
+        string hash = RuleLedgerSigner.ComputeRecordHash(prevHash, now, kind, ruleKey, from, to, note, campaignId);
 
-        // Evict oldest non-pinned record if capacity exceeded
+        ledger.Add(new RuleChangeRecord(now, kind, ruleKey, from, to, note, hash));
+
+        // Evict oldest non-pinned record if capacity exceeded, re-signing subsequent records
         if (ledger.Count > MaxLedgerEntries)
         {
             for (int i = 0; i < ledger.Count; i++)
@@ -552,6 +606,13 @@ public sealed class GeoscapeCampaignRules : WorldComponent
                 if (!ledger[i].IsPinned)
                 {
                     ledger.RemoveAt(i);
+                    string running = i > 0 ? (ledger[i - 1].hash ?? RuleLedgerSigner.GenesisHash) : RuleLedgerSigner.GenesisHash;
+                    for (int j = i; j < ledger.Count; j++)
+                    {
+                        RuleChangeRecord rec = ledger[j];
+                        rec.hash = RuleLedgerSigner.ComputeRecordHash(running, rec.tick, rec.kind, rec.ruleKey, rec.from, rec.to, rec.note, campaignId);
+                        running = rec.hash;
+                    }
                     break;
                 }
             }
@@ -563,6 +624,9 @@ public sealed class GeoscapeCampaignRules : WorldComponent
         base.ExposeData();
 
         Scribe_Values.Look(ref schemaVersion, "schemaVersion", 0, forceSave: true);
+        string? loadedCampaignId = campaignId;
+        Scribe_Values.Look(ref loadedCampaignId, "campaignId");
+        campaignId = loadedCampaignId ?? string.Empty;
         Scribe_Deep.Look(ref rules, "rules");
         Scribe_Values.Look(ref reviewWindowEndsAtTick, "reviewWindowEndsAtTick", -1);
         Scribe_Collections.Look(ref ledger, "ruleChangeLedger", LookMode.Deep);
@@ -572,6 +636,10 @@ public sealed class GeoscapeCampaignRules : WorldComponent
             loadedFromSave = true;
             rules ??= new GeoscapeRuleSet();
             ledger ??= new List<RuleChangeRecord>();
+            if (string.IsNullOrEmpty(campaignId))
+            {
+                campaignId = Guid.NewGuid().ToString("N");
+            }
         }
     }
 

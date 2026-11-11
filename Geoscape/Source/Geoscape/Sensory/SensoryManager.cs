@@ -86,6 +86,13 @@ public class SensoryManager : WorldComponent
     private byte[]? exploredBytes;
     private byte[]? identifiedBytes;
     private int nextContactTrackingId = 1;
+    private bool hasCompletedInitialTickRefresh;
+
+    /// <summary>
+    /// Monotonically incremented whenever tile exploration, identification, active vision,
+    /// or target intelligence state changes, allowing open UI search caches to invalidate cleanly.
+    /// </summary>
+    public int SweepRevision { get; private set; }
 
     [ThreadStatic]
     private static SensoryManager? testInstance;
@@ -140,6 +147,7 @@ public class SensoryManager : WorldComponent
     {
         base.FinalizeInit(fromLoad);
         ExternalFogCompatibility.ResetAndRescan();
+        hasCompletedInitialTickRefresh = false;
 
         // Eagerly initialize explored bitset and execute sensory sweep
         // so player colonies and caravans are revealed before the globe renders.
@@ -152,14 +160,20 @@ public class SensoryManager : WorldComponent
         if (Find.World?.grid?.Surface != null)
         {
             Patches.PlanetLayer_InitializeLayer_Patch.EnsureLayersAttached(Find.World.grid.Surface);
-            WorldDrawLayer_HazeOfWar.Instance?.RegenerateNow();
-            WorldDrawLayer_RadarCoverage.Instance?.RegenerateNow();
+            WorldDrawLayer_HazeOfWar.RequestLayerRefresh(WorldDrawLayer_HazeOfWar.Instance);
+            WorldDrawLayer_HazeOfWar.RequestLayerRefresh(WorldDrawLayer_RadarCoverage.Instance);
         }
     }
 
     public override void WorldComponentTick()
     {
         base.WorldComponentTick();
+
+        if (!hasCompletedInitialTickRefresh && Find.TickManager.TicksGame <= 1)
+        {
+            hasCompletedInitialTickRefresh = true;
+            RefreshImmediateVision();
+        }
 
         // Responsive movement check: if an active player caravan steps onto a new hex,
         // instantly reveal fog and update active vision without waiting for the 250-tick sweep
@@ -521,6 +535,7 @@ public class SensoryManager : WorldComponent
             DeepProfiler.Start("ProjectVigilance.SensorySweep.TargetEvaluations");
             try
             {
+                bool anyTargetTierChanged = false;
                 // Evaluate all detectable targets against active sensors
                 foreach (IDetectableTarget target in activeTargets)
                 {
@@ -582,11 +597,13 @@ public class SensoryManager : WorldComponent
                     if (bestTier > target.CurrentIntelligenceTier)
                     {
                         target.OnDetected(bestSensor!, bestTier);
+                        anyTargetTierChanged = true;
                     }
                     else if (bestTier == IntelligenceTier.Undetected && target.CurrentIntelligenceTier != IntelligenceTier.Undetected)
                     {
                         // Target has moved into a blind spot / unmonitored sector
                         target.CurrentIntelligenceTier = IntelligenceTier.Undetected;
+                        anyTargetTierChanged = true;
                     }
 
                     // Discrete radar/sonar jump update on every pulse sweep for detected contacts
@@ -594,6 +611,11 @@ public class SensoryManager : WorldComponent
                     {
                         target.UpdateSampledPosition();
                     }
+                }
+
+                if (anyTargetTierChanged)
+                {
+                    SweepRevision++;
                 }
             }
             finally
@@ -1124,10 +1146,14 @@ public class SensoryManager : WorldComponent
             return;
         }
 
-        if (unidentifiedObjectIds.Add(wo.ID) && Find.World?.grid?.Surface != null)
+        if (unidentifiedObjectIds.Add(wo.ID))
         {
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            SweepRevision++;
+            if (Find.World?.grid?.Surface != null)
+            {
+                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
+                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            }
         }
     }
 
@@ -1139,6 +1165,7 @@ public class SensoryManager : WorldComponent
         }
 
         bool changed = unidentifiedObjectIds.Remove(wo.ID);
+        bool tileWasLandmark = false;
         if (wo.Tile.Valid)
         {
             EnsureExploredArray(wo.Tile.tileId + 1);
@@ -1153,12 +1180,25 @@ public class SensoryManager : WorldComponent
                     changed = true;
                 }
             }
+
+            tileWasLandmark = Find.World?.landmarks?.landmarks != null &&
+                Find.World.landmarks.landmarks.Count > 0 &&
+                ModsConfig.OdysseyActive &&
+                Find.World.landmarks.landmarks.ContainsKey(wo.Tile);
         }
 
-        if (changed && Find.World?.grid?.Surface != null)
+        if (changed)
         {
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            SweepRevision++;
+            if (Find.World?.grid?.Surface != null)
+            {
+                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
+                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+                if (tileWasLandmark)
+                {
+                    Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
+                }
+            }
         }
     }
 
@@ -1255,22 +1295,32 @@ public class SensoryManager : WorldComponent
             newActiveVisionTileIds.Clear();
             PopulateActiveVisionTiles(tmpActiveVisionTiles, tmpActiveIdentifiedTiles);
 
+            foreach (PlanetTile pt in tmpActiveVisionTiles)
+            {
+                newActiveVisionTileIds.Add(pt.tileId);
+            }
+
+            bool activeVisionChanged = newActiveVisionTileIds.Count != currentActiveVisionTileIds.Count ||
+                !newActiveVisionTileIds.SetEquals(currentActiveVisionTileIds);
+
             currentActiveIdentifiedTileIds.Clear();
             foreach (PlanetTile idPt in tmpActiveIdentifiedTiles)
             {
                 currentActiveIdentifiedTileIds.Add(idPt.tileId);
             }
 
+            if (activeVisionChanged)
+            {
+                SweepRevision++;
+            }
+
             var haze = WorldDrawLayer_HazeOfWar.Instance;
             if (haze == null || !haze.IsGeometryBuilt)
             {
+                currentActiveVisionTileIds.Clear();
+                currentActiveVisionTileIds.UnionWith(newActiveVisionTileIds);
                 haze?.SetDirty();
                 return;
-            }
-
-            foreach (PlanetTile pt in tmpActiveVisionTiles)
-            {
-                newActiveVisionTileIds.Add(pt.tileId);
             }
 
             // 1. Tiles leaving active vision: restore to Haze (if explored) or Shroud (if unexplored)
@@ -1327,6 +1377,8 @@ public class SensoryManager : WorldComponent
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(radiusInTiles));
         bool revealedAnyObject = false;
         bool revealedAnyFeature = false;
+        bool revealedAnyLandmark = false;
+        bool revealedAnyTile = false;
         var haze = WorldDrawLayer_HazeOfWar.Instance;
         bool hazeReady = haze != null && haze.IsGeometryBuilt;
 
@@ -1352,6 +1404,7 @@ public class SensoryManager : WorldComponent
                 if (wasUnexplored)
                 {
                     exploredBytes[byteIndex] |= (byte)(1 << bitIndex);
+                    revealedAnyTile = true;
 
                     // If not currently under active vision (transparent), transition from Shroud to Haze
                     if (hazeReady && !currentActiveVisionTileIds.Contains(tileId))
@@ -1373,6 +1426,15 @@ public class SensoryManager : WorldComponent
                         {
                             revealedAnyFeature = true;
                         }
+                    }
+
+                    if (!revealedAnyLandmark &&
+                        Find.World?.landmarks?.landmarks != null &&
+                        Find.World.landmarks.landmarks.Count > 0 &&
+                        ModsConfig.OdysseyActive &&
+                        Find.World.landmarks.landmarks.ContainsKey(currentTile))
+                    {
+                        revealedAnyLandmark = true;
                     }
                 }
             }
@@ -1407,14 +1469,19 @@ public class SensoryManager : WorldComponent
             haze?.SetDirty();
         }
 
-        // Selective dirtying: only notify vanilla layers if an actual object or feature was uncovered
+        if (revealedAnyTile)
+        {
+            SweepRevision++;
+        }
+
+        // Selective dirtying: only notify vanilla layers if an actual object, feature, or landmark was uncovered
         if (revealedAnyObject && Find.World?.grid?.Surface != null)
         {
             Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
             Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
         }
 
-        if (revealedAnyFeature && Find.World?.grid?.Surface != null)
+        if ((revealedAnyFeature || revealedAnyLandmark) && Find.World?.grid?.Surface != null)
         {
             Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
         }
@@ -1442,6 +1509,8 @@ public class SensoryManager : WorldComponent
 
         int maxSteps = radiusInTiles;
         bool identifiedAnyObject = false;
+        bool identifiedAnyLandmark = false;
+        bool identifiedAnyTile = false;
 
         bfsQueue.Clear();
         bfsVisitedTileIds.Clear();
@@ -1472,9 +1541,19 @@ public class SensoryManager : WorldComponent
                 if (wasUnidentified)
                 {
                     identifiedBytes[byteIndex] |= (byte)(1 << bitIndex);
+                    identifiedAnyTile = true;
                     if (!identifiedAnyObject && Find.World?.worldObjects != null && Find.World.worldObjects.AnyWorldObjectAt(currentTile))
                     {
                         identifiedAnyObject = true;
+                    }
+
+                    if (!identifiedAnyLandmark &&
+                        Find.World?.landmarks?.landmarks != null &&
+                        Find.World.landmarks.landmarks.Count > 0 &&
+                        ModsConfig.OdysseyActive &&
+                        Find.World.landmarks.landmarks.ContainsKey(currentTile))
+                    {
+                        identifiedAnyLandmark = true;
                     }
                 }
             }
@@ -1490,6 +1569,7 @@ public class SensoryManager : WorldComponent
                         if (obj != null && obj.Tile == currentTile && unidentifiedObjectIds.Remove(obj.ID))
                         {
                             identifiedAnyObject = true;
+                            identifiedAnyTile = true;
                         }
                     }
                 }
@@ -1509,6 +1589,7 @@ public class SensoryManager : WorldComponent
                         if (unidentifiedObjectIds.Remove(tmpResolvedObjectIds[r]))
                         {
                             identifiedAnyObject = true;
+                            identifiedAnyTile = true;
                         }
                     }
                 }
@@ -1530,13 +1611,43 @@ public class SensoryManager : WorldComponent
             }
         }
 
-        if (identifiedAnyObject && Find.World?.grid?.Surface != null)
+        if (identifiedAnyTile || identifiedAnyObject || identifiedAnyLandmark)
         {
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            SweepRevision++;
+        }
+
+        if (Find.World?.grid?.Surface != null)
+        {
+            if (identifiedAnyObject)
+            {
+                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
+                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            }
+
+            if (identifiedAnyLandmark)
+            {
+                Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
+            }
         }
 
         HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
+    }
+
+    /// <summary>
+    /// Invalidates cached sensory state and forces an immediate sweep and overlay regeneration
+    /// so newly arrived colonies, caravans, and drop pods reveal terrain immediately.
+    /// </summary>
+    public void RefreshImmediateVision()
+    {
+        Notify_SensorRadiusChanged();
+        if (WorldDrawLayer_HazeOfWar.Instance is { IsGeometryBuilt: true } haze)
+        {
+            WorldDrawLayer_HazeOfWar.RequestLayerRefresh(haze);
+        }
+        if (Find.World?.grid?.Surface != null)
+        {
+            WorldDrawLayer_HazeOfWar.RequestLayerRefresh(WorldDrawLayer_RadarCoverage.Instance);
+        }
     }
 
     /// <summary>
@@ -1551,6 +1662,7 @@ public class SensoryManager : WorldComponent
         lastActiveSensorStates.Clear();
         currentActiveVisionTileIds.Clear();
         currentActiveIdentifiedTileIds.Clear();
+        SweepRevision++;
         PerformSensorySweep();
         WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();

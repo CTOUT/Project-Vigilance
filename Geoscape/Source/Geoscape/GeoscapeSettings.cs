@@ -58,7 +58,17 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.Sensory;
     private static readonly Vector2[] scrollPositions = new Vector2[5];
-    private static readonly float[] tabHeights = { 460f, 580f, 320f, 480f, 420f };
+    private static readonly float[] tabHeights = { 460f, 520f, 320f, 480f, 420f };
+    private static float radarColumnsHeight = 170f;
+    private static float shadowGridHeight = 56f;
+
+    private static readonly Color LatchedTabFill = new(0.12f, 0.22f, 0.32f, 0.85f);
+    private static readonly Color LatchedTabAccent = new(0f, 0.85f, 1f);
+    private static readonly Color LatchedTabText = new(0.4f, 0.95f, 1f);
+    private static readonly Color SectionHeaderColor = new(0.7f, 0.9f, 1f);
+    private static readonly Color SubNoteColor = new(0.7f, 0.85f, 0.95f);
+    private static readonly Color DisabledControlColor = new(1f, 1f, 1f, 0.38f);
+    private static readonly Color DisabledHeaderColor = new(0.45f, 0.58f, 0.65f, 0.50f);
 
     public Color EffectiveRadarColor
     {
@@ -110,6 +120,11 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.25f);
         Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
         Scribe_Values.Look(ref caravanScoutRadius, "caravanScoutRadius", 3.0f);
+        if (Scribe.mode == LoadSaveMode.LoadingVars)
+        {
+            colonyScoutRadius = Mathf.Round(colonyScoutRadius);
+            caravanScoutRadius = Mathf.Round(caravanScoutRadius);
+        }
         Scribe_Values.Look(ref enableEarlyWarningLetters, "enableEarlyWarningLetters", true);
         Scribe_Values.Look(ref enableNighttimeSensoryReduction, "enableNighttimeSensoryReduction", true);
         Scribe_Values.Look(ref incursionsRestAtNight, "incursionsRestAtNight", true);
@@ -138,30 +153,14 @@ public class GeoscapeSettings : ModSettings
             Rect tabBtnRect = new Rect(tabRowRect.x + i * (tabWidth + spacing), tabRowRect.y, tabWidth, 30f);
             bool isSelected = currentTab == (GeoscapeSettingsTab)i;
 
-            // Draw button text; when selected, skip default grey background so custom highlight is visible
-            if (Widgets.ButtonText(tabBtnRect, tabLabels[i], drawBackground: !isSelected))
-            {
-                if (currentTab != (GeoscapeSettingsTab)i)
-                {
-                    currentTab = (GeoscapeSettingsTab)i;
-                    SoundDefOf.Click?.PlayOneShotOnCamera();
-                }
-            }
-
             if (isSelected)
             {
-                // Active tab background and selection glow
-                Widgets.DrawBoxSolid(tabBtnRect, new Color(0.12f, 0.22f, 0.32f, 0.85f));
-                Widgets.DrawHighlightSelected(tabBtnRect);
-                Widgets.DrawBoxSolid(new Rect(tabBtnRect.x, tabBtnRect.yMax - 3f, tabBtnRect.width, 3f), new Color(0f, 0.85f, 1f));
-
-                // Re-render crisp cyan tab label over the active highlight
-                TextAnchor prevAnchor = Text.Anchor;
-                Text.Anchor = TextAnchor.MiddleCenter;
-                GUI.color = new Color(0.4f, 0.95f, 1f);
-                Widgets.Label(tabBtnRect, tabLabels[i]);
-                GUI.color = Color.white;
-                Text.Anchor = prevAnchor;
+                DrawLatchedTab(tabBtnRect, tabLabels[i]);
+            }
+            else if (Widgets.ButtonText(tabBtnRect, tabLabels[i]))
+            {
+                currentTab = (GeoscapeSettingsTab)i;
+                SoundDefOf.Click?.PlayOneShotOnCamera();
             }
         }
 
@@ -178,7 +177,7 @@ public class GeoscapeSettings : ModSettings
         Rect viewRect = new Rect(0f, 0f, contentRect.width - (needsScrollbar ? 16f : 0f), requiredHeight);
 
         Widgets.BeginScrollView(contentRect, ref scrollPositions[tabIndex], viewRect);
-        Listing_Standard listing = new();
+        Listing_Standard listing = new() { maxOneColumn = true };
         listing.Begin(viewRect);
 
         switch (currentTab)
@@ -213,15 +212,10 @@ public class GeoscapeSettings : ModSettings
 
     private GeoscapeRuleSet GetOrCreateTransientRuleSet()
     {
-        if (transientDefaultRuleSet == null)
-        {
-            transientDefaultRuleSet = new GeoscapeRuleSet();
-            transientDefaultRuleSet.CopyFromDefaults(this);
-        }
-        else
-        {
-            transientDefaultRuleSet.CopyFromDefaults(this);
-        }
+        colonyScoutRadius = Mathf.Round(colonyScoutRadius);
+        caravanScoutRadius = Mathf.Round(caravanScoutRadius);
+        transientDefaultRuleSet ??= new GeoscapeRuleSet();
+        transientDefaultRuleSet.CopyFromDefaults(this);
         return transientDefaultRuleSet;
     }
 
@@ -284,12 +278,7 @@ public class GeoscapeSettings : ModSettings
         DrawContextBanner(listing, campaign);
 
         CampaignRulesPanel.DrawSensoryVisibilitySection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
-
-        if (rules.Visibility.Value != VisibilityMode.Omniscient)
-        {
-            CampaignRulesPanel.DrawLookoutScoutingSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
-        }
-
+        CampaignRulesPanel.DrawLookoutScoutingSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
         CampaignRulesPanel.DrawStartingSiteSelectionSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
 
         if (!inCampaign)
@@ -302,6 +291,18 @@ public class GeoscapeSettings : ModSettings
     // Tab 2: Radar Overlay & Tactical Visuals
     // =========================================================================
 
+    private static void DrawLatchedTab(Rect rect, string label)
+    {
+        Widgets.DrawBoxSolid(rect, LatchedTabFill);
+        Widgets.DrawBoxSolid(new Rect(rect.x, rect.yMax - 3f, rect.width, 3f), LatchedTabAccent);
+        TextAnchor prevAnchor = Text.Anchor;
+        Text.Anchor = TextAnchor.MiddleCenter;
+        GUI.color = LatchedTabText;
+        Widgets.Label(rect, label);
+        GUI.color = Color.white;
+        Text.Anchor = prevAnchor;
+    }
+
     private void DrawRadarTab(Listing_Standard listing)
     {
         Text.Font = GameFont.Medium;
@@ -309,21 +310,21 @@ public class GeoscapeSettings : ModSettings
         Text.Font = GameFont.Small;
         listing.Gap(4f);
 
-        // 1. Header: Live HUD Scope Preview & Tactical Overlay Mode
-        float headerHeight = 186f;
+        // 1. Header: Live HUD Scope Preview, Overlay Mode & Background Dimming
+        float headerHeight = 182f;
         Rect headerRect = listing.GetRect(headerHeight);
 
         float previewSize = 180f;
         Rect previewRect = new Rect(headerRect.x, headerRect.y, previewSize, previewSize);
         Rect modeColRect = new Rect(headerRect.x + previewSize + 16f, headerRect.y, headerRect.width - previewSize - 16f, headerHeight);
 
-        DrawRadarScopePreview(previewRect);
+        RadarScopePreview.Draw(previewRect, this);
 
-        Listing_Standard modeListing = new();
+        Listing_Standard modeListing = new() { maxOneColumn = true };
         modeListing.Begin(modeColRect);
         {
             Text.Font = GameFont.Tiny;
-            GUI.color = new Color(0.7f, 0.9f, 1f);
+            GUI.color = SectionHeaderColor;
             modeListing.Label("TACTICAL RADAR OVERLAY MODE");
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
@@ -356,9 +357,17 @@ public class GeoscapeSettings : ModSettings
             }
 
             modeListing.Gap(6f);
+            DrawToggleableSlider(
+                modeListing,
+                $"Surveillance Background Dimming: {surveillanceDimming:P0}",
+                ref surveillanceDimming,
+                0.0f,
+                1.0f,
+                radarOutlineStyle != RadarOutlineStyle.None);
+
             Text.Font = GameFont.Tiny;
-            GUI.color = new Color(0.7f, 0.85f, 0.95f);
-            modeListing.Label("Real-time telemetry scope reacts live to all colour, intensity, horizon, and mountain shadow controls below.");
+            GUI.color = SubNoteColor;
+            modeListing.Label("Hover the HUD scope for a legend. Changes below update the scope live.");
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
         }
@@ -366,418 +375,312 @@ public class GeoscapeSettings : ModSettings
 
         listing.GapLine();
 
-        // 2. Two-Column Layout for Detection vs Identification
+        // 2. Two-Column Layout for Detection vs Identification (all controls remain in fixed positions; non-applicable items grey out)
+        bool outlinesEnabled = radarOutlineStyle != RadarOutlineStyle.None;
+        bool gridEnabled = radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid;
+        bool idControlsEnabled = outlinesEnabled && showIdentificationHorizon;
+        bool shadowsEnabled = outlinesEnabled && showIdentificationHorizon;
+
         float totalWidth = listing.ColumnWidth;
         float colWidth = (totalWidth - 16f) / 2f;
-        float colHeight = (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid) ? 190f : 150f;
-        if (!usePlayerFactionColor || useCustomIdentificationColor)
-        {
-            colHeight += 36f;
-        }
 
-        Rect twoColRect = listing.GetRect(colHeight);
+        Rect twoColRect = listing.GetRect(radarColumnsHeight);
         Rect leftRect = new Rect(twoColRect.x, twoColRect.y, colWidth, twoColRect.height);
         Rect rightRect = new Rect(twoColRect.x + colWidth + 16f, twoColRect.y, colWidth, twoColRect.height);
 
         // Left Column: Outer Detection Perimeter
-        Listing_Standard leftListing = new();
+        float bottomSliderY;
+        Listing_Standard leftListing = new() { maxOneColumn = true };
         leftListing.Begin(leftRect);
         {
             Text.Font = GameFont.Tiny;
-            GUI.color = new Color(0.7f, 0.9f, 1f);
+            GUI.color = outlinesEnabled ? SectionHeaderColor : DisabledHeaderColor;
             leftListing.Label("OUTER DETECTION PERIMETER");
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 
-            bool prevUseFaction = usePlayerFactionColor;
-            leftListing.CheckboxLabeled(
+            DrawToggleableCheckbox(
+                leftListing,
                 "Use Player Faction Colour",
                 ref usePlayerFactionColor,
-                "Automatically matches radar and boundary outlines to your player faction's primary banner colour.");
-            if (prevUseFaction != usePlayerFactionColor)
-            {
-                NotifyRadarVisualsChanged();
-            }
+                "Automatically matches radar and boundary outlines to your player faction's primary banner colour.",
+                outlinesEnabled);
 
             Color activeColor = EffectiveRadarColor;
-            Rect colorBarRect = leftListing.GetRect(24f);
-            Widgets.DrawBoxSolid(new Rect(colorBarRect.x, colorBarRect.y, 28f, 22f), activeColor);
-
             Faction? playerFaction = (Current.ProgramState == ProgramState.Playing && Current.Game != null && Find.FactionManager != null)
                 ? Faction.OfPlayerSilentFail
                 : null;
+            string factionSyncLabel = (usePlayerFactionColor && playerFaction != null)
+                ? $"Synced: {playerFaction.Name} (#{ColorUtility.ToHtmlStringRGB(activeColor)})"
+                : $"Synced to Player Faction (#{ColorUtility.ToHtmlStringRGB(activeColor)})";
 
-            if (usePlayerFactionColor && playerFaction != null)
-            {
-                Widgets.Label(
-                    new Rect(colorBarRect.x + 34f, colorBarRect.y + 1f, colorBarRect.width - 34f, 22f),
-                    $"Synced: {playerFaction.Name} (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
-            }
-            else if (usePlayerFactionColor)
-            {
-                Widgets.Label(
-                    new Rect(colorBarRect.x + 34f, colorBarRect.y + 1f, colorBarRect.width - 34f, 22f),
-                    $"Synced to Player Faction (#{ColorUtility.ToHtmlStringRGB(activeColor)})");
-            }
-            else
-            {
-                DrawCompactColorPicker(leftListing, colorBarRect, ref radarCustomColor, RadarPerimeterPresets, () => usePlayerFactionColor = false);
-            }
+            DrawColorRow(
+                leftListing,
+                activeColor,
+                usePlayerFactionColor,
+                factionSyncLabel,
+                ref radarCustomColor,
+                RadarPerimeterPresets,
+                () => usePlayerFactionColor = false,
+                outlinesEnabled);
 
             leftListing.Gap(4f);
-            leftListing.Label($"Perimeter Intensity: {radarOutlineOpacity:P0}");
-            float newOpacity = leftListing.Slider(radarOutlineOpacity, 0f, 1f);
-            if (Mathf.Abs(newOpacity - radarOutlineOpacity) > 0.005f)
-            {
-                radarOutlineOpacity = newOpacity;
-                NotifyRadarVisualsChanged();
-            }
+            DrawToggleableSlider(
+                leftListing,
+                $"Perimeter Intensity: {radarOutlineOpacity:P0}",
+                ref radarOutlineOpacity,
+                0f,
+                1f,
+                outlinesEnabled);
 
-            if (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid)
-            {
-                leftListing.Label($"Honeycomb Grid Intensity: {honeycombGridOpacity:P0}");
-                float newGridOpacity = leftListing.Slider(honeycombGridOpacity, 0f, 1f);
-                if (Mathf.Abs(newGridOpacity - honeycombGridOpacity) > 0.005f)
-                {
-                    honeycombGridOpacity = newGridOpacity;
-                    NotifyRadarVisualsChanged();
-                }
-            }
+            bottomSliderY = leftListing.CurHeight;
+            DrawToggleableSlider(
+                leftListing,
+                $"Honeycomb Grid Intensity: {honeycombGridOpacity:P0}",
+                ref honeycombGridOpacity,
+                0f,
+                1f,
+                gridEnabled);
         }
         leftListing.End();
 
         // Right Column: Inner Identification Horizon
-        Listing_Standard rightListing = new();
+        Listing_Standard rightListing = new() { maxOneColumn = true };
         rightListing.Begin(rightRect);
         {
             Text.Font = GameFont.Tiny;
-            GUI.color = new Color(0.7f, 0.9f, 1f);
+            GUI.color = outlinesEnabled ? SectionHeaderColor : DisabledHeaderColor;
             rightListing.Label("INNER IDENTIFICATION HORIZON");
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 
-            bool prevShowId = showIdentificationHorizon;
-            rightListing.CheckboxLabeled(
+            DrawToggleableCheckbox(
+                rightListing,
                 "Show Identification Horizon",
                 ref showIdentificationHorizon,
-                "Renders an inner concentric tactical horizon ring marking the transition where contact tracks are classified into faction and force intelligence.");
-            if (prevShowId != showIdentificationHorizon)
+                "Renders an inner concentric tactical horizon ring marking the transition where contact tracks are classified into faction and force intelligence.",
+                outlinesEnabled);
+
+            DrawToggleableCheckbox(
+                rightListing,
+                "Use Custom Identification Colour",
+                ref useCustomIdentificationColor,
+                "Select an explicit custom colour rather than auto-deriving a complementary hue from the detection perimeter.",
+                idControlsEnabled);
+
+            Color activeIdColor = EffectiveIdentificationColor;
+            string autoIdLabel = $"Auto Complementary (#{ColorUtility.ToHtmlStringRGB(activeIdColor)})";
+
+            DrawColorRow(
+                rightListing,
+                activeIdColor,
+                !useCustomIdentificationColor,
+                autoIdLabel,
+                ref radarIdentificationColor,
+                IdentificationRingPresets,
+                () => useCustomIdentificationColor = true,
+                idControlsEnabled);
+
+            if (rightListing.CurHeight < bottomSliderY)
             {
-                NotifyRadarVisualsChanged();
+                rightListing.Gap(bottomSliderY - rightListing.CurHeight);
             }
-
-            if (showIdentificationHorizon)
-            {
-                bool prevUseCustomIdColor = useCustomIdentificationColor;
-                rightListing.CheckboxLabeled(
-                    "Use Custom Identification Colour",
-                    ref useCustomIdentificationColor,
-                    "Select an explicit custom colour rather than auto-deriving a complementary hue from the detection perimeter.");
-                if (prevUseCustomIdColor != useCustomIdentificationColor)
-                {
-                    NotifyRadarVisualsChanged();
-                }
-
-                Color activeIdColor = EffectiveIdentificationColor;
-                Rect idColorBarRect = rightListing.GetRect(24f);
-                Widgets.DrawBoxSolid(new Rect(idColorBarRect.x, idColorBarRect.y, 28f, 22f), activeIdColor);
-
-                if (!useCustomIdentificationColor)
-                {
-                    Widgets.Label(
-                        new Rect(idColorBarRect.x + 34f, idColorBarRect.y + 1f, idColorBarRect.width - 34f, 22f),
-                        $"Auto Complementary (#{ColorUtility.ToHtmlStringRGB(activeIdColor)})");
-                }
-                else
-                {
-                    DrawCompactColorPicker(rightListing, idColorBarRect, ref radarIdentificationColor, IdentificationRingPresets, () => useCustomIdentificationColor = true);
-                }
-
-                rightListing.Gap(4f);
-                rightListing.Label($"Identification Intensity: {identificationRingOpacity:P0}");
-                float newIdOpacity = rightListing.Slider(identificationRingOpacity, 0f, 1f);
-                if (Mathf.Abs(newIdOpacity - identificationRingOpacity) > 0.005f)
-                {
-                    identificationRingOpacity = newIdOpacity;
-                    NotifyRadarVisualsChanged();
-                }
-            }
+            DrawToggleableSlider(
+                rightListing,
+                $"Identification Intensity: {identificationRingOpacity:P0}",
+                ref identificationRingOpacity,
+                0f,
+                1f,
+                idControlsEnabled);
         }
         rightListing.End();
 
+        radarColumnsHeight = Mathf.Max(leftListing.CurHeight, rightListing.CurHeight) + 4f;
+
         listing.GapLine();
 
-        // 3. Mountain Radar Shadows
+        // 3. Terrain Masking (Mountain Radar Shadows) in a 2x2 Grid
         Text.Font = GameFont.Tiny;
-        GUI.color = new Color(0.7f, 0.9f, 1f);
-        listing.Label("MOUNTAIN RADAR SHADOWS (MODEL B+)");
+        GUI.color = shadowsEnabled ? SectionHeaderColor : DisabledHeaderColor;
+        listing.Label("TERRAIN MASKING (MOUNTAIN RADAR SHADOWS)");
+        GUI.color = shadowsEnabled ? SubNoteColor : DisabledControlColor;
+        listing.Label("Mountains inside the identification horizon hide contacts in their valleys; tracks there stay unidentified (?) unless an array linked to a SIGINT console penetrates the terrain. Choose how shadowed mountain hexes are marked on the globe:");
         GUI.color = Color.white;
         Text.Font = GameFont.Small;
 
-        if (listing.RadioButton("Both (Dashed Contours & Cell Hatching)", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, tooltip: "Renders dashed amber ribbons around internal mountain shadows and diagonal scanline hatching across masked mountain hex surfaces within identification range."))
+        Rect shadowGridRect = listing.GetRect(shadowGridHeight);
+        Rect shadowLeftRect = new Rect(shadowGridRect.x, shadowGridRect.y, colWidth, shadowGridRect.height);
+        Rect shadowRightRect = new Rect(shadowGridRect.x + colWidth + 16f, shadowGridRect.y, colWidth, shadowGridRect.height);
+
+        Listing_Standard shadowLeft = new() { maxOneColumn = true };
+        shadowLeft.Begin(shadowLeftRect);
         {
-            if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
+            if (DrawToggleableRadio(shadowLeft, "Both (Dashed Contours & Cell Hatching)", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, "Marks shadowed mountain hexes inside identification range with both a dashed amber outer contour and diagonal cell hatching.", shadowsEnabled))
             {
-                radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
-                NotifyRadarVisualsChanged();
+                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
+                {
+                    radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (DrawToggleableRadio(shadowLeft, "Cell Hatching Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, "Draws diagonal scanline hatching across shadowed mountain hexes inside identification range.", shadowsEnabled))
+            {
+                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
+                {
+                    radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
+                    NotifyRadarVisualsChanged();
+                }
             }
         }
+        shadowLeft.End();
 
-        if (listing.RadioButton("Dashed Contours Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, tooltip: "Renders dashed amber ribbons enclosing internal mountain clusters and radar shadows inside identification range."))
+        Listing_Standard shadowRight = new() { maxOneColumn = true };
+        shadowRight.Begin(shadowRightRect);
         {
-            if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
+            if (DrawToggleableRadio(shadowRight, "Dashed Contours Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, "Draws a dashed amber outline around shadowed mountain clusters inside identification range.", shadowsEnabled))
             {
-                radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
-                NotifyRadarVisualsChanged();
+                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
+                {
+                    radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
+                    NotifyRadarVisualsChanged();
+                }
+            }
+
+            if (DrawToggleableRadio(shadowRight, "None (Undecorated)", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, "Leaves shadowed mountain hexes undecorated on the globe (terrain masking mechanics still apply).", shadowsEnabled))
+            {
+                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
+                {
+                    radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
+                    NotifyRadarVisualsChanged();
+                }
             }
         }
+        shadowRight.End();
 
-        if (listing.RadioButton("Cell Hatching Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, tooltip: "Renders subtle radar static and diagonal scanline hatching across masked mountain hex surfaces inside identification range."))
+        shadowGridHeight = Mathf.Max(shadowLeft.CurHeight, shadowRight.CurHeight) + 2f;
+    }
+
+    private void DrawToggleableCheckbox(Listing_Standard listing, string label, ref bool value, string tooltip, bool enabled)
+    {
+        bool localVal = value;
+        if (!enabled)
         {
-            if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
-            {
-                radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
-                NotifyRadarVisualsChanged();
-            }
+            GUI.color = DisabledControlColor;
         }
 
-        if (listing.RadioButton("None (Undecorated)", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, tooltip: "Hides visual shadow indicators on masked mountain tiles inside identification range."))
+        listing.CheckboxLabeled(label, ref localVal, tooltip);
+
+        if (!enabled)
         {
-            if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
-            {
-                radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
-                NotifyRadarVisualsChanged();
-            }
+            GUI.color = Color.white;
+            return;
         }
 
-        // 4. Background Dimming
-        listing.Gap(4f);
-        listing.Label($"Surveillance Background Dimming: {surveillanceDimming:P0}");
-        float newDimming = listing.Slider(surveillanceDimming, 0.0f, 1.0f);
-        if (Mathf.Abs(newDimming - surveillanceDimming) > 0.005f)
+        if (localVal != value)
         {
-            surveillanceDimming = newDimming;
+            value = localVal;
             NotifyRadarVisualsChanged();
         }
     }
 
-    // =========================================================================
-    // Tactical Radar Scope Live Preview
-    // =========================================================================
-
-    private void DrawRadarScopePreview(Rect rect)
+    private void DrawToggleableSlider(Listing_Standard listing, string label, ref float value, float min, float max, bool enabled)
     {
-        // 1. CRT Scope Background & Tactical Bezel
-        Widgets.DrawBoxSolid(rect, new Color(0.03f, 0.05f, 0.08f, 0.95f));
-
-        if (surveillanceDimming > 0.01f)
+        if (!enabled)
         {
-            Widgets.DrawBoxSolid(rect, new Color(0f, 0f, 0f, surveillanceDimming * 0.45f));
+            GUI.color = DisabledControlColor;
         }
 
-        // Tactical Corner Accents
-        Color cornerCol = new Color(0f, 0.85f, 1f, 0.75f);
-        float cornerLen = 8f;
-        Widgets.DrawLine(new Vector2(rect.x, rect.y), new Vector2(rect.x + cornerLen, rect.y), cornerCol, 1.5f);
-        Widgets.DrawLine(new Vector2(rect.x, rect.y), new Vector2(rect.x, rect.y + cornerLen), cornerCol, 1.5f);
-        Widgets.DrawLine(new Vector2(rect.xMax, rect.y), new Vector2(rect.xMax - cornerLen, rect.y), cornerCol, 1.5f);
-        Widgets.DrawLine(new Vector2(rect.xMax, rect.y), new Vector2(rect.xMax, rect.y + cornerLen), cornerCol, 1.5f);
-        Widgets.DrawLine(new Vector2(rect.x, rect.yMax), new Vector2(rect.x + cornerLen, rect.yMax), cornerCol, 1.5f);
-        Widgets.DrawLine(new Vector2(rect.x, rect.yMax), new Vector2(rect.x, rect.yMax - cornerLen), cornerCol, 1.5f);
-        Widgets.DrawLine(new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMax - cornerLen, rect.yMax), cornerCol, 1.5f);
-        Widgets.DrawLine(new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMax, rect.y - cornerLen), cornerCol, 1.5f);
+        listing.Label(label);
+        float newVal = listing.Slider(value, min, max);
 
-        Widgets.DrawBox(rect, 1, BaseContent.GreyTex);
-
-        Vector2 center = rect.center;
-        float maxR = (rect.width / 2f) - 10f;
-        float outerR = maxR * 0.90f;
-        float idR = outerR * 0.58f;
-
-        // 2. Faint CRT Range Rings & Cardinal Crosshairs
-        Color crtGridCol = new Color(0.12f, 0.28f, 0.35f, 0.35f);
-        DrawCircleOutline(center, maxR * 0.35f, crtGridCol, 1f, 24);
-        DrawCircleOutline(center, maxR * 0.70f, crtGridCol, 1f, 32);
-        DrawCircleOutline(center, maxR, crtGridCol, 1f, 36);
-
-        Color crossCol = new Color(0.15f, 0.35f, 0.42f, 0.4f);
-        Widgets.DrawLine(new Vector2(rect.x + 6f, center.y), new Vector2(center.x - 8f, center.y), crossCol, 1f);
-        Widgets.DrawLine(new Vector2(center.x + 8f, center.y), new Vector2(rect.xMax - 6f, center.y), crossCol, 1f);
-        Widgets.DrawLine(new Vector2(center.x, rect.y + 6f), new Vector2(center.x, center.y - 8f), crossCol, 1f);
-        Widgets.DrawLine(new Vector2(center.x, center.y + 8f), new Vector2(center.x, rect.yMax - 6f), crossCol, 1f);
-
-        // 3. Honeycomb Grid
-        if (radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid)
+        if (!enabled)
         {
-            Color hexCol = EffectiveRadarColor;
-            hexCol.a *= Mathf.Clamp01(honeycombGridOpacity * 0.5f);
-            DrawHoneycombPattern(center, outerR, hexCol);
+            GUI.color = Color.white;
+            return;
         }
 
-        // 4. Mountain Shadow Wedge
-        if (radarOutlineStyle != RadarOutlineStyle.None && radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
+        if (Mathf.Abs(newVal - value) > 0.005f)
         {
-            DrawMountainShadowWedge(center, idR * 0.85f, outerR, radarTerrainShadowStyle);
-        }
-
-        // 5. Inner Identification Horizon
-        if (showIdentificationHorizon && radarOutlineStyle != RadarOutlineStyle.None)
-        {
-            Color idCol = EffectiveIdentificationColor;
-            idCol.a *= Mathf.Clamp01(identificationRingOpacity);
-            DrawCircleOutline(center, idR, idCol, 2f, 32);
-        }
-
-        // 6. Outer Detection Perimeter
-        if (radarOutlineStyle != RadarOutlineStyle.None)
-        {
-            Color outerCol = EffectiveRadarColor;
-            outerCol.a *= Mathf.Clamp01(radarOutlineOpacity);
-            DrawCircleOutline(center, outerR, outerCol, 2f, 36);
-        }
-
-        // 7. Telemetry Blips
-        Widgets.DrawBoxSolid(new Rect(center.x - 3f, center.y - 3f, 6f, 6f), new Color(0f, 0.95f, 1f, 0.95f));
-
-        Vector2 idContactPos = center + new Vector2(-idR * 0.55f, idR * 0.40f);
-        Widgets.DrawBoxSolid(new Rect(idContactPos.x - 2.5f, idContactPos.y - 2.5f, 5f, 5f), new Color(0.25f, 1f, 0.5f, 0.9f));
-
-        Vector2 unkContactPos = center + new Vector2(outerR * 0.70f, -outerR * 0.45f);
-        Widgets.DrawBoxSolid(new Rect(unkContactPos.x - 2.5f, unkContactPos.y - 2.5f, 5f, 5f), new Color(1f, 0.8f, 0.2f, 0.95f));
-
-        // 8. Overlays
-        Text.Font = GameFont.Tiny;
-        GUI.color = new Color(0f, 0.85f, 1f, 0.85f);
-        Widgets.Label(new Rect(rect.x + 5f, rect.y + 3f, 95f, 16f), "HUD SCOPE");
-
-        GUI.color = new Color(1f, 0.85f, 0.2f, 0.9f);
-        Widgets.Label(new Rect(unkContactPos.x + 4f, unkContactPos.y - 6f, 12f, 14f), "?");
-
-        GUI.color = new Color(0.4f, 1f, 0.6f, 0.85f);
-        Widgets.Label(new Rect(idContactPos.x + 4f, idContactPos.y - 6f, 26f, 14f), "TR-1");
-
-        GUI.color = new Color(0.55f, 0.7f, 0.8f, 0.65f);
-        Text.Anchor = TextAnchor.LowerRight;
-        string modeTag = radarOutlineStyle switch
-        {
-            RadarOutlineStyle.BoundaryAndGrid => "GRID",
-            RadarOutlineStyle.BoundaryOnly => "PERIM",
-            _ => "CLEAN"
-        };
-        Widgets.Label(new Rect(rect.xMax - 54f, rect.yMax - 18f, 50f, 16f), modeTag);
-        Text.Anchor = TextAnchor.UpperLeft;
-        GUI.color = Color.white;
-        Text.Font = GameFont.Small;
-    }
-
-    private static void DrawCircleOutline(Vector2 center, float radius, Color color, float width, int segments)
-    {
-        if (radius <= 0f || color.a <= 0.005f) return;
-
-        float step = Mathf.PI * 2f / segments;
-        Vector2 prev = center + new Vector2(Mathf.Cos(0f), Mathf.Sin(0f)) * radius;
-
-        for (int i = 1; i <= segments; i++)
-        {
-            float angle = i * step;
-            Vector2 curr = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-            Widgets.DrawLine(prev, curr, color, width);
-            prev = curr;
+            value = newVal;
+            NotifyRadarVisualsChanged();
         }
     }
 
-    private static void DrawHoneycombPattern(Vector2 center, float maxRadius, Color color)
+    private static bool DrawToggleableRadio(Listing_Standard listing, string label, bool isSelected, string tooltip, bool enabled)
     {
-        if (color.a <= 0.005f) return;
-
-        float r = 13f;
-        float w = Mathf.Sqrt(3f) * r;
-        float h = 1.5f * r;
-
-        for (int row = -3; row <= 3; row++)
+        if (!enabled)
         {
-            for (int col = -3; col <= 3; col++)
-            {
-                float x = center.x + col * w + (((row & 1) != 0) ? (w * 0.5f) : 0f);
-                float y = center.y + row * h;
-                Vector2 hexCenter = new Vector2(x, y);
+            GUI.color = DisabledControlColor;
+        }
 
-                if (Vector2.Distance(center, hexCenter) > maxRadius - 5f)
-                    continue;
+        bool clicked = listing.RadioButton(label, isSelected, tabIn: 0f, tooltip: tooltip, tooltipDelay: null, disabled: !enabled);
 
-                Vector2 p0 = hexCenter + new Vector2(0f, -r);
-                Vector2 p1 = hexCenter + new Vector2(w * 0.5f, -0.5f * r);
-                Vector2 p2 = hexCenter + new Vector2(w * 0.5f, 0.5f * r);
-                Vector2 p3 = hexCenter + new Vector2(0f, r);
-                Vector2 p4 = hexCenter + new Vector2(-w * 0.5f, 0.5f * r);
-                Vector2 p5 = hexCenter + new Vector2(-w * 0.5f, -0.5f * r);
+        if (!enabled)
+        {
+            GUI.color = Color.white;
+            return false;
+        }
 
-                Widgets.DrawLine(p0, p1, color, 1f);
-                Widgets.DrawLine(p1, p2, color, 1f);
-                Widgets.DrawLine(p2, p3, color, 1f);
-                Widgets.DrawLine(p3, p4, color, 1f);
-                Widgets.DrawLine(p4, p5, color, 1f);
-                Widgets.DrawLine(p5, p0, color, 1f);
-            }
+        return clicked;
+    }
+
+    private static void DrawToggleableIntSlider(Listing_Standard listing, string label, ref int value, int min, int max, string tooltip, bool enabled)
+    {
+        if (!enabled)
+        {
+            GUI.color = DisabledControlColor;
+        }
+
+        listing.Label(label, tooltip: tooltip);
+        int newVal = Mathf.RoundToInt(listing.Slider(value, min, max));
+
+        if (!enabled)
+        {
+            GUI.color = Color.white;
+            return;
+        }
+
+        if (newVal != value)
+        {
+            value = newVal;
         }
     }
 
-    private static void DrawMountainShadowWedge(Vector2 center, float innerR, float outerR, RadarTerrainShadowStyle style)
+    private void DrawColorRow(
+        Listing_Standard listing,
+        Color activeColor,
+        bool isSyncedOrAuto,
+        string syncedLabel,
+        ref Color customColor,
+        (string label, Color color)[] presets,
+        Action onCustomSelected,
+        bool enabled)
     {
-        float startAngle = 0.52f;
-        float endAngle = 1.31f;
-
-        if (style == RadarTerrainShadowStyle.Both || style == RadarTerrainShadowStyle.CellHatching)
+        Rect rowRect = listing.GetRect(24f);
+        Color swatchColor = activeColor;
+        if (!enabled)
         {
-            Color hatchCol = new Color(1f, 0.68f, 0.15f, 0.42f);
-            int hatchLines = 7;
-            for (int i = 0; i < hatchLines; i++)
-            {
-                float t = (i + 0.5f) / hatchLines;
-                float r = Mathf.Lerp(innerR + 3f, outerR - 3f, t);
-                float a1 = Mathf.Lerp(startAngle + 0.1f, endAngle - 0.2f, t);
-                float a2 = a1 + 0.22f;
+            swatchColor.a *= 0.35f;
+        }
+        Widgets.DrawBoxSolid(new Rect(rowRect.x, rowRect.y, 28f, 22f), swatchColor);
 
-                Vector2 hStart = center + new Vector2(Mathf.Cos(a1), -Mathf.Sin(a1)) * (r - 4f);
-                Vector2 hEnd = center + new Vector2(Mathf.Cos(a2), -Mathf.Sin(a2)) * (r + 4f);
-                Widgets.DrawLine(hStart, hEnd, hatchCol, 1.5f);
+        if (isSyncedOrAuto)
+        {
+            if (!enabled)
+            {
+                GUI.color = DisabledControlColor;
+            }
+            Widgets.Label(new Rect(rowRect.x + 34f, rowRect.y + 1f, rowRect.width - 34f, 22f), syncedLabel);
+            if (!enabled)
+            {
+                GUI.color = Color.white;
             }
         }
-
-        if (style == RadarTerrainShadowStyle.Both || style == RadarTerrainShadowStyle.DashedContours)
+        else
         {
-            Color contourCol = new Color(1f, 0.78f, 0.22f, 0.85f);
-            int dashSegments = 6;
-            for (int i = 0; i < dashSegments; i++)
-            {
-                if ((i & 1) == 0)
-                {
-                    float a1 = Mathf.Lerp(startAngle, endAngle, (float)i / dashSegments);
-                    float a2 = Mathf.Lerp(startAngle, endAngle, (float)(i + 1) / dashSegments);
-                    Vector2 p1 = center + new Vector2(Mathf.Cos(a1), -Mathf.Sin(a1)) * outerR;
-                    Vector2 p2 = center + new Vector2(Mathf.Cos(a2), -Mathf.Sin(a2)) * outerR;
-                    Widgets.DrawLine(p1, p2, contourCol, 1.5f);
-                }
-            }
-
-            Vector2 radInner1 = center + new Vector2(Mathf.Cos(startAngle), -Mathf.Sin(startAngle)) * innerR;
-            Vector2 radOuter1 = center + new Vector2(Mathf.Cos(startAngle), -Mathf.Sin(startAngle)) * outerR;
-            Widgets.DrawLine(radInner1, Vector2.Lerp(radInner1, radOuter1, 0.45f), contourCol, 1.5f);
-            Widgets.DrawLine(Vector2.Lerp(radInner1, radOuter1, 0.65f), radOuter1, contourCol, 1.5f);
-
-            Vector2 radInner2 = center + new Vector2(Mathf.Cos(endAngle), -Mathf.Sin(endAngle)) * innerR;
-            Vector2 radOuter2 = center + new Vector2(Mathf.Cos(endAngle), -Mathf.Sin(endAngle)) * outerR;
-            Widgets.DrawLine(radInner2, Vector2.Lerp(radInner2, radOuter2, 0.45f), contourCol, 1.5f);
-            Widgets.DrawLine(Vector2.Lerp(radInner2, radOuter2, 0.65f), radOuter2, contourCol, 1.5f);
+            DrawCompactColorPicker(listing, rowRect, ref customColor, presets, onCustomSelected, enabled);
         }
-
-        float midAngle = (startAngle + endAngle) * 0.5f;
-        Vector2 mtnPos = center + new Vector2(Mathf.Cos(midAngle), -Mathf.Sin(midAngle)) * (innerR + 6f);
-        Text.Font = GameFont.Tiny;
-        GUI.color = new Color(1f, 0.75f, 0.25f, 0.9f);
-        Widgets.Label(new Rect(mtnPos.x - 6f, mtnPos.y - 7f, 16f, 14f), "▲");
-        GUI.color = Color.white;
-        Text.Font = GameFont.Small;
     }
 
     // =========================================================================
@@ -833,15 +736,24 @@ public class GeoscapeSettings : ModSettings
             ref enableIntelligentRightClick,
             "Allow right-clicking anywhere on the Geoscape without selecting a source first, intelligently suggesting actions from the nearest colonies and caravans.");
 
-        if (enableIntelligentRightClick)
-        {
-            listing.Gap(4f);
-            listing.Label($"Max Contextual Caravans Displayed: {maxContextualCaravansShown}", tooltip: "Limits the number of nearest player caravans directly displayed on the right-click menu. Additional caravans can be accessed via a drilldown sub-menu.");
-            maxContextualCaravansShown = Mathf.RoundToInt(listing.Slider(maxContextualCaravansShown, 1f, 8f));
+        listing.Gap(4f);
+        DrawToggleableIntSlider(
+            listing,
+            $"Max Contextual Caravans Displayed: {maxContextualCaravansShown}",
+            ref maxContextualCaravansShown,
+            1,
+            8,
+            "Limits the number of nearest player caravans directly displayed on the right-click menu. Additional caravans can be accessed via a drilldown sub-menu.",
+            enableIntelligentRightClick);
 
-            listing.Label($"Max Contextual Colonies Displayed: {maxContextualColoniesShown}", tooltip: "Limits the number of nearest player colonies directly displayed on the right-click menu. Additional colonies can be accessed via a drilldown sub-menu.");
-            maxContextualColoniesShown = Mathf.RoundToInt(listing.Slider(maxContextualColoniesShown, 1f, 5f));
-        }
+        DrawToggleableIntSlider(
+            listing,
+            $"Max Contextual Colonies Displayed: {maxContextualColoniesShown}",
+            ref maxContextualColoniesShown,
+            1,
+            5,
+            "Limits the number of nearest player colonies directly displayed on the right-click menu. Additional colonies can be accessed via a drilldown sub-menu.",
+            enableIntelligentRightClick);
 
         listing.Gap();
 
@@ -1065,15 +977,27 @@ public class GeoscapeSettings : ModSettings
         Rect rowRect,
         ref Color color,
         (string label, Color color)[] presets,
-        Action? onColorChanged = null)
+        Action? onColorChanged = null,
+        bool enabled = true)
     {
         string hexStr = "#" + ColorUtility.ToHtmlStringRGB(color);
-        string newHex = Widgets.TextField(new Rect(rowRect.x + 34f, rowRect.y, 68f, 22f), hexStr);
-        if (newHex != hexStr && ColorUtility.TryParseHtmlString(newHex, out Color parsed))
+        Rect hexRect = new Rect(rowRect.x + 34f, rowRect.y, 68f, 22f);
+
+        if (enabled)
         {
-            color = parsed;
-            onColorChanged?.Invoke();
-            NotifyRadarVisualsChanged();
+            string newHex = Widgets.TextField(hexRect, hexStr);
+            if (newHex != hexStr && ColorUtility.TryParseHtmlString(newHex, out Color parsed))
+            {
+                color = parsed;
+                onColorChanged?.Invoke();
+                NotifyRadarVisualsChanged();
+            }
+        }
+        else
+        {
+            GUI.color = DisabledControlColor;
+            Widgets.Label(new Rect(hexRect.x, hexRect.y + 1f, hexRect.width, hexRect.height), hexStr);
+            GUI.color = Color.white;
         }
 
         float chipStart = rowRect.x + 106f;
@@ -1083,13 +1007,22 @@ public class GeoscapeSettings : ModSettings
         for (int i = 0; i < presets.Length; i++)
         {
             Rect chipRect = new Rect(chipStart + i * (chipSize + chipSpacing), rowRect.y + 1f, chipSize, chipSize);
-            Widgets.DrawBoxSolid(chipRect, presets[i].color);
-            Widgets.DrawHighlightIfMouseover(chipRect);
-            if (Widgets.ButtonInvisible(chipRect))
+            Color chipCol = presets[i].color;
+            if (!enabled)
             {
-                color = presets[i].color;
-                onColorChanged?.Invoke();
-                NotifyRadarVisualsChanged();
+                chipCol.a *= 0.35f;
+            }
+            Widgets.DrawBoxSolid(chipRect, chipCol);
+
+            if (enabled)
+            {
+                Widgets.DrawHighlightIfMouseover(chipRect);
+                if (Widgets.ButtonInvisible(chipRect))
+                {
+                    color = presets[i].color;
+                    onColorChanged?.Invoke();
+                    NotifyRadarVisualsChanged();
+                }
             }
             TooltipHandler.TipRegion(chipRect, presets[i].label);
         }

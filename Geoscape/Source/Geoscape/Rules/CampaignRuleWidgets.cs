@@ -16,7 +16,8 @@ public static class CampaignRuleWidgets
         CampaignRule<bool> rule,
         GeoscapeCampaignRules? campaign,
         RuleEditContext ctx,
-        bool showLockPreview = false)
+        bool showLockPreview = false,
+        bool enabled = true)
     {
         bool current = rule.Value;
         bool proposed = !current;
@@ -36,12 +37,12 @@ public static class CampaignRuleWidgets
             label += " (Unsafe)";
         }
 
-        bool disabled = verdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled;
+        bool disabled = !enabled || (verdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled);
         bool valRef = current;
 
         if (disabled)
         {
-            GUI.color = new Color(1f, 1f, 1f, 0.45f);
+            GUI.color = new Color(1f, 1f, 1f, 0.38f);
         }
 
         listing.CheckboxLabeled(label, ref valRef, rule.Description);
@@ -64,18 +65,20 @@ public static class CampaignRuleWidgets
         float max,
         GeoscapeCampaignRules? campaign,
         RuleEditContext ctx,
-        bool showLockPreview = false)
+        bool showLockPreview = false,
+        bool enabled = true,
+        bool roundToInt = true)
     {
-        float current = rule.Value;
-        RuleTransitionVerdict testVerdict = rule.Evaluate(current + 0.1f, ctx);
-        bool isLocked = testVerdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled;
+        float current = roundToInt ? Mathf.Round(rule.Value) : rule.Value;
+        RuleTransitionVerdict testVerdict = rule.Evaluate(current + 1.0f, ctx);
+        bool isLocked = !enabled || (testVerdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled);
 
         string header = $"{rule.Label}: {rule.CurrentValueLabel}";
         if (showLockPreview && rule.Mutability == RuleMutability.Immutable)
         {
             header += " [Locked after creation]";
         }
-        else if (isLocked)
+        else if (testVerdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled)
         {
             header += " [Locked]";
         }
@@ -84,17 +87,18 @@ public static class CampaignRuleWidgets
             header += " [Unsafe Override]";
         }
 
-        listing.Label(header, tooltip: rule.Description);
-
         if (isLocked)
         {
-            GUI.color = new Color(1f, 1f, 1f, 0.45f);
+            GUI.color = new Color(1f, 1f, 1f, 0.38f);
+            listing.Label(header, tooltip: rule.Description);
             listing.Slider(current, min, max);
             GUI.color = Color.white;
             return;
         }
 
-        float newRadius = listing.Slider(current, min, max);
+        listing.Label(header, tooltip: rule.Description);
+        float rawSlider = listing.Slider(current, min, max);
+        float newRadius = roundToInt ? Mathf.Round(rawSlider) : rawSlider;
         if (Mathf.Abs(newRadius - current) > 0.05f)
         {
             RuleTransitionVerdict verdict = rule.Evaluate(newRadius, ctx);
@@ -153,10 +157,10 @@ public static class CampaignRuleWidgets
 
         if (disabled)
         {
-            GUI.color = new Color(1f, 1f, 1f, 0.45f);
+            GUI.color = new Color(1f, 1f, 1f, 0.38f);
         }
 
-        if (listing.RadioButton(displayLabel, isSelected, tooltip: tooltip))
+        if (listing.RadioButton(displayLabel, isSelected, tabIn: 0f, tooltip: tooltip, tooltipDelay: null, disabled: disabled))
         {
             if (!isSelected && !disabled)
             {

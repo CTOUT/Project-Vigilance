@@ -306,27 +306,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         EnsureInWorldPawnsIfUnspawned(captive, isCaptiveColonist: true);
     }
 
-    private static void EnsureInWorldPawnsIfUnspawned(Pawn? p, bool isCaptiveColonist = false)
-    {
-        if (p == null || p.Destroyed || p.Dead || p.Spawned)
-        {
-            return;
-        }
-
-        if (Find.WorldPawns != null)
-        {
-            if (!Find.WorldPawns.Contains(p))
-            {
-                Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
-            }
-            Find.WorldPawns.ForcefullyKeptPawns.Add(p);
-        }
-
-        if (isCaptiveColonist && p.Faction != Faction.OfPlayer)
-        {
-            p.SetFaction(Faction.OfPlayer);
-        }
-    }
+    private static void EnsureInWorldPawnsIfUnspawned(Pawn? p, bool isCaptiveColonist = false) =>
+        WorldPawnIntegrityUtility.EnsurePawnInWorldPawnsIfUnspawned(p, isCaptiveColonist);
 
     /// <summary>
     /// Removes dangling DirectPawnRelations pointing to pawns that were discarded by RimWorld's
@@ -334,18 +315,24 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     /// "Could not resolve reference... curParent=RimWorld.DirectPawnRelation" and "has relation with null pawn"
     /// load-time warnings.
     /// </summary>
-    private static void SanitizeDanglingRelations(Pawn? p)
-    {
-        if (p?.relations == null) return;
+    /// <summary>
+    /// Scrubs direct social relations referencing discarded or unresolvable pawns before saving.
+    /// </summary>
+    private static void SanitizeDanglingRelations(Pawn? p) =>
+        WorldPawnIntegrityUtility.SanitizeDanglingRelations(p);
 
-        var relations = p.relations.DirectRelations;
-        for (int r = relations.Count - 1; r >= 0; r--)
+    private static void PreparePawnListForSave(List<Pawn>? pawns, bool isCaptiveColonist = false)
+    {
+        if (pawns == null)
         {
-            Pawn other = relations[r].otherPawn;
-            if (other == null || other.Discarded || (other.Destroyed && Find.WorldPawns != null && !Find.WorldPawns.Contains(other)))
-            {
-                relations.RemoveAt(r);
-            }
+            return;
+        }
+
+        WorldPawnIntegrityUtility.EnsureListInWorldPawns(pawns, isCaptiveColonist);
+        WorldPawnIntegrityUtility.PruneInvalidPawnReferences(pawns, removeDeadOrDestroyed: true);
+        for (int i = 0; i < pawns.Count; i++)
+        {
+            WorldPawnIntegrityUtility.SanitizeDanglingRelations(pawns[i]);
         }
     }
 
@@ -1225,45 +1212,20 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
         if (Scribe.mode == LoadSaveMode.Saving)
         {
-            if (retreatingPawns != null)
+            PreparePawnListForSave(retreatingPawns);
+            PreparePawnListForSave(kidnappedColonists, isCaptiveColonist: true);
+            PreparePawnListForSave(committedPawns);
+
+            if (traderPawn != null &&
+                (WorldPawnIntegrityUtility.IsDeadSafe(traderPawn) ||
+                 traderPawn.Destroyed ||
+                 WorldPawnIntegrityUtility.IsDanglingPawnReference(traderPawn)))
             {
-                for (int i = 0; i < retreatingPawns.Count; i++)
-                {
-                    Pawn p = retreatingPawns[i];
-                    if (p != null && !p.Destroyed && !p.Spawned && !Find.WorldPawns.Contains(p))
-                    {
-                        Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
-                    }
-                    SanitizeDanglingRelations(p);
-                }
+                traderPawn = null;
             }
-            if (kidnappedColonists != null)
+            else
             {
-                for (int i = 0; i < kidnappedColonists.Count; i++)
-                {
-                    Pawn p = kidnappedColonists[i];
-                    if (p != null && !p.Destroyed && !p.Spawned && !Find.WorldPawns.Contains(p))
-                    {
-                        Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
-                        if (p.Faction != Faction.OfPlayer)
-                        {
-                            p.SetFaction(Faction.OfPlayer);
-                        }
-                    }
-                    SanitizeDanglingRelations(p);
-                }
-            }
-            if (committedPawns != null)
-            {
-                for (int i = 0; i < committedPawns.Count; i++)
-                {
-                    Pawn p = committedPawns[i];
-                    if (p != null && !p.Destroyed && !p.Spawned && !Find.WorldPawns.Contains(p))
-                    {
-                        Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
-                    }
-                    SanitizeDanglingRelations(p);
-                }
+                WorldPawnIntegrityUtility.SanitizeDanglingRelations(traderPawn);
             }
         }
 
@@ -1279,11 +1241,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             {
                 isIdentified = false;
             }
-            committedPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
-            retreatingPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
-            kidnappedColonists?.RemoveAll(p => p == null || p.Dead || p.Destroyed);
+            committedPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed || p.Discarded);
+            retreatingPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed || p.Discarded);
+            kidnappedColonists?.RemoveAll(p => p == null || p.Dead || p.Destroyed || p.Discarded);
 
-            if (traderPawn != null && (traderPawn.Dead || traderPawn.Destroyed))
+            if (traderPawn != null && (traderPawn.Dead || traderPawn.Destroyed || traderPawn.Discarded))
             {
                 traderPawn = null;
             }
@@ -2640,28 +2602,27 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             : "Disbanded";
         ContactRegistry.Instance?.Notify_ContactDestroyed(this, defaultOutcome);
 
-        if (committedPawns != null)
-        {
-            foreach (var p in committedPawns)
-            {
-                if (p != null && Find.WorldPawns != null)
-                {
-                    Find.WorldPawns.ForcefullyKeptPawns.Remove(p);
-                }
-            }
-        }
-        if (retreatingPawns != null)
-        {
-            foreach (var p in retreatingPawns)
-            {
-                if (p != null && Find.WorldPawns != null)
-                {
-                    Find.WorldPawns.ForcefullyKeptPawns.Remove(p);
-                }
-            }
-        }
+        UnpinUnownedPawns(committedPawns);
+        UnpinUnownedPawns(retreatingPawns);
         tradeStock?.ClearAndDestroyContents();
         base.Destroy();
+    }
+
+    private void UnpinUnownedPawns(List<Pawn>? pawns)
+    {
+        if (pawns == null || Find.WorldPawns == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < pawns.Count; i++)
+        {
+            Pawn? p = pawns[i];
+            if (p != null && !WorldPawnIntegrityUtility.IsTrackedByAnyGeoscapeSystem(p, excludingIncursion: this))
+            {
+                Find.WorldPawns.ForcefullyKeptPawns.Remove(p);
+            }
+        }
     }
 }
 

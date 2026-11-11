@@ -28,11 +28,11 @@ public class CaravanArrivalAction_DismantleOutpost : CaravanArrivalAction
     public WorldObject_ListeningPost? TargetOutpost => targetOutpost;
 
     public override string Label => targetOutpost != null
-        ? $"Dismantle {targetOutpost.LabelCap}"
+        ? (targetOutpost.IsConstructing ? $"Dismantle {targetOutpost.LabelCap} (Refund 100% Materials)" : $"Dismantle {targetOutpost.LabelCap}")
         : "Dismantle Outpost";
 
     public override string ReportString => targetOutpost != null
-        ? $"travelling to dismantle {targetOutpost.LabelCap}"
+        ? (targetOutpost.IsConstructing ? $"travelling to dismantle and recover materials from {targetOutpost.LabelCap}" : $"travelling to dismantle {targetOutpost.LabelCap}")
         : "travelling to dismantle outpost";
 
     public override FloatMenuAcceptanceReport StillValid(Caravan caravan, PlanetTile destinationTile)
@@ -74,6 +74,13 @@ public class CaravanArrivalAction_DismantleOutpost : CaravanArrivalAction
         if (post == null || !post.Spawned || post.Destroyed)
         {
             Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {target}, but the outpost was no longer present.", MessageTypeDefOf.RejectInput, false);
+            return;
+        }
+
+        if (post.IsConstructing)
+        {
+            post.CancelConstruction(caravan);
+            Messages.Message($"Caravan {caravan.LabelCap} arrived at unfinished {post.LabelCap} (Tile {target}). Construction cancelled and 100% of materials recovered into caravan inventory.", MessageTypeDefOf.TaskCompletion, false);
             return;
         }
 

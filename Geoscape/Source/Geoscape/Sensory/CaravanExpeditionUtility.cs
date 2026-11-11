@@ -40,8 +40,26 @@ public static class CaravanExpeditionUtility
     private static readonly System.Reflection.FieldInfo? DestinationTileField =
         AccessTools.Field(typeof(LordJob_FormAndSendCaravan), "destinationTile");
 
-    private static readonly System.Reflection.FieldInfo? TransferablesField =
+    private static readonly System.Reflection.FieldInfo? DialogDestinationTileField =
+        AccessTools.Field(typeof(Dialog_FormCaravan), "destinationTile");
+
+    private static readonly System.Reflection.FieldInfo? DialogMapField =
+        AccessTools.Field(typeof(Dialog_FormCaravan), "map");
+
+    private static readonly System.Reflection.MethodInfo? CountToTransferChangedMethod =
+        AccessTools.Method(typeof(Dialog_FormCaravan), "CountToTransferChanged");
+
+    internal static readonly System.Reflection.FieldInfo? TransferablesField =
         AccessTools.Field(typeof(Dialog_FormCaravan), "transferables");
+
+    private static readonly System.Reflection.PropertyInfo? DaysWorthOfFoodProp =
+        AccessTools.Property(typeof(Dialog_FormCaravan), "DaysWorthOfFood");
+
+    private static readonly System.Reflection.PropertyInfo? TicksToArriveProp =
+        AccessTools.Property(typeof(Dialog_FormCaravan), "TicksToArrive");
+
+    private static readonly System.Reflection.MethodInfo? TryFormAndSendCaravanMethod =
+        AccessTools.Method(typeof(Dialog_FormCaravan), "TryFormAndSendCaravan");
 
     private static readonly object syncLock = new();
     private static readonly Dictionary<int, OutpostConstructionDirective> pendingDirectives = new();
@@ -53,6 +71,46 @@ public static class CaravanExpeditionUtility
         {
             pendingDirectives[tile.tileId] = directive;
         }
+    }
+
+    public static bool TryGetPendingDirective(PlanetTile tile, out OutpostConstructionDirective? directive)
+    {
+        if (tile.Valid)
+        {
+            lock (syncLock)
+            {
+                return pendingDirectives.TryGetValue(tile.tileId, out directive);
+            }
+        }
+        directive = null;
+        return false;
+    }
+
+    public static bool TryGetPendingDirectiveForDialog(Dialog_FormCaravan dialog, out OutpostConstructionDirective? directive)
+    {
+        directive = null;
+        if (dialog == null) return false;
+
+        PlanetTile dest = DialogDestinationTileField != null && DialogDestinationTileField.GetValue(dialog) is PlanetTile pt
+            ? pt
+            : PlanetTile.Invalid;
+
+        if (dest.Valid && TryGetPendingDirective(dest, out directive))
+        {
+            return true;
+        }
+
+        Map? map = DialogMapField?.GetValue(dialog) as Map;
+        if (map != null)
+        {
+            lock (syncLock)
+            {
+                directive = pendingDirectives.Values.FirstOrDefault(d => d.OriginMapId == map.uniqueID);
+                return directive != null;
+            }
+        }
+
+        return false;
     }
 
     public static bool TryConsumePendingDirective(PlanetTile tile, out OutpostConstructionDirective? directive)
@@ -346,7 +404,7 @@ public static class CaravanExpeditionUtility
         });
 
         // 2. Open standard Form Caravan dialog configured for route
-        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: CreateOnFormCaravanClosedCallback(settlement.Map, targetTile));
+        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false);
 
         if (Find.WindowStack != null)
         {
@@ -354,7 +412,7 @@ public static class CaravanExpeditionUtility
         }
         AttachTargetRouteToDialog(dialog, targetTile);
 
-        // 3. Pre-select required construction materials in transferables list
+        // 3. Pre-select required construction materials in transferables list (if already populated)
         PreallocateConstructionMaterials(dialog, kind, stuffDef);
 
         string materialSummary = kind == ListeningPostKind.AutomatedRelay
@@ -386,7 +444,7 @@ public static class CaravanExpeditionUtility
         });
 
         // 2. Open standard Form Caravan dialog configured for route
-        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false, onClosed: CreateOnFormCaravanClosedCallback(settlement.Map, targetTile));
+        var dialog = new Dialog_FormCaravan(settlement.Map, reform: false);
 
         if (Find.WindowStack != null)
         {
@@ -397,35 +455,12 @@ public static class CaravanExpeditionUtility
         Messages.Message($"[Project Vigilance] Dismantle expedition route set to {post.LabelCap} at Tile {targetTile}. Select colonist(s) and provisions to depart.", MessageTypeDefOf.CautionInput, false);
     }
 
-    private static Action CreateOnFormCaravanClosedCallback(Map map, PlanetTile targetTile)
-    {
-        return () =>
-        {
-            bool isForming = map?.lordManager?.lords != null &&
-                             map.lordManager.lords.Any(l =>
-                             {
-                                 if (l.LordJob is LordJob_FormAndSendCaravan f)
-                                 {
-                                     PlanetTile dest = DestinationTileField != null && DestinationTileField.GetValue(f) is PlanetTile pt
-                                         ? pt
-                                         : (PlanetTile)0;
-                                     return dest == targetTile || !dest.Valid;
-                                 }
-                                 return false;
-                             });
-            if (!isForming)
-            {
-                ClearPendingDirective(targetTile);
-            }
-        };
-    }
-
     public static void PreallocateConstructionMaterials(Dialog_FormCaravan dialog, ListeningPostKind kind, ThingDef? stuffDef)
     {
         if (dialog == null) return;
 
         List<TransferableOneWay>? transferables = TransferablesField?.GetValue(dialog) as List<TransferableOneWay>;
-        if (transferables == null) return;
+        if (transferables == null || transferables.Count == 0) return;
 
         if (kind == ListeningPostKind.AutomatedRelay)
         {
@@ -437,6 +472,8 @@ public static class CaravanExpeditionUtility
             ThingDef targetMaterial = stuffDef ?? ThingDefOf.WoodLog;
             AllocateRequirement(transferables, targetMaterial, OutpostMaterialUtility.SignalBeaconWoodOrStoneCost);
         }
+
+        CountToTransferChangedMethod?.Invoke(dialog, null);
     }
 
     private static void AllocateRequirement(List<TransferableOneWay> transferables, ThingDef requiredDef, int neededCount)
@@ -452,5 +489,223 @@ public static class CaravanExpeditionUtility
                 remaining -= toTake;
             }
         }
+    }
+
+    public static float GetDaysWorthOfFood(Dialog_FormCaravan dialog)
+    {
+        if (dialog == null || DaysWorthOfFoodProp == null) return 0f;
+        object? val = DaysWorthOfFoodProp.GetValue(dialog);
+        if (val is (float days, float _))
+        {
+            return days;
+        }
+        return 0f;
+    }
+
+    public static int GetTicksToArrive(Dialog_FormCaravan dialog)
+    {
+        if (dialog == null || TicksToArriveProp == null) return 0;
+        object? val = TicksToArriveProp.GetValue(dialog);
+        return val is int ticks ? ticks : 0;
+    }
+
+    public static int GetEstimatedTransitTicks(Dialog_FormCaravan dialog, PlanetTile targetTile)
+    {
+        int ticks = GetTicksToArrive(dialog);
+        if (ticks > 0) return ticks;
+
+        try
+        {
+            var world = Current.Game?.World;
+            if (targetTile.Valid && world?.grid != null)
+            {
+                Map? map = DialogMapField?.GetValue(dialog) as Map;
+                PlanetTile originTile = map != null ? (PlanetTile)map.Tile : PlanetTile.Invalid;
+                if (originTile.Valid)
+                {
+                    float dist = world.grid.ApproxDistanceInTiles(originTile, targetTile);
+                    float days = UnityEngine.Mathf.Max(0.25f, dist / 18f);
+                    return UnityEngine.Mathf.RoundToInt(days * 60000f);
+                }
+            }
+        }
+        catch
+        {
+            // Headless unit test mocks
+        }
+
+        return 15000; // 0.25 days fallback
+    }
+
+    public static bool TryFormAndSendCaravan(Dialog_FormCaravan dialog)
+    {
+        if (dialog == null || TryFormAndSendCaravanMethod == null) return false;
+        return TryFormAndSendCaravanMethod.Invoke(dialog, null) is true;
+    }
+
+    public static void PreallocateExpeditionFood(Dialog_FormCaravan dialog, OutpostConstructionDirective directive)
+    {
+        if (dialog == null || directive == null) return;
+
+        List<TransferableOneWay>? transferables = TransferablesField?.GetValue(dialog) as List<TransferableOneWay>;
+        if (transferables == null || transferables.Count == 0) return;
+
+        int transitTicks = GetEstimatedTransitTicks(dialog, directive.TargetTile);
+        float transitDays = transitTicks > 0 ? (transitTicks / 60000f) : 0.25f;
+        float onSiteDays = directive.DirectiveKind == OutpostDirectiveKind.Dismantle
+            ? (1500f / 60000f)
+            : ((directive.Kind == ListeningPostKind.AutomatedRelay ? 15000 : 7500) / 60000f);
+
+        // Estimate round-trip plus on-site time plus 1.5d safety buffer
+        float targetFoodDays = UnityEngine.Mathf.Clamp((transitDays * 2f) + onSiteDays + 1.5f, 2.5f, 10f);
+
+        int colonistCount = GetSelectedColonistCount(transferables);
+        if (colonistCount <= 0)
+        {
+            colonistCount = 3;
+        }
+
+        int mealsNeeded = UnityEngine.Mathf.CeilToInt(targetFoodDays * colonistCount * 2f);
+        int remainingMeals = mealsNeeded;
+
+        // 1. Packaged Survival Meals (non-perishable)
+        if (remainingMeals > 0 && ThingDefOf.MealSurvivalPack != null)
+        {
+            int allocated = AllocateFoodUnits(transferables, ThingDefOf.MealSurvivalPack, remainingMeals);
+            remainingMeals -= allocated;
+        }
+
+        // 2. Pemmican (16 units per meal equivalent)
+        if (remainingMeals > 0 && ThingDefOf.Pemmican != null)
+        {
+            int allocatedPemmican = AllocateFoodUnits(transferables, ThingDefOf.Pemmican, remainingMeals * 16);
+            remainingMeals -= (allocatedPemmican / 16);
+        }
+
+        // 3. Simple Meals
+        if (remainingMeals > 0 && ThingDefOf.MealSimple != null)
+        {
+            int allocated = AllocateFoodUnits(transferables, ThingDefOf.MealSimple, remainingMeals);
+            remainingMeals -= allocated;
+        }
+
+        // 4. Fine Meals
+        if (remainingMeals > 0 && ThingDefOf.MealFine != null)
+        {
+            int allocated = AllocateFoodUnits(transferables, ThingDefOf.MealFine, remainingMeals);
+            remainingMeals -= allocated;
+        }
+
+        CountToTransferChangedMethod?.Invoke(dialog, null);
+    }
+
+    private static int GetSelectedColonistCount(List<TransferableOneWay> transferables)
+    {
+        int count = 0;
+        for (int i = 0; i < transferables.Count; i++)
+        {
+            TransferableOneWay t = transferables[i];
+            if (t.ThingDef != null && t.ThingDef.category == ThingCategory.Pawn && t.CountToTransfer > 0 && t.things != null)
+            {
+                count += t.things.OfType<Pawn>().Take(t.CountToTransfer).Count(p => p.IsFreeColonist);
+            }
+        }
+        return count;
+    }
+
+    private static int AllocateFoodUnits(List<TransferableOneWay> transferables, ThingDef foodDef, int maxUnits)
+    {
+        int totalAllocated = 0;
+        int remaining = maxUnits;
+        for (int i = 0; i < transferables.Count; i++)
+        {
+            TransferableOneWay t = transferables[i];
+            if (t.ThingDef == foodDef && remaining > 0)
+            {
+                int toTake = Math.Min(t.MaxCount, remaining);
+                t.AdjustTo(toTake);
+                remaining -= toTake;
+                totalAllocated += toTake;
+            }
+        }
+        return totalAllocated;
+    }
+
+    private static System.Reflection.PropertyInfo? massCapacityProp;
+    private static System.Reflection.PropertyInfo? massUsageProp;
+
+    public static float GetCaravanMassCapacity(Dialog_FormCaravan dialog)
+    {
+        if (dialog == null) return 0f;
+        massCapacityProp ??= typeof(Dialog_FormCaravan).GetProperty("MassCapacity", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (massCapacityProp != null)
+        {
+            object? val = massCapacityProp.GetValue(dialog);
+            if (val is float f) return f;
+        }
+        return 0f;
+    }
+
+    public static float GetCaravanMassUsage(Dialog_FormCaravan dialog)
+    {
+        if (dialog == null) return 0f;
+        massUsageProp ??= typeof(Dialog_FormCaravan).GetProperty("MassUsage", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (massUsageProp != null)
+        {
+            object? val = massUsageProp.GetValue(dialog);
+            if (val is float f) return f;
+        }
+        return 0f;
+    }
+
+    public static (float mass, string summary) GetExpectedDismantleYield(WorldObject_ListeningPost? post, ListeningPostKind kind, ThingDef? stuffDef)
+    {
+        bool isConstructing = post?.IsConstructing == true;
+        ListeningPostKind effectiveKind = post?.Kind ?? kind;
+        ThingDef effectiveStuff = post?.StuffDef ?? stuffDef ?? ThingDefOf.WoodLog;
+
+        if (effectiveKind == ListeningPostKind.AutomatedRelay)
+        {
+            int steel = isConstructing
+                ? OutpostMaterialUtility.AutomatedRelaySteelCost
+                : OutpostMaterialUtility.AutomatedRelaySteelSalvage;
+            int comp = isConstructing
+                ? OutpostMaterialUtility.AutomatedRelayComponentCost
+                : OutpostMaterialUtility.AutomatedRelayComponentSalvage;
+
+            float steelMass = steel * GetThingBaseMass(ThingDefOf.Steel, 0.5f);
+            float compMass = comp * GetThingBaseMass(ThingDefOf.ComponentIndustrial, 0.6f);
+            float totalMass = steelMass + compMass;
+            string pctStr = isConstructing ? "100% refund" : "75% salvage";
+            return (totalMass, $"{steel} Steel, {comp} Components ({pctStr})");
+        }
+        else
+        {
+            int count = isConstructing
+                ? OutpostMaterialUtility.SignalBeaconWoodOrStoneCost
+                : OutpostMaterialUtility.SignalBeaconWoodSalvage;
+
+            float fallbackMass = (effectiveStuff?.defName?.Contains("Wood") == true) ? 0.4f : 1.0f;
+            float unitMass = GetThingBaseMass(effectiveStuff, fallbackMass);
+            float totalMass = count * unitMass;
+            string pctStr = isConstructing ? "100% refund" : "75% salvage";
+            return (totalMass, $"{count} {effectiveStuff?.LabelCap ?? "Wood"} ({pctStr})");
+        }
+    }
+
+    private static float GetThingBaseMass(ThingDef? def, float fallback)
+    {
+        if (def == null) return fallback;
+        try
+        {
+            if (StatDefOf.Mass != null && def.statBases != null && def.statBases.Any(s => s.stat == StatDefOf.Mass))
+            {
+                return def.BaseMass;
+            }
+        }
+        catch
+        {
+        }
+        return fallback;
     }
 }

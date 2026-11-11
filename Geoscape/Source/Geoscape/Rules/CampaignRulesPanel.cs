@@ -96,13 +96,15 @@ public static class CampaignRulesPanel
         RuleEditContext ctx,
         bool showLockPreview = false)
     {
-        if (rules.Visibility.Value == VisibilityMode.Omniscient)
-        {
-            return;
-        }
+        bool applicable = rules.Visibility.Value != VisibilityMode.Omniscient;
 
         Text.Font = GameFont.Medium;
+        if (!applicable)
+        {
+            GUI.color = new Color(1f, 1f, 1f, 0.38f);
+        }
         listing.Label("Lookout & Scouting Horizons");
+        GUI.color = Color.white;
         Text.Font = GameFont.Small;
         listing.GapLine();
 
@@ -113,7 +115,8 @@ public static class CampaignRulesPanel
             15.0f,
             campaign,
             ctx,
-            showLockPreview);
+            showLockPreview,
+            enabled: applicable);
 
         CampaignRuleWidgets.DrawFloat(
             listing,
@@ -122,14 +125,16 @@ public static class CampaignRulesPanel
             10.0f,
             campaign,
             ctx,
-            showLockPreview);
+            showLockPreview,
+            enabled: applicable);
 
         CampaignRuleWidgets.DrawBool(
             listing,
             rules.NighttimeSensoryReduction,
             campaign,
             ctx,
-            showLockPreview);
+            showLockPreview,
+            enabled: applicable);
 
         listing.Gap();
     }

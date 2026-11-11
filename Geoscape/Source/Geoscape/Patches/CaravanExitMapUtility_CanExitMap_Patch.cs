@@ -23,14 +23,15 @@ public static class CaravanExitMapUtility_CanExitMap_Patch
             return;
         }
 
-        bool isTacticalEncounterMap = !map.IsPlayerHome &&
-                                      (map.Parent is CaravansBattlefield ||
-                                       map.GetComponent<MapComponent_OverlandAmbush>() != null);
-        bool isSettlementRetreat = map.IsPlayerHome &&
-                                   (GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false) ||
-                                    CaravanExitMapUtility.FindCaravanToJoinFor(pawn) != null);
+        bool isTacticalEncounterMap = IncursionTacticalRetreatUtility.IsOverlandEncounterMap(map);
+        bool hasHomeRetreatCondition = map.IsPlayerHome &&
+                                       (GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false) ||
+                                        CaravanExitMapUtility.FindCaravanToJoinFor(pawn) != null);
 
-        if (!isTacticalEncounterMap && !isSettlementRetreat)
+        if (!IncursionTacticalRetreatUtility.ShouldAllowRetreatExitGrid(
+                map.IsPlayerHome,
+                isTacticalEncounterMap,
+                hasHomeRetreatCondition))
         {
             return;
         }

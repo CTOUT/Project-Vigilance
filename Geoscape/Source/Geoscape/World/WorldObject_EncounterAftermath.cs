@@ -196,18 +196,8 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
         }
     }
 
-    private void EnsureSurvivorInWorldPawns(Pawn survivor)
-    {
-        if (survivor == null || survivor.Dead || survivor.Destroyed || survivor.Spawned) return;
-        if (Find.WorldPawns != null)
-        {
-            if (!Find.WorldPawns.Contains(survivor))
-            {
-                Find.WorldPawns.PassToWorld(survivor, PawnDiscardDecideMode.KeepForever);
-            }
-            Find.WorldPawns.ForcefullyKeptPawns.Add(survivor);
-        }
-    }
+    private void EnsureSurvivorInWorldPawns(Pawn? survivor) =>
+        WorldPawnIntegrityUtility.EnsurePawnInWorldPawnsIfUnspawned(survivor);
 
     protected override void Tick()
     {
@@ -406,18 +396,20 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
 
         if (Scribe.mode == LoadSaveMode.Saving && woundedSurvivors != null)
         {
+            WorldPawnIntegrityUtility.EnsureListInWorldPawns(woundedSurvivors, isCaptiveColonist: false);
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(woundedSurvivors, removeDeadOrDestroyed: true);
             for (int i = 0; i < woundedSurvivors.Count; i++)
             {
-                Pawn p = woundedSurvivors[i];
-                if (p != null && !p.Destroyed && !p.Spawned && Find.WorldPawns != null && !Find.WorldPawns.Contains(p))
-                {
-                    Find.WorldPawns.PassToWorld(p, PawnDiscardDecideMode.KeepForever);
-                }
+                WorldPawnIntegrityUtility.SanitizeDanglingRelations(woundedSurvivors[i]);
             }
         }
 
         Scribe_Collections.Look(ref woundedSurvivors, "woundedSurvivors", LookMode.Reference);
         woundedSurvivors ??= new List<Pawn>();
+        if (Scribe.mode == LoadSaveMode.PostLoadInit)
+        {
+            woundedSurvivors.RemoveAll(p => p == null || p.Dead || p.Destroyed || p.Discarded);
+        }
 
         Scribe_References.Look(ref victorFaction, "victorFaction");
         Scribe_References.Look(ref defeatedFaction, "defeatedFaction");
@@ -431,7 +423,10 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
             for (int i = 0; i < woundedSurvivors.Count; i++)
             {
                 Pawn p = woundedSurvivors[i];
-                if (p != null)
+                if (p != null &&
+                    !WorldPawnIntegrityUtility.IsTrackedByAnyGeoscapeSystem(p, excludingAftermath: this) &&
+                    p.ParentHolder == null &&
+                    (Find.Maps == null || !p.SpawnedOrAnyParentSpawned))
                 {
                     if (Find.WorldPawns != null)
                     {

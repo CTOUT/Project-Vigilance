@@ -80,7 +80,7 @@ public sealed class Dialog_GeoscapeCampaignRules : Window
         Rect viewRect = new(0f, 0f, outRect.width - 16f, Mathf.Max(lastViewHeight, outRect.height));
 
         Widgets.BeginScrollView(outRect, ref scrollPosition, viewRect);
-        Listing_Standard listing = new();
+        Listing_Standard listing = new() { maxOneColumn = true };
         listing.Begin(viewRect);
 
         RuleEditContext ctx = campaign != null
@@ -124,14 +124,6 @@ public sealed class Dialog_GeoscapeCampaignRules : Window
 
     private void DrawPresetButton(Rect rect, CampaignProfile profile, string label, CampaignProfile current)
     {
-        if (current == profile)
-        {
-            Widgets.DrawHighlightSelected(rect);
-            GUI.color = new Color(0.2f, 0.8f, 0.4f, 0.8f);
-            Widgets.DrawBox(rect, 1);
-            GUI.color = Color.white;
-        }
-
         if (Widgets.ButtonText(rect, label))
         {
             if (campaign == null)
@@ -143,6 +135,14 @@ public sealed class Dialog_GeoscapeCampaignRules : Window
                 campaign.ApplyAdoptionProfile(profile, "Modal Preset Selection");
             }
             SoundDefOf.Click?.PlayOneShotOnCamera();
+        }
+
+        if (current == profile)
+        {
+            Widgets.DrawHighlightSelected(rect);
+            GUI.color = new Color(0.2f, 0.8f, 0.4f, 0.8f);
+            Widgets.DrawBox(rect, 1);
+            GUI.color = Color.white;
         }
     }
 }

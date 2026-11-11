@@ -125,6 +125,16 @@
 
 ---
 
+### Future Milestone: Imperfect Intelligence, Curiosity & Living Shroud
+
+- [ ] **Signal Confidence, Bearing Cones & Interferometric Triangulation:** Attach explicit confidence tags (`Unconfirmed`, `Bearing Only`, `Clutter`, `Confirmed`) and error arcs/strength brackets to marginal contacts; sharpen fixes automatically when two or more sensor stations overlap.
+- [ ] **Explored Haze Staleness & Off-Screen World Drift:** Track `Last Observed` timestamps across unmonitored Explored Haze tiles and settlements so off-screen skirmishes, collapse, or territorial turnover cause historical map memory to go stale honestly rather than updating magically.
+- [ ] **Non-Cheap Frontier Curiosity Hooks:** Surface indirect evidence along explored edges — roads/waterways cutting into Shroud, downstream river pollution/ash plumes, displaced stragglers escaping uncharted conflict, partial VHF radio intercepts, and hearsay-graded traveller rumours with varying reliability.
+- [ ] **Physically Grounded Noise, Clutter & Enemy Deception:** Introduce traceable false positives and misreadings (solar flare radar ghosts, biological echoes on early `Geoscape_SonarArray`, nocturnal/weather optical distortion, decoy campfires, spoofed caravan transponders, and hostile ECM split-blips countered via `Geoscape_SigintConsole`).
+- [ ] **Signal History & Cumulative Intelligence Dossier:** Maintain a non-quest historical signal journal logging recurring tracks (such as `Repeated Contact #12` with `First Observed`, `Observations`, `Confidence`, `Classification`, and `Last Seen`), integrating time-decayed uncertainty ellipses, low-confidence track correlation/splitting ambiguity, and historical sighting overlays in `[ INTEL ARCHIVE ]`.
+
+---
+
 ### Milestone 1.5: Foundation Framework, Modding Extensibility & Community Localisation
 
 - [ ] **RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**

@@ -368,6 +368,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
             }, MenuOptionPriority.Default));
         }
 
+        DeduplicateOptions(options);
         return options;
     }
 
@@ -553,23 +554,30 @@ public static class WorldSelector_HandleWorldClicks_Patch
             // Local actions on current tile
             if (post != null)
             {
-                if (post.IsSabotaged)
+                if (post.IsConstructing || post.IsDismantling)
                 {
-                    bool canRepair = post.HasRepairMaterials(caravan, out string missingDesc);
-                    string repairLabel = canRepair
-                        ? $"Repair {post.LabelCap} with caravan {caravan.LabelCap}"
-                        : $"Repair {post.LabelCap} with caravan {caravan.LabelCap} ({missingDesc})";
-
-                    caravanOptions.Add(new FloatMenuOption(repairLabel, () =>
-                    {
-                        post.TryRepair(caravan);
-                    }, MenuOptionPriority.High) { Disabled = !canRepair });
+                    caravanOptions.AddRange(post.GetFloatMenuOptions(caravan));
                 }
-
-                caravanOptions.Add(new FloatMenuOption($"Dismantle {post.LabelCap} with caravan {caravan.LabelCap} (Recover 75% materials)", () =>
+                else
                 {
-                    post.StartDismantling(1500);
-                }, MenuOptionPriority.Low));
+                    if (post.IsSabotaged)
+                    {
+                        bool canRepair = post.HasRepairMaterials(caravan, out string missingDesc);
+                        string repairLabel = canRepair
+                            ? $"Repair {post.LabelCap} with caravan {caravan.LabelCap}"
+                            : $"Repair {post.LabelCap} with caravan {caravan.LabelCap} ({missingDesc})";
+
+                        caravanOptions.Add(new FloatMenuOption(repairLabel, () =>
+                        {
+                            post.TryRepair(caravan);
+                        }, MenuOptionPriority.High) { Disabled = !canRepair });
+                    }
+
+                    caravanOptions.Add(new FloatMenuOption($"Dismantle {post.LabelCap} with caravan {caravan.LabelCap} (Recover 75% materials)", () =>
+                    {
+                        post.StartDismantling(1500);
+                    }, MenuOptionPriority.Low));
+                }
             }
             else
             {
@@ -639,24 +647,85 @@ public static class WorldSelector_HandleWorldClicks_Patch
 
             if (post != null)
             {
-                string dismantleLabel = $"Send caravan {caravan.LabelCap} to dismantle {post.LabelCap} (Recover 75% Materials) ({distStr})";
-                caravanOptions.Add(new FloatMenuOption(dismantleLabel, () =>
+                if (post.IsConstructing)
                 {
-                    if (caravan.pather != null)
+                    caravanOptions.Add(new FloatMenuOption($"Send caravan {caravan.LabelCap} to resume construction of {post.LabelCap} ({post.ConstructionProgressPct}% complete) ({distStr})", () =>
                     {
-                        caravan.pather.StartPath(
-                            effectiveTile,
-                            new CaravanArrivalAction_DismantleOutpost(post, effectiveTile),
-                            repathImmediately: true,
-                            resetPauseStatus: true);
-                        if (Find.WorldSelector != null)
+                        if (caravan.pather != null)
                         {
-                            Find.WorldSelector.ClearSelection();
-                            Find.WorldSelector.Select(caravan, playSound: true);
+                            caravan.pather.StartPath(
+                                effectiveTile,
+                                null,
+                                repathImmediately: true,
+                                resetPauseStatus: true);
+                            if (Find.WorldSelector != null)
+                            {
+                                Find.WorldSelector.ClearSelection();
+                                Find.WorldSelector.Select(caravan, playSound: true);
+                            }
+                            Messages.Message($"Caravan {caravan.LabelCap} en route to resume construction of {post.LabelCap} at Tile {effectiveTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
                         }
-                        Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {effectiveTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
-                    }
-                }, MenuOptionPriority.Default));
+                    }, MenuOptionPriority.Default));
+
+                    caravanOptions.Add(new FloatMenuOption($"Send caravan {caravan.LabelCap} to dismantle {post.LabelCap} (Refund 100% Materials) ({distStr})", () =>
+                    {
+                        if (caravan.pather != null)
+                        {
+                            caravan.pather.StartPath(
+                                effectiveTile,
+                                new CaravanArrivalAction_DismantleOutpost(post, effectiveTile),
+                                repathImmediately: true,
+                                resetPauseStatus: true);
+                            if (Find.WorldSelector != null)
+                            {
+                                Find.WorldSelector.ClearSelection();
+                                Find.WorldSelector.Select(caravan, playSound: true);
+                            }
+                            Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {effectiveTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                        }
+                    }, MenuOptionPriority.Default));
+                }
+                else if (post.IsDismantling)
+                {
+                    caravanOptions.Add(new FloatMenuOption($"Send caravan {caravan.LabelCap} to resume dismantling of {post.LabelCap} ({distStr})", () =>
+                    {
+                        if (caravan.pather != null)
+                        {
+                            caravan.pather.StartPath(
+                                effectiveTile,
+                                new CaravanArrivalAction_DismantleOutpost(post, effectiveTile),
+                                repathImmediately: true,
+                                resetPauseStatus: true);
+                            if (Find.WorldSelector != null)
+                            {
+                                Find.WorldSelector.ClearSelection();
+                                Find.WorldSelector.Select(caravan, playSound: true);
+                            }
+                            Messages.Message($"Caravan {caravan.LabelCap} en route to resume dismantling of {post.LabelCap} at Tile {effectiveTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                        }
+                    }, MenuOptionPriority.Default));
+                }
+                else
+                {
+                    string dismantleLabel = $"Send caravan {caravan.LabelCap} to dismantle {post.LabelCap} (Recover 75% Materials) ({distStr})";
+                    caravanOptions.Add(new FloatMenuOption(dismantleLabel, () =>
+                    {
+                        if (caravan.pather != null)
+                        {
+                            caravan.pather.StartPath(
+                                effectiveTile,
+                                new CaravanArrivalAction_DismantleOutpost(post, effectiveTile),
+                                repathImmediately: true,
+                                resetPauseStatus: true);
+                            if (Find.WorldSelector != null)
+                            {
+                                Find.WorldSelector.ClearSelection();
+                                Find.WorldSelector.Select(caravan, playSound: true);
+                            }
+                            Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {effectiveTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                        }
+                    }, MenuOptionPriority.Default));
+                }
             }
             else if (destObj == null)
             {
@@ -733,10 +802,29 @@ public static class WorldSelector_HandleWorldClicks_Patch
 
             if (post != null)
             {
-                settlementOptions.Add(new FloatMenuOption($"Dispatch caravan from {settlement.LabelCap} to dismantle {post.LabelCap} (Recover 75% Materials) ({distStr})", () =>
+                if (post.IsConstructing)
                 {
-                    CaravanExpeditionUtility.StartDismantleExpedition(settlement, post);
-                }, MenuOptionPriority.Default));
+                    settlementOptions.Add(new FloatMenuOption($"Dispatch caravan from {settlement.LabelCap} to resume construction of {post.LabelCap} ({post.ConstructionProgressPct}% complete) ({distStr})", () =>
+                    {
+                        Map? map = GetSafeMap(settlement);
+                        if (map != null)
+                        {
+                            CaravanExpeditionUtility.OpenCaravanFormingDialog(map, effectiveTile);
+                        }
+                    }, MenuOptionPriority.Default));
+
+                    settlementOptions.Add(new FloatMenuOption($"Dispatch caravan from {settlement.LabelCap} to dismantle {post.LabelCap} (Refund 100% Materials) ({distStr})", () =>
+                    {
+                        CaravanExpeditionUtility.StartDismantleExpedition(settlement, post);
+                    }, MenuOptionPriority.Default));
+                }
+                else
+                {
+                    settlementOptions.Add(new FloatMenuOption($"Dispatch caravan from {settlement.LabelCap} to dismantle {post.LabelCap} (Recover 75% Materials) ({distStr})", () =>
+                    {
+                        CaravanExpeditionUtility.StartDismantleExpedition(settlement, post);
+                    }, MenuOptionPriority.Default));
+                }
             }
             else if (destObj == null)
             {
@@ -968,10 +1056,25 @@ public static class WorldSelector_HandleWorldClicks_Patch
             WorldObject_ListeningPost? post = worldObjectsHolder?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == effectiveTile);
             if (post != null)
             {
-                options.Add(new FloatMenuOption($"Dispatch Caravan to Dismantle {post.LabelCap} (Recover 75% Materials)", () =>
+                if (post.IsConstructing)
                 {
-                    CaravanExpeditionUtility.StartDismantleExpedition(settlement, post);
-                }, MenuOptionPriority.Default));
+                    options.Add(new FloatMenuOption($"Dispatch Caravan to Resume Construction of {post.LabelCap} ({post.ConstructionProgressPct}% complete)", () =>
+                    {
+                        CaravanExpeditionUtility.OpenCaravanFormingDialog(settlement.Map, effectiveTile);
+                    }, MenuOptionPriority.Default));
+
+                    options.Add(new FloatMenuOption($"Dispatch Caravan to Dismantle {post.LabelCap} (Refund 100% Materials)", () =>
+                    {
+                        CaravanExpeditionUtility.StartDismantleExpedition(settlement, post);
+                    }, MenuOptionPriority.Default));
+                }
+                else
+                {
+                    options.Add(new FloatMenuOption($"Dispatch Caravan to Dismantle {post.LabelCap} (Recover 75% Materials)", () =>
+                    {
+                        CaravanExpeditionUtility.StartDismantleExpedition(settlement, post);
+                    }, MenuOptionPriority.Default));
+                }
             }
             else
             {
@@ -982,6 +1085,25 @@ public static class WorldSelector_HandleWorldClicks_Patch
             }
         }
 
+        DeduplicateOptions(options);
         return options;
+    }
+
+    internal static void DeduplicateOptions(List<FloatMenuOption>? list)
+    {
+        if (list == null || list.Count <= 1) return;
+        var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        int i = 0;
+        while (i < list.Count)
+        {
+            if (!seen.Add(list[i].Label))
+            {
+                list.RemoveAt(i);
+            }
+            else
+            {
+                i++;
+            }
+        }
     }
 }

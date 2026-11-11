@@ -16,6 +16,9 @@ namespace ProjectVigilance.Geoscape.Sensory;
 public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 {
     private const int MaxVertsPerMeshSafe = 38000;
+    public const int DimmingRenderQueue = 3544;
+    public const int ShadowWashRenderQueue = 3547;
+    public const int OutlineRenderQueue = 3548;
     private const float RadarAltitudeOffset = 0.040f;          // Above surface terrain (0.00), roads (0.015), and settlements (0.030)
     private const float PerimeterHalfWidth = 0.045f;           // Crisp glowing boundary ribbon width
     private const float IdentificationHalfWidth = 0.038f;      // Distinct bold optical classification horizon ring width
@@ -40,6 +43,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     /// Optional hook for overriding submesh material instantiation during headless unit tests.
     /// </summary>
     public static System.Func<Material?>? SubMeshMaterialOverride { get; set; }
+
+    internal static System.Func<int, Material?>? RenderQueueMaterialOverride { get; set; }
 
     /// <summary>
     /// Optional hook for overriding tile vertices retrieval during unit tests.
@@ -69,8 +74,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     {
         get
         {
-            if (GeoscapeMod.Settings.radarOutlineStyle == RadarOutlineStyle.None &&
-                GeoscapeMod.Settings.surveillanceDimming < 0.005f)
+            if (GeoscapeMod.Settings.radarOutlineStyle == RadarOutlineStyle.None)
             {
                 return false;
             }
@@ -93,8 +97,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 
         if (Instance != null)
         {
-            Instance.SetDirty();
-            Instance.RegenerateNow();
+            WorldDrawLayer_HazeOfWar.RequestLayerRefresh(Instance);
         }
 
         if (Find.WorldGrid?.Surface?.WorldDrawLayers != null)
@@ -104,8 +107,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             {
                 if (layers[i] is WorldDrawLayer_RadarCoverage radarLayer && radarLayer != Instance)
                 {
-                    radarLayer.SetDirty();
-                    radarLayer.RegenerateNow();
+                    WorldDrawLayer_HazeOfWar.RequestLayerRefresh(radarLayer);
                 }
             }
         }
@@ -149,7 +151,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         bool drawOutlines = GeoscapeMod.Settings.radarOutlineStyle != RadarOutlineStyle.None;
         bool drawGrid = GeoscapeMod.Settings.radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid;
         float dimming = GeoscapeMod.Settings.surveillanceDimming;
-        bool drawShadows = GeoscapeMod.Settings.showIdentificationHorizon &&
+        bool drawShadows = drawOutlines &&
+                           GeoscapeMod.Settings.showIdentificationHorizon &&
                            GeoscapeMod.Settings.radarTerrainShadowStyle != RadarTerrainShadowStyle.None;
         bool drawDashedContours = drawShadows &&
                                   (GeoscapeMod.Settings.radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours ||
@@ -159,11 +162,12 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                                  GeoscapeMod.Settings.radarTerrainShadowStyle == RadarTerrainShadowStyle.Both);
 
         // 2. Background Surveillance Dimming
-        if (dimming > 0.005f && planetLayer != null)
+        if (drawOutlines && dimming > 0.005f && planetLayer != null)
         {
             byte dimAlpha = (byte)(Mathf.Clamp01(dimming) * 255);
             Color32 dimColor = new(10, 14, 20, dimAlpha);
             int tilesCount = planetLayer.TilesCount;
+            int dimSubMeshIndex = 0;
 
             for (int i = 0; i < tilesCount; i++)
             {
@@ -197,7 +201,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                     tmpDimmingVerts[v] = vert + vert.normalized * (RadarAltitudeOffset * 0.5f);
                 }
 
-                LayerSubMesh dimSubMesh = GetOrCreateSubMesh(vertCount + 1, ref subMeshIndex);
+                LayerSubMesh dimSubMesh = GetOrCreateSubMesh(vertCount + 1, DimmingRenderQueue, ref dimSubMeshIndex);
                 int centerIdx = dimSubMesh.verts.Count;
                 dimSubMesh.verts.Add(center);
                 dimSubMesh.colors.Add(dimColor);
@@ -563,7 +567,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 
         // A. Subtle static wash over the mountain hex surface
         Vector3 washCenter = center + normCenter * (RadarAltitudeOffset * 0.45f);
-        LayerSubMesh washSubMesh = GetOrCreateSubMesh(vertCount + 1, ref subMeshIndex);
+        int washSubMeshIndex = 0;
+        LayerSubMesh washSubMesh = GetOrCreateSubMesh(vertCount + 1, ShadowWashRenderQueue, ref washSubMeshIndex);
         int centerIdx = washSubMesh.verts.Count;
         washSubMesh.verts.Add(washCenter);
         washSubMesh.colors.Add(washColor);
@@ -672,20 +677,19 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 
     private LayerSubMesh GetOrCreateSubMesh(int neededVerts, ref int subMeshIndex)
     {
-        while (subMeshIndex < subMeshes.Count)
-        {
-            LayerSubMesh existing = subMeshes[subMeshIndex];
-            if (existing.verts.Count + neededVerts <= MaxVertsPerMeshSafe)
-            {
-                return existing;
-            }
-            subMeshIndex++;
-        }
+        return GetOrCreateSubMesh(neededVerts, OutlineRenderQueue, ref subMeshIndex);
+    }
 
-        Material mat = SubMeshMaterialOverride != null ? SubMeshMaterialOverride()! : WorldMaterials.VertexColorTransparent;
-        LayerSubMesh newSubMesh = new(new Mesh(), mat);
-        subMeshes.Add(newSubMesh);
-        return newSubMesh;
+    private LayerSubMesh GetOrCreateSubMesh(int neededVerts, int renderQueue, ref int subMeshIndex)
+    {
+        return WorldDrawLayer_HazeOfWar.GetOrCreateVertexColorSubMesh(
+            subMeshes,
+            MaxVertsPerMeshSafe,
+            neededVerts,
+            renderQueue,
+            SubMeshMaterialOverride,
+            RenderQueueMaterialOverride,
+            ref subMeshIndex);
     }
 
     private readonly struct EdgeKey : IEquatable<EdgeKey>

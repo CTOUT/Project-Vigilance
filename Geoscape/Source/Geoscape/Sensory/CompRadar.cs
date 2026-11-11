@@ -185,6 +185,16 @@ public class CompRadar : ThingComp, ISensorProvider
                 return false;
             }
 
+            if (parent.GetComp<CompStunnable>()?.StunHandler?.Stunned == true)
+            {
+                return false;
+            }
+
+            if (SensoryDisruptionUtility.IsSolarFlareActive(SensorTile))
+            {
+                return false;
+            }
+
             if (PowerTrader != null && !PowerTrader.PowerOn)
             {
                 return false;
@@ -204,6 +214,16 @@ public class CompRadar : ThingComp, ISensorProvider
         if (parent.IsBrokenDown())
         {
             return "Faulty / Broken Down";
+        }
+
+        if (parent.GetComp<CompStunnable>()?.StunHandler?.Stunned == true)
+        {
+            return "EMP Disrupted / Stunned";
+        }
+
+        if (SensoryDisruptionUtility.IsSolarFlareActive(SensorTile))
+        {
+            return "Solar Flare Disruption";
         }
 
         if (PowerTrader != null && !PowerTrader.PowerOn)

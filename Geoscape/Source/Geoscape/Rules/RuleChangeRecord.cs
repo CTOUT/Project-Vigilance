@@ -49,6 +49,7 @@ public sealed class RuleChangeRecord : IExposable
     public string? from;
     public string? to;
     public string? note;
+    public string? hash;
 
     public bool IsPinned => kind is RuleChangeKind.CampaignCreated
                                or RuleChangeKind.LegacyMigration
@@ -58,7 +59,7 @@ public sealed class RuleChangeRecord : IExposable
     {
     }
 
-    public RuleChangeRecord(int tick, RuleChangeKind kind, string? ruleKey = null, string? from = null, string? to = null, string? note = null)
+    public RuleChangeRecord(int tick, RuleChangeKind kind, string? ruleKey = null, string? from = null, string? to = null, string? note = null, string? hash = null)
     {
         this.tick = tick;
         this.kind = kind;
@@ -66,6 +67,7 @@ public sealed class RuleChangeRecord : IExposable
         this.from = from;
         this.to = to;
         this.note = note;
+        this.hash = hash;
     }
 
     public void ExposeData()
@@ -76,6 +78,7 @@ public sealed class RuleChangeRecord : IExposable
         Scribe_Values.Look(ref from, "from");
         Scribe_Values.Look(ref to, "to");
         Scribe_Values.Look(ref note, "note");
+        Scribe_Values.Look(ref hash, "hash");
     }
 
     public override string ToString()
@@ -88,6 +91,11 @@ public sealed class RuleChangeRecord : IExposable
         if (!string.IsNullOrEmpty(note))
         {
             header += $" ({note})";
+        }
+        if (!string.IsNullOrEmpty(hash))
+        {
+            string shortHash = hash.Length > 8 ? hash.Substring(0, 8) : hash;
+            header += $" [sig:{shortHash}]";
         }
         return header;
     }

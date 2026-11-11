@@ -21,6 +21,33 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
     [System.ThreadStatic]
     public static PlanetTile? MouseTileOverride;
 
+    /// <summary>
+    /// Optional hook for settlement resolution during headless unit tests.
+    /// </summary>
+    public static System.Func<PlanetTile, Settlement?>? SettlementAtOverride { get; set; }
+
+    private static WorldObjectsHolder? SafeWorldObjects => (Current.Game != null && Find.World != null) ? Find.WorldObjects : null;
+
+    private static bool IsTileImpassable(PlanetTile tile)
+    {
+        if (Current.Game != null && Find.World != null)
+        {
+            return Find.World.Impassable(tile);
+        }
+
+        return false;
+    }
+
+    public static Settlement? GetSettlementAt(PlanetTile tile)
+    {
+        if (SettlementAtOverride != null)
+        {
+            return SettlementAtOverride(tile);
+        }
+
+        return SafeWorldObjects?.SettlementAt(tile);
+    }
+
     public static bool IsPlayerCaravan(Caravan caravan)
     {
         if (caravan == null || caravan.Faction?.def?.isPlayer != true)
@@ -38,7 +65,39 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
             return;
         }
 
-        PlanetTile clickedTile = MouseTileOverride ?? GenWorld.MouseTile(false);
+        PlanetTile clickedTile;
+        Settlement? targetSettlement = null;
+
+        if (MouseTileOverride.HasValue)
+        {
+            clickedTile = MouseTileOverride.Value;
+            targetSettlement = GetSettlementAt(clickedTile);
+        }
+        else
+        {
+            try
+            {
+                var underMouse = GenWorldUI.WorldObjectsUnderMouse(mousePos);
+                targetSettlement = underMouse?.OfType<Settlement>().FirstOrDefault();
+                if (targetSettlement != null)
+                {
+                    clickedTile = targetSettlement.Tile;
+                }
+                else
+                {
+                    clickedTile = GenWorld.TileAt(mousePos, false);
+                    if (clickedTile.Valid)
+                    {
+                        targetSettlement = GetSettlementAt(clickedTile);
+                    }
+                }
+            }
+            catch
+            {
+                clickedTile = GenWorld.TileAt(mousePos, false);
+            }
+        }
+
         if (!clickedTile.Valid)
         {
             return;
@@ -47,7 +106,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
         // 1. If the player caravan is standing on the clicked hex (Immediate local deployment)
         if (caravan.Tile == clickedTile)
         {
-            Settlement? localSettlement = Find.WorldObjects?.SettlementAt(clickedTile);
+            Settlement? localSettlement = targetSettlement ?? GetSettlementAt(clickedTile);
             if (localSettlement != null)
             {
                 if (caravan.pather != null && caravan.pather.Moving)
@@ -62,8 +121,8 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 return;
             }
 
-            bool hasOutpost = Find.WorldObjects?.AllWorldObjects != null &&
-                              Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
+            bool hasOutpost = SafeWorldObjects?.AllWorldObjects != null &&
+                              SafeWorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
 
             if (!hasOutpost)
             {
@@ -86,7 +145,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                         post.SetFaction(Faction.OfPlayer);
                         post.Kind = ListeningPostKind.AutomatedRelay;
                         post.StartConstruction(2500);
-                        Find.WorldObjects?.Add(post);
+                        SafeWorldObjects?.Add(post);
                         Messages.Message("Automated listening post deployment commenced. Construction underway.", MessageTypeDefOf.PositiveEvent, false);
                     }
                 }, MenuOptionPriority.Default)
@@ -140,47 +199,13 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
             }
             else
             {
-                WorldObject_ListeningPost? post = Find.WorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
+                WorldObject_ListeningPost? post = SafeWorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
                 if (post != null)
                 {
                     __result ??= new List<FloatMenuOption>();
-
-                    if (post.IsConstructing)
+                    foreach (var opt in post.GetFloatMenuOptions(caravan))
                     {
-                        __result.Add(new FloatMenuOption($"Cancel Construction of {post.LabelCap} (Refund 100% Materials)", () =>
-                        {
-                            post.CancelConstruction(caravan);
-                        }, MenuOptionPriority.High));
-                    }
-                    else if (post.IsDismantling)
-                    {
-                        __result.Add(new FloatMenuOption($"Cancel Dismantling of {post.LabelCap}", () =>
-                        {
-                            post.CancelDismantling();
-                        }, MenuOptionPriority.High));
-                    }
-                    else
-                    {
-                        if (post.IsSabotaged)
-                        {
-                            bool canRepair = post.HasRepairMaterials(caravan, out string missingDesc);
-                            string repairLabel = canRepair
-                                ? $"Repair {post.LabelCap}"
-                                : $"Repair {post.LabelCap} ({missingDesc})";
-
-                            __result.Add(new FloatMenuOption(repairLabel, () =>
-                            {
-                                post.TryRepair(caravan);
-                            }, MenuOptionPriority.High)
-                            {
-                                Disabled = !canRepair
-                            });
-                        }
-
-                        __result.Add(new FloatMenuOption($"Dismantle {post.LabelCap} (Takes time, recover 75% materials)", () =>
-                        {
-                            post.StartDismantling(1500);
-                        }, MenuOptionPriority.Low));
+                        AddOptionIfNotPresent(__result, opt);
                     }
                 }
             }
@@ -214,34 +239,31 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
             }
 
             // 3. Distant Explored Passable Tile: Allow queued travel + construction / staging
-            if (Find.World != null && !Find.World.Impassable(clickedTile))
+            if (!IsTileImpassable(clickedTile))
             {
                 __result ??= new List<FloatMenuOption>();
 
-                Settlement? targetSettlement = Find.WorldObjects?.SettlementAt(clickedTile);
+                targetSettlement ??= GetSettlementAt(clickedTile);
                 if (targetSettlement != null)
                 {
                     // Target tile contains an established settlement: offer staging outside the settlement
-                    string holdLabel = targetSettlement.Faction?.IsPlayer == true
-                        ? $"Move to hex (Hold position outside {targetSettlement.Label})"
-                        : $"Move to hex (Hold position outside {targetSettlement.LabelCap})";
+                    string settlementLabel = !string.IsNullOrEmpty(targetSettlement.Label)
+                        ? (targetSettlement.Faction?.IsPlayer == true ? targetSettlement.Label : targetSettlement.LabelCap)
+                        : "Colony";
+                    string holdLabel = $"Move to hex (Hold position outside {settlementLabel})";
 
-                    __result.Add(new FloatMenuOption(
+                    __result.AddRange(CaravanArrivalActionUtility.GetFloatMenuOptions(
+                        () => CaravanArrivalAction_HoldPosition.CanHoldPosition(caravan, clickedTile),
+                        () => new CaravanArrivalAction_HoldPosition(clickedTile, settlementLabel),
                         holdLabel,
-                        () =>
-                        {
-                            caravan.pather.StartPath(
-                                clickedTile,
-                                new CaravanArrivalAction_HoldPosition(clickedTile, targetSettlement.Label),
-                                repathImmediately: true,
-                                resetPauseStatus: true);
-                        },
-                        MenuOptionPriority.Default));
+                        caravan,
+                        clickedTile,
+                        targetSettlement));
                 }
                 else
                 {
-                    bool hasOutpost = Find.WorldObjects?.AllWorldObjects != null &&
-                                      Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
+                    bool hasOutpost = SafeWorldObjects?.AllWorldObjects != null &&
+                                      SafeWorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
 
                     if (!hasOutpost)
                     {
@@ -342,37 +364,82 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                     }
                     else
                     {
-                        WorldObject_ListeningPost? post = Find.WorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
+                        WorldObject_ListeningPost? post = SafeWorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
                         if (post != null)
                         {
-                            // Move here
-                            __result.Add(new FloatMenuOption(
-                                $"Move to Tile {clickedTile.tileId}",
-                                () =>
-                                {
-                                    caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
-                                },
-                                MenuOptionPriority.Default));
+                            if (post.IsConstructing)
+                            {
+                                // Travel and resume construction
+                                AddOptionIfNotPresent(__result, new FloatMenuOption(
+                                    $"Travel and resume construction of {post.LabelCap} ({post.ConstructionProgressPct}% complete)",
+                                    () =>
+                                    {
+                                        caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
+                                        Messages.Message($"Caravan {caravan.LabelCap} en route to resume construction of {post.LabelCap} at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                    },
+                                    MenuOptionPriority.Default));
 
-                            // Travel and Dismantle
-                            __result.Add(new FloatMenuOption(
-                                $"Travel and Dismantle {post.LabelCap} (Recover 75% Materials)",
-                                () =>
-                                {
-                                    caravan.pather.StartPath(
-                                        clickedTile,
-                                        new CaravanArrivalAction_DismantleOutpost(post, clickedTile),
-                                        repathImmediately: true,
-                                        resetPauseStatus: true);
-                                    Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
-                                },
-                                MenuOptionPriority.Default));
+                                // Travel and Dismantle / Cancel (Refund 100% Materials)
+                                AddOptionIfNotPresent(__result, new FloatMenuOption(
+                                    $"Travel and Dismantle {post.LabelCap} (Refund 100% Materials)",
+                                    () =>
+                                    {
+                                        caravan.pather.StartPath(
+                                            clickedTile,
+                                            new CaravanArrivalAction_DismantleOutpost(post, clickedTile),
+                                            repathImmediately: true,
+                                            resetPauseStatus: true);
+                                        Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                    },
+                                    MenuOptionPriority.Default));
+                            }
+                            else if (post.IsDismantling)
+                            {
+                                // Travel and resume dismantling
+                                AddOptionIfNotPresent(__result, new FloatMenuOption(
+                                    $"Travel and resume dismantling of {post.LabelCap}",
+                                    () =>
+                                    {
+                                        caravan.pather.StartPath(
+                                            clickedTile,
+                                            new CaravanArrivalAction_DismantleOutpost(post, clickedTile),
+                                            repathImmediately: true,
+                                            resetPauseStatus: true);
+                                        Messages.Message($"Caravan {caravan.LabelCap} en route to resume dismantling of {post.LabelCap} at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                    },
+                                    MenuOptionPriority.Default));
+                            }
+                            else
+                            {
+                                // Move here
+                                AddOptionIfNotPresent(__result, new FloatMenuOption(
+                                    $"Move to Tile {clickedTile.tileId}",
+                                    () =>
+                                    {
+                                        caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
+                                    },
+                                    MenuOptionPriority.Default));
+
+                                // Travel and Dismantle
+                                AddOptionIfNotPresent(__result, new FloatMenuOption(
+                                    $"Travel and Dismantle {post.LabelCap} (Recover 75% Materials)",
+                                    () =>
+                                    {
+                                        caravan.pather.StartPath(
+                                            clickedTile,
+                                            new CaravanArrivalAction_DismantleOutpost(post, clickedTile),
+                                            repathImmediately: true,
+                                            resetPauseStatus: true);
+                                        Messages.Message($"Caravan {caravan.LabelCap} en route to dismantle {post.LabelCap} at Tile {clickedTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                                    },
+                                    MenuOptionPriority.Default));
+                            }
                         }
                     }
                 }
             }
             // 4. Distant Explored Impassable Tile: Provide clear menu options rather than silent auto-movement
-            else if (Find.World != null && Find.World.Impassable(clickedTile))
+            else if (IsTileImpassable(clickedTile))
             {
                 __result ??= new List<FloatMenuOption>();
 
@@ -392,8 +459,8 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                         },
                         MenuOptionPriority.Default));
 
-                    bool hasOutpostNearby = Find.WorldObjects?.AllWorldObjects != null &&
-                                            Find.WorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == bestNearby);
+                    bool hasOutpostNearby = SafeWorldObjects?.AllWorldObjects != null &&
+                                            SafeWorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == bestNearby);
 
                     if (!hasOutpostNearby)
                     {
@@ -448,6 +515,38 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 }
             }
         }
+
+        DeduplicateOptions(__result);
+    }
+
+    private static void AddOptionIfNotPresent(List<FloatMenuOption> list, FloatMenuOption option)
+    {
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (string.Equals(list[i].Label, option.Label, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+        list.Add(option);
+    }
+
+    private static void DeduplicateOptions(List<FloatMenuOption>? list)
+    {
+        if (list == null || list.Count <= 1) return;
+        var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        int i = 0;
+        while (i < list.Count)
+        {
+            if (!seen.Add(list[i].Label))
+            {
+                list.RemoveAt(i);
+            }
+            else
+            {
+                i++;
+            }
+        }
     }
 
     private static void DeployBeacon(PlanetTile tile, ThingDef materialDef)
@@ -459,7 +558,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
         post.Kind = ListeningPostKind.SignalBeacon;
         post.stuffDef = materialDef;
         post.StartConstruction(2500);
-        Find.WorldObjects?.Add(post);
+        SafeWorldObjects?.Add(post);
         Messages.Message($"Signal beacon ({materialDef.LabelCap}) construction commenced.", MessageTypeDefOf.PositiveEvent, false);
     }
 }

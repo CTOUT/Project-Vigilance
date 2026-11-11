@@ -68,6 +68,7 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     public bool IsConstructing => isConstructing;
     public int ConstructionTicksLeft => constructionTicksLeft;
     public int ConstructionTicksTotal => constructionTicksTotal;
+    public int ConstructionProgressPct => Mathf.Clamp(Mathf.RoundToInt((1f - (float)constructionTicksLeft / Mathf.Max(1, constructionTicksTotal)) * 100f), 0, 99);
 
     public bool IsDismantling => isDismantling;
     public int DismantleTicksLeft => dismantleTicksLeft;
@@ -79,7 +80,22 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     public const float UprightPrintRotationAngle = 90f;
     private static MaterialPropertyBlock? sharedPropertyBlock;
 
-    public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
+    public override Color ExpandingIconColor
+    {
+        get
+        {
+            if (isConstructing)
+            {
+                float pulse = 0.65f + 0.35f * Mathf.Sin(Time.realtimeSinceStartup * 4f);
+                return new Color(1f, 0.82f, 0.2f, pulse);
+            }
+            if (isSabotaged)
+            {
+                return new Color(1f, 0.3f, 0.3f);
+            }
+            return Faction != null ? Faction.Color : Color.white;
+        }
+    }
 
     public override Material Material
     {
@@ -142,8 +158,27 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             string baseLabel = def != null ? base.Label : (kind == ListeningPostKind.AutomatedRelay ? "Automated Sensor Relay" : "Signal Beacon");
             if (kind == ListeningPostKind.SignalBeacon && stuffDef != null)
             {
-                return $"{stuffDef.label} {baseLabel}";
+                baseLabel = $"{stuffDef.label} {baseLabel}";
             }
+
+            if (isConstructing)
+            {
+                int pct = Mathf.Clamp(Mathf.RoundToInt((1f - (float)constructionTicksLeft / Mathf.Max(1, constructionTicksTotal)) * 100f), 0, 99);
+                return $"{baseLabel} (Under Construction {pct}%)";
+            }
+            if (isDismantling)
+            {
+                return $"{baseLabel} (Dismantling)";
+            }
+            if (isSabotaged)
+            {
+                return $"{baseLabel} (Sabotaged)";
+            }
+            if (IsDisruptedByEnvironment(out string disruptionReason))
+            {
+                return $"{baseLabel} (Offline: {disruptionReason})";
+            }
+
             return baseLabel;
         }
     }
@@ -191,7 +226,30 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         ? IntelligenceTier.Classified
         : IntelligenceTier.Contact;
 
-    public bool IsSensorActive => (Find.World?.worldObjects != null ? Spawned : true) && !Destroyed && !isSabotaged && !isConstructing && !isDismantling;
+    public bool IsDisruptedByEnvironment(out string reason)
+    {
+        reason = string.Empty;
+        if (kind != ListeningPostKind.AutomatedRelay)
+        {
+            return false; // Signal Beacons use primitive mechanical/optical watchtowers and bonfires; immune to EMP, solar flares, and darkness
+        }
+
+        if (SensoryDisruptionUtility.IsSolarFlareActive(Tile))
+        {
+            reason = "Solar Flare";
+            return true;
+        }
+
+        if (SensoryDisruptionUtility.IsEclipseOrProlongedDarknessActive(Tile))
+        {
+            reason = "Solar Eclipse / Darkness";
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool IsSensorActive => (Find.World?.worldObjects != null ? Spawned : true) && !Destroyed && !isSabotaged && !isConstructing && !isDismantling && !IsDisruptedByEnvironment(out _);
 
     public void SetTileRaw(PlanetTile t) => WorldObjectAccessUtility.SetTileRaw(this, t);
     public void SetSpawnedRaw(bool s) => WorldObjectAccessUtility.SetSpawnedRaw(this, s);
@@ -229,18 +287,62 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         base.PostRemove();
     }
 
+    private bool wasCaravanPresentDuringConstruction = true;
+    private float constructionWorkAccumulator = 0f;
+    private float dismantleWorkAccumulator = 0f;
+
+    public float ConstructionWorkAccumulator => constructionWorkAccumulator;
+    public float DismantleWorkAccumulator => dismantleWorkAccumulator;
+
     protected override void Tick()
     {
         base.Tick();
 
         if (isConstructing)
         {
-            if (HasPlayerCaravanPresent())
+            if (HasPlayerCaravanPresent(out Caravan? caravan))
             {
-                constructionTicksLeft--;
-                if (constructionTicksLeft <= 0)
+                if (!wasCaravanPresentDuringConstruction)
                 {
-                    FinishConstruction();
+                    wasCaravanPresentDuringConstruction = true;
+                    if (Current.ProgramState == ProgramState.Playing)
+                    {
+                        Messages.Message($"Caravan on-site. Construction of {LabelCap} at Tile {Tile.tileId} resumed.", MessageTypeDefOf.PositiveEvent, false);
+                    }
+                }
+
+                List<Pawn>? pawns = GetCaravanPawns(caravan);
+
+                var (leadAwake, activeTeamSpeed, awakeCount, totalBuilders) =
+                    OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, Tile);
+
+                if (totalBuilders > 0 && awakeCount > 0)
+                {
+                    var (_, fullTeamSpeed) = OutpostAssemblySpeedUtility.CalculateTeamSpeed(pawns);
+                    float speedRatio = fullTeamSpeed > 0f ? Mathf.Clamp01(activeTeamSpeed / fullTeamSpeed) : 1f;
+
+                    constructionWorkAccumulator += speedRatio;
+                    while (constructionWorkAccumulator >= 1f)
+                    {
+                        constructionWorkAccumulator -= 1f;
+                        constructionTicksLeft--;
+                        if (constructionTicksLeft <= 0)
+                        {
+                            FinishConstruction();
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (wasCaravanPresentDuringConstruction)
+                {
+                    wasCaravanPresentDuringConstruction = false;
+                    if (Current.ProgramState == ProgramState.Playing)
+                    {
+                        Messages.Message($"Construction of {LabelCap} at Tile {Tile.tileId} paused. Caravan must remain on-site to finish assembly.", MessageTypeDefOf.CautionInput, false);
+                    }
                 }
             }
         }
@@ -248,10 +350,27 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         {
             if (HasPlayerCaravanPresent(out Caravan? caravan))
             {
-                dismantleTicksLeft--;
-                if (dismantleTicksLeft <= 0)
+                List<Pawn>? pawns = GetCaravanPawns(caravan);
+
+                var (leadAwake, activeTeamSpeed, awakeCount, totalBuilders) =
+                    OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, Tile);
+
+                if (totalBuilders > 0 && awakeCount > 0)
                 {
-                    FinishDismantling(caravan);
+                    var (_, fullTeamSpeed) = OutpostAssemblySpeedUtility.CalculateTeamSpeed(pawns);
+                    float speedRatio = fullTeamSpeed > 0f ? Mathf.Clamp01(activeTeamSpeed / fullTeamSpeed) : 1f;
+
+                    dismantleWorkAccumulator += speedRatio;
+                    while (dismantleWorkAccumulator >= 1f)
+                    {
+                        dismantleWorkAccumulator -= 1f;
+                        dismantleTicksLeft--;
+                        if (dismantleTicksLeft <= 0)
+                        {
+                            FinishDismantling(caravan);
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -262,9 +381,44 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     /// </summary>
     public static System.Func<WorldObject_ListeningPost, Caravan?>? PlayerCaravanPresenceOverride { get; set; }
 
+    /// <summary>
+    /// Optional hook for overriding the caravan's pawn roster during test runs.
+    /// </summary>
+    public static System.Func<Caravan, List<Pawn>?>? CaravanPawnsOverride { get; set; }
+
+    /// <summary>
+    /// Safely retrieves the colonist roster from a caravan, respecting test overrides.
+    /// </summary>
+    public static List<Pawn>? GetCaravanPawns(Caravan? caravan)
+    {
+        if (caravan == null) return null;
+        if (CaravanPawnsOverride != null) return CaravanPawnsOverride(caravan);
+        try
+        {
+            return caravan.PawnsListForReading;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public void TickForTesting() => Tick();
 
     public bool HasPlayerCaravanPresent() => HasPlayerCaravanPresent(out _);
+
+    private static bool IsCaravanMoving(Caravan c)
+    {
+        if (c.pather == null) return false;
+        try
+        {
+            return c.pather.Moving;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public bool HasPlayerCaravanPresent(out Caravan? caravan)
     {
@@ -281,19 +435,11 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         for (int i = 0; i < caravans.Count; i++)
         {
             Caravan c = caravans[i];
-            if (c != null && c.Spawned && c.Tile == Tile && c.Faction?.IsPlayer == true)
+            if (c != null && c.Spawned && c.Tile == Tile && c.Faction?.IsPlayer == true && !IsCaravanMoving(c))
             {
                 // Ensure caravan has at least one capable, conscious worker
                 bool hasCapableWorker = false;
-                List<Pawn>? pawns = null;
-                try
-                {
-                    pawns = c.PawnsListForReading;
-                }
-                catch
-                {
-                    // Uninitialized mock
-                }
+                List<Pawn>? pawns = GetCaravanPawns(c);
 
                 if (pawns != null)
                 {
@@ -341,12 +487,19 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         if (Current.ProgramState == ProgramState.Playing)
         {
             Messages.Message($"{label} construction complete and surveillance grid active at Tile {Tile}.", MessageTypeDefOf.PositiveEvent, false);
+            Find.LetterStack?.ReceiveLetter(
+                "Outpost Operational: " + LabelCap,
+                $"{label} construction complete at Tile {Tile}.\n\nPlanetary surveillance grid is now operational across {DetectionRadiusInTiles:F0} tiles.",
+                LetterDefOf.PositiveEvent,
+                new LookTargets(this));
         }
     }
 
     public void CancelConstruction(Caravan? caravan)
     {
         if (!isConstructing) return;
+        isConstructing = false;
+        constructionTicksLeft = 0;
 
         // Refund 100% of construction materials
         if (caravan != null)
@@ -367,7 +520,14 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         {
             Messages.Message($"Construction of {LabelCap} cancelled. Materials refunded.", MessageTypeDefOf.CautionInput, false);
         }
-        Destroy();
+        try
+        {
+            Destroy();
+        }
+        catch
+        {
+            // Unit test harnesses without full RimWorld game state
+        }
     }
 
     public void StartDismantling(int ticks = 1500)
@@ -413,12 +573,15 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         Scribe_Values.Look(ref isConstructing, "isConstructing", false);
         Scribe_Values.Look(ref constructionTicksLeft, "constructionTicksLeft", 0);
         Scribe_Values.Look(ref constructionTicksTotal, "constructionTicksTotal", 2500);
+        Scribe_Values.Look(ref constructionWorkAccumulator, "constructionWorkAccumulator", 0f);
         Scribe_Values.Look(ref isDismantling, "isDismantling", false);
         Scribe_Values.Look(ref dismantleTicksLeft, "dismantleTicksLeft", 0);
         Scribe_Values.Look(ref dismantleTicksTotal, "dismantleTicksTotal", 1500);
+        Scribe_Values.Look(ref dismantleWorkAccumulator, "dismantleWorkAccumulator", 0f);
         Scribe_Values.Look(ref customName, "customName");
         Scribe_Values.Look(ref cachedVantageBonus, "cachedVantageBonus", 0);
         Scribe_Defs.Look(ref stuffDef, "stuffDef");
+        Scribe_Values.Look(ref wasCaravanPresentDuringConstruction, "wasCaravanPresentDuringConstruction", true);
     }
 
     #endregion
@@ -478,6 +641,12 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     /// </summary>
     public void Dismantle(Caravan caravan)
     {
+        if (isConstructing)
+        {
+            CancelConstruction(caravan);
+            return;
+        }
+
         if (caravan != null)
         {
             if (kind == ListeningPostKind.AutomatedRelay)
@@ -496,7 +665,14 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         {
             Messages.Message($"{LabelCap} dismantled. Salvaged materials recovered into caravan inventory.", MessageTypeDefOf.TaskCompletion, false);
         }
-        Destroy();
+        try
+        {
+            Destroy();
+        }
+        catch
+        {
+            // Unit test harnesses without full RimWorld game state
+        }
     }
 
     public bool HasRepairMaterials(Caravan caravan, out string missingDescription)
@@ -573,24 +749,98 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         {
             int pct = Mathf.Clamp(Mathf.RoundToInt((1f - (float)constructionTicksLeft / Mathf.Max(1, constructionTicksTotal)) * 100f), 0, 99);
             float hoursLeft = constructionTicksLeft / 2500f;
-            sb.AppendLine(HasPlayerCaravanPresent()
-                ? $"Status: Under Construction ({pct}%, ~{hoursLeft:F1}h remaining)"
-                : $"Status: Construction Paused ({pct}% complete - caravan required on-site)");
+
+            if (HasPlayerCaravanPresent(out Caravan? caravan))
+            {
+                List<Pawn>? pawns = GetCaravanPawns(caravan);
+
+                var (leadAwake, activeTeamSpeed, awakeCount, totalBuilders) =
+                    OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, Tile);
+
+                if (totalBuilders == 0)
+                {
+                    sb.AppendLine($"Status: Construction Paused ({pct}% complete - no colonist capable of Construction on-site)");
+                }
+                else if (awakeCount == 0)
+                {
+                    bool allNightOwls = pawns != null && pawns.Where(OutpostAssemblySpeedUtility.IsCapableBuilder).All(ProjectVigilance.Geoscape.Patches.Caravan_NightResting_Patch.HasNightOwlTrait);
+                    string restReason = allNightOwls ? "Resting - Daytime Sleep Period" : "Resting - Night/Sleep Period";
+                    sb.AppendLine($"Status: Construction Paused ({pct}% complete - {restReason})");
+                }
+                else if (awakeCount < totalBuilders)
+                {
+                    var (_, fullTeamSpeed) = OutpostAssemblySpeedUtility.CalculateTeamSpeed(pawns);
+                    float speedRatio = fullTeamSpeed > 0f ? (activeTeamSpeed / fullTeamSpeed) : 1f;
+                    float effectiveHoursLeft = hoursLeft / Mathf.Max(0.01f, speedRatio);
+                    sb.AppendLine($"Status: Under Construction ({pct}%, ~{effectiveHoursLeft:F1}h remaining - Reduced Shift ({awakeCount}/{totalBuilders} awake))");
+                }
+                else
+                {
+                    sb.AppendLine($"Status: Under Construction ({pct}%, ~{hoursLeft:F1}h remaining)");
+                }
+            }
+            else
+            {
+                sb.AppendLine($"Status: Construction Paused ({pct}% complete - caravan required on-site)");
+            }
             sb.AppendLine("Requires visiting caravan at hex to construct.");
         }
         else if (isDismantling)
         {
             int pct = Mathf.Clamp(Mathf.RoundToInt((1f - (float)dismantleTicksLeft / Mathf.Max(1, dismantleTicksTotal)) * 100f), 0, 99);
             float hoursLeft = dismantleTicksLeft / 2500f;
-            sb.AppendLine(HasPlayerCaravanPresent()
-                ? $"Status: Dismantling ({pct}%, ~{hoursLeft:F1}h remaining)"
-                : $"Status: Dismantling Paused ({pct}% complete - caravan required on-site)");
+
+            if (HasPlayerCaravanPresent(out Caravan? caravan))
+            {
+                List<Pawn>? pawns = GetCaravanPawns(caravan);
+
+                var (leadAwake, activeTeamSpeed, awakeCount, totalBuilders) =
+                    OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, Tile);
+
+                if (totalBuilders == 0)
+                {
+                    sb.AppendLine($"Status: Dismantling Paused ({pct}% complete - no colonist capable of Construction on-site)");
+                }
+                else if (awakeCount == 0)
+                {
+                    bool allNightOwls = pawns != null && pawns.Where(OutpostAssemblySpeedUtility.IsCapableBuilder).All(ProjectVigilance.Geoscape.Patches.Caravan_NightResting_Patch.HasNightOwlTrait);
+                    string restReason = allNightOwls ? "Resting - Daytime Sleep Period" : "Resting - Night/Sleep Period";
+                    sb.AppendLine($"Status: Dismantling Paused ({pct}% complete - {restReason})");
+                }
+                else if (awakeCount < totalBuilders)
+                {
+                    var (_, fullTeamSpeed) = OutpostAssemblySpeedUtility.CalculateTeamSpeed(pawns);
+                    float speedRatio = fullTeamSpeed > 0f ? (activeTeamSpeed / fullTeamSpeed) : 1f;
+                    float effectiveHoursLeft = hoursLeft / Mathf.Max(0.01f, speedRatio);
+                    sb.AppendLine($"Status: Dismantling ({pct}%, ~{effectiveHoursLeft:F1}h remaining - Reduced Shift ({awakeCount}/{totalBuilders} awake))");
+                }
+                else
+                {
+                    sb.AppendLine($"Status: Dismantling ({pct}%, ~{hoursLeft:F1}h remaining)");
+                }
+            }
+            else
+            {
+                sb.AppendLine($"Status: Dismantling Paused ({pct}% complete - caravan required on-site)");
+            }
             sb.AppendLine("Requires visiting caravan at hex to dismantle.");
         }
         else if (isSabotaged)
         {
             sb.AppendLine("Status: Sabotaged / Signal Lost");
             sb.AppendLine("Requires maintenance caravan to repair and restore telemetry.");
+        }
+        else if (IsDisruptedByEnvironment(out string disruptionReason))
+        {
+            sb.AppendLine($"Status: Offline ({disruptionReason})");
+            if (disruptionReason.Contains("Solar Flare"))
+            {
+                sb.AppendLine("Intense coronal radiation has knocked out electronic telemetry.");
+            }
+            else
+            {
+                sb.AppendLine("Photovoltaic arrays offline due to obscured sunlight.");
+            }
         }
         else
         {
@@ -674,6 +924,15 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         {
             if (isConstructing)
             {
+                if (caravan.pather != null && caravan.pather.Moving)
+                {
+                    yield return new FloatMenuOption($"Halt & resume construction of {LabelCap} ({ConstructionProgressPct}% complete)", () =>
+                    {
+                        caravan.pather.StopDead();
+                        Messages.Message($"Caravan {caravan.LabelCap} halted on-site to resume construction of {LabelCap}.", caravan, MessageTypeDefOf.TaskCompletion, false);
+                    }, MenuOptionPriority.High);
+                }
+
                 yield return new FloatMenuOption($"Cancel Construction of {LabelCap} (Refund 100% Materials)", () =>
                 {
                     CancelConstruction(caravan);
@@ -683,6 +942,15 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
             if (isDismantling)
             {
+                if (caravan.pather != null && caravan.pather.Moving)
+                {
+                    yield return new FloatMenuOption($"Halt & resume dismantling of {LabelCap}", () =>
+                    {
+                        caravan.pather.StopDead();
+                        Messages.Message($"Caravan {caravan.LabelCap} halted on-site to resume dismantling of {LabelCap}.", caravan, MessageTypeDefOf.TaskCompletion, false);
+                    }, MenuOptionPriority.High);
+                }
+
                 yield return new FloatMenuOption($"Cancel Dismantling of {LabelCap}", () =>
                 {
                     CancelDismantling();

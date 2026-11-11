@@ -41,25 +41,10 @@ public class ScoutHorizonSensor : ISensorProvider
                 {
                     if (GenCelestial.CurCelestialSunGlow(mapParent.Map) < 0.35f)
                     {
-                        var pawns = mapParent.Map.mapPawns?.FreeColonistsSpawned;
-                        bool anyAwake = false;
-                        bool anyAwakeNightOwl = false;
-                        if (pawns != null)
-                        {
-                            for (int i = 0; i < pawns.Count; i++)
-                            {
-                                Pawn p = pawns[i];
-                                if (!p.Dead && !p.Downed && !p.Suspended && RestUtility.Awake(p))
-                                {
-                                    anyAwake = true;
-                                    if (Caravan_NightResting_Patch.HasNightOwlTrait(p))
-                                    {
-                                        anyAwakeNightOwl = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
+                        bool anyAwake = HasActiveOrArrivingColonists(
+                            mapParent.Map,
+                            requireAwake: true,
+                            out bool anyAwakeNightOwl);
 
                         if (!anyAwake)
                         {
@@ -150,25 +135,10 @@ public class ScoutHorizonSensor : ISensorProvider
                 }
 
                 // Nighttime: check if any conscious colonist is awake, and whether any awake colonist is a Night Owl
-                bool anyAwake = false;
-                bool anyAwakeNightOwl = false;
-                var pawns = map.mapPawns?.FreeColonistsSpawned;
-                if (pawns != null)
-                {
-                    for (int i = 0; i < pawns.Count; i++)
-                    {
-                        Pawn p = pawns[i];
-                        if (!p.Dead && !p.Downed && !p.Suspended && RestUtility.Awake(p))
-                        {
-                            anyAwake = true;
-                            if (Caravan_NightResting_Patch.HasNightOwlTrait(p))
-                            {
-                                anyAwakeNightOwl = true;
-                                break;
-                            }
-                        }
-                    }
-                }
+                bool anyAwake = HasActiveOrArrivingColonists(
+                    map,
+                    requireAwake: true,
+                    out bool anyAwakeNightOwl);
 
                 if (!anyAwake)
                 {
@@ -285,23 +255,7 @@ public class ScoutHorizonSensor : ISensorProvider
                 }
 
                 Map map = mapParent.Map;
-                // Lookouts require at least one conscious colonist present at the settlement or camp
-                var pawns = map.mapPawns?.FreeColonistsSpawned;
-                if (pawns == null || pawns.Count == 0)
-                {
-                    return false;
-                }
-
-                for (int i = 0; i < pawns.Count; i++)
-                {
-                    Pawn p = pawns[i];
-                    if (!p.Dead && !p.Downed)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
+                return HasActiveOrArrivingColonists(map, requireAwake: false, out _);
             }
 
             if (!isColony && parentObject is Caravan caravan)
@@ -333,4 +287,130 @@ public class ScoutHorizonSensor : ISensorProvider
         SensorDetectionUtility.TryGetDetectionDistance(this, target, out distance);
 
     public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
+
+    /// <summary>
+    /// Evaluates whether a colony or outpost map has at least one conscious spawned colonist
+    /// or arriving conscious player colonist in a landing drop pod / shuttle transporter.
+    /// </summary>
+    internal static bool HasActiveOrArrivingColonists(Map? map, bool requireAwake, out bool anyAwakeNightOwl)
+    {
+        anyAwakeNightOwl = false;
+        if (map == null)
+        {
+            return false;
+        }
+
+        bool anyActive = false;
+        var spawnedColonists = map.mapPawns?.FreeColonistsSpawned;
+        if (spawnedColonists != null)
+        {
+            for (int i = 0; i < spawnedColonists.Count; i++)
+            {
+                Pawn pawn = spawnedColonists[i];
+                if (pawn == null || pawn.Dead || pawn.Downed)
+                {
+                    continue;
+                }
+
+                if (requireAwake && (pawn.Suspended || !RestUtility.Awake(pawn)))
+                {
+                    continue;
+                }
+
+                anyActive = true;
+                if (!requireAwake)
+                {
+                    return true;
+                }
+
+                if (Caravan_NightResting_Patch.HasNightOwlTrait(pawn))
+                {
+                    anyAwakeNightOwl = true;
+                    return true;
+                }
+            }
+        }
+
+        bool isPlayerMap = map.IsPlayerHome || map.Parent?.Faction?.IsPlayer == true;
+        if (isPlayerMap && map.listerThings != null)
+        {
+            List<Thing>? transporters = map.listerThings.ThingsInGroup(ThingRequestGroup.ActiveTransporter);
+            if (ContainsActiveOrArrivingColonist(transporters, requireAwake, ref anyAwakeNightOwl))
+            {
+                return true;
+            }
+        }
+
+        return anyActive;
+    }
+
+    /// <summary>
+    /// Inspects arriving transporters (excluding outgoing leaving ships) for conscious player colonists.
+    /// </summary>
+    internal static bool ContainsActiveOrArrivingColonist(
+        IReadOnlyList<Thing>? transporters,
+        bool requireAwake,
+        ref bool anyAwakeNightOwl)
+    {
+        if (transporters == null || transporters.Count == 0)
+        {
+            return false;
+        }
+
+        bool found = false;
+        for (int i = 0; i < transporters.Count; i++)
+        {
+            Thing thing = transporters[i];
+            if (thing == null || thing is FlyShipLeaving || thing is not IActiveTransporter transporter)
+            {
+                continue;
+            }
+
+            if (thing is Skyfaller skyfaller &&
+                (skyfaller.innerContainer == null ||
+                 skyfaller.innerContainer.Count == 0 ||
+                 skyfaller.innerContainer[0] is not IActiveTransporter))
+            {
+                continue;
+            }
+
+            ThingOwner? container = transporter.Contents?.innerContainer;
+            if (container == null || container.Count == 0)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < container.Count; j++)
+            {
+                if (container[j] is not Pawn pawn || pawn.Faction?.IsPlayer != true)
+                {
+                    continue;
+                }
+
+                if (pawn.health != null && (pawn.Dead || pawn.Downed))
+                {
+                    continue;
+                }
+
+                if (pawn.def?.race != null && !pawn.IsColonist)
+                {
+                    continue;
+                }
+
+                found = true;
+                if (!requireAwake)
+                {
+                    return true;
+                }
+
+                if (Caravan_NightResting_Patch.HasNightOwlTrait(pawn))
+                {
+                    anyAwakeNightOwl = true;
+                    return true;
+                }
+            }
+        }
+
+        return found;
+    }
 }

@@ -52,7 +52,7 @@ public sealed class GeoscapeRuleSet : IExposable
             defaultSelector: d => d.colonyScoutRadius,
             defaultWriter: (d, val) => d.colonyScoutRadius = val,
             effects: RuleTransitionEffects.RescanSensors | RuleTransitionEffects.RebuildWorldLayers,
-            valueFormatter: val => $"{val:F1} hexes");
+            valueFormatter: FormatHexCount);
 
         CaravanScoutRadius = new CampaignRule<float>(
             "caravanScoutRadius",
@@ -63,7 +63,7 @@ public sealed class GeoscapeRuleSet : IExposable
             defaultSelector: d => d.caravanScoutRadius,
             defaultWriter: (d, val) => d.caravanScoutRadius = val,
             effects: RuleTransitionEffects.RescanSensors | RuleTransitionEffects.RebuildWorldLayers,
-            valueFormatter: val => $"{val:F1} hexes");
+            valueFormatter: FormatHexCount);
 
         NighttimeSensoryReduction = new CampaignRule<bool>(
             "enableNighttimeSensoryReduction",
@@ -183,6 +183,12 @@ public sealed class GeoscapeRuleSet : IExposable
         StartingSiteSelectionMode.ManualTargeting   => "Manual Targeting",
         _ => m.ToString()
     };
+
+    private static string FormatHexCount(float val)
+    {
+        int hexes = UnityEngine.Mathf.RoundToInt(val);
+        return hexes == 1 ? "1 hex" : $"{hexes} hexes";
+    }
 
     public void CopyFromDefaults(GeoscapeSettings defaults)
     {

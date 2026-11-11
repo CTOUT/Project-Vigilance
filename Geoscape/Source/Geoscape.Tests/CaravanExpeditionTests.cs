@@ -19,6 +19,24 @@ public sealed class CaravanExpeditionTests
         CaravanExpeditionUtility.ClearAllPendingDirectives();
     }
 
+    [TestMethod]
+    public void Verify_CaravanExitMapUtility_Patch_Applies()
+    {
+        var harmony = new HarmonyLib.Harmony("test.patch.check");
+        var patchClass = typeof(CaravanExitMapUtility_Patch.ExitMapAndCreateCaravan_TilePatch);
+        var methods = patchClass.GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false);
+        Assert.IsTrue(methods.Length > 0);
+
+        var original = typeof(CaravanExitMapUtility).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .FirstOrDefault(m => m.Name == "ExitMapAndCreateCaravan" && m.GetParameters().Length == 6 && m.GetParameters()[3].ParameterType == typeof(PlanetTile));
+        Assert.IsNotNull(original, "Original ExitMapAndCreateCaravan must exist.");
+
+        var patchProcessor = harmony.CreateProcessor(original);
+        patchProcessor.AddPostfix(new HarmonyLib.HarmonyMethod(patchClass.GetMethod("Postfix")));
+        var patched = patchProcessor.Patch();
+        Assert.IsNotNull(patched, "Patch must succeed without error.");
+    }
+
     [TestCleanup]
     public void Cleanup()
     {
@@ -668,6 +686,574 @@ public sealed class CaravanExpeditionTests
         finally
         {
             WorldRoutePlanner_Start_Patch.OnWaypointAddedForTesting = null;
+        }
+    }
+
+    [TestMethod]
+    public void WorldObject_ListeningPost_ExpandingIconColor_And_Label_Lifecycle()
+    {
+        var post = (WorldObject_ListeningPost)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(WorldObject_ListeningPost));
+        typeof(WorldObject_ListeningPost).GetField("kind", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(post, ListeningPostKind.AutomatedRelay);
+        typeof(WorldObject_ListeningPost).GetField("constructionTicksTotal", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(post, 2500);
+
+        // 1. Under Construction
+        post.StartConstruction(2500);
+        Assert.IsTrue(post.IsConstructing);
+        Assert.AreEqual(2500, post.ConstructionTicksLeft);
+        Assert.IsTrue(post.Label.Contains("Under Construction 0%"));
+
+        Color constructingColor = post.ExpandingIconColor;
+        Assert.IsTrue(constructingColor.r > 0.8f && constructingColor.g > 0.7f && constructingColor.b < 0.3f,
+            "ExpandingIconColor must be amber/yellow during construction.");
+
+        // Advance construction halfway
+        typeof(WorldObject_ListeningPost).GetField("constructionTicksLeft", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(post, 1250);
+        Assert.IsTrue(post.Label.Contains("Under Construction 50%"));
+
+        // Finish Construction
+        post.FinishConstruction();
+        Assert.IsFalse(post.IsConstructing);
+        Assert.AreEqual(0, post.ConstructionTicksLeft);
+        Assert.IsFalse(post.Label.Contains("Under Construction"));
+
+        // 2. Sabotaged
+        post.IsSabotaged = true;
+        Assert.IsTrue(post.IsSabotaged);
+        Assert.IsTrue(post.Label.Contains("Sabotaged"));
+        Color sabotagedColor = post.ExpandingIconColor;
+        Assert.IsTrue(sabotagedColor.r > 0.8f && sabotagedColor.g < 0.5f && sabotagedColor.b < 0.5f,
+            "ExpandingIconColor must be red when sabotaged.");
+    }
+
+    [TestMethod]
+    public void WorldObjects_ListeningPost_Xml_TexturePaths_And_Priorities()
+    {
+        string xmlPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+            System.AppDomain.CurrentDomain.BaseDirectory,
+            "..", "..", "..", "..", "..", "1.7", "Defs", "WorldObjectDefs", "WorldObjects_ListeningPost.xml"));
+
+        Assert.IsTrue(System.IO.File.Exists(xmlPath), $"XML file must exist at {xmlPath}");
+        string xmlContent = System.IO.File.ReadAllText(xmlPath);
+
+        // Automated post
+        Assert.IsTrue(xmlContent.Contains("<texture>World/WorldObjects/Sites/Outpost</texture>"),
+            "Automated post texture must point to 3D world quad texture World/WorldObjects/Sites/Outpost");
+        Assert.IsFalse(xmlContent.Contains("<texture>World/WorldObjects/Expanding/Sites/Outpost</texture>"),
+            "Automated post texture must NOT point to 2D expanding sprite path");
+
+        // Beacon post
+        Assert.IsTrue(xmlContent.Contains("<texture>World/WorldObjects/Camp</texture>"),
+            "Beacon post texture must point to 3D world quad texture World/WorldObjects/Camp");
+        Assert.IsFalse(xmlContent.Contains("<texture>World/WorldObjects/Expanding/Camp</texture>"),
+            "Beacon post texture must NOT point to 2D expanding sprite path");
+
+        // Expanding icon priority
+        Assert.IsTrue(xmlContent.Contains("<expandingIconPriority>85</expandingIconPriority>"),
+            "Expanding icon priority must be elevated to 85 to remain visible and interactive on Geoscape");
+    }
+
+    [TestMethod]
+    public void Verify_Dialog_FormCaravan_PostOpen_Patch_Applies()
+    {
+        var m = typeof(Dialog_FormCaravan).GetMethod("TrySend", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.IsNotNull(m);
+        var instructions = HarmonyLib.PatchProcessor.GetOriginalInstructions(m);
+        foreach (var inst in instructions)
+        {
+            System.Console.WriteLine($"TRY_SEND_INSTR: {inst.opcode} {inst.operand}");
+        }
+    }
+
+    [TestMethod]
+    public void TryGetPendingDirectiveForDialog_FindsDirectiveByDestinationTile()
+    {
+        CaravanExpeditionUtility.ClearAllPendingDirectives();
+        var targetTile = (PlanetTile)4567;
+        var directive = new OutpostConstructionDirective
+        {
+            TargetTile = targetTile,
+            Kind = ListeningPostKind.AutomatedRelay,
+            OriginMapId = 2,
+            CreatedTick = 1000
+        };
+
+        CaravanExpeditionUtility.RegisterPendingDirective(targetTile, directive);
+
+        var dialog = (Dialog_FormCaravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Dialog_FormCaravan));
+        typeof(Dialog_FormCaravan).GetField("destinationTile", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.SetValue(dialog, targetTile);
+
+        bool found = CaravanExpeditionUtility.TryGetPendingDirectiveForDialog(dialog, out var retrieved);
+        Assert.IsTrue(found, "TryGetPendingDirectiveForDialog must locate directive by destinationTile.");
+        Assert.IsNotNull(retrieved);
+        Assert.AreEqual(ListeningPostKind.AutomatedRelay, retrieved.Kind);
+        Assert.AreEqual(targetTile, retrieved.TargetTile);
+    }
+
+    [TestMethod]
+    public void StillValid_DoesNotEvictArrivalAction_DuringTransitWithoutMaterials()
+    {
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        typeof(Thing).GetField("spawnedInt", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.SetValue(caravan, true);
+        typeof(WorldObject).GetField("tileInt", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.SetValue(caravan, (PlanetTile)100);
+
+        var targetTile = (PlanetTile)200;
+        var action = new CaravanArrivalAction_ConstructOutpost(targetTile, ListeningPostKind.AutomatedRelay);
+
+        // Caravan has 0 steel and 0 components in inventory, but StillValid must return true to prevent mid-transit eviction
+        FloatMenuAcceptanceReport report = action.StillValid(caravan, targetTile);
+        Assert.IsTrue(report.Accepted, "StillValid must accept during transit so caravan arrival action is not cleared by PatherTickInterval.");
+    }
+
+    [TestMethod]
+    public void StillValid_AllowsOutpostUnderConstruction()
+    {
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        typeof(Thing).GetField("spawnedInt", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.SetValue(caravan, true);
+        typeof(WorldObject).GetField("tileInt", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.SetValue(caravan, (PlanetTile)100);
+
+        var targetTile = (PlanetTile)500;
+        var post = (WorldObject_ListeningPost)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(WorldObject_ListeningPost));
+        typeof(WorldObject).GetField("tileInt", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+            ?.SetValue(post, targetTile);
+        post.StartConstruction(1000); // IsConstructing is true
+
+        var action = new CaravanArrivalAction_ConstructOutpost(targetTile, ListeningPostKind.AutomatedRelay);
+
+        // Even if world has an outpost under construction, StillValid must accept
+        FloatMenuAcceptanceReport report = action.StillValid(caravan, targetTile);
+        Assert.IsTrue(report.Accepted, "StillValid must allow arrival at a post that is currently under construction.");
+    }
+
+    [TestMethod]
+    public void OutpostAssemblySpeedUtility_BaseDurations_And_Clamps()
+    {
+        int relayDuration = OutpostAssemblySpeedUtility.CalculateAssemblyDurationTicks(null, ListeningPostKind.AutomatedRelay);
+        Assert.AreEqual(OutpostAssemblySpeedUtility.BaseAutomatedRelayTicks, relayDuration, "Default relay duration without pawns must equal base ticks.");
+
+        int beaconDuration = OutpostAssemblySpeedUtility.CalculateAssemblyDurationTicks(null, ListeningPostKind.SignalBeacon);
+        Assert.AreEqual(OutpostAssemblySpeedUtility.BaseSignalBeaconTicks, beaconDuration, "Default beacon duration without pawns must equal base ticks.");
+    }
+
+    [TestMethod]
+    public void OutpostAssemblySpeedUtility_HasCapableBuilder_And_EstimateLabel()
+    {
+        Assert.IsFalse(OutpostAssemblySpeedUtility.HasCapableBuilder(null));
+        Assert.IsFalse(OutpostAssemblySpeedUtility.HasCapableBuilder(new List<Pawn>()));
+
+        string blockedLabel = OutpostAssemblySpeedUtility.GetEstimateLabel(new List<Pawn>(), ListeningPostKind.AutomatedRelay);
+        Assert.IsTrue(blockedLabel.Contains("BLOCKED"), "Must show BLOCKED when no capable builders are selected.");
+        Assert.IsTrue(blockedLabel.Contains("Must select at least one colonist capable of Construction"));
+
+        string beaconBlocked = OutpostAssemblySpeedUtility.GetEstimateLabel(null, ListeningPostKind.SignalBeacon);
+        Assert.IsTrue(beaconBlocked.Contains("BLOCKED"));
+    }
+
+    [TestMethod]
+    public void Verify_Dialog_FormCaravan_CheckForErrors_Patch_Applies()
+    {
+        var harmony = new HarmonyLib.Harmony("test.patch.check.dialog.errors");
+        var patchClass = typeof(Dialog_FormCaravan_CheckForErrors_Patch);
+        var methods = patchClass.GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false);
+        Assert.IsTrue(methods.Length > 0);
+
+        var original = typeof(Dialog_FormCaravan).GetMethod("CheckForErrors", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, new[] { typeof(List<Pawn>) }, null);
+        Assert.IsNotNull(original, "Original Dialog_FormCaravan.CheckForErrors must exist.");
+
+        var patchProcessor = harmony.CreateProcessor(original);
+        patchProcessor.AddPostfix(new HarmonyLib.HarmonyMethod(patchClass.GetMethod("Postfix")));
+        var patched = patchProcessor.Patch();
+        Assert.IsNotNull(patched, "Dialog_FormCaravan_CheckForErrors_Patch must succeed without error.");
+    }
+
+    [TestMethod]
+    public void Verify_Dialog_FormCaravan_TrySend_Patch_Applies()
+    {
+        var harmony = new HarmonyLib.Harmony("test.patch.check.dialog.trysend");
+        var patchClass = typeof(Dialog_FormCaravan_TrySend_Patch);
+        var methods = patchClass.GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false);
+        Assert.IsTrue(methods.Length > 0);
+
+        var original = typeof(Dialog_FormCaravan).GetMethod("TrySend", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, System.Type.EmptyTypes, null);
+        Assert.IsNotNull(original, "Original Dialog_FormCaravan.TrySend must exist.");
+
+        var patchProcessor = harmony.CreateProcessor(original);
+        patchProcessor.AddPrefix(new HarmonyLib.HarmonyMethod(patchClass.GetMethod("Prefix")));
+        var patched = patchProcessor.Patch();
+        Assert.IsNotNull(patched, "Dialog_FormCaravan_TrySend_Patch must succeed without error.");
+    }
+
+    [TestMethod]
+    public void Dialog_FormCaravan_TrySend_Patch_IgnoresNormalCaravans()
+    {
+        var dialog = (Dialog_FormCaravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Dialog_FormCaravan));
+        bool shouldProceed = Dialog_FormCaravan_TrySend_Patch.Prefix(dialog);
+        Assert.IsTrue(shouldProceed, "Prefix must return true for normal caravans with no pending directive.");
+    }
+
+    [TestMethod]
+    public void Dialog_FormCaravan_TrySend_Patch_InterceptsOutpostCaravans()
+    {
+        var dialog = (Dialog_FormCaravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Dialog_FormCaravan));
+        var tile = (PlanetTile)9999;
+        var directive = new OutpostConstructionDirective
+        {
+            TargetTile = tile,
+            Kind = ListeningPostKind.AutomatedRelay,
+            DirectiveKind = OutpostDirectiveKind.Construct
+        };
+        CaravanExpeditionUtility.RegisterPendingDirective(tile, directive);
+
+        // Set destinationTile field on dialog
+        typeof(Dialog_FormCaravan).GetField("destinationTile", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.SetValue(dialog, tile);
+
+        bool shouldProceed = Dialog_FormCaravan_TrySend_Patch.Prefix(dialog);
+        Assert.IsFalse(shouldProceed, "Prefix must return false to intercept outpost expedition and show confirmation.");
+    }
+
+    [TestMethod]
+    public void CaravanExpeditionUtility_GetEstimatedTransitTicks_FallbackIsPositive()
+    {
+        var dialog = (Dialog_FormCaravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Dialog_FormCaravan));
+        int ticks = CaravanExpeditionUtility.GetEstimatedTransitTicks(dialog, (PlanetTile)100);
+        Assert.IsTrue(ticks > 0, "Transit ticks must be positive fallback when uninitialized.");
+    }
+
+    [TestMethod]
+    public void CaravanExpeditionUtility_GetDaysWorthOfFood_ReturnsZeroWhenUninitialized()
+    {
+        var dialog = (Dialog_FormCaravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Dialog_FormCaravan));
+        float food = CaravanExpeditionUtility.GetDaysWorthOfFood(dialog);
+        Assert.AreEqual(0f, food, "Uninitialized dialog must safely return 0 food without throwing.");
+    }
+
+    [TestMethod]
+    public void CaravanExpeditionUtility_PreallocateExpeditionFood_HandlesNullAndEmptyGracefully()
+    {
+        CaravanExpeditionUtility.PreallocateExpeditionFood(null!, null!);
+        var dialog = (Dialog_FormCaravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Dialog_FormCaravan));
+        var directive = new OutpostConstructionDirective { Kind = ListeningPostKind.AutomatedRelay, TargetTile = (PlanetTile)50 };
+        CaravanExpeditionUtility.PreallocateExpeditionFood(dialog, directive);
+        Assert.AreEqual(0, CaravanExpeditionUtility.PendingDirectivesCount);
+    }
+
+    [TestMethod]
+    public void CaravanArrivalAction_DismantleOutpost_ConstructingPost_ShowsRefundLabel()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.AutomatedRelay
+        };
+        post.StartConstruction(2500);
+        Assert.IsTrue(post.IsConstructing);
+
+        var tile = (PlanetTile)4200;
+        var action = new CaravanArrivalAction_DismantleOutpost(post, tile);
+
+        Assert.AreEqual(tile, action.TargetTile);
+        Assert.AreSame(post, action.TargetOutpost);
+        StringAssert.Contains(action.Label, "(Refund 100% Materials)");
+        StringAssert.Contains(action.ReportString, "travelling to dismantle and recover materials");
+    }
+
+    [TestMethod]
+    public void WorldSelector_HandleWorldClicks_Patch_DeduplicateOptions_RemovesDuplicatesPreservingOrder()
+    {
+        var options = new List<FloatMenuOption>
+        {
+            new FloatMenuOption("Cancel Construction of Relay (Refund 100% Materials)", null),
+            new FloatMenuOption("Halt & resume construction of Relay", null),
+            new FloatMenuOption("Cancel Construction of Relay (Refund 100% Materials)", null),
+            new FloatMenuOption("Dismantle Relay (Recover 75% Materials)", null)
+        };
+
+        ProjectVigilance.Geoscape.Patches.WorldSelector_HandleWorldClicks_Patch.DeduplicateOptions(options);
+
+        Assert.AreEqual(3, options.Count);
+        Assert.AreEqual("Cancel Construction of Relay (Refund 100% Materials)", options[0].Label);
+        Assert.AreEqual("Halt & resume construction of Relay", options[1].Label);
+        Assert.AreEqual("Dismantle Relay (Recover 75% Materials)", options[2].Label);
+    }
+
+    [TestMethod]
+    public void WorldObject_ListeningPost_DismantleWhileConstructing_CancelsConstruction()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.AutomatedRelay
+        };
+        post.StartConstruction(2500);
+        Assert.IsTrue(post.IsConstructing);
+
+        // When Dismantle is called on an outpost under construction, it must redirect to CancelConstruction
+        post.Dismantle(null!);
+        Assert.IsFalse(post.IsConstructing, "Construction flag must clear after cancelling/dismantling unfinished post.");
+        Assert.IsFalse(post.IsDismantling, "Post must not transition to active dismantling.");
+    }
+
+    [TestMethod]
+    public void Inspect_Caravan_PathFollower_StartPath()
+    {
+        var type = typeof(Caravan_PathFollower);
+        var mStartPath = type.GetMethod("StartPath", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, null, new[] { typeof(PlanetTile), typeof(CaravanArrivalAction), typeof(bool), typeof(bool) }, null);
+        var instrs = HarmonyLib.PatchProcessor.GetOriginalInstructions(mStartPath);
+        foreach (var i in instrs.Where(x => x.opcode.Name.Contains("call") || x.opcode.Name.Contains("ldfld") || x.opcode.Name.Contains("stfld") || x.opcode.Name.Contains("ret")))
+        {
+            System.Console.WriteLine($"START_PATH: {i.opcode} {i.operand}");
+        }
+    }
+
+    [TestMethod]
+    public void OutpostConstruction_NormalColonist_WorksDuringDay_PausesDuringNight()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.AutomatedRelay
+        };
+
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        var normalPawn = (Pawn)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Pawn));
+        var pawns = new List<Pawn> { normalPawn };
+
+        try
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = _ => caravan;
+            WorldObject_ListeningPost.CaravanPawnsOverride = _ => pawns;
+
+            OutpostAssemblySpeedUtility.CapableBuilderOverride = p => p == normalPawn;
+            OutpostAssemblySpeedUtility.BuilderSpeedOverride = _ => 1.0f;
+            Caravan_NightResting_Patch.NightOwlPredicateOverride = _ => false;
+
+            post.StartConstruction(10);
+
+            // Midday (12:00): Normal colonist is awake and working
+            OutpostAssemblySpeedUtility.LocalHourOverride = 12;
+            Assert.IsTrue(OutpostAssemblySpeedUtility.IsBuilderAwake(normalPawn, post.Tile));
+
+            for (int i = 0; i < 3; i++)
+            {
+                post.TickForTesting();
+            }
+
+            Assert.AreEqual(7, post.ConstructionTicksLeft, "Daytime ticks must advance construction normally.");
+            StringAssert.Contains(post.GetInspectString(), "Under Construction (30%");
+
+            // Nighttime (02:00): Normal colonist is sleeping (22:00-06:00)
+            OutpostAssemblySpeedUtility.LocalHourOverride = 2;
+            Assert.IsFalse(OutpostAssemblySpeedUtility.IsBuilderAwake(normalPawn, post.Tile));
+
+            for (int i = 0; i < 3; i++)
+            {
+                post.TickForTesting();
+            }
+
+            Assert.AreEqual(7, post.ConstructionTicksLeft, "Nighttime ticks must pause construction when colonist is resting.");
+            string inspect = post.GetInspectString();
+            StringAssert.Contains(inspect, "Status: Construction Paused (30% complete - Resting - Night/Sleep Period)");
+        }
+        finally
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = null;
+            WorldObject_ListeningPost.CaravanPawnsOverride = null;
+            OutpostAssemblySpeedUtility.CapableBuilderOverride = null;
+            OutpostAssemblySpeedUtility.BuilderSpeedOverride = null;
+            OutpostAssemblySpeedUtility.LocalHourOverride = null;
+            Caravan_NightResting_Patch.NightOwlPredicateOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void OutpostConstruction_NightOwlColonist_WorksDuringNight_PausesDuringDay()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.AutomatedRelay
+        };
+
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        var nightOwlPawn = (Pawn)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Pawn));
+        var pawns = new List<Pawn> { nightOwlPawn };
+
+        try
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = _ => caravan;
+            WorldObject_ListeningPost.CaravanPawnsOverride = _ => pawns;
+
+            OutpostAssemblySpeedUtility.CapableBuilderOverride = p => p == nightOwlPawn;
+            OutpostAssemblySpeedUtility.BuilderSpeedOverride = _ => 1.0f;
+            Caravan_NightResting_Patch.NightOwlPredicateOverride = p => p == nightOwlPawn;
+
+            post.StartConstruction(10);
+
+            // Nighttime (02:00): Night Owl is active on night shift
+            OutpostAssemblySpeedUtility.LocalHourOverride = 2;
+            Assert.IsTrue(OutpostAssemblySpeedUtility.IsBuilderAwake(nightOwlPawn, post.Tile));
+
+            for (int i = 0; i < 3; i++)
+            {
+                post.TickForTesting();
+            }
+
+            Assert.AreEqual(7, post.ConstructionTicksLeft, "Night shift must advance construction for Night Owl.");
+            StringAssert.Contains(post.GetInspectString(), "Under Construction (30%");
+
+            // Daytime (14:00): Night Owl rests during daytime (11:00-18:00)
+            OutpostAssemblySpeedUtility.LocalHourOverride = 14;
+            Assert.IsFalse(OutpostAssemblySpeedUtility.IsBuilderAwake(nightOwlPawn, post.Tile));
+
+            for (int i = 0; i < 3; i++)
+            {
+                post.TickForTesting();
+            }
+
+            Assert.AreEqual(7, post.ConstructionTicksLeft, "Daytime ticks must pause construction when Night Owl is resting.");
+            string inspect = post.GetInspectString();
+            StringAssert.Contains(inspect, "Status: Construction Paused (30% complete - Resting - Daytime Sleep Period)");
+        }
+        finally
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = null;
+            WorldObject_ListeningPost.CaravanPawnsOverride = null;
+            OutpostAssemblySpeedUtility.CapableBuilderOverride = null;
+            OutpostAssemblySpeedUtility.BuilderSpeedOverride = null;
+            OutpostAssemblySpeedUtility.LocalHourOverride = null;
+            Caravan_NightResting_Patch.NightOwlPredicateOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void OutpostConstruction_MixedTeam_ConstructsContinuously_WithShiftScaling()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.AutomatedRelay
+        };
+
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        var normalPawn = (Pawn)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Pawn));
+        var nightOwlPawn = (Pawn)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Pawn));
+        var pawns = new List<Pawn> { normalPawn, nightOwlPawn };
+
+        try
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = _ => caravan;
+            WorldObject_ListeningPost.CaravanPawnsOverride = _ => pawns;
+
+            OutpostAssemblySpeedUtility.CapableBuilderOverride = _ => true;
+            OutpostAssemblySpeedUtility.BuilderSpeedOverride = _ => 1.0f;
+            Caravan_NightResting_Patch.NightOwlPredicateOverride = p => p == nightOwlPawn;
+
+            post.StartConstruction(10);
+
+            // Full team speed = 1.0 (lead) + 0.5 (assistant) = 1.5.
+
+            // 1. Midday (12:00): Normal awake (speed 1.0), Night Owl asleep.
+            // Active speed = 1.0, speed ratio = 1.0 / 1.5 = 2/3.
+            OutpostAssemblySpeedUtility.LocalHourOverride = 12;
+            var (_, activeSpeed12, awakeCount12, total12) = OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, post.Tile);
+            Assert.AreEqual(1, awakeCount12);
+            Assert.AreEqual(2, total12);
+            Assert.AreEqual(1.0f, activeSpeed12, 0.01f);
+
+            // 3 ticks at 2/3 speed = 2 ticks of work
+            for (int i = 0; i < 3; i++)
+            {
+                post.TickForTesting();
+            }
+
+            Assert.AreEqual(8, post.ConstructionTicksLeft);
+            StringAssert.Contains(post.GetInspectString(), "Reduced Shift (1/2 awake)");
+
+            // 2. Night (02:00): Night Owl awake (speed 1.0), Normal asleep.
+            // Active speed = 1.0, speed ratio = 2/3.
+            OutpostAssemblySpeedUtility.LocalHourOverride = 2;
+            var (_, activeSpeed2, awakeCount2, total2) = OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, post.Tile);
+            Assert.AreEqual(1, awakeCount2);
+            Assert.AreEqual(2, total2);
+            Assert.AreEqual(1.0f, activeSpeed2, 0.01f);
+
+            // 3 ticks at 2/3 speed = 2 ticks of work
+            for (int i = 0; i < 3; i++)
+            {
+                post.TickForTesting();
+            }
+
+            Assert.AreEqual(6, post.ConstructionTicksLeft);
+            StringAssert.Contains(post.GetInspectString(), "Reduced Shift (1/2 awake)");
+
+            // 3. Evening crossover (19:00): Both awake! Full team speed = 1.5, ratio = 1.0.
+            OutpostAssemblySpeedUtility.LocalHourOverride = 19;
+            var (_, activeSpeed19, awakeCount19, total19) = OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, post.Tile);
+            Assert.AreEqual(2, awakeCount19);
+            Assert.AreEqual(2, total19);
+            Assert.AreEqual(1.5f, activeSpeed19, 0.01f);
+
+            // 3 ticks at 1.0 speed = 3 ticks of work
+            for (int i = 0; i < 3; i++)
+            {
+                post.TickForTesting();
+            }
+
+            Assert.AreEqual(3, post.ConstructionTicksLeft);
+        }
+        finally
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = null;
+            WorldObject_ListeningPost.CaravanPawnsOverride = null;
+            OutpostAssemblySpeedUtility.CapableBuilderOverride = null;
+            OutpostAssemblySpeedUtility.BuilderSpeedOverride = null;
+            OutpostAssemblySpeedUtility.LocalHourOverride = null;
+            Caravan_NightResting_Patch.NightOwlPredicateOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void OutpostDismantling_PausesDuringNightRest()
+    {
+        var post = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.AutomatedRelay
+        };
+
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        var normalPawn = (Pawn)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Pawn));
+        var pawns = new List<Pawn> { normalPawn };
+
+        try
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = _ => caravan;
+            WorldObject_ListeningPost.CaravanPawnsOverride = _ => pawns;
+
+            OutpostAssemblySpeedUtility.CapableBuilderOverride = p => p == normalPawn;
+            OutpostAssemblySpeedUtility.BuilderSpeedOverride = _ => 1.0f;
+            Caravan_NightResting_Patch.NightOwlPredicateOverride = _ => false;
+
+            post.StartDismantling(10);
+            Assert.IsTrue(post.IsDismantling);
+
+            // Nighttime (02:00): Normal colonist is sleeping
+            OutpostAssemblySpeedUtility.LocalHourOverride = 2;
+
+            for (int i = 0; i < 3; i++)
+            {
+                post.TickForTesting();
+            }
+
+            Assert.AreEqual(10, post.DismantleTicksLeft, "Dismantling must pause when all workers are resting.");
+            StringAssert.Contains(post.GetInspectString(), "Status: Dismantling Paused (0% complete - Resting - Night/Sleep Period)");
+        }
+        finally
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = null;
+            WorldObject_ListeningPost.CaravanPawnsOverride = null;
+            OutpostAssemblySpeedUtility.CapableBuilderOverride = null;
+            OutpostAssemblySpeedUtility.BuilderSpeedOverride = null;
+            OutpostAssemblySpeedUtility.LocalHourOverride = null;
+            Caravan_NightResting_Patch.NightOwlPredicateOverride = null;
         }
     }
 }

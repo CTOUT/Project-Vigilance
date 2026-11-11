@@ -13,7 +13,7 @@ namespace ProjectVigilance.Geoscape.Patches;
 public static class Pawn_ExitMap_Patch
 {
     [HarmonyPrefix]
-    public static bool Prefix(Pawn __instance)
+    public static bool Prefix(Pawn __instance, bool allowedToJoinOrCreateCaravan)
     {
         if (__instance == null || __instance.Dead || __instance.Faction == null)
         {
@@ -26,9 +26,21 @@ public static class Pawn_ExitMap_Patch
             return true;
         }
 
-        bool isTacticalOrSettlementRetreat = map.Parent is CaravansBattlefield ||
-                                             map.GetComponent<MapComponent_OverlandAmbush>() != null ||
-                                             map.IsPlayerHome;
+        var ambushComp = map.GetComponent<MapComponent_OverlandAmbush>();
+        bool isOverlandEncounter = IncursionTacticalRetreatUtility.IsOverlandEncounterMap(map, ambushComp);
+        bool isInsideTransporter = ThingOwnerUtility.AnyParentIs<ActiveTransporterInfo>(__instance) ||
+                                   ThingOwnerUtility.AnyParentIs<TravellingTransporters>(__instance);
+        bool hasHomeRetreatCondition = map.IsPlayerHome &&
+                                       (GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false) ||
+                                        CaravanExitMapUtility.FindCaravanToJoinFor(__instance) != null);
+        bool isTacticalOrSettlementRetreat = IncursionTacticalRetreatUtility.ShouldInterceptPlayerExitMap(
+            isPlayerHome: map.IsPlayerHome,
+            isOverlandEncounterMap: isOverlandEncounter,
+            allowedToJoinOrCreateCaravan: allowedToJoinOrCreateCaravan,
+            isCaravanMember: __instance.IsCaravanMember(),
+            isTeleporting: __instance.teleporting,
+            isInsideTransporter: isInsideTransporter,
+            hasHomeRetreatCondition: hasHomeRetreatCondition);
 
         // Handle player colonists / animals / mechs falling back and reaching the map edge (when not being carried off by a kidnapper)
         if (isTacticalOrSettlementRetreat &&
@@ -102,10 +114,14 @@ public static class Pawn_ExitMap_Patch
                     remainingDownedColonists.Clear();
                 }
 
-                var ambushComp = map.GetComponent<MapComponent_OverlandAmbush>();
-                if (ambushComp != null)
+                bool hasEncounterState = ambushComp != null && ambushComp.HasEncounterState;
+                bool hasActiveIncursions = hasEncounterState && ambushComp!.GetActiveIncursionSummaries().Any();
+                if (remainingDownedColonists.Count > 0 &&
+                    IncursionTacticalRetreatUtility.ShouldAbductDownedColonistsOnExit(
+                        map.Parent is CaravansBattlefield,
+                        hasActiveIncursions))
                 {
-                    if (remainingDownedColonists.Count > 0)
+                    if (ambushComp != null && hasEncounterState)
                     {
                         foreach (var downed in remainingDownedColonists)
                         {
@@ -114,10 +130,13 @@ public static class Pawn_ExitMap_Patch
                                 ambushComp.CapturedColonists.Add(downed);
                             }
                         }
-                        IncursionTacticalRetreatUtility.PassCapturedColonistsToWorld(remainingDownedColonists);
                     }
+                    IncursionTacticalRetreatUtility.PassCapturedColonistsToWorld(remainingDownedColonists);
+                }
 
-                    bool hasAnyCaptives = ambushComp.CapturedColonists != null && ambushComp.CapturedColonists.Count > 0;
+                if (hasEncounterState)
+                {
+                    bool hasAnyCaptives = ambushComp!.CapturedColonists != null && ambushComp.CapturedColonists.Count > 0;
 
                     foreach (var (incursion, livingHostiles, capturedPawns, contactLabel) in ambushComp.GetActiveIncursionSummaries())
                     {
@@ -177,14 +196,14 @@ public static class Pawn_ExitMap_Patch
         // IMPORTANT: We must despawn and pass them to WorldPawns with KeepForever BEFORE vanilla Pawn.ExitMap runs,
         // because vanilla Pawn.ExitMap calls WorldPawns.PassToWorld(this, PawnDiscardDecideMode.Decide) which
         // immediately destroys pack animals (camels/muffalo), solo visitors, and generic guards!
-        var ambushCompForExit = map.GetComponent<MapComponent_OverlandAmbush>();
-        bool isTrackedIncursionPawn = ambushCompForExit != null && ambushCompForExit.HasTrackedIncursionFor(__instance);
-        bool isTrackedMap = map.IsPlayerHome ||
-                            map.Parent is CaravansBattlefield ||
-                            ambushCompForExit != null;
+        bool isTrackedIncursionPawn = ambushComp != null && ambushComp.HasTrackedIncursionFor(__instance);
         bool isHostile = __instance.Faction.HostileTo(Faction.OfPlayer);
 
-        if (isTrackedMap && (isTrackedIncursionPawn || isHostile))
+        if (IncursionTacticalRetreatUtility.ShouldTrackNonPlayerExitMap(
+                map.IsPlayerHome,
+                isOverlandEncounter,
+                isTrackedIncursionPawn,
+                isHostile))
         {
             Pawn? captive = null;
             if (__instance.carryTracker?.CarriedThing is Pawn carriedPawn && carriedPawn.Faction == Faction.OfPlayer)
@@ -224,7 +243,7 @@ public static class Pawn_ExitMap_Patch
 
             if (isTrackedIncursionPawn)
             {
-                ambushCompForExit!.Notify_PawnExitedMap(__instance, captive);
+                ambushComp!.Notify_PawnExitedMap(__instance, captive);
             }
             else if (isHostile)
             {

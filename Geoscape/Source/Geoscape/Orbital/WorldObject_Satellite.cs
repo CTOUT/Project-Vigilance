@@ -80,6 +80,11 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
                 return false;
             }
 
+            if (ProjectVigilance.Geoscape.Sensory.SensoryDisruptionUtility.IsSolarFlareActive(Tile))
+            {
+                return false;
+            }
+
             // In active gameplay, only player satellites provide sensor coverage to the player.
             // In unit test harnesses without World initialized, allow testing sensor properties when Faction is null.
             if (Faction != null)

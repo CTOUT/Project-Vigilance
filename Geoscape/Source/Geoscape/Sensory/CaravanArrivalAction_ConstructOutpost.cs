@@ -40,49 +40,75 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
 
     public override FloatMenuAcceptanceReport StillValid(Caravan caravan, PlanetTile destinationTile)
     {
-        if (caravan == null || !caravan.Spawned)
+        if (caravan == null)
         {
             return false;
+        }
+
+        try
+        {
+            if (!caravan.Spawned)
+            {
+                return false;
+            }
+        }
+        catch
+        {
+            // Headless unit test mock without initialized Find.WorldObjects
         }
 
         PlanetTile target = destinationTile.Valid ? destinationTile : (this.destinationTile.Valid ? this.destinationTile : caravan.Tile);
         if (target.Valid)
         {
             var worldObjects = Current.Game?.World?.worldObjects;
-            bool hasPost = worldObjects?.AllWorldObjects != null &&
-                           worldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == target);
-            if (hasPost)
+            bool hasCompletedPost = worldObjects?.AllWorldObjects != null &&
+                           worldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == target && !p.IsConstructing);
+            if (hasCompletedPost)
             {
-                return FloatMenuAcceptanceReport.WithFailMessage("An outpost already exists at this location.");
+                return FloatMenuAcceptanceReport.WithFailMessage("An active outpost already exists at this location.");
             }
         }
 
-        if (postKind == ListeningPostKind.AutomatedRelay)
-        {
-            if (!OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out string missing))
-            {
-                return FloatMenuAcceptanceReport.WithFailMessage(missing);
-            }
-        }
-        else
-        {
-            if (!OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out string missing))
-            {
-                return FloatMenuAcceptanceReport.WithFailMessage(missing);
-            }
-        }
-
+        // Note: Do not evict arrival action mid-transit on missing materials.
+        // PatherTickInterval runs StillValid periodically while the caravan is walking across the globe.
+        // Failing here causes Caravan_PathFollower.StopDead() to nullify caravan.arrivalAction mid-transit.
+        // Full material verification and consumption occur deterministically upon arrival in Arrived(caravan).
         return true;
     }
 
     public override void Arrived(Caravan caravan)
     {
-        if (caravan == null || !caravan.Spawned)
+        if (caravan == null)
         {
             return;
         }
 
+        try
+        {
+            if (!caravan.Spawned)
+            {
+                return;
+            }
+        }
+        catch
+        {
+            // Headless unit test mock without initialized Find.WorldObjects
+        }
+
         PlanetTile targetTile = caravan.Tile.Valid ? caravan.Tile : (destinationTile.Valid ? destinationTile : caravan.Tile);
+
+        List<Pawn>? pawns = null;
+        try
+        {
+            pawns = caravan.PawnsListForReading;
+        }
+        catch
+        {
+            // Headless unit test mock
+        }
+
+        int durationTicks = OutpostAssemblySpeedUtility.CalculateAssemblyDurationTicks(pawns, postKind);
+        float durationHours = durationTicks / 2500f;
 
         if (postKind == ListeningPostKind.AutomatedRelay)
         {
@@ -94,9 +120,14 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
                 post.Tile = targetTile;
                 post.SetFaction(Faction.OfPlayer);
                 post.Kind = ListeningPostKind.AutomatedRelay;
-                post.StartConstruction(2500);
+                post.StartConstruction(durationTicks);
                 Find.WorldObjects?.Add(post);
-                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile}. Construction of automated listening post commenced.", MessageTypeDefOf.PositiveEvent, false);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile}. Construction of automated listening post commenced (~{durationHours:F1} in-game hours).", MessageTypeDefOf.PositiveEvent, false);
+                Find.LetterStack?.ReceiveLetter(
+                    "Outpost Deployment: " + post.LabelCap,
+                    $"Caravan {caravan.LabelCap} arrived at Tile {targetTile} and commenced construction of {post.LabelCap}.\n\nColonists are assembling the station (~{durationHours:F1} in-game hours). Keep the caravan on-site until assembly completes.",
+                    LetterDefOf.PositiveEvent,
+                    new LookTargets(post));
             }
             else
             {
@@ -114,9 +145,14 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
                 post.SetFaction(Faction.OfPlayer);
                 post.Kind = ListeningPostKind.SignalBeacon;
                 post.stuffDef = consumed ?? stuffDef ?? ThingDefOf.WoodLog;
-                post.StartConstruction(2500);
+                post.StartConstruction(durationTicks);
                 Find.WorldObjects?.Add(post);
-                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile}. Construction of signal beacon ({post.stuffDef.LabelCap}) commenced.", MessageTypeDefOf.PositiveEvent, false);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile}. Construction of signal beacon ({post.stuffDef.LabelCap}) commenced (~{durationHours:F1} in-game hours).", MessageTypeDefOf.PositiveEvent, false);
+                Find.LetterStack?.ReceiveLetter(
+                    "Outpost Deployment: " + post.LabelCap,
+                    $"Caravan {caravan.LabelCap} arrived at Tile {targetTile} and commenced construction of {post.LabelCap}.\n\nColonists are assembling the beacon (~{durationHours:F1} in-game hours). Keep the caravan on-site until assembly completes.",
+                    LetterDefOf.PositiveEvent,
+                    new LookTargets(post));
             }
             else
             {

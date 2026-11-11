@@ -69,6 +69,17 @@ public static class IncursionTacticalRetreatUtility
             return;
         }
 
+        // Gather all player colonists and tamed animals before mutating tracked hostiles.
+        var playerPawns = map.mapPawns.AllPawns
+            .Where(p => p.Faction == Faction.OfPlayer && !p.Dead && p.Spawned)
+            .ToList();
+
+        if (playerPawns.Count == 0)
+        {
+            Log.Warning("[Project Vigilance] Stealth disengage found 0 surviving player pawns.");
+            return;
+        }
+
         // Commit surviving tracked enemies to the world incursions
         if (ambushComp != null)
         {
@@ -79,17 +90,6 @@ public static class IncursionTacticalRetreatUtility
                 incursion.IsEngagedInTacticalMap = false;
                 incursion.AdvancePathTile();
             }
-        }
-
-        // Gather all player colonists and tamed animals
-        var playerPawns = map.mapPawns.AllPawns
-            .Where(p => p.Faction == Faction.OfPlayer && !p.Dead && p.Spawned)
-            .ToList();
-
-        if (playerPawns.Count == 0)
-        {
-            Log.Warning("[Project Vigilance] Stealth disengage found 0 surviving player pawns.");
-            return;
         }
 
         // Form or join the player caravan on the world tile BEFORE passing pawns to WorldPawns.
@@ -645,9 +645,15 @@ public static class IncursionTacticalRetreatUtility
         var mobileColonists = allPlayerPawns.Where(p => !p.Downed).ToList();
         var downedColonists = allPlayerPawns.Where(p => p.Downed).ToList();
 
+        if (mobileColonists.Count == 0)
+        {
+            Messages.Message("No mobile colonists were able to evacuate the sector.", MessageTypeDefOf.NegativeEvent);
+            return;
+        }
+
+        bool captiveAssigned = false;
         if (ambushComp != null)
         {
-            bool captiveAssigned = false;
             foreach (var (incursion, living, _, _) in ambushComp.GetActiveIncursionSummaries())
             {
                 DespawnAndPassHostilesToWorld(living);
@@ -661,13 +667,7 @@ public static class IncursionTacticalRetreatUtility
             }
         }
 
-        if (mobileColonists.Count == 0)
-        {
-            Messages.Message("No mobile colonists were able to evacuate the sector.", MessageTypeDefOf.NegativeEvent);
-            return;
-        }
-
-        if (downedColonists.Count > 0)
+        if (downedColonists.Count > 0 && ShouldAbductDownedColonistsOnExit(map.Parent is CaravansBattlefield, captiveAssigned))
         {
             PassCapturedColonistsToWorld(downedColonists);
         }
@@ -705,6 +705,108 @@ public static class IncursionTacticalRetreatUtility
         }
     }
 
+    internal enum EncounterMapCleanupAction
+    {
+        None,
+        DestroyTemporaryParent,
+        CheckRemovePersistentParent
+    }
+
+    internal static EncounterMapCleanupAction ClassifyMapCleanupAction(
+        bool isPlayerHome,
+        bool isPocketMap,
+        bool hasParent,
+        bool parentDestroyed,
+        bool isTemporaryBattlefieldParent)
+    {
+        if (isPlayerHome || isPocketMap || !hasParent || parentDestroyed)
+        {
+            return EncounterMapCleanupAction.None;
+        }
+
+        return isTemporaryBattlefieldParent
+            ? EncounterMapCleanupAction.DestroyTemporaryParent
+            : EncounterMapCleanupAction.CheckRemovePersistentParent;
+    }
+
+    internal static bool IsOverlandEncounterMapState(
+        bool isPlayerHome,
+        bool isPocketMap,
+        bool isTemporaryBattlefieldParent,
+        bool hasAmbushEncounterState)
+    {
+        return !isPlayerHome &&
+               !isPocketMap &&
+               (isTemporaryBattlefieldParent || hasAmbushEncounterState);
+    }
+
+    internal static bool IsOverlandEncounterMap(Map? map, MapComponent_OverlandAmbush? ambushComp = null)
+    {
+        if (map == null)
+        {
+            return false;
+        }
+
+        ambushComp ??= map.GetComponent<MapComponent_OverlandAmbush>();
+        return IsOverlandEncounterMapState(
+            map.IsPlayerHome,
+            map.IsPocketMap,
+            map.Parent is CaravansBattlefield,
+            ambushComp != null && ambushComp.HasEncounterState);
+    }
+
+    internal static bool ShouldInterceptPlayerExitMap(
+        bool isPlayerHome,
+        bool isOverlandEncounterMap,
+        bool allowedToJoinOrCreateCaravan,
+        bool isCaravanMember,
+        bool isTeleporting,
+        bool isInsideTransporter,
+        bool hasHomeRetreatCondition)
+    {
+        if (!allowedToJoinOrCreateCaravan || isCaravanMember || isTeleporting || isInsideTransporter)
+        {
+            return false;
+        }
+
+        return isOverlandEncounterMap || (isPlayerHome && hasHomeRetreatCondition);
+    }
+
+    internal static bool ShouldShowReformCaravanUi(
+        bool isPlayerHome,
+        bool isPocketMap,
+        bool isSettlementParent,
+        bool isTemporaryBattlefieldParent,
+        bool hasActiveThreats,
+        bool hasCombatOrAmbushState)
+    {
+        if (isPlayerHome || isPocketMap || isSettlementParent || hasActiveThreats)
+        {
+            return false;
+        }
+
+        return isTemporaryBattlefieldParent || hasCombatOrAmbushState;
+    }
+
+    internal static bool ShouldTrackNonPlayerExitMap(
+        bool isPlayerHome,
+        bool isOverlandEncounterMap,
+        bool isTrackedIncursionPawn,
+        bool isHostile) =>
+        (isOverlandEncounterMap || isPlayerHome) && (isTrackedIncursionPawn || isHostile);
+
+    internal static bool ShouldAllowRetreatExitGrid(
+        bool isPlayerHome,
+        bool isOverlandEncounterMap,
+        bool hasHomeRetreatCondition) =>
+        isOverlandEncounterMap || (isPlayerHome && hasHomeRetreatCondition);
+
+    internal static bool ShouldShowEncounterRetreatGizmo(bool isPlayerHome, bool isOverlandEncounterMap) =>
+        isOverlandEncounterMap || isPlayerHome;
+
+    internal static bool ShouldAbductDownedColonistsOnExit(bool isTemporaryBattlefieldParent, bool hasActiveIncursions) =>
+        isTemporaryBattlefieldParent || hasActiveIncursions;
+
     public static void CleanUpEncounterMap(Map map)
     {
         if (map == null) return;
@@ -718,15 +820,30 @@ public static class IncursionTacticalRetreatUtility
             }
         }
 
-        // Never destroy the MapParent of a permanent player home settlement when retreating;
-        // only destroy temporary encounter / battlefield MapParents.
-        if (!map.IsPlayerHome)
+        MapParent? parent = map.Parent;
+        var cleanupAction = ClassifyMapCleanupAction(
+            isPlayerHome: map.IsPlayerHome,
+            isPocketMap: map.IsPocketMap,
+            hasParent: parent != null,
+            parentDestroyed: parent?.Destroyed ?? false,
+            isTemporaryBattlefieldParent: parent is CaravansBattlefield);
+
+        switch (cleanupAction)
         {
-            MapParent? parent = map.Parent;
-            if (parent != null && !parent.Destroyed)
-            {
-                parent.Destroy();
-            }
+            case EncounterMapCleanupAction.DestroyTemporaryParent:
+                // Temporary CaravansBattlefield parents exist solely for one overland skirmish.
+                parent!.Destroy();
+                break;
+
+            case EncounterMapCleanupAction.CheckRemovePersistentParent:
+                // Never force-destroy Settlements, Sites, or other persistent MapParents on retreat;
+                // delegate to RimWorld's own ShouldRemoveMapNow contract so the WorldObject remains intact.
+                parent!.CheckRemoveMapNow();
+                break;
+
+            case EncounterMapCleanupAction.None:
+            default:
+                break;
         }
     }
 

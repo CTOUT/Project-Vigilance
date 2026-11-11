@@ -3,6 +3,7 @@ using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+using ProjectVigilance.Geoscape.Sensory;
 
 namespace ProjectVigilance.Geoscape.Patches;
 
@@ -47,6 +48,15 @@ public static class WorldRoutePlanner_Start_Patch
                     if (Find.WorldObjects != null)
                     {
                         __instance.TryAddWaypoint(dest, playSound: false);
+
+                        if (CaravanExpeditionUtility.TryGetPendingDirectiveForDialog(formCaravanDialog, out _))
+                        {
+                            __instance.Stop();
+                            if (Find.WindowStack != null && !Find.WindowStack.IsOpen(formCaravanDialog))
+                            {
+                                Find.WindowStack.Add(formCaravanDialog);
+                            }
+                        }
                     }
                 }
             }

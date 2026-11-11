@@ -298,18 +298,93 @@ public class IncursionRetreatManager : WorldComponent
         Log.Message($"[Project Vigilance] Spawned retreating incursion {incursion.TrackingId} ({incursion.Label}) with {batch.fleeingPawns.Count} pawns and {batch.kidnappedColonists.Count} captive(s).");
     }
 
+    public bool ContainsTrackedPawn(Pawn? pawn)
+    {
+        if (pawn == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < activeBatches.Count; i++)
+        {
+            RetreatBatch batch = activeBatches[i];
+            if (WorldPawnIntegrityUtility.ListContainsPawn(batch.fleeingPawns, pawn) ||
+                WorldPawnIntegrityUtility.ListContainsPawn(batch.kidnappedColonists, pawn))
+            {
+                return true;
+            }
+        }
+
+        for (int i = 0; i < incarceratedColonists.Count; i++)
+        {
+            if (incarceratedColonists[i].captive == pawn)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    internal void ForEachTrackedPawn(System.Action<Pawn, bool> visitor)
+    {
+        if (visitor == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < activeBatches.Count; i++)
+        {
+            RetreatBatch batch = activeBatches[i];
+            for (int p = 0; p < batch.fleeingPawns.Count; p++)
+            {
+                if (batch.fleeingPawns[p] != null)
+                {
+                    visitor(batch.fleeingPawns[p], false);
+                }
+            }
+            for (int c = 0; c < batch.kidnappedColonists.Count; c++)
+            {
+                if (batch.kidnappedColonists[c] != null)
+                {
+                    visitor(batch.kidnappedColonists[c], true);
+                }
+            }
+        }
+
+        for (int i = 0; i < incarceratedColonists.Count; i++)
+        {
+            Pawn? captive = incarceratedColonists[i].captive;
+            if (captive != null)
+            {
+                visitor(captive, true);
+            }
+        }
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
 
         if (Scribe.mode == LoadSaveMode.Saving)
         {
-            incarceratedColonists.RemoveAll(r => r.captive == null || r.captive.Dead || r.captive.Destroyed);
+            ForEachTrackedPawn(static (p, isCaptive) =>
+            {
+                WorldPawnIntegrityUtility.EnsurePawnInWorldPawnsIfUnspawned(p, isCaptive);
+                WorldPawnIntegrityUtility.SanitizeDanglingRelations(p);
+            });
+
+            incarceratedColonists.RemoveAll(r =>
+                r.captive == null ||
+                WorldPawnIntegrityUtility.IsDeadSafe(r.captive) ||
+                r.captive.Destroyed ||
+                WorldPawnIntegrityUtility.IsDanglingPawnReference(r.captive));
+
             for (int i = activeBatches.Count - 1; i >= 0; i--)
             {
-                activeBatches[i].fleeingPawns.RemoveAll(p => p == null || p.Dead || p.Destroyed);
-                activeBatches[i].kidnappedColonists.RemoveAll(p => p == null || p.Dead || p.Destroyed);
-                if (activeBatches[i].fleeingPawns.Count == 0)
+                WorldPawnIntegrityUtility.PruneInvalidPawnReferences(activeBatches[i].fleeingPawns, removeDeadOrDestroyed: true);
+                WorldPawnIntegrityUtility.PruneInvalidPawnReferences(activeBatches[i].kidnappedColonists, removeDeadOrDestroyed: true);
+                if (activeBatches[i].fleeingPawns.Count == 0 && activeBatches[i].kidnappedColonists.Count == 0)
                 {
                     activeBatches.RemoveAt(i);
                 }
@@ -322,7 +397,17 @@ public class IncursionRetreatManager : WorldComponent
         {
             activeBatches ??= new List<RetreatBatch>();
             incarceratedColonists ??= new List<IncarcerationRecord>();
-            incarceratedColonists.RemoveAll(r => r.captive == null || r.captive.Dead || r.captive.Destroyed);
+            incarceratedColonists.RemoveAll(r => r.captive == null || r.captive.Dead || r.captive.Destroyed || r.captive.Discarded);
+            for (int i = activeBatches.Count - 1; i >= 0; i--)
+            {
+                activeBatches[i].fleeingPawns?.RemoveAll(p => p == null || p.Dead || p.Destroyed || p.Discarded);
+                activeBatches[i].kidnappedColonists?.RemoveAll(p => p == null || p.Dead || p.Destroyed || p.Discarded);
+                if ((activeBatches[i].fleeingPawns == null || activeBatches[i].fleeingPawns.Count == 0) &&
+                    (activeBatches[i].kidnappedColonists == null || activeBatches[i].kidnappedColonists.Count == 0))
+                {
+                    activeBatches.RemoveAt(i);
+                }
+            }
             Instance = this;
         }
     }

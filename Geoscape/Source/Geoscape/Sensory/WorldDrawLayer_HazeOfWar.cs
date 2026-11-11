@@ -23,6 +23,42 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
     private const int MaxVertsPerMeshSafe = 38000;
     private const float HazeAltitudeOffset = 0.042f; // Altitude above WorldObject (0.03) and Caravan (0.035), below Motes (0.05)
 
+    // Explicit transparent render queue above terrain dim (3544) and below radar shadow wash (3547), radar lines (3548), and world objects (3550)
+    public const int HazeRenderQueue = 3546;
+    internal static readonly int[] OverlayRenderQueues =
+    {
+        WorldDrawLayer_RadarCoverage.DimmingRenderQueue,
+        HazeRenderQueue,
+        WorldDrawLayer_RadarCoverage.ShadowWashRenderQueue,
+        WorldDrawLayer_RadarCoverage.OutlineRenderQueue
+    };
+    public static System.Func<Material?>? SubMeshMaterialOverride { get; set; }
+    internal static System.Func<int, Material?>? RenderQueueMaterialOverride { get; set; }
+    internal static System.Func<bool>? IsInMainThreadOverride { get; set; }
+
+    private static bool IsCurrentThreadMain => IsInMainThreadOverride?.Invoke() ?? UnityData.IsInMainThread;
+
+    /// <summary>
+    /// Regenerates an overlay layer immediately when invoked on the Unity main thread, or marks it dirty
+    /// for deferred regeneration when called from a background loading thread.
+    /// </summary>
+    internal static void RequestLayerRefresh(WorldDrawLayerBase? layer)
+    {
+        if (layer == null)
+        {
+            return;
+        }
+
+        if (IsCurrentThreadMain)
+        {
+            layer.RegenerateNow();
+        }
+        else
+        {
+            layer.SetDirty();
+        }
+    }
+
     public static readonly Color32 ShroudColor = new(6, 8, 12, 255); // 100% opaque dark obsidian shroud
     public static readonly Color32 HazeColor = new(36, 42, 50, 140);  // ~55% translucent slate grey
     public static readonly Color32 ClearColor = new(0, 0, 0, 0);     // 100% transparent (active vision)
@@ -266,21 +302,72 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
         yield break;
     }
 
-    private LayerSubMesh GetOrCreateSubMesh(int neededVerts, ref int subMeshIndex)
+    internal static Material? ResolveVertexColorMaterial(
+        int renderQueue,
+        System.Func<Material?>? materialOverride,
+        System.Func<int, Material?>? queueMaterialOverride)
     {
-        while (subMeshIndex < subMeshes.Count)
+        if (queueMaterialOverride != null)
         {
-            LayerSubMesh existing = subMeshes[subMeshIndex];
-            if (existing.verts.Count + neededVerts <= MaxVertsPerMeshSafe)
-            {
-                return existing;
-            }
-            subMeshIndex++;
+            return queueMaterialOverride(renderQueue);
         }
 
-        LayerSubMesh newSubMesh = new(new Mesh(), WorldMaterials.VertexColorTransparent);
+        if (materialOverride != null)
+        {
+            return materialOverride();
+        }
+
+        return Verse.MatLoader.LoadMat(GeoscapeOverlayMaterials.VertexColorTransparentPath, renderQueue);
+    }
+
+    internal static LayerSubMesh GetOrCreateVertexColorSubMesh(
+        System.Collections.Generic.List<LayerSubMesh> subMeshes,
+        int maxVertsPerMesh,
+        int neededVerts,
+        int renderQueue,
+        System.Func<Material?>? materialOverride,
+        System.Func<int, Material?>? queueMaterialOverride,
+        ref int subMeshIndex)
+    {
+        Material? targetMaterial = ResolveVertexColorMaterial(renderQueue, materialOverride, queueMaterialOverride);
+
+        if (subMeshIndex < subMeshes.Count)
+        {
+            LayerSubMesh current = subMeshes[subMeshIndex];
+            if (ReferenceEquals(current.material, targetMaterial) &&
+                current.verts.Count + neededVerts <= maxVertsPerMesh)
+            {
+                return current;
+            }
+        }
+
+        for (int i = 0; i < subMeshes.Count; i++)
+        {
+            LayerSubMesh existing = subMeshes[i];
+            if (ReferenceEquals(existing.material, targetMaterial) &&
+                existing.verts.Count + neededVerts <= maxVertsPerMesh)
+            {
+                subMeshIndex = i;
+                return existing;
+            }
+        }
+
+        LayerSubMesh newSubMesh = new(new Mesh(), targetMaterial!);
         subMeshes.Add(newSubMesh);
+        subMeshIndex = subMeshes.Count - 1;
         return newSubMesh;
+    }
+
+    private LayerSubMesh GetOrCreateSubMesh(int neededVerts, ref int subMeshIndex)
+    {
+        return GetOrCreateVertexColorSubMesh(
+            subMeshes,
+            MaxVertsPerMeshSafe,
+            neededVerts,
+            HazeRenderQueue,
+            SubMeshMaterialOverride,
+            RenderQueueMaterialOverride,
+            ref subMeshIndex);
     }
 }
 

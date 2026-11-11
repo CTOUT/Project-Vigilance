@@ -38,6 +38,13 @@ public class IncursionEngagementRecord : IExposable
 
     public void ExposeData()
     {
+        if (Scribe.mode == LoadSaveMode.Saving)
+        {
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(trackedPawns, removeDeadOrDestroyed: false);
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(escapedPawns, removeDeadOrDestroyed: false);
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(capturedColonists, removeDeadOrDestroyed: false);
+        }
+
         Scribe_References.Look(ref incursion, "incursion");
         Scribe_Values.Look(ref trackingId, "trackingId", 0);
         Scribe_References.Look(ref faction, "faction");
@@ -48,6 +55,16 @@ public class IncursionEngagementRecord : IExposable
         Scribe_Values.Look(ref isDisengaged, "isDisengaged", false);
         Scribe_Values.Look(ref isTransitOnly, "isTransitOnly", false);
         Scribe_Values.Look(ref wasEngagedInCombat, "wasEngagedInCombat", false);
+
+        if (Scribe.mode == LoadSaveMode.PostLoadInit)
+        {
+            trackedPawns ??= new List<Pawn>();
+            escapedPawns ??= new List<Pawn>();
+            capturedColonists ??= new List<Pawn>();
+            trackedPawns.RemoveAll(p => p == null || p.Discarded);
+            escapedPawns.RemoveAll(p => p == null || p.Discarded);
+            capturedColonists.RemoveAll(p => p == null || p.Discarded);
+        }
     }
 }
 
@@ -71,10 +88,21 @@ public class GuestCohortRecord : IExposable
 
     public void ExposeData()
     {
+        if (Scribe.mode == LoadSaveMode.Saving)
+        {
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(pawns, removeDeadOrDestroyed: false);
+        }
+
         Scribe_Values.Look(ref groupLabel, "groupLabel", string.Empty);
         Scribe_References.Look(ref faction, "faction");
         Scribe_Collections.Look(ref pawns, "pawns", LookMode.Reference);
         Scribe_Values.Look(ref hasDeparted, "hasDeparted", false);
+
+        if (Scribe.mode == LoadSaveMode.PostLoadInit)
+        {
+            pawns ??= new List<Pawn>();
+            pawns.RemoveAll(p => p == null || p.Discarded);
+        }
     }
 }
 
@@ -113,6 +141,44 @@ public class MapComponent_OverlandAmbush : MapComponent
     public List<Pawn> GetLivingEnemies() => allEnemies.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
     public List<Pawn> EscapedHostiles => escapedHostiles;
     public List<Pawn> CapturedColonists => capturedColonists;
+
+    /// <summary>
+    /// Returns true only when this component holds active or historical overland encounter,
+    /// incursion, or guest-cohort tracking state rather than merely being default-attached by RimWorld.
+    /// </summary>
+    public bool HasEncounterState => IsOverlandEncounterState(
+        isActive,
+        ambushSprung,
+        sourceIncursion != null,
+        engagements.Count,
+        guestCohorts.Count,
+        enemyFaction != null && allEnemies.Count > 0,
+        capturedColonists.Count);
+
+    public bool HasCombatOrAmbushState => IsCombatOrAmbushState(
+        ambushSprung,
+        engagements.Any(e => e.wasEngagedInCombat || !e.isTransitOnly));
+
+    internal static bool IsCombatOrAmbushState(bool ambushSprung, bool hasNonTransitOrCombatEngagement) =>
+        ambushSprung || hasNonTransitOrCombatEngagement;
+
+    internal static bool IsOverlandEncounterState(
+        bool isActive,
+        bool ambushSprung,
+        bool hasSourceIncursion,
+        int engagementCount,
+        int guestCohortCount,
+        bool hasTrackedEnemyForce,
+        int capturedColonistCount)
+    {
+        return isActive ||
+               ambushSprung ||
+               hasSourceIncursion ||
+               engagementCount > 0 ||
+               guestCohortCount > 0 ||
+               hasTrackedEnemyForce ||
+               capturedColonistCount > 0;
+    }
 
     /// <summary>
     /// Yields all active incursions associated with this tactical encounter,
@@ -852,8 +918,8 @@ public class MapComponent_OverlandAmbush : MapComponent
 
         if (Find.CurrentMap != map) return;
 
-        // Do not render tactical HUD banners on ordinary colony, settlement, or non-encounter maps
-        bool isOverlandEncounter = map.Parent is CaravansBattlefield || sourceIncursion != null || isActive || ambushSprung || (enemyFaction != null && allEnemies.Count > 0);
+        // Do not render tactical HUD banners on ordinary colony, settlement, pocket, or non-encounter maps
+        bool isOverlandEncounter = !map.IsPocketMap && (map.Parent is CaravansBattlefield || HasEncounterState);
         if (!isOverlandEncounter) return;
 
         // Do not render banners if there are no player colonists on the map (e.g. formed into a caravan, escaped, evacuated)
@@ -921,7 +987,13 @@ public class MapComponent_OverlandAmbush : MapComponent
         else
         {
             bool hasActiveThreats = GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false);
-            if (!hasActiveThreats && (map.Parent is CaravansBattlefield || ambushSprung || sourceIncursion != null))
+            if (IncursionTacticalRetreatUtility.ShouldShowReformCaravanUi(
+                    isPlayerHome: map.IsPlayerHome,
+                    isPocketMap: map.IsPocketMap,
+                    isSettlementParent: map.Parent is Settlement,
+                    isTemporaryBattlefieldParent: map.Parent is CaravansBattlefield,
+                    hasActiveThreats: hasActiveThreats,
+                    hasCombatOrAmbushState: HasCombatOrAmbushState))
             {
                 if (hasMobileColonist)
                 {
@@ -1165,9 +1237,87 @@ public class MapComponent_OverlandAmbush : MapComponent
         }
     }
 
+    public bool ContainsTrackedPawn(Pawn? pawn)
+    {
+        if (pawn == null)
+        {
+            return false;
+        }
+
+        if (WorldPawnIntegrityUtility.ListContainsPawn(trackedEnemies, pawn) ||
+            WorldPawnIntegrityUtility.ListContainsPawn(allEnemies, pawn) ||
+            WorldPawnIntegrityUtility.ListContainsPawn(escapedHostiles, pawn) ||
+            WorldPawnIntegrityUtility.ListContainsPawn(capturedColonists, pawn))
+        {
+            return true;
+        }
+
+        if (engagements != null)
+        {
+            for (int i = 0; i < engagements.Count; i++)
+            {
+                var record = engagements[i];
+                if (WorldPawnIntegrityUtility.ListContainsPawn(record.trackedPawns, pawn) ||
+                    WorldPawnIntegrityUtility.ListContainsPawn(record.escapedPawns, pawn) ||
+                    WorldPawnIntegrityUtility.ListContainsPawn(record.capturedColonists, pawn))
+                {
+                    return true;
+                }
+            }
+        }
+
+        if (guestCohorts != null)
+        {
+            for (int i = 0; i < guestCohorts.Count; i++)
+            {
+                if (WorldPawnIntegrityUtility.ListContainsPawn(guestCohorts[i].pawns, pawn))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    internal void EnsureDespawnedTrackedPawnsInWorld()
+    {
+        WorldPawnIntegrityUtility.EnsureListInWorldPawns(escapedHostiles, isCaptiveColonist: false);
+        WorldPawnIntegrityUtility.EnsureListInWorldPawns(capturedColonists, isCaptiveColonist: true);
+
+        if (engagements != null)
+        {
+            for (int i = 0; i < engagements.Count; i++)
+            {
+                WorldPawnIntegrityUtility.EnsureListInWorldPawns(engagements[i].escapedPawns, isCaptiveColonist: false);
+                WorldPawnIntegrityUtility.EnsureListInWorldPawns(engagements[i].capturedColonists, isCaptiveColonist: true);
+            }
+        }
+
+        if (guestCohorts != null)
+        {
+            for (int i = 0; i < guestCohorts.Count; i++)
+            {
+                if (guestCohorts[i].hasDeparted)
+                {
+                    WorldPawnIntegrityUtility.EnsureListInWorldPawns(guestCohorts[i].pawns, isCaptiveColonist: false);
+                }
+            }
+        }
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
+        if (Scribe.mode == LoadSaveMode.Saving)
+        {
+            EnsureDespawnedTrackedPawnsInWorld();
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(trackedEnemies, removeDeadOrDestroyed: false);
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(allEnemies, removeDeadOrDestroyed: false);
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(escapedHostiles, removeDeadOrDestroyed: false);
+            WorldPawnIntegrityUtility.PruneInvalidPawnReferences(capturedColonists, removeDeadOrDestroyed: false);
+        }
+
         Scribe_Values.Look(ref isActive, "isActive", false);
         Scribe_Values.Look(ref ambushSprung, "ambushSprung", false);
         Scribe_References.Look(ref enemyFaction, "enemyFaction");
@@ -1186,14 +1336,16 @@ public class MapComponent_OverlandAmbush : MapComponent
 
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
-            if (engagements == null)
-            {
-                engagements = new List<IncursionEngagementRecord>();
-            }
-            if (guestCohorts == null)
-            {
-                guestCohorts = new List<GuestCohortRecord>();
-            }
+            trackedEnemies ??= new List<Pawn>();
+            allEnemies ??= new List<Pawn>();
+            escapedHostiles ??= new List<Pawn>();
+            capturedColonists ??= new List<Pawn>();
+            trackedEnemies.RemoveAll(p => p == null || p.Discarded);
+            allEnemies.RemoveAll(p => p == null || p.Discarded);
+            escapedHostiles.RemoveAll(p => p == null || p.Discarded);
+            capturedColonists.RemoveAll(p => p == null || p.Discarded);
+            engagements ??= new List<IncursionEngagementRecord>();
+            guestCohorts ??= new List<GuestCohortRecord>();
 
             // Backward compatibility migration for saves with sourceIncursion
             if (engagements.Count == 0 && sourceIncursion != null)

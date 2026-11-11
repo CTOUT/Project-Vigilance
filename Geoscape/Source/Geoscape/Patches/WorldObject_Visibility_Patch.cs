@@ -399,7 +399,10 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch(typeof(WorldDrawLayer_Landmarks), "DrawStandard", typeof(Landmark), typeof(PlanetTile))]
     public static class Landmarks_DrawStandard_Patch
     {
-        public static bool Prefix(Landmark landmark, PlanetTile tile)
+        private static Func<WorldDrawLayer_Landmarks, Material, LayerSubMesh>? getSubMesh;
+        private static bool getSubMeshResolved;
+
+        public static bool Prefix(WorldDrawLayer_Landmarks? __instance, Landmark landmark, PlanetTile tile)
         {
             if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
@@ -414,16 +417,64 @@ public static class WorldObject_Visibility_Patch
                     return false;
                 }
 
-                // If this is an anomalous or man-made landmark, suppress physical 3D mesh rendering until the sector is identified
+                // Explored but unidentified man-made landmarks draw an upright tactical cyan '!' marker instead of the landmark sprite.
                 if (landmark?.def != null &&
                     LandmarkSensoryUtility.IsManMadeLandmarkDef(landmark.def.defName) &&
                     !sensory.IsTileIdentified(tile))
                 {
+                    DrawUnknownLandmarkWorldQuad(__instance, landmark, tile);
                     return false;
                 }
             }
 
             return true;
+        }
+
+        private static void DrawUnknownLandmarkWorldQuad(WorldDrawLayer_Landmarks? layer, Landmark landmark, PlanetTile tile)
+        {
+            if (layer == null || layer.planetLayer == null)
+            {
+                return;
+            }
+
+            Func<WorldDrawLayer_Landmarks, Material, LayerSubMesh>? subMeshGetter = ResolveGetSubMesh();
+            if (subMeshGetter == null)
+            {
+                return;
+            }
+
+            Material material = LandmarkSensoryUtility.GetUnknownLandmarkWorldMaterial();
+            LayerSubMesh subMesh = subMeshGetter(layer, material);
+            Vector3 tileCenter = layer.planetLayer.GetTileCenter(tile);
+            float scale = landmark.def != null ? Mathf.Max(0.8f, landmark.def.drawScale) : 1f;
+            float size = layer.planetLayer.GetTileSize(tile) * scale;
+            WorldRendererUtility.PrintQuadTangentialToPlanet(
+                tileCenter,
+                size,
+                0.03f,
+                subMesh,
+                counterClockwise: false,
+                rotation: WorldObject_ListeningPost.UprightPrintRotationAngle,
+                printUVs: true);
+        }
+
+        private static Func<WorldDrawLayer_Landmarks, Material, LayerSubMesh>? ResolveGetSubMesh()
+        {
+            if (getSubMeshResolved)
+            {
+                return getSubMesh;
+            }
+
+            getSubMeshResolved = true;
+            MethodInfo? mi = AccessTools.Method(typeof(WorldDrawLayer_Landmarks), "GetSubMesh", new[] { typeof(Material) });
+            if (mi != null)
+            {
+                getSubMesh = (Func<WorldDrawLayer_Landmarks, Material, LayerSubMesh>)Delegate.CreateDelegate(
+                    typeof(Func<WorldDrawLayer_Landmarks, Material, LayerSubMesh>),
+                    mi);
+            }
+
+            return getSubMesh;
         }
     }
 
@@ -443,23 +494,118 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            // Return a filtered copy rather than mutating vanilla's cachedLandmarksToShow static list in-place.
-            // If the landmark is anomalous or man-made, conceal the vanilla expanding icon until the sector is identified.
-            __result = __result.Where(t =>
+            // Keep explored man-made landmarks in LandmarksToShow so zoomed-out GUI can render cyan '!' markers until identified.
+            __result = __result.Where(t => sensory.IsExplored(t)).ToList();
+        }
+    }
+
+    [HarmonyPatch(typeof(ExpandableLandmarksUtility), nameof(ExpandableLandmarksUtility.ExpandableLandmarksOnGUI))]
+    public static class ExpandableLandmarksUtility_ExpandableLandmarksOnGUI_Patch
+    {
+        private static bool accessorsInitialised;
+        private static Func<List<PlanetTile>>? getLandmarksToShow;
+        private static Func<float>? getTransitionPct;
+        private static Func<Texture2D>? getLandmarkTex;
+        private static Func<PlanetTile, bool>? isHighlighted;
+        private static Func<PlanetTile, bool>? hiddenBehindTerrainNow;
+        private static Func<Color, Material>? getMaterial;
+        private static Func<PlanetTile, Rect>? expandedIconScreenRect;
+
+        public static bool Prefix()
+        {
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
             {
-                if (!sensory.IsExplored(t))
-                {
-                    return false;
-                }
-
-                Landmark? lm = Find.WorldGrid?[t]?.Landmark;
-                if (lm?.def != null && LandmarkSensoryUtility.IsManMadeLandmarkDef(lm.def.defName))
-                {
-                    return sensory.IsTileIdentified(t);
-                }
-
                 return true;
-            }).ToList();
+            }
+
+            SensoryManager? sensory = SensoryManager.Instance;
+            if (sensory == null || !TryEnsureAccessors())
+            {
+                return true;
+            }
+
+            List<PlanetTile> tiles = getLandmarksToShow!();
+            float transitionPct = getTransitionPct!();
+
+            for (int i = 0; i < tiles.Count; i++)
+            {
+                PlanetTile tile = tiles[i];
+                try
+                {
+                    bool highlighted = isHighlighted!(tile);
+                    if (transitionPct == 0f && !highlighted)
+                    {
+                        continue;
+                    }
+
+                    if (hiddenBehindTerrainNow!(tile))
+                    {
+                        continue;
+                    }
+
+                    Landmark? landmark = Find.WorldGrid?[tile]?.Landmark;
+                    bool isMaskedManMade = landmark?.def != null &&
+                        LandmarkSensoryUtility.IsManMadeLandmarkDef(landmark.def.defName) &&
+                        !sensory.IsTileIdentified(tile);
+
+                    Color drawColor = isMaskedManMade ? LandmarkSensoryUtility.TacticalCyan : Color.white;
+                    drawColor.a = highlighted ? 1f : transitionPct;
+                    Texture2D tex = isMaskedManMade
+                        ? LandmarkSensoryUtility.GetUnknownLandmarkExpandingTexture()
+                        : getLandmarkTex!();
+
+                    GUI.color = drawColor;
+                    Rect rect = expandedIconScreenRect!(tile);
+                    Material? mat = highlighted ? getMaterial!(drawColor) : null;
+                    Widgets.DrawTextureRotated(rect, tex, 0f, mat);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"Error while drawing landmark at {tile.ToStringSafe()}: {ex}");
+                }
+            }
+
+            GUI.color = Color.white;
+            return false;
+        }
+
+        private static bool TryEnsureAccessors()
+        {
+            if (accessorsInitialised)
+            {
+                return getLandmarksToShow != null &&
+                    getTransitionPct != null &&
+                    getLandmarkTex != null &&
+                    isHighlighted != null &&
+                    hiddenBehindTerrainNow != null &&
+                    getMaterial != null &&
+                    expandedIconScreenRect != null;
+            }
+
+            accessorsInitialised = true;
+            getLandmarksToShow = TryBindDelegate<Func<List<PlanetTile>>>("get_LandmarksToShow");
+            getTransitionPct = TryBindDelegate<Func<float>>("get_TransitionPct");
+            getLandmarkTex = TryBindDelegate<Func<Texture2D>>("get_LandmarkTex");
+            isHighlighted = TryBindDelegate<Func<PlanetTile, bool>>("IsHighlighted", new[] { typeof(PlanetTile) });
+            hiddenBehindTerrainNow = TryBindDelegate<Func<PlanetTile, bool>>("HiddenBehindTerrainNow", new[] { typeof(PlanetTile) });
+            getMaterial = TryBindDelegate<Func<Color, Material>>("GetMaterial", new[] { typeof(Color) });
+            expandedIconScreenRect = TryBindDelegate<Func<PlanetTile, Rect>>("ExpandedIconScreenRect", new[] { typeof(PlanetTile) });
+
+            return getLandmarksToShow != null &&
+                getTransitionPct != null &&
+                getLandmarkTex != null &&
+                isHighlighted != null &&
+                hiddenBehindTerrainNow != null &&
+                getMaterial != null &&
+                expandedIconScreenRect != null;
+        }
+
+        private static T? TryBindDelegate<T>(string methodName, Type[]? parameters = null) where T : Delegate
+        {
+            MethodInfo? mi = parameters == null
+                ? AccessTools.Method(typeof(ExpandableLandmarksUtility), methodName)
+                : AccessTools.Method(typeof(ExpandableLandmarksUtility), methodName, parameters);
+            return mi != null ? (T)Delegate.CreateDelegate(typeof(T), mi) : null;
         }
     }
 
@@ -665,6 +811,10 @@ public static class WorldObject_Visibility_Patch
             typeof(WorldObject),
             typeof(Settlement),
             typeof(Site),
+            typeof(Caravan),
+            typeof(Gravship),
+            typeof(RoutePlannerWaypoint),
+            typeof(SpaceMapParent),
             typeof(WorldObject_ListeningPost));
 
         public static bool Prefix(WorldObject __instance, ref string __result)
@@ -908,11 +1058,25 @@ public static class WorldObject_Visibility_Patch
                 return true;
             }
 
-            if (Find.WorldSelector.NumSelectedObjects == 0 && Find.WorldSelector.SelectedTile.Valid &&
-                !StartingSiteFeedbackUtility.IsTileExplored(Find.WorldSelector.SelectedTile))
+            if (Find.WorldSelector.NumSelectedObjects == 0 && Find.WorldSelector.SelectedTile.Valid)
             {
-                __result = "Unexplored";
-                return false;
+                PlanetTile tile = Find.WorldSelector.SelectedTile;
+                TileIntelLevel intel = TerrainTelemetryUtility.GetTileIntelLevel(tile);
+                if (intel == TileIntelLevel.Unexplored)
+                {
+                    __result = "Unexplored";
+                    return false;
+                }
+
+                if (intel == TileIntelLevel.DetectedOnly)
+                {
+                    BiomeDef? biome = Find.WorldGrid?[tile]?.PrimaryBiome;
+                    if (biome != null)
+                    {
+                        __result = biome.LabelCap;
+                        return false;
+                    }
+                }
             }
 
             return true;
@@ -930,13 +1094,23 @@ public static class WorldObject_Visibility_Patch
                 return true;
             }
 
-            if (Find.WorldSelector.SelectedTile.Valid &&
-                !StartingSiteFeedbackUtility.IsTileExplored(Find.WorldSelector.SelectedTile))
+            PlanetTile tile = Find.WorldSelector.SelectedTile;
+            if (tile.Valid)
             {
-                __result = SensoryNarrativeUtility.IsLowTech
-                    ? "Uncharted territory. Send scouts or travellers to explore this region."
-                    : "This region is completely unexplored. Dispatch a caravan or establish reconnaissance to chart the terrain.";
-                return false;
+                TileIntelLevel intel = TerrainTelemetryUtility.GetTileIntelLevel(tile);
+                if (intel == TileIntelLevel.Unexplored)
+                {
+                    __result = SensoryNarrativeUtility.IsLowTech
+                        ? "Uncharted territory. Send scouts or travellers to explore this region."
+                        : "This region is completely unexplored. Dispatch a caravan or establish reconnaissance to chart the terrain.";
+                    return false;
+                }
+
+                if (intel == TileIntelLevel.DetectedOnly)
+                {
+                    __result = TerrainTelemetryUtility.BuildDetectedTileInspectString(tile);
+                    return false;
+                }
             }
 
             return true;
@@ -1009,7 +1183,7 @@ public static class WorldObject_Visibility_Patch
 
             PlanetTile tile = Find.WorldSelector.SelectedTile;
             if (tile.Valid && Find.WorldSelector.NumSelectedObjects == 0 &&
-                !StartingSiteFeedbackUtility.IsTileExplored(tile))
+                TerrainTelemetryUtility.GetTileIntelLevel(tile) != TileIntelLevel.Identified)
             {
                 __result = false;
             }
@@ -1029,7 +1203,7 @@ public static class WorldObject_Visibility_Patch
 
             PlanetTile tile = Find.WorldSelector.SelectedTile;
             if (tile.Valid && Find.WorldSelector.NumSelectedObjects == 0 &&
-                !StartingSiteFeedbackUtility.IsTileExplored(tile))
+                TerrainTelemetryUtility.GetTileIntelLevel(tile) != TileIntelLevel.Identified)
             {
                 return false;
             }
@@ -1064,6 +1238,11 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch(typeof(CellInspectorDrawer), "DrawWorldInspector")]
     public static class CellInspectorDrawer_DrawWorldInspector_Patch
     {
+        private static bool delegatesInitialised;
+        private static Action<string>? drawHeader;
+        private static Action<string, string>? drawRow;
+        private static Action? drawDivider;
+
         [HarmonyPrefix]
         public static bool Prefix()
         {
@@ -1073,12 +1252,173 @@ public static class WorldObject_Visibility_Patch
             }
 
             PlanetTile mouseTile = GenWorld.MouseTile(false);
-            if (mouseTile.Valid && !StartingSiteFeedbackUtility.IsTileExplored(mouseTile))
+            if (!mouseTile.Valid)
+            {
+                return true;
+            }
+
+            TileIntelLevel intel = TerrainTelemetryUtility.GetTileIntelLevel(mouseTile);
+            if (intel == TileIntelLevel.Unexplored)
             {
                 return false;
             }
 
+            if (intel == TileIntelLevel.DetectedOnly)
+            {
+                return !TryDrawDetectedOnlyInspector(mouseTile);
+            }
+
             return true;
+        }
+
+        private static bool TryDrawDetectedOnlyInspector(PlanetTile mouseTile)
+        {
+            if (!TryEnsureDrawDelegates())
+            {
+                return false;
+            }
+
+            Tile? tile = Find.WorldGrid?[mouseTile];
+            if (tile == null)
+            {
+                return false;
+            }
+
+            List<WorldObject>? worldObjects = GenWorldUI.WorldObjectsUnderMouse(UI.MousePositionOnUI);
+            if (worldObjects != null)
+            {
+                for (int i = 0; i < worldObjects.Count; i++)
+                {
+                    WorldObject wo = worldObjects[i];
+                    if (wo == null || ShouldHideWorldObject(wo))
+                    {
+                        continue;
+                    }
+
+                    if (wo is WorldObject_Incursion incursion && incursion.CurrentIntelligenceTier < IntelligenceTier.Contact)
+                    {
+                        continue;
+                    }
+
+                    drawHeader!(wo.LabelCap);
+                    if (wo is Caravan caravan)
+                    {
+                        DrawCaravanInspectorRows(caravan);
+                    }
+                    else if (wo is Settlement settlement &&
+                             !SensoryManager.ShouldMaskWorldObjectAsUnknown(settlement) &&
+                             settlement.Faction != null)
+                    {
+                        DrawSettlementFactionRows(settlement);
+                    }
+
+                    drawDivider!();
+                }
+            }
+
+            drawRow!("Biome_Label".Translate(), tile.PrimaryBiome.LabelCap);
+            if (!tile.PrimaryBiome.impassable && tile.hilliness != Hilliness.Undefined)
+            {
+                drawRow!("Hilliness_Label".Translate(), tile.hilliness.GetLabelCap());
+            }
+
+            if (tile is SurfaceTile surfaceTile)
+            {
+                if (!surfaceTile.Roads.NullOrEmpty())
+                {
+                    RoadDef? road = surfaceTile.Roads.Select(rl => rl.road).MaxBy(r => r.priority);
+                    if (road != null)
+                    {
+                        drawRow!("Road_Label".Translate(), road.LabelCap);
+                    }
+                }
+
+                if (!surfaceTile.Rivers.NullOrEmpty() && surfaceTile.Rivers[0].river != null)
+                {
+                    drawRow!("River_Label".Translate(), surfaceTile.Rivers[0].river.LabelCap);
+                }
+            }
+
+            drawRow!("AvgTemp".Translate(), TerrainTelemetryUtility.FormatEstimatedTemperature(mouseTile));
+
+            if (TerrainTelemetryUtility.HasUnidentifiedManMadeLandmark(mouseTile))
+            {
+                drawRow!("Signature", "Unidentified landmark");
+            }
+
+            return true;
+        }
+
+        private static void DrawCaravanInspectorRows(Caravan caravan)
+        {
+            drawRow!("CaravanColonists_Label".Translate(), caravan.pawns.Count<Pawn>(p => p.IsColonist).ToString());
+            if (caravan.pather.Moving)
+            {
+                if (!caravan.pather.MovingNow)
+                {
+                    drawRow!("CaravanStatus_Label".Translate(), CaravanBedUtility.AppendUsingBedsLabel("CaravanResting".Translate(), caravan.beds.GetUsedBedCount()));
+                }
+                else if (caravan.pather.ArrivalAction != null)
+                {
+                    drawRow!("CaravanStatus_Label".Translate(), caravan.pather.ArrivalAction.ReportString);
+                }
+                else
+                {
+                    drawRow!("CaravanStatus_Label".Translate(), "CaravanTraveling".Translate());
+                }
+
+                float days = (float)CaravanArrivalTimeEstimator.EstimatedTicksToArrive(caravan, true) / 60000f;
+                drawRow!("CaravanTTD_Label".Translate(), days.ToString("0.#"));
+            }
+            else
+            {
+                Settlement? visited = CaravanVisitUtility.SettlementVisitedNow(caravan);
+                drawRow!(
+                    "CaravanStatus_Label".Translate(),
+                    visited != null ? "CaravanVisiting".Translate(visited.Label) : "CaravanWaiting".Translate());
+            }
+        }
+
+        private static void DrawSettlementFactionRows(Settlement settlement)
+        {
+            drawRow!("Faction_Label".Translate(), settlement.Faction!.Name);
+            if (settlement.Faction != Faction.OfPlayer)
+            {
+                string relation = settlement.Faction.Hidden
+                    ? settlement.Faction.PlayerRelationKind.GetLabelCap()
+                    : settlement.Faction.PlayerRelationKind.GetLabelCap() + " (" + settlement.Faction.PlayerGoodwill.ToStringWithSign() + ")";
+                drawRow!("Relationship_Label".Translate(), relation);
+            }
+        }
+
+        private static bool TryEnsureDrawDelegates()
+        {
+            if (delegatesInitialised)
+            {
+                return drawHeader != null && drawRow != null && drawDivider != null;
+            }
+
+            delegatesInitialised = true;
+            MethodInfo? headerMi = AccessTools.Method(typeof(CellInspectorDrawer), "DrawHeader", new[] { typeof(string) });
+            MethodInfo? rowMi = AccessTools.Method(typeof(CellInspectorDrawer), "DrawRow", new[] { typeof(string), typeof(string) });
+            MethodInfo? dividerMi = AccessTools.Method(typeof(CellInspectorDrawer), "DrawDivider");
+
+            if (headerMi != null)
+            {
+                drawHeader = (Action<string>)Delegate.CreateDelegate(typeof(Action<string>), headerMi);
+            }
+
+            if (rowMi != null)
+            {
+                drawRow = (Action<string, string>)Delegate.CreateDelegate(typeof(Action<string, string>), rowMi);
+            }
+
+            if (dividerMi != null)
+            {
+                drawDivider = (Action)Delegate.CreateDelegate(typeof(Action), dividerMi);
+            }
+
+            return drawHeader != null && drawRow != null && drawDivider != null;
         }
     }
 }

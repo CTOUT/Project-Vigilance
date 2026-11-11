@@ -33,9 +33,9 @@ public static class Pawn_GetGizmos_EncounterRetreatPatch
 
         Map map = __instance.Map;
         var ambushComp = map.GetComponent<MapComponent_OverlandAmbush>();
-        bool isBattlefield = map.Parent is CaravansBattlefield || ambushComp != null;
+        bool isOverlandEncounter = IncursionTacticalRetreatUtility.IsOverlandEncounterMap(map, ambushComp);
 
-        if (!isBattlefield)
+        if (!IncursionTacticalRetreatUtility.ShouldShowEncounterRetreatGizmo(map.IsPlayerHome, isOverlandEncounter))
         {
             yield break;
         }
@@ -45,7 +45,14 @@ public static class Pawn_GetGizmos_EncounterRetreatPatch
         // 1. If temporary encounter map has no active threats: offer direct "Reform Caravan"
         if (!hasActiveThreats)
         {
-            if (map.IsPlayerHome)
+            bool hasCombatOrAmbushState = ambushComp != null && ambushComp.HasCombatOrAmbushState;
+            if (!IncursionTacticalRetreatUtility.ShouldShowReformCaravanUi(
+                    isPlayerHome: map.IsPlayerHome,
+                    isPocketMap: map.IsPocketMap,
+                    isSettlementParent: map.Parent is Settlement,
+                    isTemporaryBattlefieldParent: map.Parent is CaravansBattlefield,
+                    hasActiveThreats: hasActiveThreats,
+                    hasCombatOrAmbushState: hasCombatOrAmbushState))
             {
                 yield break;
             }

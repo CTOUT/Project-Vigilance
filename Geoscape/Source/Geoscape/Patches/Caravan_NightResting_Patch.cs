@@ -28,6 +28,11 @@ public static class Caravan_NightResting_Patch
     private static TraitDef? cachedNightOwlTrait;
     private static bool nightOwlLookupDone;
 
+    /// <summary>
+    /// Optional hook for overriding Night Owl trait evaluation during headless unit testing.
+    /// </summary>
+    public static System.Func<Pawn, bool>? NightOwlPredicateOverride { get; set; }
+
     [HarmonyPostfix]
     public static void Postfix(Caravan __instance, ref bool __result)
     {
@@ -190,16 +195,16 @@ public static class Caravan_NightResting_Patch
         }
     }
 
-    private static bool DoesColonistWantCaravanRest(Pawn pawn, int hour, out bool isExplicitActiveOverride)
+    public static bool DoesColonistWantCaravanRest(Pawn pawn, int hour, out bool isExplicitActiveOverride)
     {
         isExplicitActiveOverride = false;
         Pawn_TimetableTracker? timetable = pawn.timetable;
         TimeAssignmentDef assignment = timetable?.GetAssignment(hour) ?? TimeAssignmentDefOf.Anything;
 
         // Explicit Work, Joy, or Meditate assignment always keeps the pawn active (enables force-march)
-        if (assignment == TimeAssignmentDefOf.Work ||
-            assignment == TimeAssignmentDefOf.Joy ||
-            assignment == TimeAssignmentDefOf.Meditate)
+        if ((TimeAssignmentDefOf.Work != null && assignment == TimeAssignmentDefOf.Work) ||
+            (TimeAssignmentDefOf.Joy != null && assignment == TimeAssignmentDefOf.Joy) ||
+            (TimeAssignmentDefOf.Meditate != null && assignment == TimeAssignmentDefOf.Meditate))
         {
             isExplicitActiveOverride = true;
             return false;
@@ -225,11 +230,11 @@ public static class Caravan_NightResting_Patch
             }
 
             // Player customized this Night Owl's Sleep schedule explicitly
-            return assignment == TimeAssignmentDefOf.Sleep;
+            return TimeAssignmentDefOf.Sleep != null && assignment == TimeAssignmentDefOf.Sleep;
         }
 
         // Non-Night-Owl colonist:
-        if (assignment == TimeAssignmentDefOf.Sleep)
+        if (TimeAssignmentDefOf.Sleep != null && assignment == TimeAssignmentDefOf.Sleep)
         {
             return true;
         }
@@ -268,7 +273,12 @@ public static class Caravan_NightResting_Patch
 
     public static bool HasNightOwlTrait(Pawn pawn)
     {
-        if (pawn.story?.traits == null)
+        if (NightOwlPredicateOverride != null)
+        {
+            return NightOwlPredicateOverride(pawn);
+        }
+
+        if (pawn?.story?.traits == null)
         {
             return false;
         }

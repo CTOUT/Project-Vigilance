@@ -3,6 +3,7 @@ using ProjectVigilance.Geoscape.Sensory;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
+using Verse;
 
 namespace Geoscape.Tests;
 
@@ -334,5 +335,107 @@ public sealed class WorldObject_ListeningPostTests
         };
         var customSite = new Site { def = customDef };
         Assert.IsTrue(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.ShouldDrawUpright(customSite));
+    }
+
+    [TestMethod]
+    public void AutomatedRelay_SolarFlareAndEclipse_DisruptsTelemetryAndDeactivatesSensor()
+    {
+        SensoryDisruptionUtility.SolarFlareOverride = null;
+        SensoryDisruptionUtility.EclipseOverride = null;
+
+        var relay = new WorldObject_ListeningPost { Kind = ListeningPostKind.AutomatedRelay };
+        relay.SetSpawnedRaw(true);
+        Assert.IsTrue(relay.IsSensorActive, "Relay should be active initially.");
+        Assert.IsFalse(relay.IsDisruptedByEnvironment(out _));
+
+        try
+        {
+            // 1. Solar flare test
+            SensoryDisruptionUtility.SolarFlareOverride = true;
+            Assert.IsTrue(relay.IsDisruptedByEnvironment(out string flareReason));
+            Assert.AreEqual("Solar Flare", flareReason);
+            Assert.IsFalse(relay.IsSensorActive, "Relay sensor must deactivate during solar flare.");
+            StringAssert.Contains(relay.Label, "Offline: Solar Flare");
+
+            // 2. Solar flare clears, eclipse strikes
+            SensoryDisruptionUtility.SolarFlareOverride = false;
+            SensoryDisruptionUtility.EclipseOverride = true;
+            Assert.IsTrue(relay.IsDisruptedByEnvironment(out string eclipseReason));
+            Assert.AreEqual("Solar Eclipse / Darkness", eclipseReason);
+            Assert.IsFalse(relay.IsSensorActive, "Relay sensor must deactivate during eclipse/darkness.");
+            StringAssert.Contains(relay.Label, "Offline: Solar Eclipse / Darkness");
+
+            // 3. Clear all disruptions
+            SensoryDisruptionUtility.EclipseOverride = false;
+            Assert.IsFalse(relay.IsDisruptedByEnvironment(out _));
+            Assert.IsTrue(relay.IsSensorActive, "Relay sensor must restore once conditions clear.");
+        }
+        finally
+        {
+            SensoryDisruptionUtility.SolarFlareOverride = null;
+            SensoryDisruptionUtility.EclipseOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void SignalBeacon_SolarFlareAndEclipse_ImmuneAndRemainsActive()
+    {
+        SensoryDisruptionUtility.SolarFlareOverride = null;
+        SensoryDisruptionUtility.EclipseOverride = null;
+
+        var beacon = new WorldObject_ListeningPost { Kind = ListeningPostKind.SignalBeacon };
+        beacon.SetSpawnedRaw(true);
+        Assert.IsTrue(beacon.IsSensorActive);
+
+        try
+        {
+            SensoryDisruptionUtility.SolarFlareOverride = true;
+            SensoryDisruptionUtility.EclipseOverride = true;
+
+            // Signal beacons are primitive optical lookouts / bonfires: 100% immune
+            Assert.IsFalse(beacon.IsDisruptedByEnvironment(out string reason), "Signal beacon must never be disrupted by electromagnetic conditions.");
+            Assert.AreEqual(string.Empty, reason);
+            Assert.IsTrue(beacon.IsSensorActive, "Signal beacon must remain active during flares and eclipses.");
+            Assert.IsFalse(beacon.Label.Contains("Offline"), "Label must not indicate offline.");
+        }
+        finally
+        {
+            SensoryDisruptionUtility.SolarFlareOverride = null;
+            SensoryDisruptionUtility.EclipseOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void CaravanExpeditionUtility_GetExpectedDismantleYield_CalculatesAccurateMassAndDesc()
+    {
+        // 1. Automated Relay (Constructing -> 100% refund: 100 steel + 4 comp = 52.4kg)
+        var relay = new WorldObject_ListeningPost { Kind = ListeningPostKind.AutomatedRelay };
+        relay.StartConstruction(2500);
+        var (cMass, cDesc) = CaravanExpeditionUtility.GetExpectedDismantleYield(relay, ListeningPostKind.AutomatedRelay, null);
+        Assert.AreEqual(52.4f, cMass, 0.1f, "Constructing relay must refund 100% materials (52.4kg).");
+        StringAssert.Contains(cDesc, "100% refund");
+        StringAssert.Contains(cDesc, "100 Steel");
+
+        // 2. Automated Relay (Operational -> 75% salvage: 75 steel + 3 comp = 39.3kg)
+        var opRelay = new WorldObject_ListeningPost { Kind = ListeningPostKind.AutomatedRelay };
+        var (opMass, opDesc) = CaravanExpeditionUtility.GetExpectedDismantleYield(opRelay, ListeningPostKind.AutomatedRelay, null);
+        Assert.AreEqual(39.3f, opMass, 0.1f, "Operational relay must salvage 75% materials (39.3kg).");
+        StringAssert.Contains(opDesc, "75% salvage");
+        StringAssert.Contains(opDesc, "75 Steel");
+
+        // 3. Signal Beacon Wood (Constructing -> 150 wood = 60kg)
+        var woodDef = ThingDefOf.WoodLog ?? new ThingDef { defName = "WoodLog", statBases = new System.Collections.Generic.List<RimWorld.StatModifier> { new RimWorld.StatModifier { stat = RimWorld.StatDefOf.Mass, value = 0.4f } } };
+        var woodBeacon = new WorldObject_ListeningPost { Kind = ListeningPostKind.SignalBeacon, stuffDef = woodDef };
+        woodBeacon.StartConstruction(2500);
+        var (wMass, wDesc) = CaravanExpeditionUtility.GetExpectedDismantleYield(woodBeacon, ListeningPostKind.SignalBeacon, woodDef);
+        Assert.AreEqual(60.0f, wMass, 0.1f, "Constructing wood beacon must refund 150 wood (60kg).");
+        StringAssert.Contains(wDesc, "100% refund");
+
+        // 4. Signal Beacon Stone (Operational -> 112 stone blocks * 1.0kg = 112kg)
+        var stoneDef = new ThingDef { defName = "BlocksGranite", statBases = new System.Collections.Generic.List<RimWorld.StatModifier> { new RimWorld.StatModifier { stat = RimWorld.StatDefOf.Mass, value = 1.0f } } };
+        var stoneBeacon = new WorldObject_ListeningPost { Kind = ListeningPostKind.SignalBeacon, stuffDef = stoneDef };
+        var (sMass, sDesc) = CaravanExpeditionUtility.GetExpectedDismantleYield(stoneBeacon, ListeningPostKind.SignalBeacon, stoneDef);
+        Assert.AreEqual(112.0f, sMass, 0.1f, "Operational stone beacon must salvage 112 blocks (112kg).");
+        StringAssert.Contains(sDesc, "75% salvage");
     }
 }

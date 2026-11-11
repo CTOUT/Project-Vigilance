@@ -83,13 +83,19 @@ In vanilla RimWorld, oceans make up 30–50% of the planetary surface, yet they 
 
 ### Core Design Principles: Epistemic Uncertainty & Earned Intelligence
 
-Two foundational design principles govern all systems across Project Vigilance:
+Four foundational design principles govern all sensory and intelligence systems across Project Vigilance:
 
 > **1. "You don't know what you don't know."**  
 > _To know, you need to find out — investigate, identify, research, explore._
 >
 > **2. "Information must be earned, not guessed."**  
 > _Uncertainty is not arbitrary blindness; every unknown has an actionable, strategic path to discovery._
+>
+> **3. "The Geoscape should occasionally make the player curious, but rarely make the player certain."**  
+> _Uncharted and peripheral sectors emit intriguing indirect signs without offering easy guarantees._
+>
+> **4. "The Geoscape should occasionally be wrong, uncertain, incomplete, or misleading — because intelligence gathering is imperfect, not because the game is cheating."**  
+> _Every inaccuracy must trace back to an observable physical simulation cause (stale surveys, signal degradation, environmental clutter, or active deception), never ungrounded RNG falsehoods._
 
 #### 1. The Epistemic Philosophy
 
@@ -99,6 +105,8 @@ Project Vigilance rejects passive omniscience:
 
 - **Earned Intelligence:** Information is an active, high-value strategic commodity earned through deliberate player initiative, technological investment, and field reconnaissance.
 - **Eliminating the Blind Guessing Paradox:** While the planet begins in darkness, the player should never be forced to make permanent, game-defining decisions through blind guesswork. True exploration provides the tools to survey, probe, and uncover actionable intelligence before committing irreversible resources.
+- **Curiosity Over Certainty:** Outer sensors and frontier edges are built to provoke hypotheses rather than stamp binary labels. Even a confirmed detection leaves meaningful operational ambiguity (uncertain strength brackets, wide bearing arcs, or narrow sensor blind spots) until corroborated across multiple disciplines or verified on the ground.
+- **Imperfect Intelligence Without Cheating:** Because sensor physics and human observation are noisy, intelligence reports can degrade, omit critical threats, or conflict. The simulation itself never bends rules to ambush or mislead the player; instead, errors emerge deterministically from signal interference, staleness, or enemy countermeasures that the player can recognise and counter.
 
 #### 2. Practical Application Across Systems
 
@@ -123,7 +131,17 @@ Project Vigilance rejects passive omniscience:
 - **Planetary Expedition Phase & Landing Reserves (Civilization Settler Paradigm):**  
   To ensure _information is earned, not guessed_, starting on an uncharted planet (_Classic Haze of War_) transitions from arbitrary site selection to a deliberate regional survey. Rather than committing to a permanent settlement blindly from orbit, landing parties deploy with mobile reconnaissance mobility to survey local waterways, roads, and defensible mountain choke points before staking their permanent claim, calling down heavy landing cargo and orbital supply pods upon site deployment.
 
-#### 3. The Campaign Identity Equation
+#### 3. Mystery & Imperfect Intelligence Without Cheap Tricks
+
+Unexplored and unmonitored regions should feel alive and evocative without resorting to artificial black voids or arbitrary RNG tricks:
+
+- **Peripheral Traces Across the Boundary:** Unexplored space reveals itself indirectly through physical continuity at explored edges — highways disappearing into Shroud, ash or pollution drifting downstream from unseen fires, displaced stragglers arriving from unmonitored regions, and fragmented bearing-only radio intercepts on powered communications consoles.
+- **Explicit Confidence & Uncertainty Cones:** Outer-edge contacts and single-station pings communicate ambiguity honestly through range/bearing uncertainty arcs, broad strength estimates, and explicit confidence levels (`Unconfirmed`, `Low Confidence / Clutter`, `Corroborated`), tightened only by cross-bearing interferometry or visual scouting.
+- **Natural Staleness of Old Memory:** Explored-but-unmonitored Haze represents the colony's _last observed_ record rather than a live snapshot. Because NPC caravans, skirmishes, and expansions continue off-screen, unmonitored settlements or camp sites can silently become outdated (`Last observed: 9 days ago`), turning yesterday's friendly trading village into an abandoned ruin without scripted trickery.
+- **Grounded Misdirection & Sensor Narrowing:** False positives and misread signals arise strictly from physical conditions — solar flare clutter, biological sonar echoes on early hydrophones, weather/night attenuation on optical lookouts, biased traveller rumours, or hostile Electronic Countermeasures (ECM) and spoofed transponders countered through SIGINT decryption and physical investigation.
+- **Signal History & Cumulative Evidence Dossier:** Rather than handing out quest checklists, the Geoscape preserves a living intelligence journal of recurring signals and contact tracks (`Repeated Contact #12`, `First Observed`, observation count, decaying confidence percentage, `Classification`, and `Last Seen`). Scattered radar grazes, coastal sonar hits, aftermath traces, and second-hand rumours accumulate into longitudinal evidence that players correlate across the globe to infer enemy staging hubs, patrol routes, and maritime corridors — while noisy low-confidence fixes can still mis-link separate contacts or split erratic tracks until confirmed.
+
+#### 4. The Campaign Identity Equation
 
 Project Vigilance treats campaign rules not as floating global UI options, but as permanent pillars of simulation identity:
 

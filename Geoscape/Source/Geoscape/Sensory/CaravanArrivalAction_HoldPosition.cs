@@ -35,11 +35,42 @@ public class CaravanArrivalAction_HoldPosition : CaravanArrivalAction
         ? $"travelling to hold position outside {locationLabel}"
         : $"travelling to Tile {destinationTile.tileId}";
 
-    public override FloatMenuAcceptanceReport StillValid(Caravan caravan, PlanetTile destinationTile)
+    public static FloatMenuAcceptanceReport CanHoldPosition(Caravan caravan, PlanetTile destinationTile)
     {
-        if (caravan == null || !caravan.Spawned)
+        if (caravan == null)
         {
             return false;
+        }
+
+        if (Current.Game != null && Find.World != null)
+        {
+            if (!caravan.Spawned)
+            {
+                return false;
+            }
+        }
+
+        if (!destinationTile.Valid)
+        {
+            return false;
+        }
+
+        return FloatMenuAcceptanceReport.WasAccepted;
+    }
+
+    public override FloatMenuAcceptanceReport StillValid(Caravan caravan, PlanetTile destinationTile)
+    {
+        if (caravan == null)
+        {
+            return false;
+        }
+
+        if (Current.Game != null && Find.World != null)
+        {
+            if (!caravan.Spawned)
+            {
+                return false;
+            }
         }
 
         return true;
