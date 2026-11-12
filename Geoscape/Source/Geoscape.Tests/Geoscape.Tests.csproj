@@ -6,8 +6,10 @@
     <Nullable>enable</Nullable>
     <!-- Default Steam paths by platform -->
     <RimWorldPath Condition="'$(RimWorldPath)' == '' and '$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))'">D:\Games\Steam\steamapps\common\RimWorld</RimWorldPath>
+    <RimWorldPath Condition="'$(RimWorldPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;)) and Exists('$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/RimWorld')">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/RimWorld</RimWorldPath>
     <RimWorldPath Condition="'$(RimWorldPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))">$(HOME)/.local/share/Steam/steamapps/common/RimWorld</RimWorldPath>
     <HarmonyPath Condition="'$(HarmonyPath)' == '' and '$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))'">D:\Games\Steam\steamapps\workshop\content\294100\2009463077\1.7\Assemblies\0Harmony.dll</HarmonyPath>
+    <HarmonyPath Condition="'$(HarmonyPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;)) and Exists('$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll')">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyPath>
     <HarmonyPath Condition="'$(HarmonyPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))">$(HOME)/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyPath>
   </PropertyGroup>
 

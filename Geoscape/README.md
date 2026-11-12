@@ -80,7 +80,7 @@ npm run deploy:geoscape
 ./scripts/deploy-geoscape.ps1
 ```
 
-**Linux / CachyOS (Bash):**
+**Linux / Zorin OS / Ubuntu / CachyOS (Bash):**
 
 ```bash
 npm run deploy:geoscape:linux

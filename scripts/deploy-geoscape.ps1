@@ -6,7 +6,7 @@
     Builds the Geoscape project targeting .NET 10 (net10.0) and creates or updates
     an NTFS junction (Windows) or symbolic link (Linux/macOS) in RimWorld's Mods directory
     pointing to Project-Vigilance/Geoscape.
-    Idempotent and safe to run repeatedly across Windows and Linux (CachyOS).
+    Idempotent and safe to run repeatedly across Windows and Linux (Zorin OS, Ubuntu, CachyOS).
 
 .PARAMETER RimWorldModsPath
     The target directory where RimWorld mods are located.

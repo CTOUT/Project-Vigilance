@@ -41,7 +41,7 @@ In vanilla RimWorld, raids and trade caravans instantaneously materialise at the
 2. Download or clone this repository.
 3. Link the [`Geoscape/`](Geoscape/) folder to your RimWorld `Mods/` directory using the automated deployment tooling:
    - **Windows (PowerShell):** `npm run deploy:geoscape` (or `./scripts/deploy-geoscape.ps1`)
-   - **Linux / CachyOS (Bash):** `npm run deploy:geoscape:linux` (or `./scripts/deploy-geoscape.sh`)
+   - **Linux / Zorin / Ubuntu (Bash):** `npm run deploy:geoscape:linux` (or `./scripts/deploy-geoscape.sh`)
    - _Manual alternative:_ Copy or symlink `Geoscape/` into your RimWorld `Mods/ProjectVigilance-Geoscape` folder.
 4. Activate **Harmony** first, followed by **Project Vigilance - Overland Incursions** in your mod manager.
 
@@ -128,7 +128,7 @@ dotnet test Geoscape/Source/Geoscape.slnx
 
 # Deploy mod to local RimWorld Mods directory
 npm run deploy:geoscape         # Windows (PowerShell / NTFS Junction)
-npm run deploy:geoscape:linux   # Linux / CachyOS (Bash / Symlink)
+npm run deploy:geoscape:linux   # Linux / Zorin / Ubuntu (Bash / Symlink)
 
 # Format project files (Prettier)
 npm run format
