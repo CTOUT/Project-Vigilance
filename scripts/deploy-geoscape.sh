@@ -230,6 +230,17 @@ fi
 # 5. Create or verify symbolic link (or perform copy)
 TARGET_DESTINATION="$RIMWORLD_MODS_PATH/ProjectVigilance-Geoscape"
 
+# Handle Flatpak sandbox permissions when using symlink mode
+if [[ $COPY_MODE == false && "$RIMWORLD_MODS_PATH" == *"/com.valvesoftware.Steam/"* ]]; then
+	if command -v flatpak >/dev/null 2>&1; then
+		if ! flatpak run --command=test com.valvesoftware.Steam -d "$GEOSCAPE_DIR" 2>/dev/null; then
+			echo -e "${YELLOW}--> Flatpak Steam sandbox detected without access to project directory.${NC}"
+			echo -e "${YELLOW}    Granting Flatpak filesystem permission to read $REPO_ROOT...${NC}"
+			flatpak override --user com.valvesoftware.Steam --filesystem="$REPO_ROOT:ro"
+		fi
+	fi
+fi
+
 if [[ $COPY_MODE == true ]]; then
 	echo -e "${YELLOW}--> Copy mode enabled. Syncing mod files to: $TARGET_DESTINATION${NC}"
 	rm -rf "$TARGET_DESTINATION"
@@ -266,6 +277,17 @@ if [[ -f "$TARGET_DESTINATION/1.7/Assemblies/Geoscape.dll" ]]; then
 	echo -e "${GREEN}--> Verified: 1.7/Assemblies/Geoscape.dll present.${NC}"
 else
 	echo -e "${YELLOW}--> Note: 1.7/Assemblies/Geoscape.dll not found yet. Run 'dotnet build' to produce the binary.${NC}"
+fi
+
+# Verify accessibility inside Flatpak container if applicable
+if [[ "$RIMWORLD_MODS_PATH" == *"/com.valvesoftware.Steam/"* ]] && command -v flatpak >/dev/null 2>&1; then
+	if flatpak run --command=test com.valvesoftware.Steam -f "$TARGET_DESTINATION/About/About.xml" 2>/dev/null; then
+		echo -e "${GREEN}--> Verified: Mod accessible inside Flatpak Steam sandbox.${NC}"
+	else
+		echo -e "${RED}--> Warning: Flatpak Steam cannot read files through symlink.${NC}" >&2
+		echo -e "${YELLOW}    Run with --copy mode, or grant Flatpak filesystem permission:${NC}" >&2
+		echo -e "      flatpak override --user com.valvesoftware.Steam --filesystem=$REPO_ROOT:ro" >&2
+	fi
 fi
 
 echo -e "${CYAN}==> [Project Vigilance] Deployment complete. Mod is active in: $TARGET_DESTINATION${NC}"
