@@ -1,6 +1,7 @@
 # Implementation Plan: Oceanic Sonar Line-of-Sight & Land Shadowing
 
 ## Goal Description
+
 In Project Vigilance, **Oceanic Sonar** (provided by Coastal Hydrophone Arrays `Geoscape_SonarArray` and Automated Sonar Stations `ListeningPostKind.AutomatedSonar`) is designed to track maritime contacts strictly across water bodies (`tile.WaterCovered == true`).
 
 Currently, `SonarTraversalUtility.PopulateSonarCoverage` uses a graph-based Breadth-First Search (BFS) that traverses from neighbor to neighbor across water tiles. While it prevents entering land hexes directly, it allows sound to navigate through contiguous water around capes, peninsulas, and headlands, illuminating water bodies on the far side of landmasses where direct geometric line of sight is obstructed.
@@ -10,6 +11,7 @@ As observed in playtesting, a coastal sonar station built on the southern shore 
 ![Playtest Observation](assets/sonar-land-wrap-issue.jpg)
 
 This change implements a deterministic **Hex Ray Line-of-Sight (LOS)** algorithm in `SonarTraversalUtility`:
+
 1. Sound radiates outward in straight sightlines from the station's submerged hydrophone origins (`adjacentWater`).
 2. Any intervening land hex along the ray acts as an acoustic barrier and terminates visibility past that point.
 3. Headlands, islands, and peninsulas cast physical acoustic shadows behind them, preventing sonar from wrapping around land.
@@ -28,7 +30,7 @@ This change implements a deterministic **Hex Ray Line-of-Sight (LOS)** algorithm
 
 ## Open Questions
 
-None at this time; the requirement is explicit: *"Any hex of land should stop visibility past that point."*
+None at this time; the requirement is explicit: _"Any hex of land should stop visibility past that point."_
 
 ---
 
@@ -49,7 +51,7 @@ flowchart TD
         BFS["Contiguous Water Reachable?"]
         Angle["Within Directional Sector Arc?"]
         LOS{"HasWaterLineOfSight?<br/>(Ray intersects any Land?)"}
-        
+
         W1 --> BFS
         BFS -- Yes --> Angle
         Angle -- Yes --> LOS
@@ -63,6 +65,7 @@ flowchart TD
 ---
 
 #### [MODIFY] [SonarTraversalUtility.cs](../Geoscape/Source/Geoscape/Sensory/SonarTraversalUtility.cs)
+
 - Add `HasWaterLineOfSight(PlanetTile originWaterTile, PlanetTile targetTile)`:
   - Takes `originWaterTile` (the submerged hydrophone origin) and `targetTile`.
   - If `originWaterTile == targetTile` or they are immediate neighbors, returns `true` (both are water).
@@ -85,6 +88,7 @@ flowchart TD
 ---
 
 #### [MODIFY] [Milestone13FixesTests.cs](../Geoscape/Source/Geoscape.Tests/Milestone13FixesTests.cs)
+
 - Add comprehensive test cases verifying:
   1. `SonarTraversalUtility_PeninsulaWrapAround_IsShadowedAndBlocked`:
      - Models a peninsula with an adjacent bay connected via water around the tip.
@@ -102,13 +106,17 @@ flowchart TD
 ## Verification Plan
 
 ### Automated Tests
+
 Run full test suite via `dotnet test`:
+
 ```bash
 XDG_RUNTIME_DIR=/tmp dotnet test Geoscape/Source/Geoscape.slnx
 ```
+
 Expect: All 400 existing tests + new Sonar line-of-sight tests passing with 0 errors.
 
 ### Manual Verification
+
 1. Run `./scripts/deploy-geoscape.sh` to compile and deploy the updated assembly to RimWorld's Flatpak Mods directory.
 2. Launch RimWorld and load the save containing the coastal sonar array shown in the screenshot.
 3. Open the World Map:
