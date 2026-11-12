@@ -26,11 +26,19 @@ public static class SensorDetectionUtility
 
         if (sensor.IsOceanicSonar)
         {
-            var targetTileData = target.CurrentTile.Tile;
-            if (targetTileData == null || !targetTileData.WaterCovered)
+            if (!SonarTraversalUtility.IsTileWaterCovered(target.CurrentTile))
             {
                 return false;
             }
+
+            int sonarMaxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
+            if (SonarTraversalUtility.TryGetSonarDetectionDistance(sensor.SensorTile, target.CurrentTile, sonarMaxSteps, out int sonarDist))
+            {
+                distance = sonarDist;
+                return true;
+            }
+
+            return false;
         }
 
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));

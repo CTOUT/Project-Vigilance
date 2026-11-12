@@ -271,6 +271,9 @@
     <researchPrerequisites>
       <li>Geoscape_EarlyWarningRadar</li>
     </researchPrerequisites>
+    <placeWorkers>
+      <li>ProjectVigilance.Geoscape.Sensory.PlaceWorker_CoastalSonar</li>
+    </placeWorkers>
     <statBases>
       <MaxHitPoints>350</MaxHitPoints>
       <WorkToBuild>2800</WorkToBuild>

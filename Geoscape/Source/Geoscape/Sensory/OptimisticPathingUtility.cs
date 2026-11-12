@@ -8,6 +8,27 @@ using Verse;
 namespace ProjectVigilance.Geoscape.Sensory;
 
 /// <summary>
+/// Unit movement and traversal capability domain.
+/// Determines which terrain types and environmental obstacles impede a given unit.
+/// </summary>
+public enum UnitTraversalCapability
+{
+    LandCaravan,
+    NavalUnit,
+    Aircraft
+}
+
+/// <summary>
+/// Tracks per-expedition detour and obstacle notification state.
+/// </summary>
+public sealed class ExpeditionDetourState
+{
+    public float InitialDirectDistance { get; set; } = -1f;
+    public float MaxDetourMultiplier { get; set; } = 2.0f;
+    public HashSet<int> NotifiedObstacleTiles { get; } = new();
+}
+
+/// <summary>
 /// Implements authentic 4X Fog-of-War "Optimistic Pathfinding" across the Geoscape globe.
 /// Unexplored sectors shrouded in the black unknown are assumed traversible with baseline movement costs,
 /// preventing the player or caravan pather from omnisciently sensing hidden impassable obstacles (mountains/oceans).
@@ -26,6 +47,50 @@ public static class OptimisticPathingUtility
     public static Func<PlanetTile, bool>? IsTileImpassableOverride;
     public static Action<Caravan, PlanetTile, string>? OnCaravanReroutedForTesting;
     public static Action<Caravan, PlanetTile, string>? OnCaravanHaltedForTesting;
+    public static Action<Caravan, PlanetTile, string>? OnCaravanHardStopPromptForTesting;
+
+    private static readonly Dictionary<int, ExpeditionDetourState> expeditionStates = new();
+
+    public static void ResetExpeditionState(int caravanId)
+    {
+        expeditionStates.Remove(caravanId);
+    }
+
+    public static ExpeditionDetourState GetOrCreateExpeditionState(Caravan caravan, PlanetTile destTile)
+    {
+        if (!expeditionStates.TryGetValue(caravan.ID, out var state))
+        {
+            state = new ExpeditionDetourState();
+            if (caravan.Tile.Valid && destTile.Valid)
+            {
+                state.InitialDirectDistance = (Current.Game != null && Find.World != null && Find.WorldGrid != null)
+                    ? Find.WorldGrid.ApproxDistanceInTiles(caravan.Tile, destTile)
+                    : Math.Abs(caravan.Tile.tileId - destTile.tileId);
+            }
+            expeditionStates[caravan.ID] = state;
+        }
+        else if (state.InitialDirectDistance <= 0f && caravan.Tile.Valid && destTile.Valid)
+        {
+            state.InitialDirectDistance = (Current.Game != null && Find.World != null && Find.WorldGrid != null)
+                ? Find.WorldGrid.ApproxDistanceInTiles(caravan.Tile, destTile)
+                : Math.Abs(caravan.Tile.tileId - destTile.tileId);
+        }
+        return state;
+    }
+
+    public static bool IsTileObstacleForUnit(PlanetTile tile, UnitTraversalCapability capability = UnitTraversalCapability.LandCaravan)
+    {
+        switch (capability)
+        {
+            case UnitTraversalCapability.NavalUnit:
+                return !SonarTraversalUtility.IsTileWaterCovered(tile);
+            case UnitTraversalCapability.Aircraft:
+                return false;
+            case UnitTraversalCapability.LandCaravan:
+            default:
+                return IsTileImpassable(tile);
+        }
+    }
 
     private static readonly System.Reflection.FieldInfo caravanField = HarmonyLib.AccessTools.Field(typeof(Caravan_PathFollower), "caravan");
     private static readonly System.Reflection.FieldInfo movingField = HarmonyLib.AccessTools.Field(typeof(Caravan_PathFollower), "moving");
@@ -223,8 +288,10 @@ public static class OptimisticPathingUtility
             return;
         }
 
-        // 1. Destination sector itself was discovered to be impassable
-        if (!IsTileUnexplored(destTile) && IsTileImpassable(destTile))
+        ExpeditionDetourState detourState = GetOrCreateExpeditionState(caravan, destTile);
+
+        // 1. Destination sector itself was discovered to be an obstacle
+        if (!IsTileUnexplored(destTile) && IsTileObstacleForUnit(destTile, UnitTraversalCapability.LandCaravan))
         {
             string reason = GetImpassableReason(destTile);
             PlanetTile bestNearby = PlanetTile.Invalid;
@@ -243,28 +310,21 @@ public static class OptimisticPathingUtility
                 if (Current.ProgramState == ProgramState.Playing)
                 {
                     Messages.Message(
-                        $"Caravan {caravan.LabelCap} discovered destination sector {destTile.tileId} is impassable ({reason}). Rerouting to adjacent sector {bestNearby.tileId}.",
-                        MessageTypeDefOf.CautionInput,
+                        "Caravan has encountered an obstacle and is searching for an alternative route.",
+                        caravan,
+                        MessageTypeDefOf.NeutralEvent,
                         false);
                 }
                 OnCaravanReroutedForTesting?.Invoke(caravan, bestNearby, reason);
             }
             else
             {
-                caravan.pather.StopDead();
-                if (Current.ProgramState == ProgramState.Playing)
-                {
-                    Messages.Message(
-                        $"Caravan {caravan.LabelCap} reached the edge of sector {destTile.tileId}; further passage is blocked by {reason}.",
-                        MessageTypeDefOf.NegativeEvent,
-                        false);
-                }
-                OnCaravanHaltedForTesting?.Invoke(caravan, destTile, reason);
+                TriggerHardStopPrompt(caravan, destTile, reason);
             }
             return;
         }
 
-        // 2. Intermediate path nodes discovered to be impassable
+        // 2. Intermediate path nodes discovered to be obstacles
         WorldPath curPath = caravan.pather.curPath;
         if (curPath == null || !curPath.Found)
         {
@@ -274,7 +334,7 @@ public static class OptimisticPathingUtility
         PlanetTile blockedTile = PlanetTile.Invalid;
         PlanetTile nextTile = caravan.pather.nextTile;
 
-        if (nextTile.Valid && !IsTileUnexplored(nextTile) && IsTileImpassable(nextTile))
+        if (nextTile.Valid && !IsTileUnexplored(nextTile) && IsTileObstacleForUnit(nextTile, UnitTraversalCapability.LandCaravan))
         {
             blockedTile = nextTile;
         }
@@ -284,7 +344,7 @@ public static class OptimisticPathingUtility
             for (int i = 0; i < nodesToCheck; i++)
             {
                 PlanetTile node = curPath.Peek(i);
-                if (node.Valid && !IsTileUnexplored(node) && IsTileImpassable(node))
+                if (node.Valid && !IsTileUnexplored(node) && IsTileObstacleForUnit(node, UnitTraversalCapability.LandCaravan))
                 {
                     blockedTile = node;
                     break;
@@ -304,28 +364,114 @@ public static class OptimisticPathingUtility
                 caravan.pather.StartPath(caravan.pather.Destination, caravan.pather.ArrivalAction, repathImmediately: true);
             }
 
-            if (IsMoving(caravan.pather))
+            bool stillMoving = IsMoving(caravan.pather);
+            bool breakEvenExceeded = false;
+
+            if (stillMoving && caravan.pather.curPath != null && caravan.pather.curPath.Found)
             {
-                if (Current.ProgramState == ProgramState.Playing)
+                int remainingNodes = caravan.pather.curPath.NodesLeftCount;
+                if (detourState.InitialDirectDistance > 0f &&
+                    remainingNodes > detourState.InitialDirectDistance * detourState.MaxDetourMultiplier)
                 {
-                    Messages.Message(
-                        $"Caravan {caravan.LabelCap} encountered {reason} in sector {blockedTile.tileId} and adjusted its route.",
-                        MessageTypeDefOf.NeutralEvent,
-                        false);
+                    breakEvenExceeded = true;
+                }
+            }
+
+            if (stillMoving && !breakEvenExceeded)
+            {
+                if (detourState.NotifiedObstacleTiles.Add(blockedTile.tileId))
+                {
+                    if (Current.ProgramState == ProgramState.Playing)
+                    {
+                        Messages.Message(
+                            "Caravan has encountered an obstacle and is searching for an alternative route.",
+                            caravan,
+                            MessageTypeDefOf.NeutralEvent,
+                            false);
+                    }
                 }
                 OnCaravanReroutedForTesting?.Invoke(caravan, blockedTile, reason);
             }
             else
             {
-                if (Current.ProgramState == ProgramState.Playing)
-                {
-                    Messages.Message(
-                        $"Caravan {caravan.LabelCap} encountered {reason} in sector {blockedTile.tileId} with no passable route forward. Caravan halted.",
-                        MessageTypeDefOf.NegativeEvent,
-                        false);
-                }
-                OnCaravanHaltedForTesting?.Invoke(caravan, blockedTile, reason);
+                TriggerHardStopPrompt(caravan, blockedTile, reason);
             }
+        }
+    }
+
+    /// <summary>
+    /// Executes a hard stop and triggers a high-priority prompt with 4 actionable player decisions
+    /// when an expedition can no longer find a viable route or break-even against its destination objective.
+    /// </summary>
+    public static void TriggerHardStopPrompt(Caravan caravan, PlanetTile obstacleTile, string reason)
+    {
+        caravan.pather.StopDead();
+
+        OnCaravanHaltedForTesting?.Invoke(caravan, obstacleTile, reason);
+        OnCaravanHardStopPromptForTesting?.Invoke(caravan, obstacleTile, reason);
+
+        if (Current.ProgramState == ProgramState.Playing && Find.WindowStack != null)
+        {
+            DiaNode root = new DiaNode("Caravan cannot determine a viable route to its destination and has halted awaiting new orders.");
+
+            // 1. Select a new destination
+            root.options.Add(new DiaOption("Select a new destination")
+            {
+                action = () =>
+                {
+                    CameraJumper.TryJumpAndSelect(caravan);
+                },
+                resolveTree = true
+            });
+
+            // 2. Authorise a wider search radius
+            root.options.Add(new DiaOption("Authorise a wider search radius")
+            {
+                action = () =>
+                {
+                    ExpeditionDetourState state = GetOrCreateExpeditionState(caravan, caravan.pather.Destination);
+                    state.MaxDetourMultiplier += 1.5f;
+                    if (caravan.pather.Destination.Valid)
+                    {
+                        caravan.pather.StartPath(caravan.pather.Destination, caravan.pather.ArrivalAction, repathImmediately: true);
+                    }
+                },
+                resolveTree = true
+            });
+
+            // 3. Cancel the expedition
+            root.options.Add(new DiaOption("Cancel the expedition")
+            {
+                action = () =>
+                {
+                    Settlement? home = Find.WorldObjects?.Settlements?.FirstOrDefault(s => s.Faction == Faction.OfPlayer && s.HasMap);
+                    if (home != null)
+                    {
+                        caravan.pather.StartPath(home.Tile, new CaravanArrivalAction_Enter(home), repathImmediately: true);
+                    }
+                },
+                resolveTree = true
+            });
+
+            // 4. Continue manual exploration
+            root.options.Add(new DiaOption("Continue manual exploration")
+            {
+                action = () =>
+                {
+                    // Leaves caravan halted awaiting direct player right-clicks
+                },
+                resolveTree = true
+            });
+
+            Find.WindowStack.Add(new Dialog_NodeTree(root, delayInteractivity: false, radioMode: false, title: "Expedition Blocked: " + caravan.LabelCap));
+        }
+        else if (Current.ProgramState == ProgramState.Playing)
+        {
+            Messages.Message(
+                "Caravan cannot determine a viable route to its destination and has halted awaiting new orders.",
+                caravan,
+                MessageTypeDefOf.NegativeEvent,
+                false);
         }
     }
 

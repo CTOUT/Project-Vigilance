@@ -325,4 +325,65 @@ public static class WorldPathing_FindPath_Patch
             return __exception;
         }
     }
+
+    [HarmonyPatch(typeof(Caravan_PathFollower), nameof(Caravan_PathFollower.StartPath))]
+    public static class Caravan_PathFollower_StartPath_Optimistic_Patch
+    {
+        public static void Prefix(Caravan_PathFollower __instance, out bool __state)
+        {
+            __state = OptimisticPathingUtility.Active;
+
+            if (OptimisticPathingUtility.IsPlayerPather(__instance) &&
+                GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
+            {
+                OptimisticPathingUtility.Active = true;
+            }
+        }
+
+        public static Exception? Finalizer(Exception? __exception, bool __state)
+        {
+            OptimisticPathingUtility.Active = __state;
+            return __exception;
+        }
+    }
+
+    [HarmonyPatch(typeof(Dialog_FormCaravan), "CheckForErrors", new[] { typeof(List<Pawn>) })]
+    public static class Dialog_FormCaravan_CheckForErrors_Optimistic_Patch
+    {
+        public static void Prefix(out bool __state)
+        {
+            __state = OptimisticPathingUtility.Active;
+
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
+            {
+                OptimisticPathingUtility.Active = true;
+            }
+        }
+
+        public static Exception? Finalizer(Exception? __exception, bool __state)
+        {
+            OptimisticPathingUtility.Active = __state;
+            return __exception;
+        }
+    }
+
+    [HarmonyPatch(typeof(Dialog_FormCaravan), "TrySend")]
+    public static class Dialog_FormCaravan_TrySend_Optimistic_Patch
+    {
+        public static void Prefix(out bool __state)
+        {
+            __state = OptimisticPathingUtility.Active;
+
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
+            {
+                OptimisticPathingUtility.Active = true;
+            }
+        }
+
+        public static Exception? Finalizer(Exception? __exception, bool __state)
+        {
+            OptimisticPathingUtility.Active = __state;
+            return __exception;
+        }
+    }
 }

@@ -17,6 +17,7 @@ public static class OutpostAssemblySpeedUtility
 {
     public const int BaseSignalBeaconTicks = 5000;       // ~2.0 in-game hours
     public const int BaseAutomatedRelayTicks = 15000;     // ~6.0 in-game hours
+    public const int BaseAutomatedSonarTicks = 15000;     // ~6.0 in-game hours
     public const int MinAssemblyTicks = 2500;            // 1.0 in-game hour clamp
     public const int MaxAssemblyTicks = 40000;           // 16.0 in-game hours clamp
 
@@ -243,7 +244,9 @@ public static class OutpostAssemblySpeedUtility
     /// </summary>
     public static int CalculateAssemblyDurationTicks(IEnumerable<Pawn>? pawns, ListeningPostKind kind)
     {
-        int baseTicks = kind == ListeningPostKind.AutomatedRelay ? BaseAutomatedRelayTicks : BaseSignalBeaconTicks;
+        int baseTicks = kind == ListeningPostKind.AutomatedRelay
+            ? BaseAutomatedRelayTicks
+            : (kind == ListeningPostKind.AutomatedSonar ? BaseAutomatedSonarTicks : BaseSignalBeaconTicks);
         var (_, teamSpeed) = CalculateTeamSpeed(pawns);
 
         if (teamSpeed <= 0f)
@@ -260,7 +263,9 @@ public static class OutpostAssemblySpeedUtility
     /// </summary>
     public static string GetEstimateLabel(IEnumerable<Pawn>? pawns, ListeningPostKind kind)
     {
-        string outpostName = kind == ListeningPostKind.AutomatedRelay ? "Automated Post" : "Signal Beacon";
+        string outpostName = kind == ListeningPostKind.AutomatedRelay
+            ? "Automated Post"
+            : (kind == ListeningPostKind.AutomatedSonar ? "Automated Sonar" : "Signal Beacon");
 
         if (!HasCapableBuilder(pawns))
         {

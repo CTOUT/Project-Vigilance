@@ -601,6 +601,32 @@ public static class WorldSelector_HandleWorldClicks_Patch
                         Messages.Message("Automated listening post deployment commenced. Construction underway.", MessageTypeDefOf.PositiveEvent, false);
                     }
                 }, MenuOptionPriority.Default) { Disabled = !canAffordRelay });
+
+                bool hasLocalCoast = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(effectiveTile);
+                if (hasLocalCoast)
+                {
+                    bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
+                    string sonarLabel = canAffordSonar
+                        ? $"Deploy Automated Sonar Station with caravan {caravan.LabelCap} ({OutpostMaterialUtility.AutomatedSonarSteelCost} Steel, {OutpostMaterialUtility.AutomatedSonarComponentCost} Components)"
+                        : $"Deploy Automated Sonar Station with caravan {caravan.LabelCap} ({missingSonar})";
+
+                    caravanOptions.Add(new FloatMenuOption(sonarLabel, () =>
+                    {
+                        if (OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out _))
+                        {
+                            OutpostMaterialUtility.ConsumeAutomatedSonarDeployment(caravan);
+                            var def = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_ListeningPost_Sonar")
+                                      ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_ListeningPost_Automated");
+                            var newPost = (WorldObject_ListeningPost)WorldObjectMaker.MakeWorldObject(def);
+                            newPost.Tile = effectiveTile;
+                            newPost.SetFaction(Faction.OfPlayer);
+                            newPost.Kind = ListeningPostKind.AutomatedSonar;
+                            newPost.StartConstruction(2500);
+                            Find.WorldObjects?.Add(newPost);
+                            Messages.Message("Automated sonar station deployment commenced. Construction underway.", MessageTypeDefOf.PositiveEvent, false);
+                        }
+                    }, MenuOptionPriority.Default) { Disabled = !canAffordSonar });
+                }
             }
         }
         else
@@ -754,6 +780,36 @@ public static class WorldSelector_HandleWorldClicks_Patch
                         Messages.Message($"Caravan {caravan.LabelCap} en route to deploy automated listening post at Tile {effectiveTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
                     }
                 }, MenuOptionPriority.Default) { Disabled = !canAffordRelay });
+
+                bool destHasCoast = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(effectiveTile);
+                if (destHasCoast)
+                {
+                    bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
+                    string sonarPrefix = isImpassable
+                        ? $"Travel and deploy Automated Sonar Station with caravan {caravan.LabelCap} (Nearest: Tile {effectiveTile.tileId})"
+                        : $"Travel and deploy Automated Sonar Station with caravan {caravan.LabelCap}";
+                    string sonarLabel = canAffordSonar
+                        ? $"{sonarPrefix} ({OutpostMaterialUtility.AutomatedSonarSteelCost} Steel, {OutpostMaterialUtility.AutomatedSonarComponentCost} Components) ({distStr})"
+                        : $"{sonarPrefix} ({missingSonar}) ({distStr})";
+
+                    caravanOptions.Add(new FloatMenuOption(sonarLabel, () =>
+                    {
+                        if (OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out _) && caravan.pather != null)
+                        {
+                            caravan.pather.StartPath(
+                                effectiveTile,
+                                new CaravanArrivalAction_ConstructOutpost(effectiveTile, ListeningPostKind.AutomatedSonar),
+                                repathImmediately: true,
+                                resetPauseStatus: true);
+                            if (Find.WorldSelector != null)
+                            {
+                                Find.WorldSelector.ClearSelection();
+                                Find.WorldSelector.Select(caravan, playSound: true);
+                            }
+                            Messages.Message($"Caravan {caravan.LabelCap} en route to deploy automated sonar station at Tile {effectiveTile.tileId}.", MessageTypeDefOf.PositiveEvent, false);
+                        }
+                    }, MenuOptionPriority.Default) { Disabled = !canAffordSonar });
+                }
             }
         }
 
@@ -847,6 +903,27 @@ public static class WorldSelector_HandleWorldClicks_Patch
                             CaravanExpeditionUtility.StartConstructionExpedition(settlement, effectiveTile, ListeningPostKind.AutomatedRelay, null);
                         }
                     }, MenuOptionPriority.Default) { Disabled = !canAffordRelay });
+
+                    bool destHasCoast = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(effectiveTile);
+                    if (destHasCoast)
+                    {
+                        bool canAffordSonar = CaravanExpeditionUtility.CanColonyDeployAutomatedSonar(map, out int mapSonarSteel, out int mapSonarComp);
+                        string sonarPrefix = isImpassable
+                            ? $"Dispatch Construction Expedition from {settlement.LabelCap}: Automated Sonar Station (Nearest: Tile {effectiveTile.tileId})"
+                            : $"Dispatch Construction Expedition from {settlement.LabelCap}: Automated Sonar Station";
+
+                        string sonarLabel = canAffordSonar
+                            ? $"{sonarPrefix} ({OutpostMaterialUtility.AutomatedSonarSteelCost} Steel, {OutpostMaterialUtility.AutomatedSonarComponentCost} Components) ({distStr})"
+                            : $"{sonarPrefix} (Need {OutpostMaterialUtility.AutomatedSonarSteelCost} Steel, {OutpostMaterialUtility.AutomatedSonarComponentCost} Components - Have {mapSonarSteel} Steel, {mapSonarComp} Components) ({distStr})";
+
+                        settlementOptions.Add(new FloatMenuOption(sonarLabel, () =>
+                        {
+                            if (CaravanExpeditionUtility.CanColonyDeployAutomatedSonar(map, out _, out _))
+                            {
+                                CaravanExpeditionUtility.StartConstructionExpedition(settlement, effectiveTile, ListeningPostKind.AutomatedSonar, null);
+                            }
+                        }, MenuOptionPriority.Default) { Disabled = !canAffordSonar });
+                    }
 
                     string beaconPrefix = isImpassable
                         ? $"Dispatch Construction Expedition from {settlement.LabelCap}: Signal Beacon (Nearest: Tile {effectiveTile.tileId})"
@@ -996,6 +1073,30 @@ public static class WorldSelector_HandleWorldClicks_Patch
                 {
                     Disabled = !canAffordRelay
                 });
+
+                bool destHasCoast = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(effectiveTile);
+                if (destHasCoast)
+                {
+                    bool canAffordSonar = CaravanExpeditionUtility.CanColonyDeployAutomatedSonar(map, out int mapSonarSteel, out int mapSonarComp);
+                    string sonarPrefix = isImpassable
+                        ? $"Dispatch Construction Expedition: Automated Sonar Station (Nearest: Tile {effectiveTile.tileId})"
+                        : "Dispatch Construction Expedition: Automated Sonar Station";
+
+                    string sonarLabel = canAffordSonar
+                        ? $"{sonarPrefix} ({OutpostMaterialUtility.AutomatedSonarSteelCost} Steel, {OutpostMaterialUtility.AutomatedSonarComponentCost} Components)"
+                        : $"{sonarPrefix} (Need {OutpostMaterialUtility.AutomatedSonarSteelCost} Steel, {OutpostMaterialUtility.AutomatedSonarComponentCost} Components - Have {mapSonarSteel} Steel, {mapSonarComp} Components)";
+
+                    options.Add(new FloatMenuOption(sonarLabel, () =>
+                    {
+                        if (CaravanExpeditionUtility.CanColonyDeployAutomatedSonar(map, out _, out _))
+                        {
+                            CaravanExpeditionUtility.StartConstructionExpedition(settlement, effectiveTile, ListeningPostKind.AutomatedSonar, null);
+                        }
+                    }, MenuOptionPriority.Default)
+                    {
+                        Disabled = !canAffordSonar
+                    });
+                }
 
                 // 3. Dispatch Construction Expedition: Signal Beacon (150 Wood/Stone)
                 string beaconPrefix = isImpassable

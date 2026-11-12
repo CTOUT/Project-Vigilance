@@ -29,4 +29,18 @@
     <saved>true</saved>
   </WorldObjectDef>
 
+  <!-- ==================== Automated Sonar Station (Industrial / Spacer) ==================== -->
+  <WorldObjectDef>
+    <defName>Vigilance_ListeningPost_Sonar</defName>
+    <label>automated sonar station</label>
+    <description>A dedicated coastal hydrophone and acoustic telemetry installation deployed adjacent to a body of water. Projects directional V-shaped sonar arrays across connected ocean and sea tiles up to 18 traversal rings, detecting and classifying maritime and submerged contacts without requiring a settlement.</description>
+    <worldObjectClass>ProjectVigilance.Geoscape.Sensory.WorldObject_ListeningPost</worldObjectClass>
+    <texture>World/WorldObjects/Sites/Outpost</texture>
+    <useDynamicDrawer>true</useDynamicDrawer>
+    <expandingIcon>true</expandingIcon>
+    <expandingIconTexture>World/WorldObjects/Expanding/Sites/Outpost</expandingIconTexture>
+    <expandingIconPriority>85</expandingIconPriority>
+    <saved>true</saved>
+  </WorldObjectDef>
+
 </Defs>

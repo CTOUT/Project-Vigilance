@@ -102,6 +102,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         caravanCooldowns ??= new Dictionary<int, int>();
         caravanCooldowns[caravanId] = expiryTick;
     }
+    public void ResetCaravanCooldown(int caravanId)
+    {
+        caravanCooldowns?.Remove(caravanId);
+        metCaravanIds?.Remove(caravanId);
+    }
     public bool IsEngagedInTacticalMap { get => isEngagedInTacticalMap; set => isEngagedInTacticalMap = value; }
     public Caravan? PursuitTargetCaravan => pursuitTargetCaravan;
     public bool IsPursuingCaravan => pursuitTargetCaravanId > 0;
@@ -552,6 +557,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             string label = $"Investigate {LabelCap}";
             yield return new FloatMenuOption(label, () =>
             {
+                ResetCaravanCooldown(caravan.ID);
                 PlanetTile targetTile = GetInterceptTargetTile(caravan);
                 caravan.pather.StartPath(targetTile, new CaravanArrivalAction_InterceptIncursion(this), true);
             });
@@ -564,6 +570,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             string interceptLabel = $"Intercept {LabelCap}";
             yield return new FloatMenuOption(interceptLabel, () =>
             {
+                ResetCaravanCooldown(caravan.ID);
                 PlanetTile targetTile = GetInterceptTargetTile(caravan);
                 caravan.pather.StartPath(targetTile, new CaravanArrivalAction_InterceptIncursion(this), true);
             });
@@ -575,6 +582,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 string tradeLabel = $"Hail & Trade with {LabelCap}";
                 yield return new FloatMenuOption(tradeLabel, () =>
                 {
+                    ResetCaravanCooldown(caravan.ID);
                     PlanetTile targetTile = GetInterceptTargetTile(caravan);
                     caravan.pather.StartPath(targetTile, new CaravanArrivalAction_InterceptIncursion(this), true);
                 });
@@ -1588,7 +1596,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                         // Reached same tile -> execute interception immediately
                         if (c.Tile == Tile)
                         {
-                            IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
+                            if (!IsCaravanOnCooldown(c.ID))
+                            {
+                                c.pather?.StopDead();
+                                IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
+                            }
                             return;
                         }
 
@@ -1606,8 +1618,12 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                             if ((caravanMovingIntoUs && (tileProgress + caravanProgress) >= 0.95f) ||
                                 (!caravanMovingIntoUs && tileProgress >= 0.85f))
                             {
-                                AdvancePathTile();
-                                IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
+                                if (!IsCaravanOnCooldown(c.ID))
+                                {
+                                    c.pather?.StopDead();
+                                    AdvancePathTile();
+                                    IncursionInterceptionUtility.ExecuteInterception(c, this, isAmbush: false);
+                                }
                                 return;
                             }
                         }
@@ -1909,6 +1925,34 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         DrawPathOverlay();
     }
 
+    private static void DrawVisibilityClippedSegment(
+        Vector3 pA,
+        Vector3 pB,
+        PlanetTile tileA,
+        PlanetTile tileB,
+        Material mat,
+        float width)
+    {
+        var sensory = SensoryManager.Instance;
+        bool hasA = sensory == null || sensory.HasActiveVision(tileA);
+        bool hasB = sensory == null || sensory.HasActiveVision(tileB);
+
+        if (hasA && hasB)
+        {
+            GenDraw.DrawWorldLineBetween(pA, pB, mat, width);
+        }
+        else if (hasA && !hasB)
+        {
+            Vector3 mid = Vector3.Lerp(pA, pB, 0.5f);
+            GenDraw.DrawWorldLineBetween(pA, mid, mat, width);
+        }
+        else if (!hasA && hasB)
+        {
+            Vector3 mid = Vector3.Lerp(pA, pB, 0.5f);
+            GenDraw.DrawWorldLineBetween(mid, pB, mat, width);
+        }
+    }
+
     private void DrawPathOverlay()
     {
         if (!WorldRendererUtility.WorldRendered || pathTiles == null || pathTiles.Count < 2)
@@ -1928,7 +1972,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 Vector3 pAnchor = GetElevatedTileCenter(tiles[anchorIdx]);
                 if ((curDrawPos - pAnchor).sqrMagnitude > 0.001f)
                 {
-                    GenDraw.DrawWorldLineBetween(pAnchor, curDrawPos, FriendlyPastLineMat, 1.0f);
+                    DrawVisibilityClippedSegment(pAnchor, curDrawPos, tiles[anchorIdx], Tile, FriendlyPastLineMat, 1.0f);
                 }
             }
             return;
@@ -1945,7 +1989,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             {
                 Vector3 pA = GetElevatedTileCenter(tiles[i]);
                 Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
-                GenDraw.DrawWorldLineBetween(pA, pB, activeMat, 1.2f);
+                DrawVisibilityClippedSegment(pA, pB, tiles[i], tiles[i + 1], activeMat, 1.2f);
             }
             return;
         }
@@ -1960,26 +2004,26 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             {
                 Vector3 pA = GetElevatedTileCenter(tiles[i]);
                 Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
-                GenDraw.DrawWorldLineBetween(pA, pB, pastMat, 1.0f);
+                DrawVisibilityClippedSegment(pA, pB, tiles[i], tiles[i + 1], pastMat, 1.0f);
             }
 
             Vector3 pPrev = GetElevatedTileCenter(tiles[currentPathIndex - 1]);
             if ((curDrawPos2 - pPrev).sqrMagnitude > 0.001f)
             {
-                GenDraw.DrawWorldLineBetween(pPrev, curDrawPos2, pastMat, 1.0f);
+                DrawVisibilityClippedSegment(pPrev, curDrawPos2, tiles[currentPathIndex - 1], Tile, pastMat, 1.0f);
             }
 
             Vector3 pCur = GetElevatedTileCenter(tiles[currentPathIndex]);
             if ((pCur - curDrawPos2).sqrMagnitude > 0.001f)
             {
-                GenDraw.DrawWorldLineBetween(curDrawPos2, pCur, activeMat, 1.2f);
+                DrawVisibilityClippedSegment(curDrawPos2, pCur, Tile, tiles[currentPathIndex], activeMat, 1.2f);
             }
 
             for (int i = currentPathIndex; i < tiles.Count - 1; i++)
             {
                 Vector3 pA = GetElevatedTileCenter(tiles[i]);
                 Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
-                GenDraw.DrawWorldLineBetween(pA, pB, activeMat, 1.2f);
+                DrawVisibilityClippedSegment(pA, pB, tiles[i], tiles[i + 1], activeMat, 1.2f);
             }
         }
         else
@@ -1989,7 +2033,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             {
                 Vector3 pA = GetElevatedTileCenter(tiles[i]);
                 Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
-                GenDraw.DrawWorldLineBetween(pA, pB, pastMat, 1.0f);
+                DrawVisibilityClippedSegment(pA, pB, tiles[i], tiles[i + 1], pastMat, 1.0f);
             }
 
             if (currentPathIndex < tiles.Count)
@@ -1997,7 +2041,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 Vector3 pCur = GetElevatedTileCenter(tiles[currentPathIndex]);
                 if ((curDrawPos2 - pCur).sqrMagnitude > 0.001f)
                 {
-                    GenDraw.DrawWorldLineBetween(pCur, curDrawPos2, pastMat, 1.0f);
+                    DrawVisibilityClippedSegment(pCur, curDrawPos2, tiles[currentPathIndex], Tile, pastMat, 1.0f);
                 }
             }
 
@@ -2006,14 +2050,14 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 Vector3 pNext = GetElevatedTileCenter(tiles[currentPathIndex + 1]);
                 if ((pNext - curDrawPos2).sqrMagnitude > 0.001f)
                 {
-                    GenDraw.DrawWorldLineBetween(curDrawPos2, pNext, activeMat, 1.2f);
+                    DrawVisibilityClippedSegment(curDrawPos2, pNext, Tile, tiles[currentPathIndex + 1], activeMat, 1.2f);
                 }
 
                 for (int i = currentPathIndex + 1; i < tiles.Count - 1; i++)
                 {
                     Vector3 pA = GetElevatedTileCenter(tiles[i]);
                     Vector3 pB = GetElevatedTileCenter(tiles[i + 1]);
-                    GenDraw.DrawWorldLineBetween(pA, pB, activeMat, 1.2f);
+                    DrawVisibilityClippedSegment(pA, pB, tiles[i], tiles[i + 1], activeMat, 1.2f);
                 }
             }
         }

@@ -32,11 +32,15 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
 
     public override string Label => postKind == ListeningPostKind.AutomatedRelay
         ? "Establish Automated Listening Post"
-        : (stuffDef != null ? $"Construct Signal Beacon ({stuffDef.LabelCap})" : "Construct Signal Beacon");
+        : (postKind == ListeningPostKind.AutomatedSonar
+            ? "Establish Automated Sonar Station"
+            : (stuffDef != null ? $"Construct Signal Beacon ({stuffDef.LabelCap})" : "Construct Signal Beacon"));
 
     public override string ReportString => postKind == ListeningPostKind.AutomatedRelay
         ? "travelling to establish automated listening post"
-        : (stuffDef != null ? $"travelling to construct signal beacon ({stuffDef.LabelCap})" : "travelling to construct signal beacon");
+        : (postKind == ListeningPostKind.AutomatedSonar
+            ? "travelling to establish automated sonar station"
+            : (stuffDef != null ? $"travelling to construct signal beacon ({stuffDef.LabelCap})" : "travelling to construct signal beacon"));
 
     public override FloatMenuAcceptanceReport StillValid(Caravan caravan, PlanetTile destinationTile)
     {
@@ -60,6 +64,13 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
         PlanetTile target = destinationTile.Valid ? destinationTile : (this.destinationTile.Valid ? this.destinationTile : caravan.Tile);
         if (target.Valid)
         {
+            if (postKind == ListeningPostKind.AutomatedSonar &&
+                SonarTraversalUtility.CanEvaluateWorldGrid() &&
+                !SonarTraversalUtility.HasCoastalAccess(target))
+            {
+                return FloatMenuAcceptanceReport.WithFailMessage("Automated sonar stations require a coastal tile adjacent to water.");
+            }
+
             var worldObjects = Current.Game?.World?.worldObjects;
             bool hasCompletedPost = worldObjects?.AllWorldObjects != null &&
                            worldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == target && !p.IsConstructing);
@@ -132,6 +143,37 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
             else
             {
                 Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile} but lacks materials to deploy automated listening post ({missing}).", MessageTypeDefOf.RejectInput, false);
+            }
+        }
+        else if (postKind == ListeningPostKind.AutomatedSonar)
+        {
+            if (SonarTraversalUtility.CanEvaluateWorldGrid() && !SonarTraversalUtility.HasCoastalAccess(targetTile))
+            {
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile}, which lacks adjacent water required for an automated sonar station.", MessageTypeDefOf.RejectInput, false);
+                return;
+            }
+
+            if (OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missing))
+            {
+                OutpostMaterialUtility.ConsumeAutomatedSonarDeployment(caravan);
+                var def = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_ListeningPost_Sonar")
+                          ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_ListeningPost_Automated");
+                var post = (WorldObject_ListeningPost)WorldObjectMaker.MakeWorldObject(def);
+                post.Tile = targetTile;
+                post.SetFaction(Faction.OfPlayer);
+                post.Kind = ListeningPostKind.AutomatedSonar;
+                post.StartConstruction(durationTicks);
+                Find.WorldObjects?.Add(post);
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile}. Construction of automated sonar station commenced (~{durationHours:F1} in-game hours).", MessageTypeDefOf.PositiveEvent, false);
+                Find.LetterStack?.ReceiveLetter(
+                    "Outpost Deployment: " + post.LabelCap,
+                    $"Caravan {caravan.LabelCap} arrived at Tile {targetTile} and commenced construction of {post.LabelCap}.\n\nColonists are assembling the coastal sonar array (~{durationHours:F1} in-game hours). Keep the caravan on-site until assembly completes.",
+                    LetterDefOf.PositiveEvent,
+                    new LookTargets(post));
+            }
+            else
+            {
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile} but lacks materials to deploy automated sonar station ({missing}).", MessageTypeDefOf.RejectInput, false);
             }
         }
         else

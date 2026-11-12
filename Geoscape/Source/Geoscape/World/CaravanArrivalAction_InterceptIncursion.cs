@@ -48,8 +48,14 @@ public class CaravanArrivalAction_InterceptIncursion : CaravanArrivalAction
             return;
         }
 
+        if (targetIncursion.IsCaravanOnCooldown(caravan.ID))
+        {
+            return;
+        }
+
         if (caravan.Tile == targetIncursion.Tile)
         {
+            caravan.pather?.StopDead();
             IncursionInterceptionUtility.ExecuteInterception(caravan, targetIncursion, isAmbush: false);
             return;
         }
@@ -59,6 +65,7 @@ public class CaravanArrivalAction_InterceptIncursion : CaravanArrivalAction
         {
             if (targetIncursion.TileProgress >= 0.50f)
             {
+                caravan.pather?.StopDead();
                 targetIncursion.AdvancePathTile();
                 IncursionInterceptionUtility.ExecuteInterception(caravan, targetIncursion, isAmbush: false);
                 return;

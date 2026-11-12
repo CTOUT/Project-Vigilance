@@ -255,6 +255,11 @@ public static class CaravanExpeditionUtility
             return OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out _);
         }
 
+        if (directive.Kind == ListeningPostKind.AutomatedSonar)
+        {
+            return OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out _);
+        }
+
         if (directive.Kind == ListeningPostKind.SignalBeacon)
         {
             return OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _);
@@ -308,6 +313,23 @@ public static class CaravanExpeditionUtility
 
         return currentSteel >= OutpostMaterialUtility.AutomatedRelaySteelCost &&
                currentComponents >= OutpostMaterialUtility.AutomatedRelayComponentCost;
+    }
+
+    public static bool CanColonyDeployAutomatedSonar(Map map, out int currentSteel, out int currentComponents)
+    {
+        currentSteel = 0;
+        currentComponents = 0;
+
+        if (map?.resourceCounter == null)
+        {
+            return false;
+        }
+
+        currentSteel = map.resourceCounter.GetCount(ThingDefOf.Steel);
+        currentComponents = map.resourceCounter.GetCount(ThingDefOf.ComponentIndustrial);
+
+        return currentSteel >= OutpostMaterialUtility.AutomatedSonarSteelCost &&
+               currentComponents >= OutpostMaterialUtility.AutomatedSonarComponentCost;
     }
 
     /// <summary>
@@ -466,6 +488,11 @@ public static class CaravanExpeditionUtility
         {
             AllocateRequirement(transferables, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedRelaySteelCost);
             AllocateRequirement(transferables, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedRelayComponentCost);
+        }
+        else if (kind == ListeningPostKind.AutomatedSonar)
+        {
+            AllocateRequirement(transferables, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedSonarSteelCost);
+            AllocateRequirement(transferables, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedSonarComponentCost);
         }
         else if (kind == ListeningPostKind.SignalBeacon)
         {
@@ -672,6 +699,21 @@ public static class CaravanExpeditionUtility
             int comp = isConstructing
                 ? OutpostMaterialUtility.AutomatedRelayComponentCost
                 : OutpostMaterialUtility.AutomatedRelayComponentSalvage;
+
+            float steelMass = steel * GetThingBaseMass(ThingDefOf.Steel, 0.5f);
+            float compMass = comp * GetThingBaseMass(ThingDefOf.ComponentIndustrial, 0.6f);
+            float totalMass = steelMass + compMass;
+            string pctStr = isConstructing ? "100% refund" : "75% salvage";
+            return (totalMass, $"{steel} Steel, {comp} Components ({pctStr})");
+        }
+        else if (effectiveKind == ListeningPostKind.AutomatedSonar)
+        {
+            int steel = isConstructing
+                ? OutpostMaterialUtility.AutomatedSonarSteelCost
+                : OutpostMaterialUtility.AutomatedSonarSteelSalvage;
+            int comp = isConstructing
+                ? OutpostMaterialUtility.AutomatedSonarComponentCost
+                : OutpostMaterialUtility.AutomatedSonarComponentSalvage;
 
             float steelMass = steel * GetThingBaseMass(ThingDefOf.Steel, 0.5f);
             float compMass = comp * GetThingBaseMass(ThingDefOf.ComponentIndustrial, 0.6f);

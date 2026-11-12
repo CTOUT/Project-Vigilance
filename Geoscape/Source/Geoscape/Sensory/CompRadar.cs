@@ -200,6 +200,13 @@ public class CompRadar : ThingComp, ISensorProvider
                 return false;
             }
 
+            if (Props.isOceanicSonar &&
+                SonarTraversalUtility.CanEvaluateWorldGrid() &&
+                !SonarTraversalUtility.HasCoastalAccess(SensorTile))
+            {
+                return false;
+            }
+
             return true;
         }
     }
@@ -229,6 +236,13 @@ public class CompRadar : ThingComp, ISensorProvider
         if (PowerTrader != null && !PowerTrader.PowerOn)
         {
             return "Unpowered";
+        }
+
+        if (Props.isOceanicSonar &&
+            SonarTraversalUtility.CanEvaluateWorldGrid() &&
+            !SonarTraversalUtility.HasCoastalAccess(SensorTile))
+        {
+            return "No Coastal Water Access";
         }
 
         return "Offline";

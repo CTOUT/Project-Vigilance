@@ -15,12 +15,22 @@ public static class IncursionInterceptionUtility
     private static readonly HashSet<int> notifiedContactLostCaravans = new();
     private static readonly Dictionary<int, int> contactLostDebounceTicks = new();
 
+    public static void ConsumeInterceptOrder(Caravan caravan, WorldObject_Incursion incursion)
+    {
+        if (caravan?.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion intercept && intercept.TargetIncursion == incursion)
+        {
+            caravan.pather.StopDead();
+        }
+    }
+
     public static void ExecuteInterception(Caravan caravan, WorldObject_Incursion incursion, bool isAmbush = false)
     {
         if (caravan == null || !caravan.Spawned || incursion == null || !incursion.Spawned)
         {
             return;
         }
+
+        ConsumeInterceptOrder(caravan, incursion);
 
         bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
 
@@ -626,6 +636,7 @@ public static class IncursionInterceptionUtility
             {
                 action = () =>
                 {
+                    ConsumeInterceptOrder(c, incursion);
                     int cd = Find.TickManager.TicksGame + 15000;
                     for (int j = 0; j < caravans.Count; j++)
                     {
@@ -706,6 +717,7 @@ public static class IncursionInterceptionUtility
             {
                 action = () =>
                 {
+                    ConsumeInterceptOrder(caravan, incursion);
                     if (caravan.pather != null && caravan.pather.Paused)
                     {
                         caravan.pather.Paused = false;

@@ -15,7 +15,8 @@ namespace ProjectVigilance.Geoscape.Sensory;
 public enum ListeningPostKind
 {
     AutomatedRelay, // Industrial/Spacer automated radar relay (solar-powered, 12 rings detection)
-    SignalBeacon    // Neolithic/Medieval unmanned stone/timber signal beacon (optical, 6 rings + vantage)
+    SignalBeacon,   // Neolithic/Medieval unmanned stone/timber signal beacon (optical, 6 rings + vantage)
+    AutomatedSonar  // Industrial/Spacer coastal sonar installation (18 rings water-connected directional detection)
 }
 
 /// <summary>
@@ -155,7 +156,11 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         get
         {
             if (customName != null) return customName;
-            string baseLabel = def != null ? base.Label : (kind == ListeningPostKind.AutomatedRelay ? "Automated Sensor Relay" : "Signal Beacon");
+            string baseLabel = def != null
+                ? base.Label
+                : (kind == ListeningPostKind.AutomatedRelay
+                    ? "Automated Sensor Relay"
+                    : (kind == ListeningPostKind.AutomatedSonar ? "Automated Sonar Station" : "Signal Beacon"));
             if (kind == ListeningPostKind.SignalBeacon && stuffDef != null)
             {
                 baseLabel = $"{stuffDef.label} {baseLabel}";
@@ -208,6 +213,10 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             int id = 5 + (bonus >= 2 ? 1 : 0);
             return (det, id);
         }
+        else if (kind == ListeningPostKind.AutomatedSonar)
+        {
+            return (18f, 8);
+        }
         else
         {
             float det = 6f + vantageBonus;
@@ -222,14 +231,14 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     public int IdentificationRadiusInTiles =>
         !IsSensorActive ? 0 : CalculateRadii(kind, cachedVantageBonus, isSabotaged).identification;
 
-    public IntelligenceTier MaxIntelligenceTier => kind == ListeningPostKind.AutomatedRelay
-        ? IntelligenceTier.Classified
-        : IntelligenceTier.Contact;
+    public IntelligenceTier MaxIntelligenceTier => kind == ListeningPostKind.SignalBeacon
+        ? IntelligenceTier.Contact
+        : IntelligenceTier.Classified;
 
     public bool IsDisruptedByEnvironment(out string reason)
     {
         reason = string.Empty;
-        if (kind != ListeningPostKind.AutomatedRelay)
+        if (kind == ListeningPostKind.SignalBeacon)
         {
             return false; // Signal Beacons use primitive mechanical/optical watchtowers and bonfires; immune to EMP, solar flares, and darkness
         }
@@ -249,18 +258,25 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         return false;
     }
 
-    public bool IsSensorActive => (Find.World?.worldObjects != null ? Spawned : true) && !Destroyed && !isSabotaged && !isConstructing && !isDismantling && !IsDisruptedByEnvironment(out _);
+    public bool IsSensorActive =>
+        (Find.World?.worldObjects != null ? Spawned : true) &&
+        !Destroyed &&
+        !isSabotaged &&
+        !isConstructing &&
+        !isDismantling &&
+        !IsDisruptedByEnvironment(out _) &&
+        (kind != ListeningPostKind.AutomatedSonar || !SonarTraversalUtility.CanEvaluateWorldGrid() || SonarTraversalUtility.HasCoastalAccess(Tile));
 
     public void SetTileRaw(PlanetTile t) => WorldObjectAccessUtility.SetTileRaw(this, t);
     public void SetSpawnedRaw(bool s) => WorldObjectAccessUtility.SetSpawnedRaw(this, s);
 
     public bool IsStationary => true;
 
-    public bool IsTechnological => kind == ListeningPostKind.AutomatedRelay;
+    public bool IsTechnological => kind != ListeningPostKind.SignalBeacon;
 
     public bool PenetratesTerrainMasking => false;
 
-    public bool IsOceanicSonar => false;
+    public bool IsOceanicSonar => kind == ListeningPostKind.AutomatedSonar;
 
     public bool TryGetDetectionDistance(IDetectableTarget target, out int distance) =>
         SensorDetectionUtility.TryGetDetectionDistance(this, target, out distance);
@@ -483,7 +499,9 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         string label = kind == ListeningPostKind.AutomatedRelay
             ? "Automated listening post"
-            : (stuffDef != null ? $"{stuffDef.LabelCap} signal beacon" : "Signal beacon");
+            : (kind == ListeningPostKind.AutomatedSonar
+                ? "Automated sonar station"
+                : (stuffDef != null ? $"{stuffDef.LabelCap} signal beacon" : "Signal beacon"));
         if (Current.ProgramState == ProgramState.Playing)
         {
             Messages.Message($"{label} construction complete and surveillance grid active at Tile {Tile}.", MessageTypeDefOf.PositiveEvent, false);
@@ -508,6 +526,11 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             {
                 OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedRelaySteelCost);
                 OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedRelayComponentCost);
+            }
+            else if (kind == ListeningPostKind.AutomatedSonar)
+            {
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedSonarSteelCost);
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedSonarComponentCost);
             }
             else
             {
@@ -654,6 +677,11 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
                 OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedRelaySteelSalvage);
                 OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedRelayComponentSalvage);
             }
+            else if (kind == ListeningPostKind.AutomatedSonar)
+            {
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedSonarSteelSalvage);
+                OutpostMaterialUtility.GiveMaterialToCaravan(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedSonarComponentSalvage);
+            }
             else
             {
                 ThingDef refundDef = stuffDef ?? ThingDefOf.WoodLog;
@@ -691,6 +719,20 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             missingDescription = string.Empty;
             return true;
         }
+        else if (kind == ListeningPostKind.AutomatedSonar)
+        {
+            int steel = OutpostMaterialUtility.CountItem(caravan, ThingDefOf.Steel);
+            int comp = OutpostMaterialUtility.CountItem(caravan, ThingDefOf.ComponentIndustrial);
+
+            if (steel < OutpostMaterialUtility.AutomatedSonarSteelRepairCost || comp < OutpostMaterialUtility.AutomatedSonarComponentRepairCost)
+            {
+                missingDescription = $"Requires {OutpostMaterialUtility.AutomatedSonarSteelRepairCost} Steel (have {steel}) and {OutpostMaterialUtility.AutomatedSonarComponentRepairCost} Component (have {comp}).";
+                return false;
+            }
+
+            missingDescription = string.Empty;
+            return true;
+        }
         else
         {
             int woodOrStone = OutpostMaterialUtility.CountWoodOrStone(caravan);
@@ -711,6 +753,11 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         {
             OutpostMaterialUtility.TakeItem(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedRelaySteelRepairCost);
             OutpostMaterialUtility.TakeItem(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedRelayComponentRepairCost);
+        }
+        else if (kind == ListeningPostKind.AutomatedSonar)
+        {
+            OutpostMaterialUtility.TakeItem(caravan, ThingDefOf.Steel, OutpostMaterialUtility.AutomatedSonarSteelRepairCost);
+            OutpostMaterialUtility.TakeItem(caravan, ThingDefOf.ComponentIndustrial, OutpostMaterialUtility.AutomatedSonarComponentRepairCost);
         }
         else
         {
@@ -742,7 +789,9 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
         string typeLabel = kind == ListeningPostKind.AutomatedRelay
             ? "Automated Sensor Relay"
-            : (stuffDef != null ? $"Signal Beacon ({stuffDef.LabelCap})" : "Signal Beacon");
+            : (kind == ListeningPostKind.AutomatedSonar
+                ? "Automated Coastal Sonar Station"
+                : (stuffDef != null ? $"Signal Beacon ({stuffDef.LabelCap})" : "Signal Beacon"));
         sb.AppendLine($"Type: {typeLabel}");
 
         if (isConstructing)

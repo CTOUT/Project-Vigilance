@@ -15,14 +15,20 @@ public static class OutpostMaterialUtility
 {
     public const int AutomatedRelaySteelCost = 100;
     public const int AutomatedRelayComponentCost = 4;
+    public const int AutomatedSonarSteelCost = 120;
+    public const int AutomatedSonarComponentCost = 4;
     public const int SignalBeaconWoodOrStoneCost = 150;
 
     public const int AutomatedRelaySteelRepairCost = 25;
     public const int AutomatedRelayComponentRepairCost = 1;
+    public const int AutomatedSonarSteelRepairCost = 30;
+    public const int AutomatedSonarComponentRepairCost = 1;
     public const int SignalBeaconWoodOrStoneRepairCost = 30;
 
     public const int AutomatedRelaySteelSalvage = 75;
     public const int AutomatedRelayComponentSalvage = 3;
+    public const int AutomatedSonarSteelSalvage = 90;
+    public const int AutomatedSonarComponentSalvage = 3;
     public const int SignalBeaconWoodSalvage = 112;
 
     public static void GiveMaterialToCaravan(Caravan caravan, ThingDef def, int totalCount)
@@ -233,6 +239,21 @@ public static class OutpostMaterialUtility
         return true;
     }
 
+    public static bool CanDeployAutomatedSonar(Caravan caravan, out string missingReason)
+    {
+        int steel = CountItem(caravan, ThingDefOf.Steel);
+        int comp = CountItem(caravan, ThingDefOf.ComponentIndustrial);
+
+        if (steel < AutomatedSonarSteelCost || comp < AutomatedSonarComponentCost)
+        {
+            missingReason = $"Requires {AutomatedSonarSteelCost} Steel (have {steel}) and {AutomatedSonarComponentCost} Components (have {comp}).";
+            return false;
+        }
+
+        missingReason = string.Empty;
+        return true;
+    }
+
     public static bool CanDeploySignalBeacon(Caravan caravan, out string missingReason)
     {
         int materials = CountWoodOrStone(caravan);
@@ -250,6 +271,12 @@ public static class OutpostMaterialUtility
     {
         TakeItem(caravan, ThingDefOf.Steel, AutomatedRelaySteelCost);
         TakeItem(caravan, ThingDefOf.ComponentIndustrial, AutomatedRelayComponentCost);
+    }
+
+    public static void ConsumeAutomatedSonarDeployment(Caravan caravan)
+    {
+        TakeItem(caravan, ThingDefOf.Steel, AutomatedSonarSteelCost);
+        TakeItem(caravan, ThingDefOf.ComponentIndustrial, AutomatedSonarComponentCost);
     }
 
     public static ThingDef? ConsumeSignalBeaconDeployment(Caravan caravan, ThingDef? specificMaterial = null)

@@ -433,6 +433,14 @@ public static class GroundedCaravanMeetingHelper
     private static string GetTileDestinationLabel(PlanetTile destTile)
     {
         if (!destTile.Valid) return "their destination";
+
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient &&
+            SensoryManager.Instance != null &&
+            !SensoryManager.Instance.IsExplored(destTile))
+        {
+            return "an uncharted destination";
+        }
+
         var settlement = Find.WorldObjects?.SettlementAt(destTile);
         if (settlement != null) return settlement.LabelCap;
         if (Find.AnyPlayerHomeMap?.Tile == destTile) return "your colony";
