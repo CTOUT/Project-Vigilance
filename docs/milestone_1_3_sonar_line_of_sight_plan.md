@@ -1,5 +1,11 @@
 # Implementation Plan: Oceanic Sonar Line-of-Sight & Land Shadowing
 
+## Current Decision
+
+**Deferred: keep current sonar behaviour.** Do not implement the proposed hex-ray line-of-sight change or build a general-purpose terrain visibility system. Sonar continues to propagate through connected water in its existing directional sectors; land is not traversable, but coverage may travel through water around a headland.
+
+The proposed hard-shadow rule is a gameplay change, not a necessary consequence of water-only propagation. It could also add geometric checks to coverage calculations that are recomputed during target evaluation. The proposed tile-centre ray would not, by itself, support mountain or altitude occlusion: current terrain masking uses hilliness-based vantage bonuses and target classification rules, not ray-based visibility. Reconsider sonar-specific shadows only if playtesting shows the wraparound behaviour is a meaningful problem; define the rule and measure its cost before implementation. Potential mountain reuse alone is not a reason to build this system.
+
 ## Goal Description
 
 In Project Vigilance, **Oceanic Sonar** (provided by Coastal Hydrophone Arrays `Geoscape_SonarArray` and Automated Sonar Stations `ListeningPostKind.AutomatedSonar`) is designed to track maritime contacts strictly across water bodies (`tile.WaterCovered == true`).
@@ -10,7 +16,7 @@ As observed in playtesting, a coastal sonar station built on the southern shore 
 
 ![Playtest Observation](assets/sonar-land-wrap-issue.jpg)
 
-This change implements a deterministic **Hex Ray Line-of-Sight (LOS)** algorithm in `SonarTraversalUtility`:
+The deferred proposal would implement a deterministic **Hex Ray Line-of-Sight (LOS)** algorithm in `SonarTraversalUtility`:
 
 1. Sound radiates outward in straight sightlines from the station's submerged hydrophone origins (`adjacentWater`).
 2. Any intervening land hex along the ray acts as an acoustic barrier and terminates visibility past that point.
@@ -18,11 +24,11 @@ This change implements a deterministic **Hex Ray Line-of-Sight (LOS)** algorithm
 
 ---
 
-## User Review Required
+## Deferred Design Trade-off
 
 > [!IMPORTANT]
 > **Strict Acoustic Ray Shadowing vs. Diffraction:**
-> Sound in water travels along straight acoustic vectors. Under this change, if a straight ray from the submerged hydrophone origin tile (`originWaterTile`) to a candidate ocean tile intersects a land hex, that candidate tile is completely shadowed and will neither receive the tactical honeycomb overlay nor detect submerged contacts.
+> The proposal treats sound as travelling along straight acoustic vectors. If a straight ray from the submerged hydrophone origin tile (`originWaterTile`) to a candidate ocean tile intersects a land hex, that candidate tile would be shadowed and would neither receive the tactical honeycomb overlay nor detect submerged contacts. This is a simplified gameplay model, not a complete simulation of underwater sound propagation.
 >
 > If a colony is situated on an isthmus or peninsula with coastlines on multiple sides (e.g., East and West), having coastal access on both sides will allow hydrophones on each respective coast to cover their respective oceans independently, but neither can penetrate or wrap through the intervening land.
 
@@ -30,11 +36,11 @@ This change implements a deterministic **Hex Ray Line-of-Sight (LOS)** algorithm
 
 ## Open Questions
 
-None at this time; the requirement is explicit: _"Any hex of land should stop visibility past that point."_
+Implementation is deferred. If reconsidered, confirm that hard sonar shadows are desirable gameplay, define deterministic hex-crossing and multi-origin visibility rules, and assess performance before proceeding.
 
 ---
 
-## Proposed Changes
+## Deferred Proposal (Not Approved)
 
 ```mermaid
 flowchart TD
@@ -103,7 +109,7 @@ flowchart TD
 
 ---
 
-## Verification Plan
+## Deferred Verification Plan (Only If Reconsidered)
 
 ### Automated Tests
 
