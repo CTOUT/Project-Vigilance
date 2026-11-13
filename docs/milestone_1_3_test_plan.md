@@ -4,6 +4,12 @@ This test plan provides comprehensive, step-by-step procedures to validate all s
 
 It covers multi-dish radar interferometry, dynamic power scaling, Model B+ terrain vantage and mountain masking, SIGINT decryption penetration, coastal sonar arrays, holographic 3D radar coverage globe overlays, lightweight unmanned Geoscape listening posts, right-click caravan construction and salvage, two-stage early warning non-peeking escalation, concealed dynamic camps and breadcrumb rumours in the Fog of War, $O(M)$ tile-bucketed inter-faction collisions, algebraic background skirmishes, persistent encounter aftermath sites, grounded storyteller trade caravans, Keplerian orbital mechanics with storyteller-calibrated drift, dual-layer orbital rendering and faction colour tinting, native campaign creation wizard integration (`Page_GeoscapeRules`), Waylith native `DeepProfiler` telemetry, and Scribe save/load state resilience.
 
+## Current Status & Next Tests
+
+- **Passed:** Priority 1 in-game checks and TC-02 are marked complete in the sign-off checklist. TC-17, TC-18, and TC-28 through TC-32 are also marked passed.
+- **Next:** Run the Priority 2 playtests for TC-03 (coastal sonar) and TC-12 (optimistic travel routing). TC-03 verifies the existing water-only sonar behaviour; geometric hex-ray occlusion and mountain/altitude line of sight remain deferred and are not acceptance criteria.
+- **Still outstanding:** The remaining Priority 2 cases are TC-07, TC-08, TC-09, TC-13, TC-14, TC-15, TC-20, and TC-22. Priority 3 scenarios TC-19, TC-25, and TC-26, and the unchecked Priority 4 cases TC-10, TC-11, TC-16, TC-21, TC-23, and TC-24 also remain open.
+
 ---
 
 ## Testing Priority & Focus Guide
@@ -28,7 +34,7 @@ To make testing as efficient as possible, every test case is categorised into a 
 4. **Step 4: Contact Disambiguation & Contextual Dispatch** (🟢 All Passed)  
    Station a caravan at a colony or outpost $\rightarrow$ Click or Shift-click overlapping hex to verify the contact disambiguation menu and Civilization-style hold position outside colony (🟢 **TC-29**), deselect and right-click world hexes to verify source-agnostic contextual dispatch (🟢 **TC-30**), test savegame integrity replay reconciliation and HMAC-SHA256 tamper verification (🟢 **TC-31**), and explore anomalous landmarks with tactical cyan exclamation mark blips (🟢 **TC-32**).
 5. **Step 5: Organic Colony Playtesting** (🟡 Next Up)  
-   Run regular play at 1x–3x speed to observe Model B+ mountain masking (🟢 **TC-02**), coastal sonar (🟡 **TC-03**), dynamic camps (🟡 **TC-07**), and drifting satellites (🟡 **TC-13**).
+   TC-02 is already passed. Test coastal sonar (🟡 **TC-03**) and optimistic travel routing (🟡 **TC-12**) next, then continue with the remaining open Priority 2 cases in the sign-off checklist. Run relevant playtests during regular colony play at 1x–3x speed.
 
 ---
 
@@ -849,6 +855,8 @@ _Objective: Validate sensor origin vantage bonuses, target mountain masking, and
 
 _Objective: Validate oceanic acoustic tracking restriction to water-covered hexes._
 
+This test covers the existing connected-water traversal only. Sonar does not traverse land, but coverage can travel through contiguous water around a headland; do not expect geometric line-of-sight shadows. Hex-ray occlusion and mountain/altitude visibility are deferred.
+
 1. Settle a coastal colony map with ocean tiles adjacent.
 2. In God Mode, construct a **Coastal Hydrophone Array** (`Geoscape_SonarArray`).
 3. Connect power (500W standby / 1,000W active).
@@ -859,6 +867,10 @@ _Objective: Validate oceanic acoustic tracking restriction to water-covered hexe
    - **Verify:** The overland caravan is **not detected** by the sonar array.
 6. Spawn a sea-based or coastal water incursion:
    - **Verify:** The aquatic contact is cleanly detected and tracked across water hexes.
+7. Test a coastal layout where land blocks the direct path to a target, but connected water runs around a headland:
+   - **Verify:** Coverage can reach the target by propagating through connected water within the existing directional sector and range. Do not expect a geometric line-of-sight shadow.
+8. Test a separate water body with no connected water path from the sonar origin:
+   - **Verify:** Sonar coverage does not cross the intervening land to reach the disconnected water.
 
 ---
 
