@@ -1,6 +1,14 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ProjectVigilance.Geoscape;
+using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.Sensory;
+using ProjectVigilance.Geoscape.World;
+using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
@@ -19,6 +27,27 @@ public sealed class Milestone13FixesTests
     [TestInitialize]
     public void Setup()
     {
+        var prefsField = typeof(Prefs).GetField("data", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        if (prefsField != null && prefsField.GetValue(null) == null)
+        {
+            var prefsDataType = typeof(Prefs).Assembly.GetType("Verse.PrefsData");
+            if (prefsDataType != null)
+            {
+                prefsField.SetValue(null, Activator.CreateInstance(prefsDataType));
+            }
+        }
+
+        if (LanguageDatabase.activeLanguage == null)
+        {
+            var lang = new LoadedLanguage("English");
+            var infoField = typeof(LoadedLanguage).GetField("info");
+            if (infoField != null)
+            {
+                infoField.SetValue(lang, Activator.CreateInstance(infoField.FieldType));
+            }
+            LanguageDatabase.activeLanguage = lang;
+        }
+
         var world = (World)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(World));
         var grid = (WorldGrid)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(WorldGrid));
         var surfaceType = typeof(WorldGrid).Assembly.GetType("RimWorld.SurfaceLayer") ?? typeof(PlanetLayer);
@@ -38,6 +67,20 @@ public sealed class Milestone13FixesTests
     {
         SonarTraversalUtility.ResetTestOverrides();
         OptimisticPathingUtility.IsTileImpassableOverride = null;
+        SensoryManager.ActiveSensorsOverride = null;
+        SensoryManager.TileNeighborsOverride = null;
+        SensoryManager.DistanceCalculationOverride = null;
+        SensoryManager.IsExploredOverride = null;
+        SensoryManager.IsIdentifiedOverride = null;
+        SensoryManager.Instance = null;
+        WorldDrawLayer_RadarCoverage.SubMeshMaterialOverride = null;
+        WorldDrawLayer_RadarCoverage.RenderQueueMaterialOverride = null;
+        WorldDrawLayer_RadarCoverage.TileVerticesOverride = null;
+        WorldDrawLayer_RadarCoverage.TileCenterOverride = null;
+        WorldDrawLayer_RadarCoverage.TileNeighborsOverride = null;
+        OutpostTileOccupancyUtility.BlockingObjectAtOverride = null;
+        OutpostTileOccupancyUtility.ListeningPostAtOverride = null;
+        WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = null;
         typeof(Current).GetField("creatingWorldInt", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)?.SetValue(null, null);
     }
 
@@ -229,5 +272,318 @@ public sealed class Milestone13FixesTests
         {
             OptimisticPathingUtility.ResetExpeditionState(42);
         }
+    }
+
+    private sealed class DomainTestSensor : ISensorProvider
+    {
+        public string SensorLabel { get; set; } = "Test Sensor";
+        public bool IsTechnological { get; set; }
+        public PlanetTile SensorTile { get; set; }
+        public float DetectionRadiusInTiles { get; set; }
+        public int IdentificationRadiusInTiles { get; set; }
+        public IntelligenceTier MaxIntelligenceTier { get; set; } = IntelligenceTier.Classified;
+        public bool PenetratesTerrainMasking { get; set; }
+        public int SigintPenetrationRadiusInTiles { get; set; }
+        public bool IsOceanicSonar { get; set; }
+        public bool IsSensorActive { get; set; } = true;
+        public bool IsStationary { get; set; } = true;
+        public WorldObject? Source { get; set; }
+    }
+
+    [TestMethod]
+    public void SensoryManager_PopulateActiveVisionTiles_TracksVisualRadarSonarDomains()
+    {
+        var land0 = MakeTile(10);
+        var land1 = MakeTile(11);
+        var water2 = MakeTile(12);
+        var water3 = MakeTile(13);
+
+        var manager = new SensoryManager(Find.World!);
+        SensoryManager.Instance = manager;
+
+        static void PopulateNeighbors(PlanetTile t, List<PlanetTile> outNeighbors)
+        {
+            outNeighbors.Clear();
+            switch (t.tileId)
+            {
+                case 10: outNeighbors.Add(MakeTile(11)); outNeighbors.Add(MakeTile(12)); break;
+                case 11: outNeighbors.Add(MakeTile(10)); outNeighbors.Add(MakeTile(13)); break;
+                case 12: outNeighbors.Add(MakeTile(10)); outNeighbors.Add(MakeTile(13)); break;
+                case 13: outNeighbors.Add(MakeTile(11)); outNeighbors.Add(MakeTile(12)); break;
+            }
+        }
+
+        SensoryManager.TileNeighborsOverride = PopulateNeighbors;
+        SonarTraversalUtility.GetTileNeighborsOverride = PopulateNeighbors;
+        SonarTraversalUtility.IsTileWaterCoveredOverride = t => t.tileId is 12 or 13;
+        SensoryManager.DistanceCalculationOverride = (a, b, _) =>
+        {
+            if (a.tileId == b.tileId) return 0;
+            if ((a.tileId == 10 && b.tileId == 13) || (a.tileId == 13 && b.tileId == 10)) return 2;
+            return 1;
+        };
+
+        var visualSensor = new DomainTestSensor { SensorTile = land0, DetectionRadiusInTiles = 1f, IsTechnological = false, IsOceanicSonar = false };
+        var radarSensor = new DomainTestSensor { SensorTile = land0, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
+        var sonarSensor = new DomainTestSensor { SensorTile = land0, DetectionRadiusInTiles = 5f, IsTechnological = true, IsOceanicSonar = true };
+
+        SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { visualSensor, radarSensor, sonarSensor };
+
+        var activeTiles = new HashSet<PlanetTile>();
+        var domains = new Dictionary<PlanetTile, SensorDomainFlags>();
+        manager.PopulateActiveVisionTiles(activeTiles, outTileDomains: domains);
+
+        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar, domains[land0], "Land origin should show Visual + Radar without Sonar.");
+        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar, domains[land1], "Land neighbor should show Visual + Radar without Sonar.");
+        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar | SensorDomainFlags.Sonar, domains[water2], "Adjacent coastal water tile should merge all 3 domains.");
+        Assert.AreEqual(SensorDomainFlags.Radar | SensorDomainFlags.Sonar, domains[water3], "Connected outer water tile covered by radar and sonar should merge Radar | Sonar.");
+        Assert.AreEqual("Radar + Sonar", SensoryManager.FormatSensorDomainFlags(domains[water3]));
+    }
+
+    [TestMethod]
+    public void WorldDrawLayer_RadarCoverage_DifferentiatesVisualRadarAndSonarGeometry()
+    {
+        var settings = GeoscapeMod.Settings;
+        var origVis = settings.visibilityMode;
+        var origStyle = settings.radarOutlineStyle;
+        var origFactionColor = settings.usePlayerFactionColor;
+        var origCustomColor = settings.radarCustomColor;
+        var origOutlineAlpha = settings.radarOutlineOpacity;
+        var origGridAlpha = settings.honeycombGridOpacity;
+        var origDimming = settings.surveillanceDimming;
+        var origShowId = settings.showIdentificationHorizon;
+
+        try
+        {
+            settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            settings.radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
+            settings.usePlayerFactionColor = false;
+            settings.radarCustomColor = new Color(0f, 1f, 0.4f); // Distinct green
+            settings.radarOutlineOpacity = 0.8f;
+            settings.honeycombGridOpacity = 0.6f;
+            settings.surveillanceDimming = 0f;
+            settings.showIdentificationHorizon = false;
+
+            var tileA = MakeTile(10);
+            var tileB = MakeTile(11);
+            var manager = new SensoryManager(Find.World!);
+            SensoryManager.Instance = manager;
+
+            var coastalOrigin = MakeTile(9);
+            static void PopulateNeighbors(PlanetTile t, List<PlanetTile> outNeighbors)
+            {
+                outNeighbors.Clear();
+                if (t.tileId == 9)
+                {
+                    outNeighbors.Add(MakeTile(10)); // Coastal station adjacent to water tileA
+                }
+                else if (t.tileId == 10)
+                {
+                    outNeighbors.Add(MakeTile(11)); // Edge 0 shared with tileB
+                    outNeighbors.Add(MakeTile(20));
+                    outNeighbors.Add(MakeTile(21));
+                    outNeighbors.Add(MakeTile(22));
+                }
+                else if (t.tileId == 11)
+                {
+                    outNeighbors.Add(MakeTile(10)); // Edge 0 shared with tileA
+                    outNeighbors.Add(MakeTile(30));
+                    outNeighbors.Add(MakeTile(31));
+                    outNeighbors.Add(MakeTile(32));
+                }
+            }
+
+            static void PopulateVerts(PlanetTile t, List<Vector3> outVerts)
+            {
+                outVerts.Clear();
+                if (t.tileId == 10)
+                {
+                    outVerts.Add(new Vector3(0.5f, -0.5f, 100f));
+                    outVerts.Add(new Vector3(0.5f, 0.5f, 100f));
+                    outVerts.Add(new Vector3(-0.5f, 0.5f, 100f));
+                    outVerts.Add(new Vector3(-0.5f, -0.5f, 100f));
+                }
+                else if (t.tileId == 11)
+                {
+                    outVerts.Add(new Vector3(0.5f, 0.5f, 100f));
+                    outVerts.Add(new Vector3(0.5f, -0.5f, 100f));
+                    outVerts.Add(new Vector3(1.5f, -0.5f, 100f));
+                    outVerts.Add(new Vector3(1.5f, 0.5f, 100f));
+                }
+            }
+
+            SensoryManager.TileNeighborsOverride = PopulateNeighbors;
+            SonarTraversalUtility.GetTileNeighborsOverride = PopulateNeighbors;
+            SonarTraversalUtility.IsTileWaterCoveredOverride = t => t.tileId == 10 || t.tileId == 11;
+            SensoryManager.DistanceCalculationOverride = (a, b, _) =>
+            {
+                if (a.tileId == b.tileId) return 0;
+                if ((a.tileId == 10 && b.tileId == 11) || (a.tileId == 11 && b.tileId == 10)) return 1;
+                return 99;
+            };
+
+            WorldDrawLayer_RadarCoverage.SubMeshMaterialOverride = () => null!;
+            WorldDrawLayer_RadarCoverage.RenderQueueMaterialOverride = _ => null!;
+            WorldDrawLayer_RadarCoverage.TileNeighborsOverride = PopulateNeighbors;
+            WorldDrawLayer_RadarCoverage.TileVerticesOverride = PopulateVerts;
+            WorldDrawLayer_RadarCoverage.TileCenterOverride = t => t.tileId == 10 ? new Vector3(0f, 0f, 100f) : new Vector3(1f, 0f, 100f);
+
+            var layer = new WorldDrawLayer_RadarCoverage();
+            typeof(WorldDrawLayer).GetField("planetLayer", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(layer, Find.World!.grid.Surface);
+
+            // 1. Visual-only: 6 outer edges only (24 verts), zero interior grid edge, warm-ivory perimeter RGB
+            var visualSensor = new DomainTestSensor { SensorTile = tileA, DetectionRadiusInTiles = 2f, IsTechnological = false, IsOceanicSonar = false };
+            SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { visualSensor };
+            foreach (object _ in layer.Regenerate()) { }
+
+            var visualVerts = layer.SubMeshes.SelectMany(sm => sm.verts).ToList();
+            var visualColors = layer.SubMeshes.SelectMany(sm => sm.colors).ToList();
+            Assert.AreEqual(24, visualVerts.Count, "Visual-only coverage must emit outer perimeter edges only (no interior honeycomb grid).");
+            Assert.IsTrue(visualColors.All(c => c.r == WorldDrawLayer_RadarCoverage.VisualPerimeterColorRgb.r &&
+                                                c.g == WorldDrawLayer_RadarCoverage.VisualPerimeterColorRgb.g &&
+                                                c.b == WorldDrawLayer_RadarCoverage.VisualPerimeterColorRgb.b),
+                "Visual-only perimeter must use warm-ivory horizon color.");
+
+            // 2. Sonar-only from coastal land station: 6 outer + 1 interior edge (28 verts), Oceanic Cyan RGB
+            var sonarSensor = new DomainTestSensor { SensorTile = coastalOrigin, DetectionRadiusInTiles = 3f, IsTechnological = true, IsOceanicSonar = true };
+            SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { sonarSensor };
+            foreach (object _ in layer.Regenerate()) { }
+
+            var sonarVerts = layer.SubMeshes.SelectMany(sm => sm.verts).ToList();
+            var sonarColors = layer.SubMeshes.SelectMany(sm => sm.colors).ToList();
+            Assert.AreEqual(28, sonarVerts.Count, "Sonar coverage must include both outer boundary and interior water grid.");
+            Assert.IsTrue(sonarColors.All(c => c.r == WorldDrawLayer_RadarCoverage.SonarPerimeterColorRgb.r &&
+                                               c.g == WorldDrawLayer_RadarCoverage.SonarPerimeterColorRgb.g &&
+                                               c.b == WorldDrawLayer_RadarCoverage.SonarPerimeterColorRgb.b),
+                "Sonar coverage edges must render in Oceanic Cyan.");
+
+            // 3. Radar + Sonar overlap: outer edges use Radar green while interior water edge uses Sonar cyan
+            var radarSensor = new DomainTestSensor { SensorTile = tileA, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
+            SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { radarSensor, sonarSensor };
+            foreach (object _ in layer.Regenerate()) { }
+
+            var overlapColors = layer.SubMeshes.SelectMany(sm => sm.colors).ToList();
+            Assert.AreEqual(28, overlapColors.Count);
+            int sonarCyanVerts = overlapColors.Count(c =>
+                c.r == WorldDrawLayer_RadarCoverage.SonarPerimeterColorRgb.r &&
+                c.g == WorldDrawLayer_RadarCoverage.SonarPerimeterColorRgb.g &&
+                c.b == WorldDrawLayer_RadarCoverage.SonarPerimeterColorRgb.b);
+            Assert.AreEqual(4, sonarCyanVerts, "Overlapping Radar + Sonar must render Radar outer boundary and Sonar cyan interior water grid.");
+        }
+        finally
+        {
+            settings.visibilityMode = origVis;
+            settings.radarOutlineStyle = origStyle;
+            settings.usePlayerFactionColor = origFactionColor;
+            settings.radarCustomColor = origCustomColor;
+            settings.radarOutlineOpacity = origOutlineAlpha;
+            settings.honeycombGridOpacity = origGridAlpha;
+            settings.surveillanceDimming = origDimming;
+            settings.showIdentificationHorizon = origShowId;
+        }
+    }
+
+    [TestMethod]
+    public void ContactLabel_And_TelemetrySummary_IncludeActiveSensorDomain()
+    {
+        Assert.AreEqual("Radar Contact-3", SensoryNarrativeUtility.GetContactLabel(trackingId: 3, domainFlags: SensorDomainFlags.Radar));
+        Assert.AreEqual("Sonar Contact-4", SensoryNarrativeUtility.GetContactLabel(trackingId: 4, domainFlags: SensorDomainFlags.Sonar));
+        Assert.AreEqual("Visual Contact-5", SensoryNarrativeUtility.GetContactLabel(trackingId: 5, domainFlags: SensorDomainFlags.Visual));
+        Assert.AreEqual("Contact-6", SensoryNarrativeUtility.GetContactLabel(trackingId: 6, domainFlags: SensorDomainFlags.None));
+
+        var settings = GeoscapeMod.Settings;
+        var origVis = settings.visibilityMode;
+        try
+        {
+            settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            var coastalTile = MakeTile(50);
+            var manager = new SensoryManager(Find.World!);
+            SensoryManager.Instance = manager;
+
+            static void NoNeighbors(PlanetTile _, List<PlanetTile> n) => n.Clear();
+            SensoryManager.TileNeighborsOverride = NoNeighbors;
+            SonarTraversalUtility.GetTileNeighborsOverride = NoNeighbors;
+            SonarTraversalUtility.IsTileWaterCoveredOverride = t => t.tileId == 50;
+            SensoryManager.DistanceCalculationOverride = (a, b, _) => a.tileId == b.tileId ? 0 : 99;
+            SensoryManager.IsExploredOverride = t => t.tileId == 50;
+            SensoryManager.IsIdentifiedOverride = _ => false;
+
+            var radarSensor = new DomainTestSensor { SensorTile = coastalTile, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
+            SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { radarSensor };
+
+            Assert.AreEqual("Telemetry: Radar (Detected)", TerrainTelemetryUtility.FormatActiveTelemetrySummary(coastalTile));
+
+            SensoryManager.IsIdentifiedOverride = _ => true;
+            Assert.AreEqual("Telemetry: Radar (Identified)", TerrainTelemetryUtility.FormatActiveTelemetrySummary(coastalTile));
+            Assert.AreEqual(string.Empty, TerrainTelemetryUtility.FormatActiveTelemetrySummary(MakeTile(999)));
+        }
+        finally
+        {
+            settings.visibilityMode = origVis;
+        }
+    }
+
+    [TestMethod]
+    public void OutpostTileExclusivity_EnforcesBidirectionalGuardsAcrossCreationAndSettleCamp()
+    {
+        PlanetTile tile = MakeTile(300);
+
+        // 1. Completed outpost blocks new outpost construction
+        var completedPost = (WorldObject_ListeningPost)RuntimeHelpers.GetUninitializedObject(typeof(WorldObject_ListeningPost));
+        OutpostTileOccupancyUtility.ListeningPostAtOverride = _ => completedPost;
+        OutpostTileOccupancyUtility.BlockingObjectAtOverride = null;
+
+        Assert.IsFalse(OutpostTileOccupancyUtility.CanConstructOutpostAt(tile, out string reasonCompleted));
+        Assert.IsTrue(reasonCompleted.Contains("already occupied", StringComparison.OrdinalIgnoreCase));
+
+        // 2. Under-construction outpost blocks fresh construction, allows resume via StillValid
+        completedPost.StartConstruction(2500);
+        Assert.IsFalse(OutpostTileOccupancyUtility.CanConstructOutpostAt(tile, out _, allowUnderConstructionPost: false));
+        Assert.IsTrue(OutpostTileOccupancyUtility.CanConstructOutpostAt(tile, out _, allowUnderConstructionPost: true));
+
+        // 3. TileFinder & SettleInEmptyTileUtility block Settle and Make Camp on outpost tile
+        bool settleValid = true;
+        var settleReason = new StringBuilder();
+        StartingSiteSelectionFeedback_Patch.TileFinder_IsValidTileForNewSettlement_OutpostExclusivity_Patch.Postfix(tile, settleReason, ref settleValid);
+        Assert.IsFalse(settleValid, "Settle must be blocked on outpost tile.");
+        Assert.IsTrue(settleReason.ToString().Contains("dismantle outpost first", StringComparison.OrdinalIgnoreCase));
+
+        bool canCreateMap = true;
+        StartingSiteSelectionFeedback_Patch.SettleInEmptyTileUtility_CanCreateMapAt_Patch.Postfix(tile, ref canCreateMap);
+        Assert.IsFalse(canCreateMap, "Make Camp map creation must be blocked on outpost tile.");
+
+        var caravan = (Caravan)RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        typeof(WorldObject).GetField("tile", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(caravan, tile);
+        var campCmd = new Command_Action();
+        StartingSiteSelectionFeedback_Patch.SettleInEmptyTileUtility_SetupCamp_Patch.Postfix(caravan, campCmd);
+        Assert.IsTrue(campCmd.Disabled, "SetupCamp command must be disabled on outpost tile.");
+        Assert.IsTrue(campCmd.disabledReason.Contains("dismantle outpost first", StringComparison.OrdinalIgnoreCase));
+
+        // 4. Settlements, camps, and ruins block outpost construction
+        OutpostTileOccupancyUtility.ListeningPostAtOverride = null;
+        var npcSettlement = (Settlement)RuntimeHelpers.GetUninitializedObject(typeof(Settlement));
+        typeof(WorldObject).GetField("tile", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(npcSettlement, tile);
+        typeof(Settlement).GetField("nameInt", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(npcSettlement, "Outlander Town");
+        OutpostTileOccupancyUtility.BlockingObjectAtOverride = t => t.tileId == tile.tileId ? npcSettlement : null;
+
+        Assert.IsFalse(OutpostTileOccupancyUtility.CanConstructOutpostAt(tile, out string reasonSettlement));
+        Assert.IsTrue(reasonSettlement.Contains("Outlander Town", StringComparison.OrdinalIgnoreCase));
+
+        var arrivalAction = new CaravanArrivalAction_ConstructOutpost(tile, ListeningPostKind.AutomatedRelay);
+        FloatMenuAcceptanceReport stillValid = arrivalAction.StillValid(caravan, tile);
+        Assert.IsFalse((bool)stillValid, "ConstructOutpost arrival action must abort if destination has a settlement/site.");
+
+        // 5. Settlement right-click dispatch menu suppresses outpost expedition options on occupied tile
+        var homeSettlement = (Settlement)RuntimeHelpers.GetUninitializedObject(typeof(Settlement));
+        var homeTile = MakeTile(301);
+        typeof(WorldObject).GetField("tile", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(homeSettlement, homeTile);
+        typeof(Settlement).GetField("nameInt", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(homeSettlement, "Player Base");
+        var mockMap = (Map)RuntimeHelpers.GetUninitializedObject(typeof(Map));
+        WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = s => ReferenceEquals(s, homeSettlement) ? mockMap : null;
+
+        List<FloatMenuOption> dispatchOptions = WorldSelector_HandleWorldClicks_Patch.BuildSettlementDispatchOptions(homeSettlement, tile);
+        Assert.IsFalse(dispatchOptions.Any(o => o.Label.Contains("Dispatch Construction Expedition", StringComparison.OrdinalIgnoreCase)),
+            "Settlement dispatch menu must not offer outpost construction on a tile occupied by an existing settlement/site.");
     }
 }

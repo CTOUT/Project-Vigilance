@@ -8,6 +8,7 @@ using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
 using RimWorld;
+using RimWorld.Planet;
 using UnityEngine;
 using Verse;
 
@@ -168,7 +169,9 @@ public class CampaignRulesTests
         {
             visibilityMode = VisibilityMode.Omniscient,
             colonyScoutRadius = 8.5f,
+            colonyIdentificationRadius = 2.0f,
             caravanScoutRadius = 4.2f,
+            caravanIdentificationRadius = 1.0f,
             enableNighttimeSensoryReduction = false,
             incursionsRestAtNight = false,
             synchronizeMultiVectorRaids = false,
@@ -182,7 +185,9 @@ public class CampaignRulesTests
 
         Assert.AreEqual(VisibilityMode.Omniscient, rules.Visibility.Value);
         Assert.AreEqual(8.5f, rules.ColonyScoutRadius.Value, 0.01f);
+        Assert.AreEqual(2.0f, rules.ColonyIdentificationRadius.Value, 0.01f);
         Assert.AreEqual(4.2f, rules.CaravanScoutRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, rules.CaravanIdentificationRadius.Value, 0.01f);
         Assert.IsFalse(rules.NighttimeSensoryReduction.Value);
         Assert.IsFalse(rules.IncursionsRestAtNight.Value);
         Assert.IsFalse(rules.SynchronizeMultiVectorRaids.Value);
@@ -197,7 +202,9 @@ public class CampaignRulesTests
         GeoscapeRuleSet rules = new();
         rules.Visibility.Value = VisibilityMode.PlanetarySurveillance;
         rules.ColonyScoutRadius.Value = 6.0f;
+        rules.ColonyIdentificationRadius.Value = 2.0f;
         rules.CaravanScoutRadius.Value = 3.5f;
+        rules.CaravanIdentificationRadius.Value = 1.0f;
         rules.NighttimeSensoryReduction.Value = false;
         rules.IncursionsRestAtNight.Value = true;
         rules.SynchronizeMultiVectorRaids.Value = false;
@@ -210,7 +217,9 @@ public class CampaignRulesTests
 
         Assert.AreEqual(VisibilityMode.PlanetarySurveillance, settings.visibilityMode);
         Assert.AreEqual(6.0f, settings.colonyScoutRadius, 0.01f);
+        Assert.AreEqual(2.0f, settings.colonyIdentificationRadius, 0.01f);
         Assert.AreEqual(3.5f, settings.caravanScoutRadius, 0.01f);
+        Assert.AreEqual(1.0f, settings.caravanIdentificationRadius, 0.01f);
         Assert.IsFalse(settings.enableNighttimeSensoryReduction);
         Assert.IsTrue(settings.incursionsRestAtNight);
         Assert.IsFalse(settings.synchronizeMultiVectorRaids);
@@ -226,17 +235,24 @@ public class CampaignRulesTests
 
         rules.ApplyProfile(CampaignProfile.ClassicHaze);
         Assert.AreEqual(VisibilityMode.ClassicHazeOfWar, rules.Visibility.Value);
-        Assert.AreEqual(5.0f, rules.ColonyScoutRadius.Value, 0.01f);
-        Assert.AreEqual(3.0f, rules.CaravanScoutRadius.Value, 0.01f);
+        Assert.AreEqual(3.0f, rules.ColonyScoutRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, rules.ColonyIdentificationRadius.Value, 0.01f);
+        Assert.AreEqual(2.0f, rules.CaravanScoutRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, rules.CaravanIdentificationRadius.Value, 0.01f);
 
         rules.ApplyProfile(CampaignProfile.PlanetarySurveillance);
         Assert.AreEqual(VisibilityMode.PlanetarySurveillance, rules.Visibility.Value);
-        Assert.AreEqual(5.0f, rules.ColonyScoutRadius.Value, 0.01f);
+        Assert.AreEqual(3.0f, rules.ColonyScoutRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, rules.ColonyIdentificationRadius.Value, 0.01f);
+        Assert.AreEqual(2.0f, rules.CaravanScoutRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, rules.CaravanIdentificationRadius.Value, 0.01f);
 
         rules.ApplyProfile(CampaignProfile.HardcoreVigilance);
         Assert.AreEqual(VisibilityMode.ClassicHazeOfWar, rules.Visibility.Value);
-        Assert.AreEqual(4.0f, rules.ColonyScoutRadius.Value, 0.01f);
-        Assert.AreEqual(2.0f, rules.CaravanScoutRadius.Value, 0.01f);
+        Assert.AreEqual(2.0f, rules.ColonyScoutRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, rules.ColonyIdentificationRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, rules.CaravanScoutRadius.Value, 0.01f);
+        Assert.AreEqual(0.0f, rules.CaravanIdentificationRadius.Value, 0.01f);
     }
 
     [TestMethod]
@@ -614,7 +630,10 @@ public class CampaignRulesTests
         // Re-apply preset restores profile
         draft.ApplyProfile(CampaignProfile.HardcoreVigilance);
         Assert.AreEqual(CampaignProfile.HardcoreVigilance, draft.DetectCurrentProfile());
-        Assert.AreEqual(4.0f, draft.ColonyScoutRadius.Value, 0.01f);
+        Assert.AreEqual(2.0f, draft.ColonyScoutRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, draft.ColonyIdentificationRadius.Value, 0.01f);
+        Assert.AreEqual(1.0f, draft.CaravanScoutRadius.Value, 0.01f);
+        Assert.AreEqual(0.0f, draft.CaravanIdentificationRadius.Value, 0.01f);
     }
 
     [TestMethod]
@@ -764,5 +783,78 @@ public class CampaignRulesTests
 
         Assert.AreSame(sitePage, worldParams.next, "Page_CreateWorldParams must link to sitePage under Planetary Surveillance default.");
         Assert.AreSame(worldParams, sitePage.prev, "sitePage prev must link to worldParams.");
+    }
+
+    [TestMethod]
+    public void ScoutHorizonAndRuleSet_IdentificationRadius_AlwaysAtLeastOneLessThanHorizon()
+    {
+        GeoscapeRuleSet clampedRules = new();
+        clampedRules.ColonyScoutRadius.Value = 3.0f;
+        clampedRules.ColonyIdentificationRadius.Value = 5.0f;
+        clampedRules.CaravanScoutRadius.Value = 1.0f;
+        clampedRules.CaravanIdentificationRadius.Value = 2.0f;
+        clampedRules.ClampIdentificationRadii();
+
+        Assert.AreEqual(2.0f, clampedRules.ColonyIdentificationRadius.Value, 0.01f);
+        Assert.AreEqual(0.0f, clampedRules.CaravanIdentificationRadius.Value, 0.01f);
+
+        var settings = GeoscapeMod.Settings;
+        float origColonyScout = settings.colonyScoutRadius;
+        float origColonyId = settings.colonyIdentificationRadius;
+        float origCaravanScout = settings.caravanScoutRadius;
+        float origCaravanId = settings.caravanIdentificationRadius;
+        bool origNightReduction = settings.enableNighttimeSensoryReduction;
+        Func<PlanetTile, int>? origVantageOverride = SensoryTerrainUtility.VantageBonusOverride;
+
+        try
+        {
+            var probe = new WorldObject();
+            var colonySensor = new ScoutHorizonSensor(probe, isColony: true);
+            var caravanSensor = new ScoutHorizonSensor(probe, isColony: false);
+
+            // Standard defaults: Colony 3 / 1, Caravan 2 / 1
+            settings.ResetToDefaults();
+            settings.enableNighttimeSensoryReduction = false;
+            SensoryTerrainUtility.VantageBonusOverride = _ => 0;
+            Assert.AreEqual(3.0f, colonySensor.DetectionRadiusInTiles, 0.01f);
+            Assert.AreEqual(1, colonySensor.IdentificationRadiusInTiles);
+            Assert.AreEqual(2.0f, caravanSensor.DetectionRadiusInTiles, 0.01f);
+            Assert.AreEqual(1, caravanSensor.IdentificationRadiusInTiles);
+
+            // Elevated optical vantage expands detection only, not unaided identification
+            SensoryTerrainUtility.VantageBonusOverride = _ => 3;
+            Assert.AreEqual(6.0f, colonySensor.DetectionRadiusInTiles, 0.01f);
+            Assert.AreEqual(1, colonySensor.IdentificationRadiusInTiles);
+            Assert.AreEqual(5.0f, caravanSensor.DetectionRadiusInTiles, 0.01f);
+            Assert.AreEqual(1, caravanSensor.IdentificationRadiusInTiles);
+
+            // Hardcore profile values: Colony 2 / 1, Caravan 1 / 0
+            SensoryTerrainUtility.VantageBonusOverride = _ => 0;
+            GeoscapeRuleSet hardcore = new();
+            hardcore.ApplyProfile(CampaignProfile.HardcoreVigilance);
+            hardcore.WriteToDefaults(settings);
+            settings.enableNighttimeSensoryReduction = false;
+            Assert.AreEqual(2.0f, colonySensor.DetectionRadiusInTiles, 0.01f);
+            Assert.AreEqual(1, colonySensor.IdentificationRadiusInTiles);
+            Assert.AreEqual(1.0f, caravanSensor.DetectionRadiusInTiles, 0.01f);
+            Assert.AreEqual(0, caravanSensor.IdentificationRadiusInTiles);
+
+            // Runtime sensor strictly enforces <= Max(0, FloorToInt(det) - 1) even if raw settings are oversized
+            settings.colonyScoutRadius = 3.0f;
+            settings.colonyIdentificationRadius = 5.0f;
+            settings.caravanScoutRadius = 1.0f;
+            settings.caravanIdentificationRadius = 5.0f;
+            Assert.AreEqual(2, colonySensor.IdentificationRadiusInTiles);
+            Assert.AreEqual(0, caravanSensor.IdentificationRadiusInTiles);
+        }
+        finally
+        {
+            SensoryTerrainUtility.VantageBonusOverride = origVantageOverride;
+            settings.colonyScoutRadius = origColonyScout;
+            settings.colonyIdentificationRadius = origColonyId;
+            settings.caravanScoutRadius = origCaravanScout;
+            settings.caravanIdentificationRadius = origCaravanId;
+            settings.enableNighttimeSensoryReduction = origNightReduction;
+        }
     }
 }

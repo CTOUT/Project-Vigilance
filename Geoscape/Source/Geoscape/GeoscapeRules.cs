@@ -16,8 +16,14 @@ public static class GeoscapeRules
     public static float ColonyScoutRadius =>
         GeoscapeCampaignRules.Active?.Rules.ColonyScoutRadius.Value ?? GeoscapeMod.Settings.colonyScoutRadius;
 
+    public static float ColonyIdentificationRadius =>
+        GeoscapeCampaignRules.Active?.Rules.ColonyIdentificationRadius.Value ?? GeoscapeMod.Settings.colonyIdentificationRadius;
+
     public static float CaravanScoutRadius =>
         GeoscapeCampaignRules.Active?.Rules.CaravanScoutRadius.Value ?? GeoscapeMod.Settings.caravanScoutRadius;
+
+    public static float CaravanIdentificationRadius =>
+        GeoscapeCampaignRules.Active?.Rules.CaravanIdentificationRadius.Value ?? GeoscapeMod.Settings.caravanIdentificationRadius;
 
     public static bool NighttimeSensoryReduction =>
         GeoscapeCampaignRules.Active?.Rules.NighttimeSensoryReduction.Value ?? GeoscapeMod.Settings.enableNighttimeSensoryReduction;

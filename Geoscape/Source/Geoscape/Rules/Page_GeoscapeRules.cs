@@ -131,7 +131,7 @@ public class Page_GeoscapeRules : Page
 
         float lineY = innerSummary.y + 32f;
         DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Planetary Visibility", draft.Visibility.CurrentValueLabel);
-        DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Lookout Scouting Horizon", $"{draft.ColonyScoutRadius.CurrentValueLabel} (Colony) / {draft.CaravanScoutRadius.CurrentValueLabel} (Caravan)");
+        DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Lookout Scouting Horizon", $"Colony {draft.ColonyScoutRadius.CurrentValueLabel} (ID {draft.ColonyIdentificationRadius.CurrentValueLabel}) / Caravan {draft.CaravanScoutRadius.CurrentValueLabel} (ID {draft.CaravanIdentificationRadius.CurrentValueLabel})");
         DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Nighttime Vigilance", draft.NighttimeSensoryReduction.Value ? "Active (Watchmen vigilance halved at night; sleeping posts drop to perimeter)" : "Disabled (Constant 24-hour visual scouting)");
         DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Early Warning Radars", draft.EarlyWarningLetters.Value ? "Active Radar Telemetry & Audio Dispatch" : "Passive Only");
         DrawSummaryLine(innerSummary.x, ref lineY, innerSummary.width, "Hostile Ingress Doctrine", draft.TacticalIngressFlanking.Value ? "Active (Raids flank off-road to evade fortified choke points)" : "Direct (Raids take direct approach corridors)");

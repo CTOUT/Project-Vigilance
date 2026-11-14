@@ -39,8 +39,10 @@ public class GeoscapeSettings : ModSettings
     public bool useCustomIdentificationColor = false;
     public Color radarIdentificationColor = new(1.0f, 0.82f, 0.15f);
     public float surveillanceDimming = 0.25f;
-    public float colonyScoutRadius = 5.0f;
-    public float caravanScoutRadius = 3.0f;
+    public float colonyScoutRadius = 3.0f;
+    public float colonyIdentificationRadius = 1.0f;
+    public float caravanScoutRadius = 2.0f;
+    public float caravanIdentificationRadius = 1.0f;
     public bool enableEarlyWarningLetters = true;
     public bool enableNighttimeSensoryReduction = true;
     public bool incursionsRestAtNight = true;
@@ -118,12 +120,13 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref showIdentificationHorizon, "showIdentificationHorizon", true);
         Scribe_Values.Look(ref radarTerrainShadowStyle, "radarTerrainShadowStyle", RadarTerrainShadowStyle.Both);
         Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.25f);
-        Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 5.0f);
-        Scribe_Values.Look(ref caravanScoutRadius, "caravanScoutRadius", 3.0f);
+        Scribe_Values.Look(ref colonyScoutRadius, "colonyScoutRadius", 3.0f);
+        Scribe_Values.Look(ref colonyIdentificationRadius, "colonyIdentificationRadius", 1.0f);
+        Scribe_Values.Look(ref caravanScoutRadius, "caravanScoutRadius", 2.0f);
+        Scribe_Values.Look(ref caravanIdentificationRadius, "caravanIdentificationRadius", 1.0f);
         if (Scribe.mode == LoadSaveMode.LoadingVars)
         {
-            colonyScoutRadius = Mathf.Round(colonyScoutRadius);
-            caravanScoutRadius = Mathf.Round(caravanScoutRadius);
+            ClampLookoutRadii();
         }
         Scribe_Values.Look(ref enableEarlyWarningLetters, "enableEarlyWarningLetters", true);
         Scribe_Values.Look(ref enableNighttimeSensoryReduction, "enableNighttimeSensoryReduction", true);
@@ -212,11 +215,18 @@ public class GeoscapeSettings : ModSettings
 
     private GeoscapeRuleSet GetOrCreateTransientRuleSet()
     {
-        colonyScoutRadius = Mathf.Round(colonyScoutRadius);
-        caravanScoutRadius = Mathf.Round(caravanScoutRadius);
+        ClampLookoutRadii();
         transientDefaultRuleSet ??= new GeoscapeRuleSet();
         transientDefaultRuleSet.CopyFromDefaults(this);
         return transientDefaultRuleSet;
+    }
+
+    private void ClampLookoutRadii()
+    {
+        colonyScoutRadius = Mathf.Max(1.0f, Mathf.Round(colonyScoutRadius));
+        caravanScoutRadius = Mathf.Max(1.0f, Mathf.Round(caravanScoutRadius));
+        colonyIdentificationRadius = GeoscapeRuleSet.ClampIdentificationRadius(colonyIdentificationRadius, colonyScoutRadius);
+        caravanIdentificationRadius = GeoscapeRuleSet.ClampIdentificationRadius(caravanIdentificationRadius, caravanScoutRadius);
     }
 
     private void DrawContextBanner(Listing_Standard listing, GeoscapeCampaignRules? campaign)
@@ -939,8 +949,10 @@ public class GeoscapeSettings : ModSettings
         useCustomIdentificationColor = false;
         radarIdentificationColor = new Color(1.0f, 0.82f, 0.15f);
         surveillanceDimming = 0.25f;
-        colonyScoutRadius = 5.0f;
-        caravanScoutRadius = 3.0f;
+        colonyScoutRadius = 3.0f;
+        colonyIdentificationRadius = 1.0f;
+        caravanScoutRadius = 2.0f;
+        caravanIdentificationRadius = 1.0f;
         enableEarlyWarningLetters = true;
         enableNighttimeSensoryReduction = true;
         incursionsRestAtNight = true;

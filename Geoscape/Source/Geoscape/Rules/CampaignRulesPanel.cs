@@ -108,6 +108,27 @@ public static class CampaignRulesPanel
         Text.Font = GameFont.Small;
         listing.GapLine();
 
+        static float ClampIdHorizon(
+            CampaignRule<float> scoutRule,
+            CampaignRule<float> idRule,
+            GeoscapeCampaignRules? activeCampaign)
+        {
+            float maxId = GeoscapeRuleSet.GetMaxIdentificationRadius(scoutRule.Value);
+            float clamped = GeoscapeRuleSet.ClampIdentificationRadius(idRule.Value, scoutRule.Value);
+            if (Mathf.Abs(clamped - idRule.Value) > 0.01f)
+            {
+                if (activeCampaign == null)
+                {
+                    idRule.Value = clamped;
+                }
+                else if (!activeCampaign.TryApply(idRule, clamped, out _))
+                {
+                    activeCampaign.ForceApplyUnsafe(idRule, clamped);
+                }
+            }
+            return maxId;
+        }
+
         CampaignRuleWidgets.DrawFloat(
             listing,
             rules.ColonyScoutRadius,
@@ -118,6 +139,17 @@ public static class CampaignRulesPanel
             showLockPreview,
             enabled: applicable);
 
+        float maxColonyId = ClampIdHorizon(rules.ColonyScoutRadius, rules.ColonyIdentificationRadius, campaign);
+        CampaignRuleWidgets.DrawFloat(
+            listing,
+            rules.ColonyIdentificationRadius,
+            0.0f,
+            Mathf.Max(1.0f, maxColonyId),
+            campaign,
+            ctx,
+            showLockPreview,
+            enabled: applicable && maxColonyId > 0.0f);
+
         CampaignRuleWidgets.DrawFloat(
             listing,
             rules.CaravanScoutRadius,
@@ -127,6 +159,17 @@ public static class CampaignRulesPanel
             ctx,
             showLockPreview,
             enabled: applicable);
+
+        float maxCaravanId = ClampIdHorizon(rules.CaravanScoutRadius, rules.CaravanIdentificationRadius, campaign);
+        CampaignRuleWidgets.DrawFloat(
+            listing,
+            rules.CaravanIdentificationRadius,
+            0.0f,
+            Mathf.Max(1.0f, maxCaravanId),
+            campaign,
+            ctx,
+            showLockPreview,
+            enabled: applicable && maxCaravanId > 0.0f);
 
         CampaignRuleWidgets.DrawBool(
             listing,

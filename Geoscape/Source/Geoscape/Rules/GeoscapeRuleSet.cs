@@ -14,7 +14,9 @@ public sealed class GeoscapeRuleSet : IExposable
 {
     public readonly CampaignRule<VisibilityMode> Visibility;
     public readonly CampaignRule<float> ColonyScoutRadius;
+    public readonly CampaignRule<float> ColonyIdentificationRadius;
     public readonly CampaignRule<float> CaravanScoutRadius;
+    public readonly CampaignRule<float> CaravanIdentificationRadius;
     public readonly CampaignRule<bool> NighttimeSensoryReduction;
     public readonly CampaignRule<bool> IncursionsRestAtNight;
     public readonly CampaignRule<bool> SynchronizeMultiVectorRaids;
@@ -48,9 +50,20 @@ public sealed class GeoscapeRuleSet : IExposable
             "Colony scout horizon",
             "Natural optical observation range of established player colonies in world hexes.",
             RuleMutability.Immutable,
-            hardDefault: 5.0f,
+            hardDefault: 3.0f,
             defaultSelector: d => d.colonyScoutRadius,
             defaultWriter: (d, val) => d.colonyScoutRadius = val,
+            effects: RuleTransitionEffects.RescanSensors | RuleTransitionEffects.RebuildWorldLayers,
+            valueFormatter: FormatHexCount);
+
+        ColonyIdentificationRadius = new CampaignRule<float>(
+            "colonyIdentificationRadius",
+            "Colony identification horizon",
+            "Maximum distance at which established player colonies can positively identify contacts (always at least 1 hex less than the scout horizon).",
+            RuleMutability.Immutable,
+            hardDefault: 1.0f,
+            defaultSelector: d => d.colonyIdentificationRadius,
+            defaultWriter: (d, val) => d.colonyIdentificationRadius = val,
             effects: RuleTransitionEffects.RescanSensors | RuleTransitionEffects.RebuildWorldLayers,
             valueFormatter: FormatHexCount);
 
@@ -59,9 +72,20 @@ public sealed class GeoscapeRuleSet : IExposable
             "Caravan scout horizon",
             "Natural optical observation range of moving player caravans in world hexes.",
             RuleMutability.Immutable,
-            hardDefault: 3.0f,
+            hardDefault: 2.0f,
             defaultSelector: d => d.caravanScoutRadius,
             defaultWriter: (d, val) => d.caravanScoutRadius = val,
+            effects: RuleTransitionEffects.RescanSensors | RuleTransitionEffects.RebuildWorldLayers,
+            valueFormatter: FormatHexCount);
+
+        CaravanIdentificationRadius = new CampaignRule<float>(
+            "caravanIdentificationRadius",
+            "Caravan identification horizon",
+            "Maximum distance at which moving player caravans can positively identify contacts (always at least 1 hex less than the scout horizon).",
+            RuleMutability.Immutable,
+            hardDefault: 1.0f,
+            defaultSelector: d => d.caravanIdentificationRadius,
+            defaultWriter: (d, val) => d.caravanIdentificationRadius = val,
             effects: RuleTransitionEffects.RescanSensors | RuleTransitionEffects.RebuildWorldLayers,
             valueFormatter: FormatHexCount);
 
@@ -142,11 +166,13 @@ public sealed class GeoscapeRuleSet : IExposable
             effects: RuleTransitionEffects.None,
             valueFormatter: FormatStartingSiteSelection);
 
-        allRules = new List<ICampaignRule>(10)
+        allRules = new List<ICampaignRule>(12)
         {
             Visibility,
             ColonyScoutRadius,
+            ColonyIdentificationRadius,
             CaravanScoutRadius,
+            CaravanIdentificationRadius,
             NighttimeSensoryReduction,
             IncursionsRestAtNight,
             SynchronizeMultiVectorRaids,
@@ -197,11 +223,13 @@ public sealed class GeoscapeRuleSet : IExposable
         {
             allRules[i].CopyFromDefaults(defaults);
         }
+        ClampIdentificationRadii();
     }
 
     public void WriteToDefaults(GeoscapeSettings defaults)
     {
         if (defaults == null) return;
+        ClampIdentificationRadii();
         for (int i = 0; i < allRules.Count; i++)
         {
             allRules[i].WriteToDefaults(defaults);
@@ -213,7 +241,9 @@ public sealed class GeoscapeRuleSet : IExposable
         if (other == null) return;
         Visibility.Value = other.Visibility.Value;
         ColonyScoutRadius.Value = other.ColonyScoutRadius.Value;
+        ColonyIdentificationRadius.Value = other.ColonyIdentificationRadius.Value;
         CaravanScoutRadius.Value = other.CaravanScoutRadius.Value;
+        CaravanIdentificationRadius.Value = other.CaravanIdentificationRadius.Value;
         NighttimeSensoryReduction.Value = other.NighttimeSensoryReduction.Value;
         IncursionsRestAtNight.Value = other.IncursionsRestAtNight.Value;
         SynchronizeMultiVectorRaids.Value = other.SynchronizeMultiVectorRaids.Value;
@@ -221,6 +251,19 @@ public sealed class GeoscapeRuleSet : IExposable
         ResetThreatCooldownOnArrival.Value = other.ResetThreatCooldownOnArrival.Value;
         EarlyWarningLetters.Value = other.EarlyWarningLetters.Value;
         StartingSiteSelection.Value = other.StartingSiteSelection.Value;
+        ClampIdentificationRadii();
+    }
+
+    public static float GetMaxIdentificationRadius(float scoutHorizon) =>
+        UnityEngine.Mathf.Max(0.0f, UnityEngine.Mathf.Floor(scoutHorizon) - 1.0f);
+
+    public static float ClampIdentificationRadius(float idHorizon, float scoutHorizon) =>
+        UnityEngine.Mathf.Clamp(UnityEngine.Mathf.Round(idHorizon), 0.0f, GetMaxIdentificationRadius(scoutHorizon));
+
+    public void ClampIdentificationRadii()
+    {
+        ColonyIdentificationRadius.Value = ClampIdentificationRadius(ColonyIdentificationRadius.Value, ColonyScoutRadius.Value);
+        CaravanIdentificationRadius.Value = ClampIdentificationRadius(CaravanIdentificationRadius.Value, CaravanScoutRadius.Value);
     }
 
     public void ApplyProfile(CampaignProfile profile)
@@ -229,8 +272,10 @@ public sealed class GeoscapeRuleSet : IExposable
         {
             case CampaignProfile.ClassicHaze:
                 Visibility.Value = VisibilityMode.ClassicHazeOfWar;
-                ColonyScoutRadius.Value = 5.0f;
-                CaravanScoutRadius.Value = 3.0f;
+                ColonyScoutRadius.Value = 3.0f;
+                ColonyIdentificationRadius.Value = 1.0f;
+                CaravanScoutRadius.Value = 2.0f;
+                CaravanIdentificationRadius.Value = 1.0f;
                 NighttimeSensoryReduction.Value = true;
                 IncursionsRestAtNight.Value = true;
                 SynchronizeMultiVectorRaids.Value = true;
@@ -242,8 +287,10 @@ public sealed class GeoscapeRuleSet : IExposable
 
             case CampaignProfile.PlanetarySurveillance:
                 Visibility.Value = VisibilityMode.PlanetarySurveillance;
-                ColonyScoutRadius.Value = 5.0f;
-                CaravanScoutRadius.Value = 3.0f;
+                ColonyScoutRadius.Value = 3.0f;
+                ColonyIdentificationRadius.Value = 1.0f;
+                CaravanScoutRadius.Value = 2.0f;
+                CaravanIdentificationRadius.Value = 1.0f;
                 NighttimeSensoryReduction.Value = true;
                 IncursionsRestAtNight.Value = true;
                 SynchronizeMultiVectorRaids.Value = true;
@@ -255,8 +302,10 @@ public sealed class GeoscapeRuleSet : IExposable
 
             case CampaignProfile.HardcoreVigilance:
                 Visibility.Value = VisibilityMode.FogOfWar;
-                ColonyScoutRadius.Value = 4.0f;
-                CaravanScoutRadius.Value = 2.0f;
+                ColonyScoutRadius.Value = 2.0f;
+                ColonyIdentificationRadius.Value = 1.0f;
+                CaravanScoutRadius.Value = 1.0f;
+                CaravanIdentificationRadius.Value = 0.0f;
                 NighttimeSensoryReduction.Value = true;
                 IncursionsRestAtNight.Value = true;
                 SynchronizeMultiVectorRaids.Value = true;
@@ -268,8 +317,10 @@ public sealed class GeoscapeRuleSet : IExposable
 
             case CampaignProfile.Omniscient:
                 Visibility.Value = VisibilityMode.Omniscient;
-                ColonyScoutRadius.Value = 5.0f;
-                CaravanScoutRadius.Value = 3.0f;
+                ColonyScoutRadius.Value = 3.0f;
+                ColonyIdentificationRadius.Value = 1.0f;
+                CaravanScoutRadius.Value = 2.0f;
+                CaravanIdentificationRadius.Value = 1.0f;
                 NighttimeSensoryReduction.Value = false;
                 IncursionsRestAtNight.Value = true;
                 SynchronizeMultiVectorRaids.Value = true;
@@ -298,8 +349,10 @@ public sealed class GeoscapeRuleSet : IExposable
         }
 
         if (Visibility.Value == VisibilityMode.FogOfWar &&
-            Math.Abs(ColonyScoutRadius.Value - 5.0f) < 0.05f &&
-            Math.Abs(CaravanScoutRadius.Value - 3.0f) < 0.05f &&
+            Math.Abs(ColonyScoutRadius.Value - 3.0f) < 0.05f &&
+            Math.Abs(ColonyIdentificationRadius.Value - 1.0f) < 0.05f &&
+            Math.Abs(CaravanScoutRadius.Value - 2.0f) < 0.05f &&
+            Math.Abs(CaravanIdentificationRadius.Value - 1.0f) < 0.05f &&
             NighttimeSensoryReduction.Value &&
             IncursionsRestAtNight.Value &&
             SynchronizeMultiVectorRaids.Value &&
@@ -311,8 +364,10 @@ public sealed class GeoscapeRuleSet : IExposable
         }
 
         if (Visibility.Value == VisibilityMode.PlanetarySurveillance &&
-            Math.Abs(ColonyScoutRadius.Value - 5.0f) < 0.05f &&
-            Math.Abs(CaravanScoutRadius.Value - 3.0f) < 0.05f &&
+            Math.Abs(ColonyScoutRadius.Value - 3.0f) < 0.05f &&
+            Math.Abs(ColonyIdentificationRadius.Value - 1.0f) < 0.05f &&
+            Math.Abs(CaravanScoutRadius.Value - 2.0f) < 0.05f &&
+            Math.Abs(CaravanIdentificationRadius.Value - 1.0f) < 0.05f &&
             NighttimeSensoryReduction.Value &&
             IncursionsRestAtNight.Value &&
             SynchronizeMultiVectorRaids.Value &&
@@ -324,8 +379,10 @@ public sealed class GeoscapeRuleSet : IExposable
         }
 
         if (Visibility.Value == VisibilityMode.FogOfWar &&
-            Math.Abs(ColonyScoutRadius.Value - 4.0f) < 0.05f &&
-            Math.Abs(CaravanScoutRadius.Value - 2.0f) < 0.05f &&
+            Math.Abs(ColonyScoutRadius.Value - 2.0f) < 0.05f &&
+            Math.Abs(ColonyIdentificationRadius.Value - 1.0f) < 0.05f &&
+            Math.Abs(CaravanScoutRadius.Value - 1.0f) < 0.05f &&
+            Math.Abs(CaravanIdentificationRadius.Value - 0.0f) < 0.05f &&
             NighttimeSensoryReduction.Value &&
             IncursionsRestAtNight.Value &&
             SynchronizeMultiVectorRaids.Value &&
@@ -349,6 +406,10 @@ public sealed class GeoscapeRuleSet : IExposable
         for (int i = 0; i < allRules.Count; i++)
         {
             allRules[i].ExposeValue();
+        }
+        if (Scribe.mode == LoadSaveMode.LoadingVars || Scribe.mode == LoadSaveMode.PostLoadInit)
+        {
+            ClampIdentificationRadii();
         }
     }
 }

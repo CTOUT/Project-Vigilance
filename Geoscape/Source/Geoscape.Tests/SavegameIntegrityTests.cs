@@ -141,7 +141,7 @@ public sealed class SavegameIntegrityTests
         // Simulate an attacker editing both the rule AND the ledger baseline note in XML
         // To claim colonyScoutRadius was always 15
         campaign.Rules.ColonyScoutRadius.Value = 15.0f;
-        string tamperedSnapshot = snapshotStr.Replace("colonyScoutRadius=5 hexes", "colonyScoutRadius=15 hexes");
+        string tamperedSnapshot = snapshotStr.Replace("colonyScoutRadius=3 hexes", "colonyScoutRadius=15 hexes");
         campaign.Ledger[0].note = $"Profile: Standard | {tamperedSnapshot}";
 
         campaign.ReconcileLedgerOnLoad();

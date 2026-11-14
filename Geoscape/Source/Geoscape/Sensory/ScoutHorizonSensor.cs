@@ -223,32 +223,17 @@ public class ScoutHorizonSensor : ISensorProvider
         get
         {
             float det = DetectionRadiusInTiles;
-            if (det <= 0f)
+            if (det <= 1f)
             {
                 return 0;
             }
 
-            int vantage = SensoryTerrainUtility.GetVantageBonus(SensorTile);
-            int idVantage = SensoryTerrainUtility.GetIdentificationVantageBonus(vantage);
+            int maxAllowedId = Mathf.Max(0, Mathf.FloorToInt(det) - 1);
+            int configuredId = Mathf.Max(
+                0,
+                Mathf.RoundToInt(isColony ? GeoscapeRules.ColonyIdentificationRadius : GeoscapeRules.CaravanIdentificationRadius));
 
-            if (!isColony)
-            {
-                // Moving Caravan: 1 ring baseline; elevated vantage bonus (+1 to +2 rings) if on high ground
-                return Mathf.Min(Mathf.RoundToInt(det), 1 + idVantage);
-            }
-
-            // Colony Lookout:
-            // Baseline 2 rings (default 5-tile horizon), or scaled integer if slider modified
-            int baseColonyId = Mathf.Max(1, Mathf.RoundToInt(GeoscapeRules.ColonyScoutRadius * 0.4f));
-
-            // Darkness reduction (night watch or asleep): collapses to 1 ring
-            float daylightDet = GeoscapeRules.ColonyScoutRadius + vantage;
-            if (det < daylightDet)
-            {
-                return 1;
-            }
-
-            return Mathf.Min(Mathf.RoundToInt(det), baseColonyId + idVantage);
+            return Mathf.Min(configuredId, maxAllowedId);
         }
     }
 
