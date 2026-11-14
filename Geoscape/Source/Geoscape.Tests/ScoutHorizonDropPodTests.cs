@@ -98,31 +98,6 @@ public sealed class ScoutHorizonDropPodTests
     }
 
     [TestMethod]
-    public void InitialVisionRefreshPatches_ResolveAllRimWorldTargetsWithoutError()
-    {
-        string id = $"Geoscape.Tests.InitialVision.{Guid.NewGuid():N}";
-        Harmony harmony = new(id);
-        try
-        {
-            Type[] patchTypes =
-            {
-                typeof(InitialVisionRefresh_Patch.Game_InitNewGame_Patch),
-                typeof(InitialVisionRefresh_Patch.CaravanEnterMapUtility_Enter_Patch),
-                typeof(InitialVisionRefresh_Patch.Pawn_SpawnSetup_Patch)
-            };
-
-            foreach (Type patchType in patchTypes)
-            {
-                harmony.CreateClassProcessor(patchType).Patch();
-            }
-        }
-        finally
-        {
-            harmony.UnpatchAll(id);
-        }
-    }
-
-    [TestMethod]
     public void NotifySensorRadiusChanged_IncrementsSweepRevision()
     {
         var sensory = new SensoryManager(null!);

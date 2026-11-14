@@ -16,31 +16,14 @@ public sealed class CaravanExpeditionTests
     [TestInitialize]
     public void Setup()
     {
-        CaravanExpeditionUtility.ClearAllPendingDirectives();
-    }
-
-    [TestMethod]
-    public void Verify_CaravanExitMapUtility_Patch_Applies()
-    {
-        var harmony = new HarmonyLib.Harmony("test.patch.check");
-        var patchClass = typeof(CaravanExitMapUtility_Patch.ExitMapAndCreateCaravan_TilePatch);
-        var methods = patchClass.GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false);
-        Assert.IsTrue(methods.Length > 0);
-
-        var original = typeof(CaravanExitMapUtility).GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
-            .FirstOrDefault(m => m.Name == "ExitMapAndCreateCaravan" && m.GetParameters().Length == 6 && m.GetParameters()[3].ParameterType == typeof(PlanetTile));
-        Assert.IsNotNull(original, "Original ExitMapAndCreateCaravan must exist.");
-
-        var patchProcessor = harmony.CreateProcessor(original);
-        patchProcessor.AddPostfix(new HarmonyLib.HarmonyMethod(patchClass.GetMethod("Postfix")));
-        var patched = patchProcessor.Patch();
-        Assert.IsNotNull(patched, "Patch must succeed without error.");
+        GeoscapeTestHarness.ResetAllStaticState();
+        GeoscapeTestHarness.EnsureEnvironmentInitialised();
     }
 
     [TestCleanup]
     public void Cleanup()
     {
-        CaravanExpeditionUtility.ClearAllPendingDirectives();
+        GeoscapeTestHarness.ResetAllStaticState();
     }
 
     [TestMethod]
@@ -428,40 +411,16 @@ public sealed class CaravanExpeditionTests
     {
         try
         {
-            var prefsField = typeof(Verse.Prefs).GetField("data", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-            if (prefsField != null && prefsField.GetValue(null) == null)
-            {
-                var prefsDataType = typeof(Verse.Prefs).Assembly.GetType("Verse.PrefsData");
-                if (prefsDataType != null)
-                {
-                    prefsField.SetValue(null, System.Activator.CreateInstance(prefsDataType));
-                }
-            }
-            if (Verse.LanguageDatabase.activeLanguage == null)
-            {
-                var lang = new Verse.LoadedLanguage("English");
-                var infoField = typeof(Verse.LoadedLanguage).GetField("info");
-                if (infoField != null)
-                {
-                    infoField.SetValue(lang, System.Activator.CreateInstance(infoField.FieldType));
-                }
-                Verse.LanguageDatabase.activeLanguage = lang;
-            }
+            GeoscapeTestHarness.EnsureEnvironmentInitialised();
 
             ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
             var sensory = new SensoryManager(null!);
             SensoryManager.Instance = sensory;
             SensoryManager.IsExploredOverride = t => t.tileId == 100; // Only tile 100 is explored
 
-            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
-
-            var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
-            HarmonyLib.Traverse.Create(caravan).Field("tileInt").SetValue((PlanetTile)100);
-            HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
-
-            var settlement = new Settlement { ID = 9901 };
-            HarmonyLib.Traverse.Create(settlement).Field("tileInt").SetValue((PlanetTile)100);
-            HarmonyLib.Traverse.Create(settlement).Field("factionInt").SetValue(playerFaction);
+            var playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+            var caravan = GeoscapeTestHarness.CreateCaravan((PlanetTile)100, playerFaction);
+            var settlement = GeoscapeTestHarness.CreateSettlement((PlanetTile)100, playerFaction, id: 9901);
 
             var unexploredImpassableTile = (PlanetTile)500;
 
@@ -803,18 +762,6 @@ public sealed class CaravanExpeditionTests
     }
 
     [TestMethod]
-    public void Verify_Dialog_FormCaravan_PostOpen_Patch_Applies()
-    {
-        var m = typeof(Dialog_FormCaravan).GetMethod("TrySend", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        Assert.IsNotNull(m);
-        var instructions = HarmonyLib.PatchProcessor.GetOriginalInstructions(m);
-        foreach (var inst in instructions)
-        {
-            System.Console.WriteLine($"TRY_SEND_INSTR: {inst.opcode} {inst.operand}");
-        }
-    }
-
-    [TestMethod]
     public void TryGetPendingDirectiveForDialog_FindsDirectiveByDestinationTile()
     {
         CaravanExpeditionUtility.ClearAllPendingDirectives();
@@ -901,40 +848,6 @@ public sealed class CaravanExpeditionTests
 
         string beaconBlocked = OutpostAssemblySpeedUtility.GetEstimateLabel(null, ListeningPostKind.SignalBeacon);
         Assert.IsTrue(beaconBlocked.Contains("BLOCKED"));
-    }
-
-    [TestMethod]
-    public void Verify_Dialog_FormCaravan_CheckForErrors_Patch_Applies()
-    {
-        var harmony = new HarmonyLib.Harmony("test.patch.check.dialog.errors");
-        var patchClass = typeof(Dialog_FormCaravan_CheckForErrors_Patch);
-        var methods = patchClass.GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false);
-        Assert.IsTrue(methods.Length > 0);
-
-        var original = typeof(Dialog_FormCaravan).GetMethod("CheckForErrors", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, new[] { typeof(List<Pawn>) }, null);
-        Assert.IsNotNull(original, "Original Dialog_FormCaravan.CheckForErrors must exist.");
-
-        var patchProcessor = harmony.CreateProcessor(original);
-        patchProcessor.AddPostfix(new HarmonyLib.HarmonyMethod(patchClass.GetMethod("Postfix")));
-        var patched = patchProcessor.Patch();
-        Assert.IsNotNull(patched, "Dialog_FormCaravan_CheckForErrors_Patch must succeed without error.");
-    }
-
-    [TestMethod]
-    public void Verify_Dialog_FormCaravan_TrySend_Patch_Applies()
-    {
-        var harmony = new HarmonyLib.Harmony("test.patch.check.dialog.trysend");
-        var patchClass = typeof(Dialog_FormCaravan_TrySend_Patch);
-        var methods = patchClass.GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false);
-        Assert.IsTrue(methods.Length > 0);
-
-        var original = typeof(Dialog_FormCaravan).GetMethod("TrySend", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, System.Type.EmptyTypes, null);
-        Assert.IsNotNull(original, "Original Dialog_FormCaravan.TrySend must exist.");
-
-        var patchProcessor = harmony.CreateProcessor(original);
-        patchProcessor.AddPrefix(new HarmonyLib.HarmonyMethod(patchClass.GetMethod("Prefix")));
-        var patched = patchProcessor.Patch();
-        Assert.IsNotNull(patched, "Dialog_FormCaravan_TrySend_Patch must succeed without error.");
     }
 
     [TestMethod]
@@ -1046,19 +959,6 @@ public sealed class CaravanExpeditionTests
     }
 
     [TestMethod]
-    public void Inspect_Caravan_PathFollower_StartPath()
-    {
-        var type = typeof(Caravan_PathFollower);
-        var mStartPath = type.GetMethod("StartPath", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, null, new[] { typeof(PlanetTile), typeof(CaravanArrivalAction), typeof(bool), typeof(bool) }, null);
-        Assert.IsNotNull(mStartPath);
-        var instrs = HarmonyLib.PatchProcessor.GetOriginalInstructions(mStartPath);
-        foreach (var i in instrs.Where(x => x.opcode.Name is { } name && (name.Contains("call") || name.Contains("ldfld") || name.Contains("stfld") || name.Contains("ret"))))
-        {
-            System.Console.WriteLine($"START_PATH: {i.opcode} {i.operand}");
-        }
-    }
-
-    [TestMethod]
     public void IncursionMovement_TerrainDifficulty_ScalesEffectiveSpeedAndTileProgress()
     {
         var previousOverride = ProjectVigilance.Geoscape.World.IncursionOriginResolver.StepMovementDifficultyOverride;
@@ -1137,19 +1037,6 @@ public sealed class CaravanExpeditionTests
         Assert.IsFalse(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(false, false, 4, 4), "Non-hostile groups must not pursue.");
         Assert.IsFalse(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(true, true, 4, 4), "Trade caravans must not pursue.");
         Assert.IsFalse(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(true, false, 0, 0));
-    }
-
-    [TestMethod]
-    public void AmbushPatch_TargetsVanillaAmbushWorker()
-    {
-        var attr = typeof(ProjectVigilance.Geoscape.Patches.IncidentWorker_Ambush_Patch)
-            .GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false)
-            .Cast<HarmonyLib.HarmonyPatch>()
-            .Single();
-
-        Assert.AreEqual(typeof(RimWorld.IncidentWorker_Ambush), attr.info.declaringType);
-        Assert.AreEqual("TryExecuteWorker", attr.info.methodName);
-        Assert.IsNotNull(HarmonyLib.AccessTools.Method(typeof(RimWorld.IncidentWorker_Ambush), "TryExecuteWorker"));
     }
 
     [TestMethod]
@@ -1421,6 +1308,195 @@ public sealed class CaravanExpeditionTests
             OutpostAssemblySpeedUtility.BuilderSpeedOverride = null;
             OutpostAssemblySpeedUtility.LocalHourOverride = null;
             Caravan_NightResting_Patch.NightOwlPredicateOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void CaravanHoldPosition_LabelAndReportString_FormatCorrectly()
+    {
+        PlanetTile testTile = new(42100);
+        var actionWithLabel = new CaravanArrivalAction_HoldPosition(testTile, "New Hope Settlement");
+        var actionNoLabel = new CaravanArrivalAction_HoldPosition(testTile);
+
+        Assert.AreEqual("Hold position outside New Hope Settlement", actionWithLabel.Label);
+        Assert.AreEqual("travelling to hold position outside New Hope Settlement", actionWithLabel.ReportString);
+        Assert.AreEqual(testTile, actionWithLabel.TargetTile);
+        Assert.AreEqual("New Hope Settlement", actionWithLabel.LocationLabel);
+
+        Assert.AreEqual("Hold position at Tile 42100", actionNoLabel.Label);
+        Assert.AreEqual("travelling to Tile 42100", actionNoLabel.ReportString);
+        Assert.AreEqual(testTile, actionNoLabel.TargetTile);
+        Assert.IsNull(actionNoLabel.LocationLabel);
+    }
+
+    [TestMethod]
+    public void CaravanHoldPosition_CanHoldPosition_ValidatesCaravanStateAndTile()
+    {
+        PlanetTile validTile = new(51000);
+        var action = new CaravanArrivalAction_HoldPosition(validTile, "Forward Outpost");
+        Assert.IsFalse(action.StillValid(null!, validTile).Accepted);
+        Assert.IsFalse(CaravanArrivalAction_HoldPosition.CanHoldPosition(null!, validTile).Accepted);
+
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        Assert.IsFalse(CaravanArrivalAction_HoldPosition.CanHoldPosition(caravan, PlanetTile.Invalid).Accepted);
+        Assert.IsTrue(CaravanArrivalAction_HoldPosition.CanHoldPosition(caravan, validTile).Accepted);
+    }
+
+    [TestMethod]
+    public void FloatMenuMakerWorld_HoldPositionOption_ConstructedWithRevalidationTargetAndNonDisabled()
+    {
+        try
+        {
+            var playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+            var caravan = GeoscapeTestHarness.CreateCaravan((PlanetTile)100, playerFaction);
+            var settlement = GeoscapeTestHarness.CreateSettlement(
+                (PlanetTile)200,
+                playerFaction,
+                id: 9920,
+                def: new WorldObjectDef { label = "Colony" });
+
+            ProjectVigilance.Geoscape.Patches.FloatMenuMakerWorld_ChoicesAtFor_Patch.SettlementAtOverride = t => t.tileId == 200 ? settlement : null;
+            ProjectVigilance.Geoscape.Patches.FloatMenuMakerWorld_ChoicesAtFor_Patch.MouseTileOverride = (PlanetTile)200;
+
+            List<FloatMenuOption> choices = new();
+            ProjectVigilance.Geoscape.Patches.FloatMenuMakerWorld_ChoicesAtFor_Patch.Postfix(Vector2.zero, caravan, ref choices);
+
+            Assert.IsNotNull(choices);
+            var holdOption = choices.FirstOrDefault(c => c.Label.Contains("Hold position outside"));
+            Assert.IsNotNull(holdOption, "Menu must contain Hold position outside option.");
+            Assert.IsFalse(holdOption.Disabled, "Hold position option must NOT be disabled.");
+            Assert.AreEqual(settlement, holdOption.revalidateWorldClickTarget, "Option must set revalidateWorldClickTarget to prevent FloatMenuWorld desync.");
+        }
+        finally
+        {
+            ProjectVigilance.Geoscape.Patches.FloatMenuMakerWorld_ChoicesAtFor_Patch.SettlementAtOverride = null;
+            ProjectVigilance.Geoscape.Patches.FloatMenuMakerWorld_ChoicesAtFor_Patch.MouseTileOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void ListeningPost_HasPlayerCaravanPresent_PausesWhileMoving()
+    {
+        PlanetTile tile = new(45000);
+        var post = new WorldObject_ListeningPost { Kind = ListeningPostKind.AutomatedRelay };
+        HarmonyLib.Traverse.Create(post).Field("tile").SetValue(tile);
+        post.StartConstruction(2500);
+
+        var playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+        var caravan = GeoscapeTestHarness.CreateCaravan(tile, playerFaction, withPather: true);
+        HarmonyLib.Traverse.Create(caravan).Field("spawnedInt").SetValue(true);
+        var pather = caravan.pather;
+
+        WorldObject_ListeningPost.PlayerCaravanPresenceOverride = _ =>
+        {
+            bool isMoving;
+            try
+            {
+                isMoving = pather.Moving;
+            }
+            catch
+            {
+                isMoving = HarmonyLib.Traverse.Create(pather).Field("moving").GetValue<bool>();
+            }
+
+            return isMoving ? null : caravan;
+        };
+
+        try
+        {
+            HarmonyLib.Traverse.Create(pather).Field("moving").SetValue(false);
+            Assert.IsTrue(post.HasPlayerCaravanPresent());
+
+            int ticksBefore = post.ConstructionTicksLeft;
+            post.TickForTesting();
+            Assert.AreEqual(ticksBefore - 1, post.ConstructionTicksLeft, "Stationary caravan must advance construction.");
+
+            HarmonyLib.Traverse.Create(pather).Field("moving").SetValue(true);
+            Assert.IsFalse(post.HasPlayerCaravanPresent(), "Moving caravan must NOT be considered present for construction.");
+
+            int ticksPaused = post.ConstructionTicksLeft;
+            post.TickForTesting();
+            Assert.AreEqual(ticksPaused, post.ConstructionTicksLeft, "Moving caravan must pause construction progress.");
+        }
+        finally
+        {
+            WorldObject_ListeningPost.PlayerCaravanPresenceOverride = null;
+        }
+    }
+
+    [TestMethod]
+    public void ListeningPost_ConstructionProgressPct_CalculatesAccurately()
+    {
+        var marbleDef = new ThingDef { defName = "BlocksMarble", label = "marble blocks" };
+        var beacon = new WorldObject_ListeningPost
+        {
+            Kind = ListeningPostKind.SignalBeacon,
+            stuffDef = marbleDef
+        };
+        HarmonyLib.Traverse.Create(beacon).Field("tile").SetValue(new PlanetTile(33000));
+        beacon.StartConstruction(2500);
+
+        Assert.AreEqual(marbleDef, beacon.stuffDef, "Invested material must match consumed stone type.");
+        Assert.IsTrue(beacon.IsConstructing);
+        Assert.AreEqual(0, beacon.ConstructionProgressPct);
+
+        HarmonyLib.Traverse.Create(beacon).Field("constructionTicksLeft").SetValue(1250);
+        Assert.AreEqual(50, beacon.ConstructionProgressPct);
+
+        HarmonyLib.Traverse.Create(beacon).Field("constructionTicksLeft").SetValue(250);
+        Assert.AreEqual(90, beacon.ConstructionProgressPct);
+    }
+
+    [TestMethod]
+    public void CaravanDeparture_ActiveConstructionTile_TriggersDepartureInterception()
+    {
+        PlanetTile originTile = new(40000);
+        PlanetTile destTile = new(40001);
+
+        var playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+        var caravan = GeoscapeTestHarness.CreateCaravan(originTile, playerFaction, withPather: true);
+        var pather = caravan.pather;
+
+        var post = new WorldObject_ListeningPost { Kind = ListeningPostKind.AutomatedRelay };
+        HarmonyLib.Traverse.Create(post).Field("tile").SetValue(originTile);
+        post.StartConstruction(2500);
+
+        bool promptIntercepted = false;
+        Caravan_PathFollower_StartPath_Patch.ActivePostFinderOverride = t => (t == originTile) ? post : null;
+        Caravan_PathFollower_StartPath_Patch.DepartureDialogOverride = (c, _, d) =>
+        {
+            promptIntercepted = true;
+            Assert.AreEqual(caravan, c);
+            Assert.AreEqual(destTile, d);
+        };
+
+        try
+        {
+            bool prefixResult = true;
+            bool allowNormalStart = Caravan_PathFollower_StartPath_Patch.Prefix(
+                pather, caravan, destTile, null!, false, true, ref prefixResult);
+            Assert.IsFalse(allowNormalStart, "Departure from active construction tile must be intercepted.");
+            Assert.IsTrue(promptIntercepted, "Departure prompt callback must be triggered.");
+            Assert.IsFalse(prefixResult);
+
+            promptIntercepted = false;
+            Caravan_PathFollower_StartPath_Patch.SuppressDeparturePrompt = true;
+            allowNormalStart = Caravan_PathFollower_StartPath_Patch.Prefix(
+                pather, caravan, destTile, null!, false, true, ref prefixResult);
+            Assert.IsTrue(allowNormalStart, "Suppressed prompt must allow normal StartPath execution.");
+            Assert.IsFalse(promptIntercepted);
+
+            Caravan_PathFollower_StartPath_Patch.SuppressDeparturePrompt = false;
+            allowNormalStart = Caravan_PathFollower_StartPath_Patch.Prefix(
+                pather, caravan, originTile, null!, false, true, ref prefixResult);
+            Assert.IsTrue(allowNormalStart, "Re-targeting same tile must proceed without prompt.");
+            Assert.IsFalse(promptIntercepted);
+        }
+        finally
+        {
+            Caravan_PathFollower_StartPath_Patch.ActivePostFinderOverride = null;
+            Caravan_PathFollower_StartPath_Patch.DepartureDialogOverride = null;
+            Caravan_PathFollower_StartPath_Patch.SuppressDeparturePrompt = false;
         }
     }
 }

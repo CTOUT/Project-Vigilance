@@ -19,70 +19,17 @@ namespace Geoscape.Tests;
 [DoNotParallelize]
 public sealed class Milestone13FixesTests
 {
-    private static readonly PlanetLayer MockLayer =
-        (PlanetLayer)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(PlanetLayer));
-
-    private static PlanetTile MakeTile(int id) => new PlanetTile(id, MockLayer);
+    private static PlanetTile MakeTile(int id) => GeoscapeTestHarness.MakeTile(id);
 
     [TestInitialize]
     public void Setup()
     {
-        var prefsField = typeof(Prefs).GetField("data", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-        if (prefsField != null && prefsField.GetValue(null) == null)
-        {
-            var prefsDataType = typeof(Prefs).Assembly.GetType("Verse.PrefsData");
-            if (prefsDataType != null)
-            {
-                prefsField.SetValue(null, Activator.CreateInstance(prefsDataType));
-            }
-        }
-
-        if (LanguageDatabase.activeLanguage == null)
-        {
-            var lang = new LoadedLanguage("English");
-            var infoField = typeof(LoadedLanguage).GetField("info");
-            if (infoField != null)
-            {
-                infoField.SetValue(lang, Activator.CreateInstance(infoField.FieldType));
-            }
-            LanguageDatabase.activeLanguage = lang;
-        }
-
-        var world = (World)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(World));
-        var grid = (WorldGrid)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(WorldGrid));
-        var surfaceType = typeof(WorldGrid).Assembly.GetType("RimWorld.SurfaceLayer") ?? typeof(PlanetLayer);
-        var surface = (PlanetLayer)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(surfaceType);
-        var layers = new Dictionary<int, PlanetLayer> { [0] = surface };
-
-        typeof(WorldGrid).GetField("surface", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)?.SetValue(grid, surface);
-        typeof(WorldGrid).GetField("planetLayers", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)?.SetValue(grid, layers);
-        world.grid = grid;
-        world.components = new List<WorldComponent>();
-
-        typeof(Current).GetField("creatingWorldInt", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)?.SetValue(null, world);
+        GeoscapeTestHarness.EnsureEnvironmentInitialised();
+        GeoscapeTestHarness.InitMockWorld(out _);
     }
 
     [TestCleanup]
-    public void Cleanup()
-    {
-        SonarTraversalUtility.ResetTestOverrides();
-        OptimisticPathingUtility.IsTileImpassableOverride = null;
-        SensoryManager.ActiveSensorsOverride = null;
-        SensoryManager.TileNeighborsOverride = null;
-        SensoryManager.DistanceCalculationOverride = null;
-        SensoryManager.IsExploredOverride = null;
-        SensoryManager.IsIdentifiedOverride = null;
-        SensoryManager.Instance = null;
-        WorldDrawLayer_RadarCoverage.SubMeshMaterialOverride = null;
-        WorldDrawLayer_RadarCoverage.RenderQueueMaterialOverride = null;
-        WorldDrawLayer_RadarCoverage.TileVerticesOverride = null;
-        WorldDrawLayer_RadarCoverage.TileCenterOverride = null;
-        WorldDrawLayer_RadarCoverage.TileNeighborsOverride = null;
-        OutpostTileOccupancyUtility.BlockingObjectAtOverride = null;
-        OutpostTileOccupancyUtility.ListeningPostAtOverride = null;
-        WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = null;
-        typeof(Current).GetField("creatingWorldInt", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)?.SetValue(null, null);
-    }
+    public void Cleanup() => GeoscapeTestHarness.ResetAllStaticState();
 
     [TestMethod]
     public void AutomatedSonar_CalculatesCorrectBaseRadii()
@@ -240,10 +187,8 @@ public sealed class Milestone13FixesTests
     [TestMethod]
     public void OptimisticPathingUtility_GetOrCreateExpeditionState_ResetsWhenDestinationChanges()
     {
-        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        var caravan = GeoscapeTestHarness.CreateCaravan(MakeTile(10));
         caravan.ID = 42;
-        var tileField = typeof(WorldObject).GetField("tile", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-        tileField?.SetValue(caravan, MakeTile(10));
 
         try
         {
@@ -272,22 +217,6 @@ public sealed class Milestone13FixesTests
         {
             OptimisticPathingUtility.ResetExpeditionState(42);
         }
-    }
-
-    private sealed class DomainTestSensor : ISensorProvider
-    {
-        public string SensorLabel { get; set; } = "Test Sensor";
-        public bool IsTechnological { get; set; }
-        public PlanetTile SensorTile { get; set; }
-        public float DetectionRadiusInTiles { get; set; }
-        public int IdentificationRadiusInTiles { get; set; }
-        public IntelligenceTier MaxIntelligenceTier { get; set; } = IntelligenceTier.Classified;
-        public bool PenetratesTerrainMasking { get; set; }
-        public int SigintPenetrationRadiusInTiles { get; set; }
-        public bool IsOceanicSonar { get; set; }
-        public bool IsSensorActive { get; set; } = true;
-        public bool IsStationary { get; set; } = true;
-        public WorldObject? Source { get; set; }
     }
 
     [TestMethod]
@@ -323,9 +252,9 @@ public sealed class Milestone13FixesTests
             return 1;
         };
 
-        var visualSensor = new DomainTestSensor { SensorTile = land0, DetectionRadiusInTiles = 1f, IsTechnological = false, IsOceanicSonar = false };
-        var radarSensor = new DomainTestSensor { SensorTile = land0, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
-        var sonarSensor = new DomainTestSensor { SensorTile = land0, DetectionRadiusInTiles = 5f, IsTechnological = true, IsOceanicSonar = true };
+        var visualSensor = new MockSensorProvider { IdentificationRadiusInTiles = 0, SensorTile = land0, DetectionRadiusInTiles = 1f, IsTechnological = false, IsOceanicSonar = false };
+        var radarSensor = new MockSensorProvider { IdentificationRadiusInTiles = 0, SensorTile = land0, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
+        var sonarSensor = new MockSensorProvider { IdentificationRadiusInTiles = 0, SensorTile = land0, DetectionRadiusInTiles = 5f, IsTechnological = true, IsOceanicSonar = true };
 
         SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { visualSensor, radarSensor, sonarSensor };
 
@@ -433,7 +362,7 @@ public sealed class Milestone13FixesTests
                 ?.SetValue(layer, Find.World!.grid.Surface);
 
             // 1. Visual-only: 6 outer edges only (24 verts), zero interior grid edge, warm-ivory perimeter RGB
-            var visualSensor = new DomainTestSensor { SensorTile = tileA, DetectionRadiusInTiles = 2f, IsTechnological = false, IsOceanicSonar = false };
+            var visualSensor = new MockSensorProvider { IdentificationRadiusInTiles = 0, SensorTile = tileA, DetectionRadiusInTiles = 2f, IsTechnological = false, IsOceanicSonar = false };
             SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { visualSensor };
             foreach (object _ in layer.Regenerate()) { }
 
@@ -446,7 +375,7 @@ public sealed class Milestone13FixesTests
                 "Visual-only perimeter must use warm-ivory horizon color.");
 
             // 2. Sonar-only from coastal land station: 6 outer + 1 interior edge (28 verts), Oceanic Cyan RGB
-            var sonarSensor = new DomainTestSensor { SensorTile = coastalOrigin, DetectionRadiusInTiles = 3f, IsTechnological = true, IsOceanicSonar = true };
+            var sonarSensor = new MockSensorProvider { IdentificationRadiusInTiles = 0, SensorTile = coastalOrigin, DetectionRadiusInTiles = 3f, IsTechnological = true, IsOceanicSonar = true };
             SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { sonarSensor };
             foreach (object _ in layer.Regenerate()) { }
 
@@ -459,7 +388,7 @@ public sealed class Milestone13FixesTests
                 "Sonar coverage edges must render in Oceanic Cyan.");
 
             // 3. Radar + Sonar overlap: outer edges use Radar green while interior water edge uses Sonar cyan
-            var radarSensor = new DomainTestSensor { SensorTile = tileA, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
+            var radarSensor = new MockSensorProvider { IdentificationRadiusInTiles = 0, SensorTile = tileA, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
             SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { radarSensor, sonarSensor };
             foreach (object _ in layer.Regenerate()) { }
 
@@ -509,7 +438,7 @@ public sealed class Milestone13FixesTests
             SensoryManager.IsExploredOverride = t => t.tileId == 50;
             SensoryManager.IsIdentifiedOverride = _ => false;
 
-            var radarSensor = new DomainTestSensor { SensorTile = coastalTile, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
+            var radarSensor = new MockSensorProvider { IdentificationRadiusInTiles = 0, SensorTile = coastalTile, DetectionRadiusInTiles = 2f, IsTechnological = true, IsOceanicSonar = false };
             SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { radarSensor };
 
             Assert.AreEqual("Telemetry: Radar (Detected)", TerrainTelemetryUtility.FormatActiveTelemetrySummary(coastalTile));
@@ -553,8 +482,7 @@ public sealed class Milestone13FixesTests
         StartingSiteSelectionFeedback_Patch.SettleInEmptyTileUtility_CanCreateMapAt_Patch.Postfix(tile, ref canCreateMap);
         Assert.IsFalse(canCreateMap, "Make Camp map creation must be blocked on outpost tile.");
 
-        var caravan = (Caravan)RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
-        typeof(WorldObject).GetField("tile", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(caravan, tile);
+        var caravan = GeoscapeTestHarness.CreateCaravan(tile);
         var campCmd = new Command_Action();
         StartingSiteSelectionFeedback_Patch.SettleInEmptyTileUtility_SetupCamp_Patch.Postfix(caravan, campCmd);
         Assert.IsTrue(campCmd.Disabled, "SetupCamp command must be disabled on outpost tile.");
@@ -562,9 +490,7 @@ public sealed class Milestone13FixesTests
 
         // 4. Settlements, camps, and ruins block outpost construction
         OutpostTileOccupancyUtility.ListeningPostAtOverride = null;
-        var npcSettlement = (Settlement)RuntimeHelpers.GetUninitializedObject(typeof(Settlement));
-        typeof(WorldObject).GetField("tile", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(npcSettlement, tile);
-        typeof(Settlement).GetField("nameInt", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(npcSettlement, "Outlander Town");
+        var npcSettlement = GeoscapeTestHarness.CreateSettlement(tile, name: "Outlander Town");
         OutpostTileOccupancyUtility.BlockingObjectAtOverride = t => t.tileId == tile.tileId ? npcSettlement : null;
 
         Assert.IsFalse(OutpostTileOccupancyUtility.CanConstructOutpostAt(tile, out string reasonSettlement));
@@ -575,11 +501,8 @@ public sealed class Milestone13FixesTests
         Assert.IsFalse((bool)stillValid, "ConstructOutpost arrival action must abort if destination has a settlement/site.");
 
         // 5. Settlement right-click dispatch menu suppresses outpost expedition options on occupied tile
-        var homeSettlement = (Settlement)RuntimeHelpers.GetUninitializedObject(typeof(Settlement));
-        var homeTile = MakeTile(301);
-        typeof(WorldObject).GetField("tile", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(homeSettlement, homeTile);
-        typeof(Settlement).GetField("nameInt", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(homeSettlement, "Player Base");
-        var mockMap = (Map)RuntimeHelpers.GetUninitializedObject(typeof(Map));
+        var homeSettlement = GeoscapeTestHarness.CreateSettlement(MakeTile(301), name: "Player Base");
+        var mockMap = GeoscapeTestHarness.CreateMockMap();
         WorldSelector_HandleWorldClicks_Patch.SafeMapOverride = s => ReferenceEquals(s, homeSettlement) ? mockMap : null;
 
         List<FloatMenuOption> dispatchOptions = WorldSelector_HandleWorldClicks_Patch.BuildSettlementDispatchOptions(homeSettlement, tile);

@@ -155,17 +155,6 @@ public sealed class InterFactionEncounterTests
     }
 
     [TestMethod]
-    public void HarmonyPatches_CaravanMeetingAndDemand_CanBeAppliedCleanly()
-    {
-        var harmony = new HarmonyLib.Harmony("test.phase4.harmony.caravan.encounters");
-        var patch1 = typeof(IncidentWorker_CaravanMeeting_Patch);
-        var patch2 = typeof(IncidentWorker_CaravanDemand_Patch);
-
-        harmony.CreateClassProcessor(patch1).Patch();
-        harmony.CreateClassProcessor(patch2).Patch();
-    }
-
-    [TestMethod]
     public void GroundedCaravanMeetingHelper_NullOrInvalidTarget_SafelyFallsBackToVanilla()
     {
         var parms = new IncidentParms

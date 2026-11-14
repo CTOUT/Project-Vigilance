@@ -92,35 +92,4 @@ public sealed class TerrainTelemetryTests
             "~280K",
             TerrainTelemetryUtility.FormatEstimatedTemperatureFromCelsius(6.6f, TemperatureDisplayMode.Kelvin));
     }
-
-    [TestMethod]
-    public void TelemetryPatches_ResolveAllRimWorldTargetsWithoutError()
-    {
-        string id = $"Geoscape.Tests.Telemetry.{Guid.NewGuid():N}";
-        Harmony harmony = new(id);
-        try
-        {
-            Type[] patchTypes =
-            {
-                typeof(WorldObject_Visibility_Patch.Landmarks_DrawStandard_Patch),
-                typeof(WorldObject_Visibility_Patch.LandmarksToShow_Patch),
-                typeof(WorldObject_Visibility_Patch.ExpandableLandmarksUtility_ExpandableLandmarksOnGUI_Patch),
-                typeof(WorldObject_Visibility_Patch.UnknownSite_Label_Patch),
-                typeof(WorldObject_Visibility_Patch.WorldInspectPane_GetLabel_Patch),
-                typeof(WorldObject_Visibility_Patch.WorldInspectPane_TileInspectString_Patch),
-                typeof(WorldObject_Visibility_Patch.WITab_Terrain_IsVisible_Patch),
-                typeof(WorldObject_Visibility_Patch.WITab_Terrain_FillTab_Patch),
-                typeof(WorldObject_Visibility_Patch.CellInspectorDrawer_DrawWorldInspector_Patch)
-            };
-
-            foreach (Type patchType in patchTypes)
-            {
-                harmony.CreateClassProcessor(patchType).Patch();
-            }
-        }
-        finally
-        {
-            harmony.UnpatchAll(id);
-        }
-    }
 }

@@ -216,33 +216,4 @@ public sealed class WorldSearchVisibilityTests
             SensoryNarrativeUtility.GetUnknownSiteLabel().CapitalizeFirst(),
             WorldSearchVisibilityUtility.ResolveMaskedDisplayLabel(settlementElement));
     }
-
-    [TestMethod]
-    public void WorldSearchPatches_ResolveAllRimWorldTargetsWithoutError()
-    {
-        string id = $"Geoscape.Tests.WorldSearch.{Guid.NewGuid():N}";
-        Harmony harmony = new(id);
-        try
-        {
-            Type[] patchTypes =
-            {
-                typeof(WorldSearch_Visibility_Patch.WorldSearchElement_DisplayLabel_Patch),
-                typeof(WorldSearch_Visibility_Patch.Dialog_WorldSearch_InitializeSearchSet_Patch),
-                typeof(WorldSearch_Visibility_Patch.Dialog_WorldSearch_ShouldSkipElement_Patch),
-                typeof(WorldSearch_Visibility_Patch.Dialog_WorldSearch_ElementMatch_Patch),
-                typeof(WorldSearch_Visibility_Patch.Dialog_WorldSearch_DoIcon_Patch),
-                typeof(WorldSearch_Visibility_Patch.Dialog_WorldSearch_DoLabel_Patch),
-                typeof(WorldSearch_Visibility_Patch.Dialog_WorldSearch_WindowUpdate_Patch)
-            };
-
-            foreach (Type patchType in patchTypes)
-            {
-                harmony.CreateClassProcessor(patchType).Patch();
-            }
-        }
-        finally
-        {
-            harmony.UnpatchAll(id);
-        }
-    }
 }

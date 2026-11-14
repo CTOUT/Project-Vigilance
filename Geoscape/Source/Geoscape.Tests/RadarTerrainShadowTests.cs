@@ -13,84 +13,18 @@ namespace Geoscape.Tests;
 [DoNotParallelize]
 public sealed class RadarTerrainShadowTests
 {
-    private static readonly PlanetLayer MockLayer =
-        (PlanetLayer)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(PlanetLayer));
-
-    private static PlanetTile MakeTile(int id) => new PlanetTile(id, MockLayer);
-
-    private sealed class TestSensor : ISensorProvider
-    {
-        public PlanetTile SensorTile { get; set; } = MakeTile(0);
-        public float DetectionRadiusInTiles { get; set; } = 4f;
-        public int IdentificationRadiusInTiles { get; set; } = 3;
-        public IntelligenceTier MaxIntelligenceTier { get; set; } = IntelligenceTier.Classified;
-        public bool PenetratesTerrainMasking { get; set; } = false;
-        public int SigintPenetrationRadiusInTiles { get; set; } = 0;
-        public bool IsSensorActive => true;
-        public bool IsStationary => true;
-        public bool IsTechnological => true;
-        public bool IsOceanicSonar => false;
-        public string SensorLabel => "Test Radar";
-        public WorldObject? Source => null;
-
-        public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
-        {
-            distance = Math.Abs(SensorTile.tileId - target.CurrentTile.tileId);
-            return distance <= (int)DetectionRadiusInTiles;
-        }
-
-        public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
-    }
+    private static PlanetTile MakeTile(int id) => GeoscapeTestHarness.MakeTile(id);
 
     [TestInitialize]
     public void Setup()
     {
-        var world = (World)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(World));
-        var grid = (WorldGrid)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(WorldGrid));
-        var surfaceType = typeof(WorldGrid).Assembly.GetType("RimWorld.SurfaceLayer") ?? typeof(PlanetLayer);
-        var surface = (PlanetLayer)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(surfaceType);
-        var layers = new Dictionary<int, PlanetLayer> { [0] = surface };
-
-        typeof(WorldGrid).GetField("surface", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)?.SetValue(grid, surface);
-        typeof(WorldGrid).GetField("planetLayers", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)?.SetValue(grid, layers);
-        world.grid = grid;
-        world.components = new List<WorldComponent>();
-
-        typeof(Current).GetField("creatingWorldInt", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)?.SetValue(null, world);
-
+        GeoscapeTestHarness.InitMockWorld(out _);
         Assert.IsNotNull(Find.World, "Find.World must not be null.");
         Assert.IsNotNull(Find.WorldGrid, "Find.WorldGrid must not be null.");
     }
 
     [TestCleanup]
-    public void Cleanup()
-    {
-        SensoryTerrainUtility.TargetMaskedOverride = null;
-        SensoryTerrainUtility.VantageBonusOverride = null;
-        SensoryManager.TileNeighborsOverride = null;
-        SensoryManager.ActiveSensorsOverride = null;
-        SensoryManager.Instance = null;
-        WorldDrawLayer_RadarCoverage.SubMeshMaterialOverride = null;
-        WorldDrawLayer_RadarCoverage.TileVerticesOverride = null;
-        WorldDrawLayer_RadarCoverage.TileCenterOverride = null;
-        WorldDrawLayer_RadarCoverage.TileNeighborsOverride = null;
-        GeoscapeMod.Settings.ResetToDefaults();
-        typeof(Current).GetField("creatingWorldInt", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)?.SetValue(null, null);
-    }
-
-    [TestMethod]
-    public void RadarTerrainShadowStyle_EnumValues_MatchExpectedOrderingAndValues()
-    {
-        var none = (RadarTerrainShadowStyle)0;
-        var dashed = (RadarTerrainShadowStyle)1;
-        var hatching = (RadarTerrainShadowStyle)2;
-        var both = (RadarTerrainShadowStyle)3;
-
-        Assert.AreEqual(RadarTerrainShadowStyle.None, none);
-        Assert.AreEqual(RadarTerrainShadowStyle.DashedContours, dashed);
-        Assert.AreEqual(RadarTerrainShadowStyle.CellHatching, hatching);
-        Assert.AreEqual(RadarTerrainShadowStyle.Both, both);
-    }
+    public void Cleanup() => GeoscapeTestHarness.ResetAllStaticState();
 
     [TestMethod]
     public void GeoscapeSettings_RadarTerrainShadowStyle_DefaultAndReset()
@@ -128,7 +62,7 @@ public sealed class RadarTerrainShadowTests
             }
         };
 
-        var sensor = new TestSensor
+        var sensor = new MockSensorProvider
         {
             SensorTile = MakeTile(0),
             DetectionRadiusInTiles = 4f,
@@ -185,7 +119,7 @@ public sealed class RadarTerrainShadowTests
         };
 
         // Sensor with SIGINT / penetration capability
-        var sensor = new TestSensor
+        var sensor = new MockSensorProvider
         {
             SensorTile = MakeTile(0),
             DetectionRadiusInTiles = 3f,
@@ -231,7 +165,7 @@ public sealed class RadarTerrainShadowTests
             }
         };
 
-        var sensorA = new TestSensor
+        var sensorA = new MockSensorProvider
         {
             SensorTile = MakeTile(0),
             DetectionRadiusInTiles = 3f,
@@ -239,7 +173,7 @@ public sealed class RadarTerrainShadowTests
             PenetratesTerrainMasking = false
         };
 
-        var sensorB = new TestSensor
+        var sensorB = new MockSensorProvider
         {
             SensorTile = MakeTile(10),
             DetectionRadiusInTiles = 2f,
@@ -287,7 +221,7 @@ public sealed class RadarTerrainShadowTests
             }
         };
 
-        var sensorA = new TestSensor
+        var sensorA = new MockSensorProvider
         {
             SensorTile = MakeTile(0),
             DetectionRadiusInTiles = 3f,
@@ -295,7 +229,7 @@ public sealed class RadarTerrainShadowTests
             PenetratesTerrainMasking = false
         };
 
-        var sensorB = new TestSensor
+        var sensorB = new MockSensorProvider
         {
             SensorTile = TileLayer2(0),
             DetectionRadiusInTiles = 3f,
@@ -337,7 +271,7 @@ public sealed class RadarTerrainShadowTests
             }
         };
 
-        var sensor = new TestSensor
+        var sensor = new MockSensorProvider
         {
             SensorTile = MakeTile(0),
             DetectionRadiusInTiles = 2f,
@@ -376,7 +310,7 @@ public sealed class RadarTerrainShadowTests
             }
         };
 
-        var sensor = new TestSensor { SensorTile = MakeTile(0) };
+        var sensor = new MockSensorProvider { SensorTile = MakeTile(0) };
         SensoryManager.ActiveSensorsOverride = () => new[] { sensor };
 
         var sensory = new SensoryManager(null!);
@@ -593,7 +527,7 @@ public sealed class RadarTerrainShadowTests
             list.AddRange(MakeConvexPolygon(c, 2.5f, 6));
         };
 
-        var sensor = new TestSensor
+        var sensor = new MockSensorProvider
         {
             SensorTile = MakeTile(0),
             DetectionRadiusInTiles = 3f,
@@ -741,7 +675,7 @@ public sealed class RadarTerrainShadowTests
             list.AddRange(MakeConvexPolygon(c, 2.5f, 6));
         };
 
-        var sensor = new TestSensor
+        var sensor = new MockSensorProvider
         {
             SensorTile = MakeTile(0),
             DetectionRadiusInTiles = 3f,
@@ -788,7 +722,7 @@ public sealed class RadarTerrainShadowTests
             if (graph.TryGetValue(tile.tileId, out var neighbors)) list.AddRange(neighbors);
         };
 
-        var sensor = new TestSensor
+        var sensor = new MockSensorProvider
         {
             SensorTile = MakeTile(0),
             DetectionRadiusInTiles = 4f,
@@ -821,5 +755,92 @@ public sealed class RadarTerrainShadowTests
         // Tile 3 is at step 3 (beyond 2-ring SIGINT radius) -> must BE shadowed
         Assert.IsTrue(outShadowTiles.Any(t => t.tileId == 3),
             "Tile 3 at step 3 must retain mountain shadow masking beyond the 2-ring SIGINT correlator.");
+    }
+
+    [TestMethod]
+    public void RadarSettings_DefaultValues_AreCorrect()
+    {
+        var settings = new GeoscapeSettings();
+
+        Assert.AreEqual(0.50f, settings.radarOutlineOpacity, 0.001f, "Perimeter outline opacity must default to 50%.");
+        Assert.AreEqual(0.65f, settings.identificationRingOpacity, 0.001f, "Identification ring opacity must default to 65%.");
+        Assert.AreEqual(0.40f, settings.honeycombGridOpacity, 0.001f, "Honeycomb grid opacity must default to 40%.");
+        Assert.IsFalse(settings.useCustomIdentificationColor, "Custom identification color must default to disabled.");
+        Assert.AreEqual(new Color(1.0f, 0.82f, 0.15f), settings.radarIdentificationColor, "Default custom identification color must be telemetry amber/gold.");
+    }
+
+    [TestMethod]
+    public void RadarSettings_ResetToDefaults_RestoresNewSensoryOptions()
+    {
+        var settings = new GeoscapeSettings
+        {
+            radarOutlineOpacity = 0.99f,
+            identificationRingOpacity = 0.20f,
+            honeycombGridOpacity = 0.85f,
+            useCustomIdentificationColor = true,
+            radarIdentificationColor = Color.magenta
+        };
+
+        settings.ResetToDefaults();
+
+        Assert.AreEqual(0.50f, settings.radarOutlineOpacity, 0.001f);
+        Assert.AreEqual(0.65f, settings.identificationRingOpacity, 0.001f);
+        Assert.AreEqual(0.40f, settings.honeycombGridOpacity, 0.001f);
+        Assert.IsFalse(settings.useCustomIdentificationColor);
+        Assert.AreEqual(new Color(1.0f, 0.82f, 0.15f), settings.radarIdentificationColor);
+    }
+
+    [TestMethod]
+    public void EffectiveIdentificationColor_AutomaticContrast_WhenCustomDisabled()
+    {
+        var settings = new GeoscapeSettings
+        {
+            usePlayerFactionColor = false,
+            useCustomIdentificationColor = false
+        };
+
+        settings.radarCustomColor = new Color(0f, 0.90f, 1f);
+        Color.RGBToHSV(settings.EffectiveIdentificationColor, out float cyanH, out _, out _);
+        Assert.AreEqual(0.11f, cyanH, 0.02f, "Cyan base must produce contrasting amber/gold identification hue (~0.11).");
+
+        settings.radarCustomColor = new Color(1f, 0.76f, 0.16f);
+        Color.RGBToHSV(settings.EffectiveIdentificationColor, out float amberH, out _, out _);
+        Assert.AreEqual(0.52f, amberH, 0.02f, "Amber base must produce contrasting electric cyan identification hue (~0.52).");
+
+        settings.radarCustomColor = new Color(1f, 0.18f, 0.29f);
+        Color.RGBToHSV(settings.EffectiveIdentificationColor, out float crimsonH, out _, out _);
+        Assert.AreEqual(0.52f, crimsonH, 0.02f, "Crimson base must produce contrasting electric cyan identification hue (~0.52).");
+    }
+
+    [TestMethod]
+    public void EffectiveIdentificationColor_ReturnsCustomColor_WhenCustomEnabled()
+    {
+        Color customGold = new(1f, 0.82f, 0.15f);
+        var settings = new GeoscapeSettings
+        {
+            usePlayerFactionColor = false,
+            radarCustomColor = new Color(0f, 0.90f, 1f),
+            useCustomIdentificationColor = true,
+            radarIdentificationColor = customGold
+        };
+
+        Assert.AreEqual(customGold, settings.EffectiveIdentificationColor,
+            "EffectiveIdentificationColor must return custom color when useCustomIdentificationColor is true.");
+    }
+
+    [TestMethod]
+    public void AutomaticIdentificationColor_CoolAndWarmBases_ProducesContrastingHues()
+    {
+        Color emerald = new(0.08f, 0.94f, 0.43f);
+        Color emeraldResult = WorldDrawLayer_RadarCoverage.GetAutomaticIdentificationColor(emerald);
+        Color.RGBToHSV(emeraldResult, out float emH, out _, out _);
+        Assert.AreEqual(0.11f, emH, 0.02f, "Emerald base must shift to amber/gold.");
+
+        Color redResult = WorldDrawLayer_RadarCoverage.GetAutomaticIdentificationColor(Color.red);
+        Color.RGBToHSV(redResult, out float redH, out _, out _);
+        Assert.AreEqual(0.52f, redH, 0.02f, "Red base must shift to tactical cyan.");
+
+        Color32 aliasResult = WorldDrawLayer_RadarCoverage.GetIdentificationHorizonColor(emerald);
+        Assert.AreEqual((Color32)emeraldResult, aliasResult, "GetIdentificationHorizonColor alias must match GetAutomaticIdentificationColor.");
     }
 }

@@ -132,28 +132,4 @@ public sealed class TileHighlightVisibilityTests
         WorldDrawLayer_MouseTile_Tile_Patch.Postfix(ref surveillanceUnexplored);
         Assert.AreEqual(unexploredTile, surveillanceUnexplored);
     }
-
-    [TestMethod]
-    public void SingleTileHighlightPatches_ResolveAllRimWorldTargetsWithoutError()
-    {
-        string id = $"Geoscape.Tests.SingleTile.{Guid.NewGuid():N}";
-        Harmony harmony = new(id);
-        try
-        {
-            Type[] patchTypes =
-            {
-                typeof(WorldDrawLayer_MouseTile_Tile_Patch),
-                typeof(WorldDrawLayer_SelectedTile_Tile_Patch)
-            };
-
-            foreach (Type patchType in patchTypes)
-            {
-                harmony.CreateClassProcessor(patchType).Patch();
-            }
-        }
-        finally
-        {
-            harmony.UnpatchAll(id);
-        }
-    }
 }

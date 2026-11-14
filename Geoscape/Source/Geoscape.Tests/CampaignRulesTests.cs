@@ -19,143 +19,55 @@ namespace Geoscape.Tests;
 public class CampaignRulesTests
 {
     [TestInitialize]
-    public void Setup()
-    {
-        GeoscapeCampaignRules.ResetStaticDataForTesting();
-        UnsafeRuleOverride.ResetForTesting();
-        NewCampaignRuleDraft.Clear();
-        SensoryManager.Instance = null;
-        ContactRegistry.Instance = null;
-        HazeReconnaissanceManager.Instance = null;
-    }
+    public void Setup() => GeoscapeTestHarness.ResetAllStaticState();
 
     [TestCleanup]
-    public void Teardown()
-    {
-        GeoscapeCampaignRules.ResetStaticDataForTesting();
-        UnsafeRuleOverride.ResetForTesting();
-        NewCampaignRuleDraft.Clear();
-        SensoryManager.Instance = null;
-        ContactRegistry.Instance = null;
-        HazeReconnaissanceManager.Instance = null;
-    }
+    public void Teardown() => GeoscapeTestHarness.ResetAllStaticState();
 
     // =========================================================================
     // 1. Framework Evaluation Tests
     // =========================================================================
 
     [TestMethod]
-    public void Evaluate_MutableRule_OutsideCampaign_ReturnsAllowed()
+    [DataRow(true, false, false, false, RuleTransitionVerdict.Allowed)]
+    [DataRow(true, true, false, false, RuleTransitionVerdict.Allowed)]
+    [DataRow(false, false, false, false, RuleTransitionVerdict.Allowed)]
+    [DataRow(false, true, false, false, RuleTransitionVerdict.Blocked)]
+    [DataRow(false, true, true, false, RuleTransitionVerdict.Allowed)]
+    [DataRow(false, true, false, true, RuleTransitionVerdict.RequiresUnsafeConfirmation)]
+    public void Evaluate_MutableAndImmutableRules_ReturnExpectedVerdict(
+        bool mutable,
+        bool campaignActive,
+        bool reviewWindowOpen,
+        bool unsafeOverride,
+        RuleTransitionVerdict expectedVerdict)
     {
         GeoscapeRuleSet rules = new();
-        RuleEditContext ctx = new(CampaignActive: false, ReviewWindowOpen: false, UnsafeOverrideEnabled: false);
+        RuleEditContext ctx = new(campaignActive, reviewWindowOpen, unsafeOverride);
 
-        RuleTransitionVerdict verdict = rules.EarlyWarningLetters.Evaluate(false, ctx);
+        RuleTransitionVerdict verdict = mutable
+            ? rules.EarlyWarningLetters.Evaluate(false, ctx)
+            : rules.ColonyScoutRadius.Evaluate(8.0f, ctx);
 
-        Assert.AreEqual(RuleTransitionVerdict.Allowed, verdict);
+        Assert.AreEqual(expectedVerdict, verdict);
     }
 
     [TestMethod]
-    public void Evaluate_MutableRule_DuringCampaign_ReturnsAllowed()
+    [DataRow(VisibilityMode.ClassicHazeOfWar, VisibilityMode.PlanetarySurveillance, false, RuleTransitionVerdict.RequiresEscalationConfirmation)]
+    [DataRow(VisibilityMode.PlanetarySurveillance, VisibilityMode.ClassicHazeOfWar, false, RuleTransitionVerdict.Blocked)]
+    [DataRow(VisibilityMode.PlanetarySurveillance, VisibilityMode.ClassicHazeOfWar, true, RuleTransitionVerdict.RequiresUnsafeConfirmation)]
+    [DataRow(VisibilityMode.ClassicHazeOfWar, VisibilityMode.ClassicHazeOfWar, false, RuleTransitionVerdict.NoChange)]
+    public void Evaluate_EscalatableRule_ReturnsExpectedVerdict(
+        VisibilityMode initialMode,
+        VisibilityMode candidateMode,
+        bool unsafeOverride,
+        RuleTransitionVerdict expectedVerdict)
     {
         GeoscapeRuleSet rules = new();
-        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: false, UnsafeOverrideEnabled: false);
+        rules.Visibility.Value = initialMode;
+        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: false, UnsafeOverrideEnabled: unsafeOverride);
 
-        RuleTransitionVerdict verdict = rules.EarlyWarningLetters.Evaluate(false, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.Allowed, verdict);
-    }
-
-    [TestMethod]
-    public void Evaluate_ImmutableRule_OutsideCampaign_ReturnsAllowed()
-    {
-        GeoscapeRuleSet rules = new();
-        RuleEditContext ctx = new(CampaignActive: false, ReviewWindowOpen: false, UnsafeOverrideEnabled: false);
-
-        RuleTransitionVerdict verdict = rules.ColonyScoutRadius.Evaluate(8.0f, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.Allowed, verdict);
-    }
-
-    [TestMethod]
-    public void Evaluate_ImmutableRule_DuringCampaign_ReturnsBlocked()
-    {
-        GeoscapeRuleSet rules = new();
-        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: false, UnsafeOverrideEnabled: false);
-
-        RuleTransitionVerdict verdict = rules.ColonyScoutRadius.Evaluate(8.0f, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.Blocked, verdict);
-    }
-
-    [TestMethod]
-    public void Evaluate_ImmutableRule_ReviewWindow_ReturnsAllowed()
-    {
-        GeoscapeRuleSet rules = new();
-        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: true, UnsafeOverrideEnabled: false);
-
-        RuleTransitionVerdict verdict = rules.ColonyScoutRadius.Evaluate(8.0f, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.Allowed, verdict);
-    }
-
-    [TestMethod]
-    public void Evaluate_ImmutableRule_WithDevOverride_ReturnsRequiresUnsafeConfirmation()
-    {
-        GeoscapeRuleSet rules = new();
-        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: false, UnsafeOverrideEnabled: true);
-
-        RuleTransitionVerdict verdict = rules.ColonyScoutRadius.Evaluate(8.0f, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.RequiresUnsafeConfirmation, verdict);
-    }
-
-    [TestMethod]
-    public void Evaluate_EscalatableRule_EscalationRankIncrease_ReturnsRequiresEscalationConfirmation()
-    {
-        GeoscapeRuleSet rules = new();
-        rules.Visibility.Value = VisibilityMode.ClassicHazeOfWar;
-        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: false, UnsafeOverrideEnabled: false);
-
-        RuleTransitionVerdict verdict = rules.Visibility.Evaluate(VisibilityMode.PlanetarySurveillance, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.RequiresEscalationConfirmation, verdict);
-    }
-
-    [TestMethod]
-    public void Evaluate_EscalatableRule_EscalationRankDecrease_ReturnsBlocked()
-    {
-        GeoscapeRuleSet rules = new();
-        rules.Visibility.Value = VisibilityMode.PlanetarySurveillance;
-        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: false, UnsafeOverrideEnabled: false);
-
-        RuleTransitionVerdict verdict = rules.Visibility.Evaluate(VisibilityMode.ClassicHazeOfWar, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.Blocked, verdict);
-    }
-
-    [TestMethod]
-    public void Evaluate_EscalatableRule_EscalationRankDecrease_WithDevOverride_ReturnsRequiresUnsafeConfirmation()
-    {
-        GeoscapeRuleSet rules = new();
-        rules.Visibility.Value = VisibilityMode.PlanetarySurveillance;
-        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: false, UnsafeOverrideEnabled: true);
-
-        RuleTransitionVerdict verdict = rules.Visibility.Evaluate(VisibilityMode.ClassicHazeOfWar, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.RequiresUnsafeConfirmation, verdict);
-    }
-
-    [TestMethod]
-    public void Evaluate_NoChange_ReturnsNoChange()
-    {
-        GeoscapeRuleSet rules = new();
-        rules.Visibility.Value = VisibilityMode.ClassicHazeOfWar;
-        RuleEditContext ctx = new(CampaignActive: true, ReviewWindowOpen: false, UnsafeOverrideEnabled: false);
-
-        RuleTransitionVerdict verdict = rules.Visibility.Evaluate(VisibilityMode.ClassicHazeOfWar, ctx);
-
-        Assert.AreEqual(RuleTransitionVerdict.NoChange, verdict);
+        Assert.AreEqual(expectedVerdict, rules.Visibility.Evaluate(candidateMode, ctx));
     }
 
     // =========================================================================

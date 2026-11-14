@@ -20,28 +20,10 @@ namespace Geoscape.Tests;
 public sealed class PerformanceAndStressTests
 {
     [TestInitialize]
-    public void Setup()
-    {
-        var prefsType = typeof(Verse.Prefs);
-        var dataField = HarmonyLib.AccessTools.Field(prefsType, "data");
-        if (dataField != null && dataField.GetValue(null) == null)
-        {
-            var prefsDataType = dataField.FieldType;
-            var dataInstance = Activator.CreateInstance(prefsDataType);
-            dataField.SetValue(null, dataInstance);
-        }
-    }
+    public void Setup() => GeoscapeTestHarness.EnsureEnvironmentInitialised();
 
     [TestCleanup]
-    public void Cleanup()
-    {
-        SensoryManager.DistanceCalculationOverride = null;
-        SensoryManager.IsExploredOverride = null;
-        SensoryManager.Instance = null;
-        InterFactionEncounterManager.IncursionProviderOverride = null;
-        SensoryTerrainUtility.TargetMaskedOverride = null;
-        SensoryTerrainUtility.VantageBonusOverride = null;
-    }
+    public void Cleanup() => GeoscapeTestHarness.ResetAllStaticState();
 
     [TestMethod]
     public void SensorySweep_HighLoad_20Radars_100Incursions_ExecutesUnder1ms_AndZeroAllocations()

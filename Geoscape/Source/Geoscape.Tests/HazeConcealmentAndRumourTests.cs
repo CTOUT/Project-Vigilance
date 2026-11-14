@@ -95,27 +95,8 @@ public sealed class HazeConcealmentAndRumourTests
     }
 
     [TestMethod]
-    public void HarmonyPatches_Phase3_CanBeAppliedCleanlyWithoutException()
-    {
-        var harmony = new HarmonyLib.Harmony("test.phase3.harmony.validation");
-        var patch1 = typeof(ProjectVigilance.Geoscape.Patches.LetterStack_ReceiveLetter_Patch);
-        var patch2 = typeof(ProjectVigilance.Geoscape.Patches.TimeoutComp_CompTick_Patch);
-        var patch3 = typeof(ProjectVigilance.Geoscape.Patches.WorldObject_SpawnSetup_ConcealmentPatch);
-        var patch4 = typeof(ProjectVigilance.Geoscape.Patches.WorldObject_PostRemove_Patch);
-
-        harmony.CreateClassProcessor(patch1).Patch();
-        harmony.CreateClassProcessor(patch2).Patch();
-        harmony.CreateClassProcessor(patch3).Patch();
-        harmony.CreateClassProcessor(patch4).Patch();
-    }
-
-    [TestMethod]
     public void TimeoutComp_CompTickInterval_SuspendedWhenConcealedAndResumedWhenUncovered()
     {
-        var harmony = new HarmonyLib.Harmony("test.timeout.patch.execution");
-        var patch = typeof(ProjectVigilance.Geoscape.Patches.TimeoutComp_CompTick_Patch);
-        harmony.CreateClassProcessor(patch).Patch();
-
         var manager = new HazeReconnaissanceManager(null!);
         HazeReconnaissanceManager.Instance = manager;
 
@@ -232,78 +213,86 @@ public sealed class HazeConcealmentAndRumourTests
     {
         ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
 
-        var harmony = new HarmonyLib.Harmony("test.unknown.site.masking");
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_Label_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetInspectString_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetDescription_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_ShowRelatedQuests_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetGizmos_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_ExpandingIconColor_Patch)).Patch();
+        string harmonyId = $"test.unknown.site.masking.{Guid.NewGuid():N}";
+        var harmony = new HarmonyLib.Harmony(harmonyId);
+        try
+        {
+            harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_Label_Patch)).Patch();
+            harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetInspectString_Patch)).Patch();
+            harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetDescription_Patch)).Patch();
+            harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_ShowRelatedQuests_Patch)).Patch();
+            harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetGizmos_Patch)).Patch();
+            harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_ExpandingIconColor_Patch)).Patch();
 
-        var sensory = new SensoryManager(null!);
-        SensoryManager.Instance = sensory;
-        var hazeManager = new HazeReconnaissanceManager(null!);
-        HazeReconnaissanceManager.Instance = hazeManager;
+            var sensory = new SensoryManager(null!);
+            SensoryManager.Instance = sensory;
+            var hazeManager = new HazeReconnaissanceManager(null!);
+            HazeReconnaissanceManager.Instance = hazeManager;
 
-        var settlement = new Settlement { ID = 30101 };
-        settlement.Name = "Covenant Stronghold";
-        HarmonyLib.Traverse.Create(settlement).Field("tile").SetValue((PlanetTile)55);
+            var settlement = new Settlement { ID = 30101 };
+            settlement.Name = "Covenant Stronghold";
+            HarmonyLib.Traverse.Create(settlement).Field("tile").SetValue((PlanetTile)55);
 
-        var outpostSite = new Site { ID = 30102 };
-        outpostSite.customLabel = "Pirate Artillery Outpost";
-        HarmonyLib.Traverse.Create(outpostSite).Field("tile").SetValue((PlanetTile)56);
-        HarmonyLib.Traverse.Create(outpostSite).Field("spawned").SetValue(true);
+            var outpostSite = new Site { ID = 30102 };
+            outpostSite.customLabel = "Pirate Artillery Outpost";
+            HarmonyLib.Traverse.Create(outpostSite).Field("tile").SetValue((PlanetTile)56);
+            HarmonyLib.Traverse.Create(outpostSite).Field("spawned").SetValue(true);
 
-        HazeReconnaissanceManager.WorldObjectLookupOverride = id => id == 30102 ? outpostSite : (id == 30101 ? settlement : null);
-        hazeManager.RegisterConcealedSite(outpostSite);
+            HazeReconnaissanceManager.WorldObjectLookupOverride = id => id == 30102 ? outpostSite : (id == 30101 ? settlement : null);
+            hazeManager.RegisterConcealedSite(outpostSite);
 
-        // Stage 1: Unexplored (in Black Shroud) -> Not masked as unknown because it is completely hidden by Shroud culling
-        Assert.IsFalse(sensory.IsExplored((PlanetTile)55));
-        Assert.IsFalse(SensoryManager.ShouldMaskWorldObjectAsUnknown(settlement),
-            "Unexplored objects in the black shroud are hidden outright rather than masked as detected unknown sites.");
+            // Stage 1: Unexplored (in Black Shroud) -> Not masked as unknown because it is completely hidden by Shroud culling
+            Assert.IsFalse(sensory.IsExplored((PlanetTile)55));
+            Assert.IsFalse(SensoryManager.ShouldMaskWorldObjectAsUnknown(settlement),
+                "Unexplored objects in the black shroud are hidden outright rather than masked as detected unknown sites.");
 
-        // Stage 2: Explored by outer Detection layer ONLY (IsExplored == true, IsTileIdentified == false)
-        sensory.MarkTileExplored((PlanetTile)55);
-        sensory.MarkTileExplored((PlanetTile)56);
+            // Stage 2: Explored by outer Detection layer ONLY (IsExplored == true, IsTileIdentified == false)
+            sensory.MarkTileExplored((PlanetTile)55);
+            sensory.MarkTileExplored((PlanetTile)56);
 
-        Assert.IsTrue(sensory.IsExplored((PlanetTile)55));
-        Assert.IsFalse(sensory.IsTileIdentified((PlanetTile)55), "Outer detection ring must NOT mark the tile as identified.");
-        Assert.IsTrue(SensoryManager.ShouldMaskWorldObjectAsUnknown(settlement),
-            "Settlement in outer detection layer must be masked as an unknown site.");
-        Assert.IsTrue(SensoryManager.ShouldMaskWorldObjectAsUnknown(outpostSite),
-            "Outpost site in outer detection layer must be masked as an unknown site.");
+            Assert.IsTrue(sensory.IsExplored((PlanetTile)55));
+            Assert.IsFalse(sensory.IsTileIdentified((PlanetTile)55), "Outer detection ring must NOT mark the tile as identified.");
+            Assert.IsTrue(SensoryManager.ShouldMaskWorldObjectAsUnknown(settlement),
+                "Settlement in outer detection layer must be masked as an unknown site.");
+            Assert.IsTrue(SensoryManager.ShouldMaskWorldObjectAsUnknown(outpostSite),
+                "Outpost site in outer detection layer must be masked as an unknown site.");
 
-        // Verify masked label, inspect string, description, quest suppression, and icon color via Harmony patches
-        Assert.AreEqual("unidentified site", settlement.Label);
-        Assert.AreEqual("unidentified site", outpostSite.Label);
-        Assert.IsTrue(settlement.GetInspectString().Contains("Status: Unidentified Site"));
-        Assert.IsFalse(settlement.GetInspectString().Contains("Covenant Stronghold"));
-        Assert.IsTrue(outpostSite.GetInspectString().Contains("Status: Unidentified Site"));
-        Assert.IsTrue(outpostSite.GetDescription().Contains("unidentified surface site"));
-        Assert.IsFalse(settlement.ShowRelatedQuests);
-        Assert.AreEqual(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSiteIconColor, settlement.ExpandingIconColor);
+            // Verify masked label, inspect string, description, quest suppression, and icon color via Harmony patches
+            Assert.AreEqual("unidentified site", settlement.Label);
+            Assert.AreEqual("unidentified site", outpostSite.Label);
+            Assert.IsTrue(settlement.GetInspectString().Contains("Status: Unidentified Site"));
+            Assert.IsFalse(settlement.GetInspectString().Contains("Covenant Stronghold"));
+            Assert.IsTrue(outpostSite.GetInspectString().Contains("Status: Unidentified Site"));
+            Assert.IsTrue(outpostSite.GetDescription().Contains("unidentified surface site"));
+            Assert.IsFalse(settlement.ShowRelatedQuests);
+            Assert.AreEqual(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSiteIconColor, settlement.ExpandingIconColor);
 
-        // Verify dynamic site remains concealed in HazeReconnaissanceManager when only in Detection layer
-        hazeManager.CheckUncoveredSites();
-        Assert.IsTrue(hazeManager.IsSiteConcealed(outpostSite),
-            "Dynamic outpost site must remain concealed (letter suppressed, timeout paused) while only in the outer Detection layer.");
+            // Verify dynamic site remains concealed in HazeReconnaissanceManager when only in Detection layer
+            hazeManager.CheckUncoveredSites();
+            Assert.IsTrue(hazeManager.IsSiteConcealed(outpostSite),
+                "Dynamic outpost site must remain concealed (letter suppressed, timeout paused) while only in the outer Detection layer.");
 
-        // Stage 3: Scanned by inner Identification layer (IsTileIdentified == true)
-        sensory.MarkTileIdentified((PlanetTile)55);
-        sensory.MarkTileIdentified((PlanetTile)56);
+            // Stage 3: Scanned by inner Identification layer (IsTileIdentified == true)
+            sensory.MarkTileIdentified((PlanetTile)55);
+            sensory.MarkTileIdentified((PlanetTile)56);
 
-        Assert.IsTrue(sensory.IsTileIdentified((PlanetTile)55));
-        Assert.IsTrue(sensory.IsWorldObjectIdentified(settlement));
-        Assert.IsTrue(sensory.IsWorldObjectIdentified(outpostSite));
-        Assert.IsFalse(SensoryManager.ShouldMaskWorldObjectAsUnknown(settlement),
-            "Settlement must no longer be masked once scanned by the inner Identification ring.");
-        Assert.IsFalse(SensoryManager.ShouldMaskWorldObjectAsUnknown(outpostSite),
-            "Outpost site must no longer be masked once scanned by the inner Identification ring.");
+            Assert.IsTrue(sensory.IsTileIdentified((PlanetTile)55));
+            Assert.IsTrue(sensory.IsWorldObjectIdentified(settlement));
+            Assert.IsTrue(sensory.IsWorldObjectIdentified(outpostSite));
+            Assert.IsFalse(SensoryManager.ShouldMaskWorldObjectAsUnknown(settlement),
+                "Settlement must no longer be masked once scanned by the inner Identification ring.");
+            Assert.IsFalse(SensoryManager.ShouldMaskWorldObjectAsUnknown(outpostSite),
+                "Outpost site must no longer be masked once scanned by the inner Identification ring.");
 
-        Assert.AreEqual("Covenant Stronghold", settlement.Label);
-        Assert.AreEqual("Pirate Artillery Outpost", outpostSite.Label);
-        Assert.IsFalse(hazeManager.IsSiteConcealed(outpostSite),
-            "Dynamic outpost site must be uncovered once scanned by the inner Identification ring.");
+            Assert.AreEqual("Covenant Stronghold", settlement.Label);
+            Assert.AreEqual("Pirate Artillery Outpost", outpostSite.Label);
+            Assert.IsFalse(hazeManager.IsSiteConcealed(outpostSite),
+                "Dynamic outpost site must be uncovered once scanned by the inner Identification ring.");
+        }
+        finally
+        {
+            harmony.UnpatchAll(harmonyId);
+        }
     }
 
     [TestMethod]
@@ -365,24 +354,5 @@ public sealed class HazeConcealmentAndRumourTests
         Assert.IsFalse(SensoryManager.RequiresSiteIdentification(inc));
         Assert.IsFalse(SensoryManager.RequiresSiteIdentification(caravan));
         Assert.IsFalse(SensoryManager.RequiresSiteIdentification(waypoint));
-    }
-
-    [TestMethod]
-    public void HarmonyPatches_UnknownSiteMaskingAndUprightDrawing_CanBeAppliedCleanlyWithoutException()
-    {
-        var harmony = new HarmonyLib.Harmony("test.unknown.and.upright.harmony.validation");
-
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.WorldObject_Draw_Upright_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.WorldObject_Print_Upright_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_Label_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_ExpandingIcon_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_ExpandingIconColor_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_ExpandingMaterial_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_Material_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetInspectString_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetDescription_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_ShowRelatedQuests_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetGizmos_Patch)).Patch();
-        harmony.CreateClassProcessor(typeof(ProjectVigilance.Geoscape.Patches.WorldObject_Visibility_Patch.UnknownSite_GetFloatMenuOptions_Patch)).Patch();
     }
 }

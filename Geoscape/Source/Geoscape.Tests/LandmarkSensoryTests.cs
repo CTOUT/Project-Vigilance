@@ -14,22 +14,8 @@ namespace Geoscape.Tests;
 [DoNotParallelize]
 public sealed class LandmarkSensoryTests
 {
-    private static void EnsureEnvironmentInitialised()
-    {
-        var prefsField = typeof(Prefs).GetField("data", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-        if (prefsField != null && prefsField.GetValue(null) == null)
-        {
-            var prefsDataType = typeof(Prefs).Assembly.GetType("Verse.PrefsData");
-            if (prefsDataType != null)
-            {
-                prefsField.SetValue(null, System.Activator.CreateInstance(prefsDataType));
-            }
-        }
-        if (LanguageDatabase.activeLanguage == null)
-        {
-            LanguageDatabase.activeLanguage = new LoadedLanguage("English");
-        }
-    }
+    [TestCleanup]
+    public void Cleanup() => GeoscapeTestHarness.ResetAllStaticState();
 
     [TestMethod]
     public void IsManMadeLandmarkDef_DistinguishesStructuresFromGeography()
@@ -94,7 +80,7 @@ public sealed class LandmarkSensoryTests
     [TestMethod]
     public void IsAnomalousStructure_IdentifiesKnownDefNames()
     {
-        EnsureEnvironmentInitialised();
+        GeoscapeTestHarness.EnsureEnvironmentInitialised();
 
         WorldObjectDef monolithDef = new() { defName = "FallenMonolith" };
         WorldObjectDef ancientComplexDef = new() { defName = "AncientComplex" };
@@ -122,7 +108,7 @@ public sealed class LandmarkSensoryTests
     [TestMethod]
     public void IsAnomalousStructure_IdentifiesInsectHiveSiteParts()
     {
-        EnsureEnvironmentInitialised();
+        GeoscapeTestHarness.EnsureEnvironmentInitialised();
 
         Site siteWithInfestation = new();
         SitePartDef infestedDef = new() { defName = "OpportunitySite_AncientInfestedSettlement" };

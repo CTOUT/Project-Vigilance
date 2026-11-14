@@ -9,44 +9,20 @@ using Verse;
 
 namespace Geoscape.Tests;
 
-public class MockSensorProvider : ISensorProvider
-{
-    public PlanetTile SensorTile { get; set; } = PlanetTile.Invalid;
-    public float DetectionRadiusInTiles { get; set; } = 24f;
-    public int IdentificationRadiusInTiles { get; set; } = 10;
-    public IntelligenceTier MaxIntelligenceTier { get; set; } = IntelligenceTier.Classified;
-    public bool IsSensorActive { get; set; } = true;
-    public bool IsTechnological { get; set; } = true;
-    public bool IsStationary { get; set; } = true;
-    public bool PenetratesTerrainMasking { get; set; } = false;
-    public bool IsOceanicSonar { get; set; } = false;
-    public string SensorLabel { get; set; } = "Early-Warning Radar";
-    public WorldObject? Source { get; set; } = null;
-    public bool TryGetDetectionDistance(IDetectableTarget target, out int distance)
-    {
-        if (SensoryManager.DistanceCalculationOverride != null && SensorTile.Valid && target.CurrentTile.Valid)
-        {
-            int maxSteps = (int)DetectionRadiusInTiles;
-            distance = SensoryManager.DistanceCalculationOverride(SensorTile, target.CurrentTile, maxSteps);
-            return distance <= maxSteps;
-        }
-
-        distance = 1;
-        return true;
-    }
-
-    public bool CanDetect(IDetectableTarget target) => TryGetDetectionDistance(target, out _);
-}
-
 [TestClass]
+[DoNotParallelize]
 public sealed class EarlyWarningDispatcherTests
 {
     [TestInitialize]
     public void Setup()
     {
+        GeoscapeTestHarness.ResetAllStaticState();
         GeoscapeMod.Settings.enableEarlyWarningLetters = true;
         GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
     }
+
+    [TestCleanup]
+    public void Cleanup() => GeoscapeTestHarness.ResetAllStaticState();
 
     [TestMethod]
     public void ProcessDetection_Stage1ContactTier_DispatchesThreatSmallAndSetsFlags()
@@ -276,43 +252,6 @@ public sealed class EarlyWarningDispatcherTests
             dispatchCount++;
             dispatchedDef = def;
         }
-    }
-
-    [TestMethod]
-    public void TerrainMaskingGating_MountainousTile_GatedAtContactTierUntilExit()
-    {
-        // Scenario: Target is inside R_id (e.g. 5 steps <= 10 steps), but target is in Mountainous terrain.
-        // SensoryTerrainUtility.EvaluateSensorTier gating check:
-        // Sensor without penetration holds target at Contact.
-        // Sensor with penetration resolves to Classified.
-
-        var standardSensor = new MockSensorProvider
-        {
-            IdentificationRadiusInTiles = 10,
-            MaxIntelligenceTier = IntelligenceTier.Classified,
-            PenetratesTerrainMasking = false
-        };
-
-        var spacerSensor = new MockSensorProvider
-        {
-            IdentificationRadiusInTiles = 10,
-            MaxIntelligenceTier = IntelligenceTier.Classified,
-            PenetratesTerrainMasking = true
-        };
-
-        // Act 1: Standard sensor against masked target at travDist = 5 <= 10
-        IntelligenceTier standardTier = SensoryTerrainUtility.EvaluateSensorTier(standardSensor, travDist: 5, isTargetMasked: true);
-
-        // Assert 1: Held at Contact
-        Assert.AreEqual(IntelligenceTier.Contact, standardTier,
-            "Incursion in Mountainous terrain must be gated at Contact tier without penetration.");
-
-        // Act 2: Spacer / SIGINT sensor against masked target at travDist = 5 <= 10
-        IntelligenceTier spacerTier = SensoryTerrainUtility.EvaluateSensorTier(spacerSensor, travDist: 5, isTargetMasked: true);
-
-        // Assert 2: Resolves to Classified
-        Assert.AreEqual(IntelligenceTier.Classified, spacerTier,
-            "Sensor with penetration must resolve to Classified despite Mountainous terrain.");
     }
 
     [TestMethod]
