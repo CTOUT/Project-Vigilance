@@ -23,6 +23,7 @@ public enum UnitTraversalCapability
 /// </summary>
 public sealed class ExpeditionDetourState
 {
+    public PlanetTile DestinationTile { get; set; } = PlanetTile.Invalid;
     public float InitialDirectDistance { get; set; } = -1f;
     public float MaxDetourMultiplier { get; set; } = 2.0f;
     public HashSet<int> NotifiedObstacleTiles { get; } = new();
@@ -61,20 +62,23 @@ public static class OptimisticPathingUtility
         if (!expeditionStates.TryGetValue(caravan.ID, out var state))
         {
             state = new ExpeditionDetourState();
+            expeditionStates[caravan.ID] = state;
+        }
+
+        if ((destTile.Valid && state.DestinationTile != destTile) ||
+            (state.InitialDirectDistance <= 0f && caravan.Tile.Valid && destTile.Valid))
+        {
+            state.DestinationTile = destTile;
+            state.MaxDetourMultiplier = 2.0f;
+            state.NotifiedObstacleTiles.Clear();
             if (caravan.Tile.Valid && destTile.Valid)
             {
                 state.InitialDirectDistance = (Current.Game != null && Find.World != null && Find.WorldGrid != null)
                     ? Find.WorldGrid.ApproxDistanceInTiles(caravan.Tile, destTile)
                     : Math.Abs(caravan.Tile.tileId - destTile.tileId);
             }
-            expeditionStates[caravan.ID] = state;
         }
-        else if (state.InitialDirectDistance <= 0f && caravan.Tile.Valid && destTile.Valid)
-        {
-            state.InitialDirectDistance = (Current.Game != null && Find.World != null && Find.WorldGrid != null)
-                ? Find.WorldGrid.ApproxDistanceInTiles(caravan.Tile, destTile)
-                : Math.Abs(caravan.Tile.tileId - destTile.tileId);
-        }
+
         return state;
     }
 
@@ -221,6 +225,24 @@ public static class OptimisticPathingUtility
     }
 
     /// <summary>
+    /// Checks real movement difficulty without using optimistic passability results for unexplored tiles.
+    /// </summary>
+    public static bool IsTileActuallyImpassable(PlanetTile tile)
+    {
+        if (IsTileImpassableOverride != null)
+        {
+            return IsTileImpassableOverride(tile);
+        }
+
+        if (!tile.Valid || Find.WorldGrid == null || !Find.WorldGrid.InBounds(tile))
+        {
+            return false;
+        }
+
+        return !(WorldPathGrid.CalculatedMovementDifficultyAt(tile, perceivedStatic: true) < 1000f);
+    }
+
+    /// <summary>
     /// Replaces real terrain movement difficulty multiplier with baseline traversal cost (1.0f)
     /// for tiles shrouded in fog-of-war during an active optimistic pathfinding search.
     /// </summary>
@@ -303,6 +325,7 @@ public static class OptimisticPathingUtility
 
             if (bestNearby.Valid && bestNearby != caravan.Tile)
             {
+                detourState.DestinationTile = bestNearby;
                 if (Find.World != null)
                 {
                     caravan.pather.StartPath(bestNearby, caravan.pather.ArrivalAction, repathImmediately: true);
@@ -370,8 +393,10 @@ public static class OptimisticPathingUtility
             if (stillMoving && caravan.pather.curPath != null && caravan.pather.curPath.Found)
             {
                 int remainingNodes = caravan.pather.curPath.NodesLeftCount;
-                if (detourState.InitialDirectDistance > 0f &&
-                    remainingNodes > detourState.InitialDirectDistance * detourState.MaxDetourMultiplier)
+                float maxAllowedNodes = Mathf.Max(
+                    detourState.InitialDirectDistance * detourState.MaxDetourMultiplier,
+                    detourState.InitialDirectDistance + 6f);
+                if (detourState.InitialDirectDistance > 0f && remainingNodes > maxAllowedNodes)
                 {
                     breakEvenExceeded = true;
                 }
@@ -405,7 +430,13 @@ public static class OptimisticPathingUtility
     /// </summary>
     public static void TriggerHardStopPrompt(Caravan caravan, PlanetTile obstacleTile, string reason)
     {
-        caravan.pather.StopDead();
+        PlanetTile savedDest = caravan.pather != null && caravan.pather.Destination.Valid
+            ? caravan.pather.Destination
+            : obstacleTile;
+        CaravanArrivalAction? savedArrivalAction = (caravan.pather != null && Find.World?.worldObjects != null)
+            ? caravan.pather.ArrivalAction
+            : null;
+        caravan.pather?.StopDead();
 
         OnCaravanHaltedForTesting?.Invoke(caravan, obstacleTile, reason);
         OnCaravanHardStopPromptForTesting?.Invoke(caravan, obstacleTile, reason);
@@ -429,11 +460,11 @@ public static class OptimisticPathingUtility
             {
                 action = () =>
                 {
-                    ExpeditionDetourState state = GetOrCreateExpeditionState(caravan, caravan.pather.Destination);
+                    ExpeditionDetourState state = GetOrCreateExpeditionState(caravan, savedDest);
                     state.MaxDetourMultiplier += 1.5f;
-                    if (caravan.pather.Destination.Valid)
+                    if (savedDest.Valid && Find.World != null)
                     {
-                        caravan.pather.StartPath(caravan.pather.Destination, caravan.pather.ArrivalAction, repathImmediately: true);
+                        caravan.pather?.StartPath(savedDest, savedArrivalAction, repathImmediately: true);
                     }
                 },
                 resolveTree = true
@@ -447,7 +478,14 @@ public static class OptimisticPathingUtility
                     Settlement? home = Find.WorldObjects?.Settlements?.FirstOrDefault(s => s.Faction == Faction.OfPlayer && s.HasMap);
                     if (home != null)
                     {
-                        caravan.pather.StartPath(home.Tile, new CaravanArrivalAction_Enter(home), repathImmediately: true);
+                        caravan.pather?.StartPath(home.Tile, new CaravanArrivalAction_Enter(home), repathImmediately: true);
+                        return;
+                    }
+
+                    MapParent? fallbackHome = Find.Maps?.Select(m => m.Parent).FirstOrDefault(p => p != null && p.Faction == Faction.OfPlayer && p.Tile.Valid);
+                    if (fallbackHome != null)
+                    {
+                        caravan.pather?.StartPath(fallbackHome.Tile, new CaravanArrivalAction_Enter(fallbackHome), repathImmediately: true);
                     }
                 },
                 resolveTree = true

@@ -13,13 +13,16 @@ This is a **standalone, zero-dependency framework mod** designed for RimWorld 1.
 ## Current Features (v0.3.0 Live & v0.4.0 Milestone 1.3)
 
 - **Physical Incursion Engine:** Intercepts walk-in raids (`IncidentWorker_RaidEnemy`) and trade caravans (`IncidentWorker_TraderCaravanArrival`), spawning physical world entities that march across the planet.
+- **Grounded Storyteller Caravan Meetings, Extortion Demands & Ambushes:** Converts caravan meetings (`IncidentWorker_CaravanMeeting`), extortion demands (`IncidentWorker_CaravanDemand`), and enemy faction ambushes (`IncidentWorker_Ambush_EnemyFaction`) into persistent `WorldObject_Incursion` entities with shroud staging, non-blocking sighting alerts, and post-retreat hostile pursuit on the Geoscape when $\ge 50\%$ of surviving hostiles remain fit.
 - **Planetary Sensory & Radar Network:** Early-warning radar domes, lookout watchtowers, coastal sonar arrays, and multi-dish interferometry expanding identification horizons.
-- **Lightweight Forward Outposts:** Caravan-deployable automated relays and signal beacons providing zero-TPS forward perimeter surveillance with dynamic material salvage.
+- **Coastal Sonar & Automated Sonar Stations:** Extends maritime surveillance through settlement hydrophone arrays (`Geoscape_SonarArray`) and standalone **Automated Sonar Stations** (`Vigilance_ListeningPost_Sonar`) requiring direct coastal access, projecting directional V-shaped acoustic sectors strictly through connected water tiles.
+- **Lightweight Forward Outposts:** Caravan-deployable automated listening posts, automated sonar stations, and signal beacons providing zero-TPS forward perimeter surveillance with unified structure labels and dynamic material salvage.
+- **Anomalous Landmark & Site Masking:** Conceals unverified foreign sites inside the outer detection ring as unidentified amber contacts until brought within identification range ($R_{id}$) or visited, while masking anomalous and man-made landmarks with tactical cyan exclamation mark (`!`) blips and hiding their 3D ground meshes until identified.
 - **Dynamic Inter-Faction Encounters:** Tile-bucketed $O(M)$ collision scans, algebraic background skirmishes, and persistent salvageable aftermath sites.
 - **Orbital Logistics & Drifting Constellations:** Closed-form analytical Keplerian mechanics engine with $J_2$ oblateness nodal precession, persistent orbital station hubs, and 5 specialised satellite payload roles.
 - **Campaign Creation Wizard & Mutability Framework:** First-class campaign wizard page (`Page_GeoscapeRules`), 4 distinct campaign profiles (**Fog of War**, **Planetary Surveillance**, **Hardcore Vigilance**, **Omniscient**), two-axis rule mutability, first-time mod adoption lifecycle, and forensic change ledgers.
 - **Automated Landfall & Blind Touchdown:** Prevents global map cheese on uncharted globes by auto-selecting landing sectors or masking terrain telemetry until touchdown.
-- **Optimistic Fog-of-War Pathfinding:** Friendly caravans assume unmapped sectors are passable until discovered, dynamically re-routing locally when meeting impassable terrain.
+- **Optimistic Fog-of-War Pathfinding:** Friendly caravans assume unmapped sectors are passable at baseline cost (masking unexplored road movement discounts) until discovered, dynamically re-routing around newly revealed obstacles with pre-entry impassable safeguards.
 - **Dynamic Origin Resolution:** Automatically resolves genuine origin settlements or wilderness staging sites based on faction territory and terrain accessibility.
 - **Real-Time WorldGrid Pathing:** Calculates terrain-based transit speeds and realistic ETAs (hours to days depending on biomes, roads, and mountains).
 - **Tactical World Map Rendering:**
@@ -47,12 +50,14 @@ Geoscape/
     ├── Geoscape.slnx         # Solution file
     ├── Geoscape/             # Mod core project
     │   ├── Geoscape.csproj   # TargetFramework: net10.0
+    │   ├── Debug/            # Dev Mode debug actions & test incident helpers
     │   ├── Orbital/          # Drifting Keplerian satellite & station engine
     │   ├── Patches/          # Harmony runtime patches
     │   ├── Rules/            # Campaign rules, mutability framework, wizard & dialogs
     │   ├── Sensory/          # Radar coverage, listening posts, optimistic pathing & Haze
+    │   ├── UI/               # Live tactical HUD radar scope preview & geometry helpers
     │   └── World/            # Incursion simulation, collision detection & skirmishes
-    └── Geoscape.Tests/       # Automated MSTest test suite (216 tests)
+    └── Geoscape.Tests/       # Automated MSTest test suite (406 tests)
 ```
 
 ---
@@ -88,8 +93,9 @@ npm run deploy:geoscape:linux
 ./scripts/deploy-geoscape.sh
 ```
 
-> **Default Linux Mods path:** `~/.local/share/Steam/steamapps/common/RimWorld/Mods/ProjectVigilance-Geoscape`  
-> To specify a custom path: `./scripts/deploy-geoscape.sh -p /path/to/RimWorld/Mods`  
+> **Auto-detected Linux Mods paths:** Detects native Steam (`~/.local/share/Steam`, `~/.steam/steam`, `~/.steam/root`), **Flatpak Steam** (`~/.var/app/com.valvesoftware.Steam/.local/share/Steam` and `~/.var/app/com.valvesoftware.Steam/data/Steam`), and Snap Steam (`~/snap/steam/common/.local/share/Steam`). When deploying to Flatpak Steam in symlink mode, the script grants read-only sandbox permission (`flatpak override --user com.valvesoftware.Steam --filesystem=<repo>:ro`) and verifies container accessibility.  
+> To specify a custom path: `./scripts/deploy-geoscape.sh -p /path/to/RimWorld/Mods` (or set `RIMWORLD_MODS_PATH`)  
+> To copy files instead of symlinking: `./scripts/deploy-geoscape.sh --copy`  
 > To deploy XML/Defs without compiling C#: `./scripts/deploy-geoscape.sh --skip-build`
 
 For answers to common compatibility and design questions, see the [Frequently Asked Questions (FAQ)](../docs/faq.md).

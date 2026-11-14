@@ -35,8 +35,10 @@ Conventional radar cannot penetrate seawater. When alien craft descend into ocea
 
 ### 3.1 Detection Facilities
 
-- **Coastal Sonar Station:** Constructed on coastal colony tiles or coastal outposts. Emits passive and active acoustic sweeps into adjacent ocean hexes.
-- **Deep-Sea Acoustic Buoys:** Deployable world objects dropped into deep ocean tiles to provide remote sensory coverage in international waters.
+- **Coastal Sonar Station (`Geoscape_SonarArray`):** Industrial colony installation (`200 Steel`, `5 Components`; `500 W` standby / `1,200 W` active power draw; requires `Geoscape_EarlyWarningRadar`). Uses `PlaceWorker_CoastalSonar` to restrict construction to settlements on coastal Geoscape tiles with at least one adjacent `WaterCovered` tile (`SonarTraversalUtility.HasCoastalAccess`), scanning **18 water rings** ($R_{detect}$) and **8 water rings** ($R_{id}$).
+- **Automated Sonar Station (`Vigilance_ListeningPost_Sonar`):** Caravan-deployed unmanned coastal hydrophone outpost powered by standalone solar banks (`120 Steel + 4 Components`; repairs for `30 Steel + 1 Component`; dismantles for `90 Steel + 3 Components`). Requires direct coastal adjacency (`SonarTraversalUtility.HasCoastalAccess`), operates with zero local colony TPS overhead, and provides **18 water rings** ($R_{detect}$) and **8 water rings** ($R_{id}$).
+- **Directional V-Sector Connected-Water Propagation (`SonarTraversalUtility`):** Rather than radiating over land, both sonar installations originate from adjacent `WaterCovered` tiles and project outward in directional V-shaped sectors (`DirectionalSectorCosThreshold = 0.45f`) strictly through connected `WaterCovered` tiles (`PopulateSonarCoverage`); land tiles act as acoustic barriers. In `SensoryManager`, `(tileId, isSonar)` cache keys isolate sonar footprints from ground radar so both layers can overlap on coastal water tiles without conflict.
+- **Deep-Sea Acoustic Buoys _(Planned)_:** Deployable world objects dropped into deep ocean tiles to provide remote sensory coverage in international waters.
 
 ### 3.2 Oceanic Detection Dynamics
 

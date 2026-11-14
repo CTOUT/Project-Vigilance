@@ -27,9 +27,10 @@ public static class SensoryDisruptionUtility
     /// </summary>
     public static bool IsSolarFlareActive(PlanetTile? tile = null)
     {
-        if (SolarFlareOverride.HasValue)
+        bool? solarOverride = SolarFlareOverride;
+        if (solarOverride.HasValue)
         {
-            return SolarFlareOverride.Value;
+            return solarOverride.Value;
         }
 
         try
@@ -73,9 +74,10 @@ public static class SensoryDisruptionUtility
     /// </summary>
     public static bool IsEclipseOrProlongedDarknessActive(PlanetTile? tile = null)
     {
-        if (EclipseOverride.HasValue)
+        bool? eclipseOverride = EclipseOverride;
+        if (eclipseOverride.HasValue)
         {
-            return EclipseOverride.Value;
+            return eclipseOverride.Value;
         }
 
         try

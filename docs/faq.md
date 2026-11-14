@@ -97,7 +97,7 @@ Answers to common community inquiries regarding compatibility, design philosophy
 >
 > For developers and playtesters building or linking locally from source:
 >
-> - **Linux / CachyOS / SteamOS:** Execute `./scripts/deploy-geoscape.sh` (or `npm run deploy:geoscape:linux`). It creates a native Unix symbolic link into `~/.local/share/Steam/steamapps/common/RimWorld/Mods/ProjectVigilance-Geoscape` and supports `--skip-build` and `--copy` modes.
+> - **Linux / CachyOS / SteamOS:** Execute `./scripts/deploy-geoscape.sh` (or `npm run deploy:geoscape:linux`). It auto-detects RimWorld across native Steam (`~/.local/share/Steam/...`, `~/.steam/...`), **Flatpak Steam** (`~/.var/app/com.valvesoftware.Steam/.local/share/Steam/...` and `~/.var/app/com.valvesoftware.Steam/data/Steam/...`), and Snap Steam, and creates a native Unix symbolic link to `ProjectVigilance-Geoscape`. When Flatpak Steam is detected in symlink mode, the script runs `flatpak run --command=test com.valvesoftware.Steam` to check sandbox visibility and applies `flatpak override --user com.valvesoftware.Steam --filesystem="$REPO_ROOT:ro"` if needed (plus verifies `About/About.xml` inside the Flatpak sandbox). Supports `--skip-build`, `--copy`, `--rebuild`, and `--path`.
 > - **Windows:** Execute `./scripts/deploy-geoscape.ps1` (or `npm run deploy:geoscape`), which links via an NTFS Junction to `D:\Games\Steam\steamapps\common\RimWorld\Mods\ProjectVigilance-Geoscape`.
 
 ---
@@ -121,3 +121,5 @@ Answers to common community inquiries regarding compatibility, design philosophy
 > - **Mutable rules** (e.g. notification letters, UI styles) can be modified at any time in Mod Options.
 > - **Escalatable rules** (e.g. `visibilityMode`) can only progress forward (Fog of War $\to$ Planetary Surveillance $\to$ Omniscient) to maintain epistemic simulation integrity.
 > - **Immutable rules** (e.g. sensory radii, nighttime biological rest, combat synchronisation) are locked at Day 0 to maintain campaign challenge integrity. Developer Mode allows temporary, audited session overrides (`allowUnsafeRuleTransitions`) that clear automatically on exit.
+>
+> All ledger transitions in `GeoscapeCampaignRules` are sealed with chained **cryptographic HMAC-SHA256 signatures** (`RuleLedgerSigner`). On save load, **non-destructive replay reconciliation** (`ReconcileLedgerOnLoad()`) verifies every signature against the Day-0 snapshot and active rules; any unrecorded direct XML edits or forged signatures log a diagnostic warning and append an `ExternalModification` audit record (`"External Modification Detected"`) without corrupting or blocking your save.

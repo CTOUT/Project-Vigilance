@@ -116,6 +116,41 @@ public static class GroundedCaravanMeetingHelper
         return false;
     }
 
+    /// <summary>
+    /// Grounds a storyteller faction ambush into a persistent hostile incursion at the caravan's tile,
+    /// so survivors remain a physical Geoscape entity (retreating or pursuing) after the tactical map closes.
+    /// </summary>
+    public static bool TryInterceptAmbush(IncidentParms parms, ref bool result)
+    {
+        if (parms?.target is not Caravan caravan || !caravan.Spawned || caravan.Faction?.IsPlayer != true)
+        {
+            return true;
+        }
+
+        PlanetTile caravanTile = caravan.Tile;
+        if (!caravanTile.Valid)
+        {
+            return true;
+        }
+
+        WorldObject_Incursion? incursion = CreateGroundedIncursion(
+            caravanTile,
+            parms,
+            groupKind: IncursionGroupKind.HostileWarband,
+            isHostile: true,
+            out _,
+            spawnAtCurrentTile: true);
+
+        if (incursion == null)
+        {
+            return true;
+        }
+
+        IncursionInterceptionUtility.ExecuteHostileInterception(caravan, incursion, isAmbush: true);
+        result = true;
+        return false;
+    }
+
     public static WorldObject_Incursion? FindNearbyMeetingIncursion(PlanetTile tile, bool isHostile)
     {
         if (Current.Game == null || Find.World == null) return null;
@@ -171,7 +206,8 @@ public static class GroundedCaravanMeetingHelper
         IncidentParms parms,
         IncursionGroupKind groupKind,
         bool isHostile,
-        out bool stagedAtDistance)
+        out bool stagedAtDistance,
+        bool spawnAtCurrentTile = false)
     {
         stagedAtDistance = false;
         if (parms == null || Current.Game == null || Find.World == null) return null;
@@ -342,7 +378,7 @@ public static class GroundedCaravanMeetingHelper
         int spawnIdx = pathIdx;
 
         // Determine staging node along the inbound leg towards currentTile
-        if (pathIdx > 0)
+        if (pathIdx > 0 && !spawnAtCurrentTile)
         {
             int preferredDist = 5;
             int bestShroudIdx = -1;

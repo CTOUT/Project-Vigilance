@@ -158,9 +158,7 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             if (customName != null) return customName;
             string baseLabel = def != null
                 ? base.Label
-                : (kind == ListeningPostKind.AutomatedRelay
-                    ? "Automated Sensor Relay"
-                    : (kind == ListeningPostKind.AutomatedSonar ? "Automated Sonar Station" : "Signal Beacon"));
+                : CaravanExpeditionUtility.GetListeningPostKindLabel(kind);
             if (kind == ListeningPostKind.SignalBeacon && stuffDef != null)
             {
                 baseLabel = $"{stuffDef.label} {baseLabel}";
@@ -787,11 +785,11 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             sb.AppendLine(baseStr);
         }
 
-        string typeLabel = kind == ListeningPostKind.AutomatedRelay
-            ? "Automated Sensor Relay"
-            : (kind == ListeningPostKind.AutomatedSonar
-                ? "Automated Coastal Sonar Station"
-                : (stuffDef != null ? $"Signal Beacon ({stuffDef.LabelCap})" : "Signal Beacon"));
+        string typeLabel = CaravanExpeditionUtility.GetListeningPostKindLabel(kind);
+        if (kind == ListeningPostKind.SignalBeacon && stuffDef != null)
+        {
+            typeLabel = $"{typeLabel} ({stuffDef.LabelCap})";
+        }
         sb.AppendLine($"Type: {typeLabel}");
 
         if (isConstructing)

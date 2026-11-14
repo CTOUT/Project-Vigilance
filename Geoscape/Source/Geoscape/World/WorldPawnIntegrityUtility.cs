@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -12,6 +14,12 @@ namespace ProjectVigilance.Geoscape.World;
 /// </summary>
 public static class WorldPawnIntegrityUtility
 {
+    private static readonly FieldInfo? PawnsWithDirectRelationsWithMeField =
+        AccessTools.Field(typeof(Pawn_RelationsTracker), "pawnsWithDirectRelationsWithMe");
+
+    private static readonly FieldInfo? RelationshipRecordReferencesField =
+        AccessTools.Field(typeof(RelationshipRecord), "references");
+
     private static WorldPawns? SafeWorldPawns => Find.World?.worldPawns;
     private static WorldObjectsHolder? SafeWorldObjects => Find.World?.worldObjects;
     private static List<Map>? SafeMaps => Find.Maps;
@@ -259,9 +267,66 @@ public static class WorldPawnIntegrityUtility
         }
     }
 
+    private static HashSet<Pawn>? GetPawnsWithDirectRelationsWithMe(Pawn_RelationsTracker? tracker) =>
+        tracker != null ? PawnsWithDirectRelationsWithMeField?.GetValue(tracker) as HashSet<Pawn> : null;
+
+    private static bool HasDirectRelation(List<DirectPawnRelation>? relations, PawnRelationDef def, Pawn otherPawn)
+    {
+        if (relations == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < relations.Count; i++)
+        {
+            DirectPawnRelation? r = relations[i];
+            if (r != null && r.def == def && r.otherPawn == otherPawn)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasAnyDirectRelationWith(List<DirectPawnRelation>? relations, Pawn target)
+    {
+        if (relations == null)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < relations.Count; i++)
+        {
+            if (relations[i]?.otherPawn == target)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void RemoveDirectRelationsWith(List<DirectPawnRelation>? relations, Pawn target)
+    {
+        if (relations == null)
+        {
+            return;
+        }
+
+        for (int i = relations.Count - 1; i >= 0; i--)
+        {
+            if (relations[i]?.otherPawn == target)
+            {
+                relations.RemoveAt(i);
+            }
+        }
+    }
+
     /// <summary>
-    /// Strips dangling direct social relations on <paramref name="pawn"/> whose target pawns are
-    /// discarded or absent from maps, containers, and <see cref="WorldPawns"/>.
+    /// Strips dangling direct, incoming, and virtual social relations on <paramref name="pawn"/> whose target
+    /// pawns are discarded or absent from maps, containers, and <see cref="WorldPawns"/>, keeping reciprocal
+    /// trackers consistent so <see cref="Pawn_RelationsTracker.ClearAllRelations"/> cannot dereference missing halves.
     /// </summary>
     public static void SanitizeDanglingRelations(
         Pawn? pawn,
@@ -270,20 +335,102 @@ public static class WorldPawnIntegrityUtility
         Func<Pawn, bool>? isHeldOrSpawnedOverride = null)
     {
         var tracker = pawn?.relations;
-        if (tracker == null)
+        if (tracker == null || pawn == null)
         {
             return;
         }
 
         var directRelations = tracker.DirectRelations;
+        var incomingSet = GetPawnsWithDirectRelationsWithMe(tracker);
         if (directRelations != null)
         {
             for (int r = directRelations.Count - 1; r >= 0; r--)
             {
-                Pawn? other = directRelations[r].otherPawn;
-                if (IsDanglingPawnReference(other, worldPawns, isInWorldPawnsOverride, isHeldOrSpawnedOverride))
+                DirectPawnRelation? rel = directRelations[r];
+                Pawn? other = rel?.otherPawn;
+                bool isDanglingOther = IsDanglingPawnReference(other, worldPawns, isInWorldPawnsOverride, isHeldOrSpawnedOverride);
+                bool isBrokenReflexive = !isDanglingOther &&
+                                         rel != null &&
+                                         other != null &&
+                                         rel.def != null &&
+                                         rel.def.reflexive &&
+                                         other.relations?.DirectRelations != null &&
+                                         !HasDirectRelation(other.relations.DirectRelations, rel.def, pawn);
+
+                if (rel == null || isDanglingOther || isBrokenReflexive)
                 {
                     directRelations.RemoveAt(r);
+                    if (other != null)
+                    {
+                        if (other.relations != null)
+                        {
+                            if (isDanglingOther)
+                            {
+                                RemoveDirectRelationsWith(other.relations.DirectRelations, pawn);
+                            }
+
+                            if (!HasAnyDirectRelationWith(directRelations, other))
+                            {
+                                GetPawnsWithDirectRelationsWithMe(other.relations)?.Remove(pawn);
+                            }
+                        }
+
+                        if (isDanglingOther || !HasAnyDirectRelationWith(other.relations?.DirectRelations, pawn))
+                        {
+                            incomingSet?.Remove(other);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (incomingSet != null && incomingSet.Count > 0)
+        {
+            var staleIncoming = new List<Pawn>();
+            bool hasNullIncoming = false;
+            foreach (Pawn? other in incomingSet)
+            {
+                if (other == null)
+                {
+                    hasNullIncoming = true;
+                    continue;
+                }
+
+                if (IsDanglingPawnReference(other, worldPawns, isInWorldPawnsOverride, isHeldOrSpawnedOverride) ||
+                    !HasAnyDirectRelationWith(other.relations?.DirectRelations, pawn))
+                {
+                    staleIncoming.Add(other);
+                }
+            }
+
+            if (hasNullIncoming)
+            {
+                incomingSet.Remove(null!);
+            }
+
+            for (int i = 0; i < staleIncoming.Count; i++)
+            {
+                Pawn staleOther = staleIncoming[i];
+                incomingSet.Remove(staleOther);
+                if (staleOther.relations != null)
+                {
+                    RemoveDirectRelationsWith(staleOther.relations.DirectRelations, pawn);
+                    if (!HasAnyDirectRelationWith(directRelations, staleOther))
+                    {
+                        GetPawnsWithDirectRelationsWithMe(staleOther.relations)?.Remove(pawn);
+                    }
+                }
+            }
+        }
+
+        var virtualRelations = tracker.VirtualRelations;
+        if (virtualRelations != null)
+        {
+            for (int v = virtualRelations.Count - 1; v >= 0; v--)
+            {
+                if (virtualRelations[v]?.record == null)
+                {
+                    virtualRelations.RemoveAt(v);
                 }
             }
         }
@@ -296,8 +443,72 @@ public static class WorldPawnIntegrityUtility
     }
 
     /// <summary>
+    /// Removes dangling or null pawn references from <see cref="RelationshipRecord"/> entries and prunes
+    /// unused records so discarded pawns cannot linger as unresolved XML load references.
+    /// </summary>
+    public static void SanitizeRelationshipRecords(
+        RelationshipRecords? relationshipRecords,
+        WorldPawns? worldPawns = null,
+        Func<Pawn, bool>? isInWorldPawnsOverride = null,
+        Func<Pawn, bool>? isHeldOrSpawnedOverride = null)
+    {
+        if (relationshipRecords == null)
+        {
+            return;
+        }
+
+        var recordsDict = relationshipRecords.Records;
+        if (recordsDict != null)
+        {
+            var toRemove = new List<Pawn>();
+            foreach (RelationshipRecord? record in recordsDict.Values)
+            {
+                if (record == null)
+                {
+                    continue;
+                }
+
+                var rawRefs = RelationshipRecordReferencesField?.GetValue(record) as HashSet<Pawn>;
+                rawRefs?.Remove(null!);
+
+                if (record.References != null && record.References.Count > 0)
+                {
+                    toRemove.Clear();
+                    foreach (Pawn? p in record.References)
+                    {
+                        if (p != null && IsDanglingPawnReference(p, worldPawns, isInWorldPawnsOverride, isHeldOrSpawnedOverride))
+                        {
+                            toRemove.Add(p);
+                        }
+                    }
+
+                    for (int i = 0; i < toRemove.Count; i++)
+                    {
+                        Pawn danglingPawn = toRemove[i];
+                        var vrList = danglingPawn.relations?.VirtualRelations;
+                        if (vrList != null)
+                        {
+                            for (int v = vrList.Count - 1; v >= 0; v--)
+                            {
+                                if (vrList[v]?.record == record)
+                                {
+                                    vrList.RemoveAt(v);
+                                }
+                            }
+                        }
+
+                        record.RemoveReference(danglingPawn);
+                    }
+                }
+            }
+        }
+
+        relationshipRecords.CleanupUnusedRecords();
+    }
+
+    /// <summary>
     /// Synchronises Geoscape-tracked world pawns and scrubs dangling relations across all saved
-    /// world and map pawns immediately before <see cref="WorldPawns.ExposeData"/> writes XML.
+    /// world and map pawns immediately before <see cref="WorldPawns.ExposeData"/> writes XML or after loading.
     /// </summary>
     public static void PrepareWorldPawnsForSave(WorldPawns? worldPawns)
     {
@@ -342,6 +553,11 @@ public static class WorldPawnIntegrityUtility
                     SanitizeDanglingRelations(mapPawns[p], worldPawns);
                 }
             }
+        }
+
+        if (Current.Game != null)
+        {
+            SanitizeRelationshipRecords(Find.RelationshipRecords, worldPawns);
         }
     }
 

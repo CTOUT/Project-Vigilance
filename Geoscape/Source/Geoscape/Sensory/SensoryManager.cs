@@ -1412,7 +1412,7 @@ public class SensoryManager : WorldComponent
         }
 
         bool externalModActive = ExternalFogCompatibility.IsExternalFogModActive;
-        int maxSteps = Mathf.Max(1, Mathf.RoundToInt(radiusInTiles));
+        int maxSteps = radiusInTiles <= 0f ? 0 : Mathf.Max(1, Mathf.RoundToInt(radiusInTiles));
         bool revealedAnyObject = false;
         bool revealedAnyFeature = false;
         bool revealedAnyLandmark = false;

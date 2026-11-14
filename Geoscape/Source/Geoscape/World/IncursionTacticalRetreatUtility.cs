@@ -705,6 +705,65 @@ public static class IncursionTacticalRetreatUtility
         }
     }
 
+    /// <summary>
+    /// Minimum fraction of able-bodied survivors required for a hostile force to chase a retreating caravan.
+    /// </summary>
+    internal const float PursuitMinimumFitFraction = 0.5f;
+
+    internal static bool ShouldPursueRetreatingCaravan(
+        bool isHostileToPlayer,
+        bool isTradeCaravan,
+        int livingCount,
+        int fitCount)
+    {
+        if (!isHostileToPlayer || isTradeCaravan || livingCount <= 0)
+        {
+            return false;
+        }
+
+        return fitCount >= Math.Ceiling(livingCount * PursuitMinimumFitFraction);
+    }
+
+    /// <summary>
+    /// Decides what a surviving incursion does once the player's caravan has fled the tactical map:
+    /// able hostile forces give chase, battered or non-hostile groups resume their route or return home.
+    /// </summary>
+    public static void ResumeIncursionAfterCaravanRetreat(
+        WorldObject_Incursion incursion,
+        Caravan? caravan,
+        List<Pawn> survivors)
+    {
+        bool hostile = incursion.Faction != null && Faction.OfPlayerSilentFail != null &&
+                       incursion.Faction.HostileTo(Faction.OfPlayerSilentFail);
+        int fit = survivors.Count(p => p != null && !p.Dead && !p.Downed);
+
+        if (caravan != null && caravan.Spawned && incursion.Tile.Valid && caravan.Tile.Valid &&
+            ShouldPursueRetreatingCaravan(hostile, incursion.IsUnderlyingTradeCaravan, survivors.Count, fit))
+        {
+            List<PlanetTile>? path = null;
+            if (IncursionOriginResolver.TryBuildPath(incursion.Tile, caravan.Tile, out var built) && built.Count > 0)
+            {
+                path = built;
+            }
+            else if (Find.WorldGrid.IsNeighborOrSame(incursion.Tile, caravan.Tile))
+            {
+                path = new List<PlanetTile> { incursion.Tile, caravan.Tile };
+            }
+
+            if (path != null)
+            {
+                incursion.SetPursuitTarget(caravan, path);
+                Messages.Message(
+                    $"{incursion.LabelCap} is giving chase to {caravan.LabelCap}!",
+                    incursion,
+                    MessageTypeDefOf.ThreatBig);
+                return;
+            }
+        }
+
+        incursion.AdvancePathTile();
+    }
+
     internal enum EncounterMapCleanupAction
     {
         None,

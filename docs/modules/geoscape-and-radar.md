@@ -22,7 +22,11 @@ Radar and sensor facilities can be constructed at player colonies or deployed as
 | **SIGINT Decryption Console**       |        Ultra         | Facility Linker (`CompFacility`) |       _Attached to Array_       |         _Matches Array_          |          700 W / 1,400 W          | **Upgrades to Tier 4 (_Analysed_)** | Signal Intelligence terminal linked to Phased Array; decrypts tactical radio comms to reveal exact pawn counts, carried weapons, and ETA. Penetrates terrain masking. |
 | **Coastal Sonar Station**           |      Industrial      |             Building             |      **18 rings (Water)**       |             8 rings              |          500 W / 1,200 W          |           Coastal / Ocean           | Shoreline hydrophone array monitoring maritime transit and aquatic incursions on water tiles (`tile.WaterCovered`).                                                   |
 | **Listening Post: Automated Relay** | Industrial / Spacer  |           WorldObject            |    **12 rings** _(+Vantage)_    |             5 rings              |         Standalone Solar          |         Tier 2 (_Contact_)          | Lightweight zero-TPS global listening post deployed on remote hexes by caravans. 100% unmanned. Capped vantage (+1 to +2 rings).                                      |
+| **Listening Post: Automated Sonar** |      Industrial      |           WorldObject            |      **18 rings (Water)**       |             8 rings              |   Standalone Solar / Hydrophone   |    Coastal / Tier 2 (_Contact_)     | Unmanned coastal hydrophone outpost deployed by caravans on coastal hexes adjacent to `WaterCovered` tiles (`120 Steel` + `4 Components`).                            |
 | **Listening Post: Signal Beacon**   | Neolithic / Medieval |           WorldObject            |    **6 rings** _(+Vantage)_     |             0 rings              |          0 W (Unpowered)          |         Tier 2 (_Contact_)          | Unmanned timber or stone signal beacon deployed by caravans. Full optical vantage (+1 to +3 rings on high ground); zero identification capability.                    |
+
+> [!NOTE]
+> **Coastal Sonar Access & Directional Water Propagation:** Both the **Coastal Sonar Station** (`Geoscape_SonarArray`) and **Listening Post: Automated Sonar** (`Vigilance_ListeningPost_Sonar`) require direct coastal access (at least one adjacent `WaterCovered` tile validated via `PlaceWorker_CoastalSonar` / `SonarTraversalUtility.HasCoastalAccess`). Rather than radiating across land, sonar originates from each adjacent water tile and projects outward in directional V-shaped sectors (`SonarTraversalUtility.PopulateSonarCoverage`, `DirectionalSectorCosThreshold = 0.45f`) strictly through connected `WaterCovered` tiles. Separate `(tileId, isSonar)` cache keys in `SensoryManager` allow ground radar and oceanic sonar coverage to overlap on coastal water tiles without conflict.
 
 #### 2.1.1 Multi-Dish Settlement Stacking (Interferometry & Identification Expansion)
 
@@ -142,35 +146,42 @@ To preserve authentic tactical uncertainty, the engine strictly forbids "faction
 
 ### 2.6 Geoscape Strategic Context Actions (Right-Click World Hexes)
 
-In vanilla RimWorld, right-clicking empty world tiles is inactive unless a player caravan is already actively selected. The module introduces a grand-strategy strategic context menu (`FloatMenuMakerWorld` / `WorldInterface`):
+In vanilla RimWorld, right-clicking empty world tiles is inactive unless a player caravan is already actively selected. The module introduces a grand-strategy strategic context menu (`WorldSelector_HandleWorldClicks_Patch` / `FloatMenuMakerWorld_ChoicesAtFor_Patch`):
 
 ```text
 [ Right-Click World Hex #14820 ]
- ├── "Dispatch Expedition Here..."
- │    ├── "From: Home Colony"  ──────────> Opens Dialog_FormCaravan with destination locked to #14820
- │    ├── "From: Mining Outpost"
- │    └── "From: 1st Recon Caravan (3 hexes away)" ──> Direct route waypoint to hex #14820
+ ├── Smart Source-Agnostic Dispatch (Nearest N Caravans & M Colonies)
+ │    ├── "Move caravan [Name] to..." / "Travel and deploy..."
+ │    ├── "Dispatch Expedition from [Colony]..." ──> Dialog_FormCaravan (destination locked)
+ │    └── "Other caravans (...)" / "Other colonies (...)" ──> Drilldown sub-menus
  │
  ├── "Establish Outpost / Relay Here..."
- │    ├── (If caravan is on tile): "Deploy Automated Listening Post" (Consumes carried 100 Steel, 4 Comp)
- │    ├── (If caravan is on tile): "Construct Signal Beacon" (Consumes carried 150 Wood/Stone)
- │    └── (If remote tile): "Dispatch Construction Caravan from [Colony]..."
+ │    ├── (Caravan on tile): "Deploy Automated Listening Post" (100 Steel, 4 Components)
+ │    ├── (Coastal hex): "Deploy Automated Sonar Station" (120 Steel, 4 Components)
+ │    ├── (Caravan on tile): "Construct Signal Beacon" (150 Wood/Stone)
+ │    └── (Remote tile): "Dispatch Construction Caravan from [Colony]..."
  │         └── Opens Dialog_FormCaravan with destination locked & Outpost Kit pre-selected
  │
- └── "Survey Sector / Set Waypoint"
-      └── Places a tactical map pin / scout waypoint for visual planning
+ └── Settlement & Exploration Actions
+      ├── "Move to hex (Hold position outside [Colony])"
+      └── "Travel into unexplored sector (Tile #...)" (Classic Haze of War shroud)
 ```
 
-1. **"Dispatch Expedition Here...":**
-   - Presents a list of player settlements or nearby active caravans within range.
-   - Automatically opens vanilla's `Dialog_FormCaravan` with the destination tile **pre-populated and locked** to the clicked hex.
-2. **"Establish Outpost / Relay Here...":**
-   - **Local Deployment:** If a player caravan is present on the tile and holds required cargo (100 Steel, 4 Components for Automated Relay; 150 Wood/Stone for Signal Beacon), an immediate 1–2 hour setup task elapses, and the lightweight `WorldObject_ListeningPost` spawns on the hex.
-   - **Material Tracking (`stuffDef`):** For Signal Beacons, the specific construction material consumed (e.g. `WoodLog`, `BlocksGranite`, `BlocksSlate`) is permanently recorded and serialized on the outpost via `Scribe_Defs.Look`. The outpost label and inspect pane dynamically reflect the material (e.g. `Granite blocks Signal Beacon`).
-   - **Remote Dispatch:** Prompts to dispatch a construction caravan from the nearest colony, automatically pre-selecting the necessary outpost construction ingredients in the checklist as a preset!
-3. **Existing Outpost Context Options:**
-   - _"Dismantle Outpost"_ (salvages 75% of construction materials back into caravan inventory). For Signal Beacons, 112 items of the matching `stuffDef` are refunded (preventing infinite stone-to-wood transmutation) and cleanly partitioned into valid item stacks respecting `stackLimit` (e.g. 75 + 37 items) to eliminate engine stack-overflow glitches.
-   - _"Repair Sabotaged Station"_ (restores sabotaged stations disabled by passing enemy incursions for 25% of original construction materials: 25 Steel + 1 Component for relays, or 38 Wood/Stone for beacons).
+1. **Smart Source-Agnostic Contextual Dispatch (`WorldSelector_HandleWorldClicks_Patch`):**
+   - Right-clicking any world hex without pre-selecting a source entity opens an intelligent dispatch menu listing actions from the nearest _N_ player caravans (`maxContextualCaravansShown`, default `3`) and nearest _M_ player colonies (`maxContextualColoniesShown`, default `2`), ordered by traversal proximity.
+   - Additional caravans and colonies beyond the configured display caps remain accessible through `"Other caravans (...)"` and `"Other colonies (...)"` drilldown sub-menus so the right-click menu stays uncluttered on sprawling multi-colony campaigns.
+   - Automatically opens `Dialog_FormCaravan` with the destination tile **pre-populated and locked** to the clicked hex when dispatching from a colony, or issues direct route/deployment orders to caravans. Under _Classic Haze of War_, right-clicking unexplored shroud tiles offers exploration movement without leaking hidden impassable terrain or outpost construction options.
+2. **"Establish Outpost / Relay Here..." & Outpost Logistics:**
+   - **Local & Remote Deployment:** If a player caravan is present on the tile and holds the required cargo, construction begins on-site; for remote tiles, colony dispatch pre-populates required materials and expedition rations in `Dialog_FormCaravan`. Unified outpost titles are resolved via `CaravanExpeditionUtility.GetListeningPostKindLabel` (`"Automated Listening Post"`, `"Automated Sonar Station"`, `"Signal Beacon"`).
+   - **Automated Listening Post (`AutomatedRelay`):** **100 Steel + 4 Components** to deploy; dismantles for **75 Steel + 3 Components** (75% recovery); repairs for **25 Steel + 1 Component**.
+   - **Automated Sonar Station (`AutomatedSonar`):** **120 Steel + 4 Components** to deploy (offered exclusively on coastal tiles adjacent to `WaterCovered` terrain via `SonarTraversalUtility.HasCoastalAccess`); dismantles for **90 Steel + 3 Components** (75% recovery); repairs for **30 Steel + 1 Component**.
+   - **Signal Beacon (`SignalBeacon`):** **150 Wood or Stone blocks** (`stuffDef` permanently serialised via `Scribe_Defs.Look`, updating the outpost label and inspect pane dynamically); dismantles for **112 items** of the matching `stuffDef` partitioned into valid `stackLimit` stacks; repairs for **30 Wood or Stone blocks**.
+3. **Builder-Scaled Outpost Assembly (`OutpostAssemblySpeedUtility`) & Mid-Build Departure Protection:**
+   - **Team Assembly Speed:** Expedition assembly duration scales dynamically from composite colonist construction capability (`100%` of the lead builder's `ConstructionSpeed` plus `50%` of each assistant, clamped between `2,500` and `40,000` ticks from base durations of `5,000` ticks for Signal Beacons and `15,000` ticks for Automated Relays / Automated Sonar Stations; immediate on-site caravan deployments start at `2,500` ticks). Progress pauses automatically whenever all capable builders rest according to their circadian/schedule window.
+   - **Pre-Departure Validation:** `Dialog_FormCaravan_CheckForErrors_Patch` requires at least one colonist capable of Construction for build expeditions and verifies spare carry capacity for dismantle salvage, while `Dialog_FormCaravan_TrySend_Patch` presents an assembly time and provision summary before launch.
+   - **Mid-Build Departure Protection (`Caravan_PathFollower_StartPath_Patch`):** Ordering a stationary caravan to depart while construction or dismantling is incomplete intercepts the move and offers three options: pause and leave part-built/part-dismantled, cancel (refunding 100% of construction materials or restoring operational telemetry), or stay on-site to finish.
+4. **Civilization-Style Settlement Staging (`CaravanArrivalAction_HoldPosition`):**
+   - Right-clicking any explored settlement tile with a player caravan offers `"Move to hex (Hold position outside [Colony])"` (or `"Halt & hold position outside [Colony]"` when already passing through), allowing caravans to camp or stage outside a settlement on the world map without entering its map or triggering automatic colony absorption.
 
 ### 2.7 Orbital Infrastructure: Persistent Stations & Drifting Satellite Constellations
 
@@ -228,20 +239,23 @@ The framework separates the _lifecycle constraint_ of a rule from its _operation
 [ GeoscapeRules Facade ] ───> Gameplay hot path (Zero-alloc thread-safe reads)
 ```
 
-- **`GeoscapeCampaignRules` (`WorldComponent`):** Serialises the authoritative `GeoscapeRuleSet` into the `.rws` save file under `<world><components>`.
+- **`GeoscapeCampaignRules` (`WorldComponent`):** Serialises the authoritative `GeoscapeRuleSet` into the `.rws` save file under `<world><components>` alongside `schemaVersion`, `campaignId`, and `ruleChangeLedger`.
 - **`GeoscapeRules` Facade:** High-performance, zero-allocation accessor routing all production queries to the active campaign's rules, safely falling back to defaults at the main menu or in headless unit tests.
-- **Rule Change Ledger (`RuleChangeRecord`):** Capped at 100 entries, recording every escalation, unsafe dev override, and legacy migration. Pinned origin records (`CampaignCreated`, `LegacyMigration`) are permanently preserved.
+- **Rule Change Ledger (`RuleChangeRecord`):** Capped at 100 entries, recording every escalation, unsafe dev override, and legacy migration. Pinned origin records (`CampaignCreated`, `LegacyMigration`, `ModAdoption`) are permanently preserved.
 - **Day-0 Creation Snapshot:** The initial `CampaignCreated` ledger entry records an exhaustive semicolon-delimited string snapshot of all 10 campaign rules selected at Day 0, providing permanent forensic integrity for bug reporting and challenge runs.
+- **Cryptographic HMAC-SHA256 Signing & Replay Reconciliation (`RuleLedgerSigner`):** Every `RuleChangeRecord` carries a chained HMAC-SHA256 signature (`RuleLedgerSigner.ComputeRecordHash`) linking the predecessor hash (starting from `GENESIS-00000000`), tick, change kind, rule key, transition values, note, and `campaignId`. On save load (`CampaignEntryPath.ActiveSave`), `GeoscapeCampaignRules.ReconcileLedgerOnLoad()` verifies every signature in the chain, guards against schema downgrades (`CurrentSchemaVersion = 2`), and replays recorded rule transitions from the Day-0 baseline snapshot against active rule values. Unrecorded external XML edits or forged signatures non-destructively log a warning and record an `ExternalModification` audit entry (`CampaignIntegrityStatus.ExternallyModified` / `"External Modification Detected"`) without blocking or corrupting the savegame.
 
 #### 3. Campaign Profiles (Presets)
 
 To streamline world setup, the campaign creation wizard page (`Page_GeoscapeRules`) and mod settings provide one-click profile presets:
 
-- **Fog of War (Recommended):** Full planetary fog of war, automated landfall on uncharted globes, biological nocturnal rest, multi-vector synchronisation, and tactical flanking.
+- **Fog of War (Recommended):** Full planetary fog of war, automated landfall on uncharted globes (`StartingSiteSelectionMode.AutomatedLandfall`), biological nocturnal rest, multi-vector synchronisation, and tactical flanking.
 - **Planetary Surveillance (Classic X-COM):** Known planetary geography with dynamic incursion tracking outside radar envelopes.
 - **Hardcore Vigilance:** Uncharted planet, tight visual horizons, active night blindness, automated landfall, and aggressive tactical flanking.
 - **Omniscient (Vanilla):** Vanilla RimWorld global visibility. No fog of war.
 - **Custom:** Full manual control over individual rule parameters via the modal dialog (`Dialog_GeoscapeCampaignRules`).
+
+When **Automated Landfall** (`StartingSiteSelectionMode.AutomatedLandfall`) is active on uncharted globes, `CampaignWizardPageUtility.SyncPageLinkage` bypasses RimWorld's `Page_SelectStartingSite` screen during world-generation page stitching and designates a viable starting tile automatically via `TileFinder.RandomStartingTile()`, preventing pre-landing terrain probing. If a player selects _Manual Targeting_ under Fog of War, `StartingSiteSelectionFeedback_Patch` replaces explicit invalid-tile rejection messages (`AmbiguousLandingRejectionMessage`) and suppresses settlement proximity hazard and goodwill warnings on unexplored tiles.
 
 #### 4. Strategic Runway: The Planetary Expedition Phase
 
@@ -459,7 +473,7 @@ Moving craft on the world map are represented as custom subclasses of `WorldObje
 Project-Vigilance/Geoscape/
 ├── 1.7/
 │   ├── Assemblies/           # Compiled net10.0 C# binaries (Geoscape.dll)
-│   └── Defs/                 # XML Defs (WorldObjects, Settings, ModExtensions)
+│   └── Defs/                 # XML Defs (WorldObjects, Buildings, Research, Letters)
 ├── About/
 │   ├── About.xml             # RimWorld 1.7 mod metadata & dependencies
 │   └── Preview.png           # Workshop preview artwork
@@ -467,13 +481,19 @@ Project-Vigilance/Geoscape/
     ├── Geoscape.slnx         # Modern .NET solution
     └── Geoscape/
         ├── Geoscape.csproj   # TargetFramework: net10.0
-        ├── GeoscapeMod.cs    # Mod entrypoint & Harmony initialization
-        ├── GeoscapeSettings.cs # Visibility modes, colors, and incursion tuning
-        ├── Debug/            # Tactical debug overlays & telemetry gizmos
-        ├── Patches/          # Minimally invasive Harmony hooks (World, Pawns, UI)
-        ├── Sensory/          # ISensorProvider, ScoutHorizonSensor, SensoryManager,
-        │                     # VisibilityMode, WorldDrawLayer_HazeOfWar, WorldDrawLayer_RadarCoverage
-        └── World/            # WorldObject_Incursion, IncursionArrivalManager,
+        ├── GeoscapeMod.cs    # Mod entrypoint & Harmony initialisation
+        ├── GeoscapeRules.cs  # Zero-allocation static facade for active campaign rules
+        ├── GeoscapeSettings.cs # Visibility modes, 5-tab UI, colours, and incursion tuning
+        ├── Debug/            # Tactical debug actions & telemetry gizmos
+        ├── Orbital/          # IOrbitalEntity, OrbitalFlightModel, OrbitalManager,
+        │                     # WorldObject_OrbitalStation, WorldObject_Satellite, Satellite_Trade
+        ├── Patches/          # Minimally invasive Harmony hooks (World, Pawns, Incidents, UI)
+        ├── Rules/            # GeoscapeCampaignRules, GeoscapeRuleSet, CampaignProfile,
+        │                     # RuleLedgerSigner, Page_GeoscapeRules, Dialog_GeoscapeModAdoption
+        ├── Sensory/          # ISensorProvider, SensoryManager, SonarTraversalUtility,
+        │                     # OptimisticPathingUtility, LandmarkSensoryUtility, WorldDrawLayers
+        ├── UI/               # RadarScopeGeometry, RadarScopePreview (180x180 live CRT scope)
+        └── World/            # WorldObject_Incursion, ContactRegistry, IncursionArrivalManager,
                               # IncursionInterceptionUtility, IncursionTacticalRetreatUtility,
                               # MapComponent_OverlandAmbush, LordJob_IncursionTransit
 ```
@@ -536,12 +556,13 @@ When an incident triggers, the system intercepts the event and calculates an app
 4. **Standalone Framework Value:**
    - This storyteller overhaul is entirely generic and modular. Players who want realistic military logistics, scouting, and early warning in vanilla RimWorld can use this module without any X-COM alien themes.
 
-### 6.3 Dynamic Travel Encounters & Sight Horizons
+### 6.3 Dynamic Travel Encounters, Grounded Caravan Events & Sight Horizons
 
-In vanilla RimWorld, travelling encounters (meeting traders or being ambushed on the road) occur as sudden, non-spatial dice rolls. The Geoscape framework overhauls this through a **Hybrid Horizon Model**:
+In vanilla RimWorld, travelling encounters (meeting traders, extortion demands, or faction ambushes on the road) occur as sudden, non-spatial dice rolls. The Geoscape framework overhauls this through a **Hybrid Horizon Model** and grounded encounter interception:
 
-1. **Inter-Settlement Roaming Groups:**
-   - Major trade caravans, pilgrim bands, and patrol groups physically spawn and journey along planetary roads between NPC settlements.
+1. **Inter-Settlement Roaming Groups & Grounded Storyteller Encounters (`GroundedCaravanMeetingHelper`):**
+   - `IncidentWorker_CaravanMeeting_Patch` (`IncidentWorker_CaravanMeeting`) and `IncidentWorker_CaravanDemand_Patch` (`IncidentWorker_CaravanDemand`) intercept vanilla storyteller caravan encounters and ground them via `GroundedCaravanMeetingHelper`: if a compatible `WorldObject_Incursion` is already present or adjacent, interception executes immediately; otherwise, a persistent `WorldObject_Incursion` with full carried `TradeStock`, inventory, and a continuous two-leg route is spawned in unmonitored shroud (or at its origin settlement when under active sensor coverage). Staged encounters dispatch an approaching notice rather than interrupting immediately, masking unexplored destination settlements as `"an uncharted destination"`.
+   - `IncidentWorker_Ambush_Patch` intercepts `IncidentWorker_Ambush_EnemyFaction` (leaving manhunter packs to vanilla handling) and invokes `GroundedCaravanMeetingHelper.TryInterceptAmbush`, grounding enemy ambushes into persistent hostile `WorldObject_Incursion` entities on the caravan's tile (`ExecuteHostileInterception(..., isAmbush: true)`) so ambush survivors remain physical Geoscape forces after the tactical map closes.
 2. **Caravan Sight Horizon (2–3 Hex Scouting Radius):**
    - A player caravan possesses a natural visual horizon revealing moving entities within a 2–3 hex radius.
    - When another group enters line of sight, they are rendered on the globe:
@@ -641,6 +662,9 @@ When a player caravan intercepts or is engaged by an overland incursion on the `
 4. **Threat-Aware Tactical Retreat (`IncursionTacticalRetreatUtility`):**
    - Ordering a **Retreat** from either a tactical encounter map or a besieged home settlement evaluates all known/visible threats (hostile raiders, mechanoids, insectoids, and active turrets) across all four map borders.
    - Rather than blindly pathing to the geographically closest border cell—which could route fleeing colonists directly through an enemy vanguard—each retreating pawn scores candidate exit sectors using angular corridor threat proximity and verifies actual `PawnPath` exposure, selecting the safest reachable extraction route back to the Geoscape.
+5. **Post-Retreat Hostile Pursuit (`IncursionTacticalRetreatUtility.ResumeIncursionAfterCaravanRetreat`):**
+   - When all conscious player colonists flee an encounter map without captives (`Pawn_ExitMap_Patch`), surviving hostiles are returned to `WorldPawns` (`KeepForever`) and evaluated by `IncursionTacticalRetreatUtility.ResumeIncursionAfterCaravanRetreat`.
+   - Hostile non-trade forces whose surviving roster includes at least **50% fit, non-downed combatants** (`PursuitMinimumFitFraction = 0.5f`) lock onto the retreating player caravan via `SetPursuitTarget` and actively give chase across the Geoscape (`"[Incursion] is giving chase to [Caravan]!"`). Battered or non-hostile forces instead resume their prior route (`AdvancePathTile()`).
 
 ### 6.8 Overland Trade Caravans: Cargo Persistence, Trader Lifecycle & Roadside Trading
 
@@ -690,3 +714,24 @@ Project Vigilance implements an overland trade caravan architecture:
 4. **Robust Despawn & Removal Lifecycle Hooking (`WorldObject_PostRemove_Patch`):**
    - To eliminate save-game bloat and missing cross-reference errors, a Harmony postfix on `WorldObject.PostRemove` intercepts dynamic sites that are cancelled, expired, or destroyed while concealed in the Haze, calling `Notify_WorldObjectRemoved`.
    - On every 250-tick sweep, `HazeReconnaissanceManager.CheckUncoveredSites()` also validates that cached entries are still spawned and not destroyed, preventing stale `ConcealedSiteRecord` references and suppressed letters with complex `LookTargets` from leaking into save files.
+5. **Detection-Layer Site Masking (Gold `?` Mystery Icons):**
+   - Under `ClassicHazeOfWar`, static world objects (`Settlement`, `Site`, `Camp`, `PeaceTalks`, `EscapeShip`, `WorldObject_ListeningPost`) that fall inside the outer detection perimeter ($R_{detect}$ / explored bitset) but outside the inner identification horizon ($R_{id}$ / identified bitset) are masked by `SensoryManager.ShouldMaskWorldObjectAsUnknown` and `WorldObject_Visibility_Patch` as gold `?` mystery icons (`UnknownSiteIconColor`, `"Unidentified site"` / `"Unknown site"`).
+   - Faction names, quest links, gizmos, and detailed inspect tabs remain concealed until the site enters an active identification ring or is investigated directly by a caravan.
+6. **Anomalous Landmark Exploration (`LandmarkSensoryUtility` Cyan `!` Discovery Markers):**
+   - Anomalous, man-made, and otherworldly structures (`LandmarkSensoryUtility.IsAnomalousStructure` and `IsManMadeLandmarkDef` — including monoliths, ancient complexes and ruins, archotech shrines, mechhives, insectoid megahives, pit gates, and Odyssey landmarks) detected within $R_{detect}$ prior to identification are demarcated separately with procedural 64×64 cyan `!` discovery markers (`TacticalCyan`) and `"Unidentified landmark"` / `"Anomalous Landmark"` telemetry via `Landmarks_DrawStandard_Patch`, `ExpandableLandmarksUtility_ExpandableLandmarksOnGUI_Patch`, and `TerrainTelemetryUtility.HasUnidentifiedManMadeLandmark`, distinguishing high-interest exploration targets from tactical `?` contacts.
+
+### 6.11 Caravan Route Visibility Masking & Optimistic Fog-of-War Navigation
+
+1. **Caravan Route Visibility Masking (`WorldObject_Incursion.DrawVisibilityClippedSegment`):**
+   - Under `ClassicHazeOfWar` (and all non-`Omniscient` visibility modes), `WorldObject_Incursion.DrawPathOverlay` renders path lines through `DrawVisibilityClippedSegment`.
+   - Path segments with both endpoints inside active vision draw normally; segments crossing an active sensor perimeter boundary clip at the midpoint (`Vector3.Lerp(pA, pB, 0.5f)`); and segments wholly outside active vision remain hidden. (`Contact`-tier entities omit projected future routes entirely until classified.)
+2. **Optimistic Fog-of-War Pathing & Unexplored Road Discount Masking (`OptimisticPathingUtility` & `WorldPathing_FindPath_Patch`):**
+   - Under `ClassicHazeOfWar`, `WorldPathing_FindPath_Patch` (`FindPath`, `WorldReachability.CanReach`, `WorldPathGrid.Passable` / `PassableFast` / `PerceivedMovementDifficultyAt`, `World.Impassable`, `Caravan_PathFollower.IsPassable`, and `WorldRoutePlanner`) treats unexplored shroud tiles as traversable at baseline movement cost (`1.0f`), preventing route planning from leaking hidden mountains or coastlines.
+   - `WorldGrid_GetRoadMovementDifficultyMultiplier_Patch` overrides `WorldGrid.GetRoadMovementDifficultyMultiplier` to return `1.0f` whenever either endpoint tile is unexplored during optimistic routing, ensuring pathfinding cannot exploit undiscovered roads inside the shroud.
+3. **Autonomous Obstacle Circumvention & 4-Option Hard-Stop Prompt:**
+   - As moving caravans uncover tiles (`OptimisticPathingUtility.NotifyCaravanVisionUpdated`), upcoming path nodes (up to 30 ahead) are evaluated against `UnitTraversalCapability` (`LandCaravan`, `NavalUnit`, `Aircraft`).
+   - When a newly revealed obstacle stays within `ExpeditionDetourState.MaxDetourMultiplier` (`2.0×` initial direct distance), the caravan automatically replots around it and posts a soft advisory (`"Caravan has encountered an obstacle and is searching for an alternative route."`).
+   - When no route breaks even or none exists, `TriggerHardStopPrompt` halts the caravan (`StopDead()`) and opens a 4-option high-priority dialog: _Select a new destination_, _Authorise a wider search radius_ (`+1.5f` multiplier), _Cancel the expedition_ (return to home settlement), or _Continue manual exploration_.
+4. **Pre-Entry Impassable Safeguards (`SetupMoveIntoNextTile` & `TryEnterNextPathTile`):**
+   - `Caravan_PathFollower_TryEnterNextPathTile_Patch` and `Caravan_PathFollower_SetupMoveIntoNextTile_Patch` (which inspects `path.Peek(1)` before vanilla consumes the next node) validate `OptimisticPathingUtility.IsTileActuallyImpassable`.
+   - If an upcoming tile is unwalkable, only that single blocked tile is uncovered via `MarkSurroundingTilesExplored(tile, 0f)` (`maxSteps = 0`), `NotifyCaravanVisionUpdated(caravan)` triggers recovery, and if the stale path is not replaced, `StopDead()` halts the caravan before stepping onto the impassable tile.

@@ -519,21 +519,138 @@ public static class IncursionOriginResolver
         return false;
     }
 
+    /// <summary>
+    /// Testing hook for overriding tile-to-tile terrain and road movement difficulty in headless test runners.
+    /// </summary>
+    public static Func<PlanetTile, PlanetTile, float>? StepMovementDifficultyOverride { get; set; }
+
+    /// <summary>
+    /// Returns the combined terrain, hilliness, seasonal winter, and road movement difficulty
+    /// multiplier when stepping between two world tiles, matching vanilla caravan traversal costs.
+    /// </summary>
+    public static float GetStepMovementDifficulty(PlanetTile fromTile, PlanetTile toTile)
+    {
+        if (StepMovementDifficultyOverride != null)
+        {
+            return Mathf.Clamp(StepMovementDifficultyOverride(fromTile, toTile), 0.001f, 1000f);
+        }
+
+        if (!toTile.Valid || Find.World == null || Find.WorldGrid == null || Find.WorldPathGrid == null || !Find.WorldGrid.InBounds(toTile))
+        {
+            return 1.0f;
+        }
+
+        float terrainDifficulty = WorldPathGrid.CalculatedMovementDifficultyAt(toTile, perceivedStatic: false);
+        if (terrainDifficulty >= 1000f || float.IsNaN(terrainDifficulty) || float.IsInfinity(terrainDifficulty))
+        {
+            terrainDifficulty = 4.0f;
+        }
+
+        float roadMultiplier = (fromTile.Valid && fromTile != toTile && Find.WorldGrid.InBounds(fromTile))
+            ? Find.WorldGrid.GetRoadMovementDifficultyMultiplier(fromTile, toTile)
+            : 1.0f;
+
+        return Mathf.Clamp(terrainDifficulty * roadMultiplier, 0.001f, 1000f);
+    }
+
     public static float GetSpeedForFaction(Faction? faction)
     {
         if (faction == null)
         {
-            return 24f;
+            return 20f;
         }
 
         return faction.def.techLevel switch
         {
-            TechLevel.Neolithic => 16f,
-            TechLevel.Medieval => 20f,
-            TechLevel.Industrial => 28f,
-            TechLevel.Spacer => 36f,
-            TechLevel.Ultra or TechLevel.Archotech => 45f,
-            _ => 24f
+            TechLevel.Neolithic => 18f,
+            TechLevel.Medieval => 19f,
+            TechLevel.Industrial => 20f,
+            TechLevel.Spacer => 21f,
+            TechLevel.Ultra or TechLevel.Archotech => 22f,
+            _ => 20f
         };
+    }
+
+    /// <summary>
+    /// Computes baseline open-terrain tiles/day for an incursion roster, accounting for rideable mounts
+    /// and creature/wounded movement speed while keeping foot groups aligned with vanilla caravan pacing.
+    /// </summary>
+    public static float CalculateGroupBaseSpeedTilesPerDay(IReadOnlyList<Pawn>? pawns, Faction? faction)
+    {
+        float baseSpeed = GetSpeedForFaction(faction);
+        if (pawns == null || pawns.Count == 0)
+        {
+            return baseSpeed;
+        }
+
+        try
+        {
+            int humanlikeCount = 0;
+            var mountFactors = new List<float>();
+            float nonMountMoveSpeedSum = 0f;
+            int nonMountCount = 0;
+
+            for (int i = 0; i < pawns.Count; i++)
+            {
+                Pawn? p = pawns[i];
+                if (p == null || p.Dead || p.Destroyed || p.Downed)
+                {
+                    continue;
+                }
+
+                bool isHumanlike = p.RaceProps?.Humanlike == true;
+                if (isHumanlike)
+                {
+                    humanlikeCount++;
+                }
+                else if (CaravanRideableUtility.IsCaravanRideable(p))
+                {
+                    mountFactors.Add(p.GetStatValue(StatDefOf.CaravanRidingSpeedFactor));
+                    continue;
+                }
+
+                float moveSpeed = p.GetStatValue(StatDefOf.MoveSpeed);
+                if (moveSpeed > 0f && !float.IsNaN(moveSpeed) && !float.IsInfinity(moveSpeed))
+                {
+                    nonMountMoveSpeedSum += moveSpeed;
+                    nonMountCount++;
+                }
+            }
+
+            if (humanlikeCount == 0 && nonMountCount == 0 && mountFactors.Count == 0)
+            {
+                return baseSpeed;
+            }
+
+            float ridingFactor = 1.0f;
+            if (humanlikeCount > 0 && mountFactors.Count > 0)
+            {
+                mountFactors.Sort();
+                mountFactors.Reverse();
+                if (mountFactors.Count > humanlikeCount)
+                {
+                    mountFactors.RemoveRange(humanlikeCount, mountFactors.Count - humanlikeCount);
+                }
+                while (mountFactors.Count < humanlikeCount)
+                {
+                    mountFactors.Add(1.0f);
+                }
+
+                ridingFactor = mountFactors.Average();
+            }
+
+            float moveSpeedRatio = 1.0f;
+            if (nonMountCount > 0)
+            {
+                float avgMoveSpeed = nonMountMoveSpeedSum / nonMountCount;
+                moveSpeedRatio = Mathf.Clamp(avgMoveSpeed / 4.6f, 0.35f, 1.75f);
+            }
+
+            return Mathf.Clamp(baseSpeed * ridingFactor * moveSpeedRatio, 4f, 60f);
+        }
+        catch
+        {
+            return baseSpeed;
+        }
     }
 }

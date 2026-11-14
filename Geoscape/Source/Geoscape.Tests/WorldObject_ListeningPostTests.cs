@@ -338,6 +338,7 @@ public sealed class WorldObject_ListeningPostTests
     }
 
     [TestMethod]
+    [DoNotParallelize]
     public void AutomatedRelay_SolarFlareAndEclipse_DisruptsTelemetryAndDeactivatesSensor()
     {
         SensoryDisruptionUtility.SolarFlareOverride = null;

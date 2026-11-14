@@ -64,6 +64,17 @@ public static class CaravanExpeditionUtility
     private static readonly object syncLock = new();
     private static readonly Dictionary<int, OutpostConstructionDirective> pendingDirectives = new();
 
+    internal static string GetListeningPostKindLabel(ListeningPostKind kind)
+    {
+        return kind switch
+        {
+            ListeningPostKind.AutomatedRelay => "Automated Listening Post",
+            ListeningPostKind.AutomatedSonar => "Automated Sonar Station",
+            ListeningPostKind.SignalBeacon => "Signal Beacon",
+            _ => "Unknown Outpost"
+        };
+    }
+
     public static void RegisterPendingDirective(PlanetTile tile, OutpostConstructionDirective directive)
     {
         if (!tile.Valid || directive == null) return;

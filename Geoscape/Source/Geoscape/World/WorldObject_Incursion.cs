@@ -37,7 +37,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private List<PlanetTile> pathTiles = new();
     private int currentPathIndex;
     private float tileProgress;
-    private float speedTilesPerDay = 24f;
+    private float speedTilesPerDay = 20f;
     private int departureDelayTicks;
     private bool isIdentified = false;
     private IntelligenceTier intelligenceTier = IntelligenceTier.Undetected;
@@ -74,6 +74,48 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     public void SetSpawnedRaw(bool s) => WorldObjectAccessUtility.SetSpawnedRaw(this, s);
     public float TileProgress => tileProgress;
     public float SpeedTilesPerDay => speedTilesPerDay;
+
+    /// <summary>
+    /// Returns the terrain and road movement difficulty multiplier for the incursion's current step.
+    /// </summary>
+    public float GetCurrentMovementDifficulty()
+    {
+        PlanetTile curTile = Tile;
+        PlanetTile neighborTile = curTile;
+
+        if (pathTiles != null && currentPathIndex >= 0 && currentPathIndex < pathTiles.Count)
+        {
+            if (currentPathIndex > 0 && (tileProgress < 0.5f || currentPathIndex + 1 >= pathTiles.Count))
+            {
+                neighborTile = pathTiles[currentPathIndex - 1];
+            }
+            else if (currentPathIndex + 1 < pathTiles.Count)
+            {
+                neighborTile = pathTiles[currentPathIndex + 1];
+            }
+        }
+
+        return IncursionOriginResolver.GetStepMovementDifficulty(neighborTile, curTile);
+    }
+
+    /// <summary>
+    /// Effective overland speed in tiles per day after applying current terrain and road difficulty.
+    /// </summary>
+    public float EffectiveSpeedTilesPerDay => speedTilesPerDay / GetCurrentMovementDifficulty();
+
+    /// <summary>
+    /// Updates baseline open-terrain speed from the incursion's active roster (mounts, creatures, wounds).
+    /// </summary>
+    public void RecalculateSpeedFromPawns()
+    {
+        var activePawns = (isRetreating && retreatingPawns is { Count: > 0 })
+            ? retreatingPawns
+            : committedPawns;
+        if (activePawns is { Count: > 0 })
+        {
+            speedTilesPerDay = IncursionOriginResolver.CalculateGroupBaseSpeedTilesPerDay(activePawns, Faction);
+        }
+    }
     public int DepartureDelayTicks => departureDelayTicks;
     public bool IsMobilizing => departureDelayTicks > 0;
     public int TrackingId { get => trackingId; set => trackingId = value; }
@@ -262,6 +304,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 SyncCargoFromPawnsToTradeStock(retreatingPawns);
             }
         }
+
+        RecalculateSpeedFromPawns();
     }
 
     public void SetKidnappedColonists(List<Pawn> pawns)
@@ -298,6 +342,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 EnsureTraderPawnConfigured();
             }
         }
+
+        RecalculateSpeedFromPawns();
     }
 
     public void AddKidnappedColonist(Pawn captive)
@@ -397,6 +443,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 ReverseCourse("escaping with survivors/captives after engagement");
             }
         }
+
+        RecalculateSpeedFromPawns();
     }
 
     /// <summary>
@@ -1020,7 +1068,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         pathTiles = path ?? new List<PlanetTile>();
         currentPathIndex = 0;
         tileProgress = 0f;
-        speedTilesPerDay = speed > 0f ? speed : 24f;
+        speedTilesPerDay = speed > 0f ? speed : 20f;
         departureDelayTicks = Math.Max(0, delayTicks);
 
         if (parms.faction != null)
@@ -1185,7 +1233,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
         Scribe_Defs.Look(ref incidentDef, "incidentDef");
         Scribe_Deep.Look(ref incidentParms, "incidentParms");
-        Scribe_Values.Look(ref speedTilesPerDay, "speedTilesPerDay", 24f);
+        Scribe_Values.Look(ref speedTilesPerDay, "speedTilesPerDay", 20f);
         Scribe_Values.Look(ref currentPathIndex, "currentPathIndex", 0);
         Scribe_Values.Look(ref tileProgress, "tileProgress", 0f);
         Scribe_Values.Look(ref departureDelayTicks, "departureDelayTicks", 0);
@@ -1431,7 +1479,8 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             return;
         }
 
-        float tilesPerTick = speedTilesPerDay / 60000f;
+        float difficulty = GetCurrentMovementDifficulty();
+        float tilesPerTick = (speedTilesPerDay / difficulty) / 60000f;
         tileProgress += tilesPerTick;
 
         while (tileProgress >= 1f)
@@ -2101,7 +2150,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             string captiveStr = captiveCount > 0 ? $"\nCaptives: {captiveCount} abducted colonist(s)" : string.Empty;
             if (!isClassified)
             {
-                return $"{label.CapitalizeFirst()}\nStatus: Retreating ({survivorCount} survivors){captiveStr}\nSpeed: ~{speedTilesPerDay:F0} hexes/day";
+                return $"{label.CapitalizeFirst()}\nStatus: Retreating ({survivorCount} survivors){captiveStr}\nSpeed: ~{EffectiveSpeedTilesPerDay:F0} hexes/day";
             }
             Settlement? destSettlement = Find.WorldObjects?.SettlementAt(destinationTile);
             string destDesc = destSettlement != null ? $"{destSettlement.LabelCap} (Tile {destinationTile.tileId})" : $"Tile {destinationTile.tileId}";
@@ -2109,9 +2158,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
 
         bool isMechanoid = Faction != null && (Faction.def == FactionDefOf.Mechanoid || Faction.def.defName.Contains("Mechanoid"));
+        float currentStepSpeed = EffectiveSpeedTilesPerDay;
         float effectiveSpeed = (GeoscapeRules.IncursionsRestAtNight && !isMechanoid)
-            ? speedTilesPerDay * (16f / 24f)
-            : speedTilesPerDay;
+            ? currentStepSpeed * (16f / 24f)
+            : currentStepSpeed;
         float actualRemainingTiles = Math.Max(0f, (pathTiles != null ? (pathTiles.Count - currentPathIndex) : 0) - tileProgress);
         float remainingDays = actualRemainingTiles / Math.Max(0.1f, effectiveSpeed);
         float remainingHours = remainingDays * 24f;
@@ -2120,7 +2170,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         {
             if (!isClassified)
             {
-                return $"{label.CapitalizeFirst()}\nStatus: In hot pursuit\nSpeed: ~{speedTilesPerDay:F0} hexes/day";
+                return $"{label.CapitalizeFirst()}\nStatus: In hot pursuit\nSpeed: ~{currentStepSpeed:F0} hexes/day";
             }
             return $"{label.CapitalizeFirst()} ({factionName})\nStatus: In hot pursuit of {pursuitTargetCaravan.LabelCap}\nTarget: Hex {destinationTile}\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
         }
@@ -2129,7 +2179,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         {
             if (!isClassified)
             {
-                return $"{label.CapitalizeFirst()}\nStatus: Returning home\nSpeed: ~{speedTilesPerDay:F0} hexes/day";
+                return $"{label.CapitalizeFirst()}\nStatus: Returning home\nSpeed: ~{currentStepSpeed:F0} hexes/day";
             }
             Settlement? destSettlement = Find.WorldObjects?.SettlementAt(destinationTile);
             string destDesc = destSettlement != null ? $"{destSettlement.LabelCap} (Tile {destinationTile.tileId})" : $"Tile {destinationTile.tileId}";
@@ -2175,19 +2225,19 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 if (SensoryNarrativeUtility.IsLowTech)
                 {
                     string designation = trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
-                    return $"{designation}\nStatus: Masked by rugged terrain\nPace: ~{speedTilesPerDay:F0} hexes/day\nObservations: Force is navigating deep mountain valleys and canyons; classification delayed until exiting to open terrain";
+                    return $"{designation}\nStatus: Masked by rugged terrain\nPace: ~{currentStepSpeed:F0} hexes/day\nObservations: Force is navigating deep mountain valleys and canyons; classification delayed until exiting to open terrain";
                 }
                 string highTechDesignation = trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
-                return $"{highTechDesignation}\nStatus: Terrain Masked\nSpeed: ~{speedTilesPerDay:F0} hexes/day\nTelemetry: Contact signal degraded by mountainous terrain masking; requires open terrain or SIGINT decryption to classify";
+                return $"{highTechDesignation}\nStatus: Terrain Masked\nSpeed: ~{currentStepSpeed:F0} hexes/day\nTelemetry: Contact signal degraded by mountainous terrain masking; requires open terrain or SIGINT decryption to classify";
             }
 
             if (SensoryNarrativeUtility.IsLowTech)
             {
                 string designation = trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
-                return $"{designation}\nStatus: Spotted in the distance\nPace: ~{speedTilesPerDay:F0} hexes/day\nObservations: Identity and intent unknown from this distance";
+                return $"{designation}\nStatus: Spotted in the distance\nPace: ~{currentStepSpeed:F0} hexes/day\nObservations: Identity and intent unknown from this distance";
             }
             string standardDesignation = trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
-            return $"{standardDesignation}\nStatus: Tracking in progress\nSpeed: ~{speedTilesPerDay:F0} hexes/day\nTelemetry: Insufficient sensor data to classify faction";
+            return $"{standardDesignation}\nStatus: Tracking in progress\nSpeed: ~{currentStepSpeed:F0} hexes/day\nTelemetry: Insufficient sensor data to classify faction";
         }
 
         Map? targetMap = Current.Game.FindMap(destinationTile);
@@ -2355,6 +2405,18 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     List<Thing> generated = ThingSetMakerDefOf.TraderStock.root.Generate(parms);
                     for (int i = 0; i < generated.Count; i++)
                     {
+                        if (generated[i] is Pawn generatedPawn)
+                        {
+                            committedPawns ??= new List<Pawn>();
+                            if (!committedPawns.Contains(generatedPawn))
+                            {
+                                committedPawns.Add(generatedPawn);
+                            }
+
+                            EnsureInWorldPawnsIfUnspawned(generatedPawn);
+                            continue;
+                        }
+
                         tradeStock.TryAdd(generated[i], canMergeWithExistingStacks: false);
                     }
                 }

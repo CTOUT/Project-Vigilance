@@ -32,7 +32,7 @@ public static class Dialog_FormCaravan_PostOpen_Patch
             {
                 CaravanExpeditionUtility.PreallocateExpeditionFood(__instance, directive);
                 var (salvageMass, salvageDesc) = CaravanExpeditionUtility.GetExpectedDismantleYield(directive.TargetOutpost, directive.Kind, directive.StuffDef);
-                string outpostLabel = directive.TargetOutpost?.LabelCap ?? (directive.Kind == ListeningPostKind.AutomatedRelay ? "Automated Sensor Relay" : "Signal Beacon");
+                string outpostLabel = directive.TargetOutpost?.LabelCap ?? CaravanExpeditionUtility.GetListeningPostKindLabel(directive.Kind);
                 Messages.Message($"[Project Vigilance] Dismantle expedition route set to {outpostLabel} at Tile {directive.TargetTile}. Expected salvage: {salvageDesc} (~{salvageMass:F1} kg). Ensure sufficient pawns or pack animals are selected to carry recovered materials.", MessageTypeDefOf.CautionInput, false);
             }
         }
@@ -128,7 +128,7 @@ public static class Dialog_FormCaravan_TrySend_Patch
                 return false;
             }
 
-            string outpostTitle = directive.Kind == ListeningPostKind.AutomatedRelay ? "Automated Sensor Relay" : "Signal Beacon";
+            string outpostTitle = CaravanExpeditionUtility.GetListeningPostKindLabel(directive.Kind);
             var (lead, teamSpeed) = OutpostAssemblySpeedUtility.CalculateTeamSpeed(selectedPawns);
             int durationTicks = OutpostAssemblySpeedUtility.CalculateAssemblyDurationTicks(selectedPawns, directive.Kind);
             float assemblyHours = durationTicks / 2500f;
@@ -211,7 +211,7 @@ public static class Dialog_FormCaravan_TrySend_Patch
                 return false;
             }
 
-            string outpostTitle = directive.TargetOutpost?.LabelCap ?? (directive.Kind == ListeningPostKind.AutomatedRelay ? "Automated Sensor Relay" : "Signal Beacon");
+            string outpostTitle = directive.TargetOutpost?.LabelCap ?? CaravanExpeditionUtility.GetListeningPostKindLabel(directive.Kind);
             int transitTicks = CaravanExpeditionUtility.GetEstimatedTransitTicks(__instance, directive.TargetTile);
             float transitDays = transitTicks > 0 ? (transitTicks / 60000f) : 0.25f;
             float roundTripTransitDays = transitDays * 2f;

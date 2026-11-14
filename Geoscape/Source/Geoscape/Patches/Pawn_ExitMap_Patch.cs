@@ -165,7 +165,7 @@ public static class Pawn_ExitMap_Patch
                         }
                         else
                         {
-                            incursion.AdvancePathTile();
+                            IncursionTacticalRetreatUtility.ResumeIncursionAfterCaravanRetreat(incursion, caravan, livingHostiles);
                         }
 
                         if (caravan != null)

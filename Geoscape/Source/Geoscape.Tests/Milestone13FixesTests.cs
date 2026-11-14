@@ -68,18 +68,24 @@ public sealed class Milestone13FixesTests
     [TestMethod]
     public void OutpostMaterialUtility_AutomatedSonar_MaterialCosts()
     {
-        Assert.AreEqual(120, OutpostMaterialUtility.AutomatedSonarSteelCost);
-        Assert.AreEqual(4, OutpostMaterialUtility.AutomatedSonarComponentCost);
-        Assert.AreEqual(30, OutpostMaterialUtility.AutomatedSonarSteelRepairCost);
-        Assert.AreEqual(1, OutpostMaterialUtility.AutomatedSonarComponentRepairCost);
-        Assert.AreEqual(90, OutpostMaterialUtility.AutomatedSonarSteelSalvage);
-        Assert.AreEqual(3, OutpostMaterialUtility.AutomatedSonarComponentSalvage);
+        int[] actual =
+        {
+            OutpostMaterialUtility.AutomatedSonarSteelCost,
+            OutpostMaterialUtility.AutomatedSonarComponentCost,
+            OutpostMaterialUtility.AutomatedSonarSteelRepairCost,
+            OutpostMaterialUtility.AutomatedSonarComponentRepairCost,
+            OutpostMaterialUtility.AutomatedSonarSteelSalvage,
+            OutpostMaterialUtility.AutomatedSonarComponentSalvage,
+        };
+
+        CollectionAssert.AreEqual(new[] { 120, 4, 30, 1, 90, 3 }, actual);
     }
 
     [TestMethod]
     public void OutpostAssemblySpeedUtility_AutomatedSonar_WorkTicks()
     {
-        Assert.AreEqual(15000, OutpostAssemblySpeedUtility.BaseAutomatedSonarTicks);
+        int actual = OutpostAssemblySpeedUtility.BaseAutomatedSonarTicks;
+        Assert.AreEqual(15000, actual);
     }
 
     [TestMethod]
@@ -186,5 +192,42 @@ public sealed class Milestone13FixesTests
         // Aircraft (ignores terrain obstacles)
         Assert.IsFalse(OptimisticPathingUtility.IsTileObstacleForUnit(waterTile, UnitTraversalCapability.Aircraft));
         Assert.IsFalse(OptimisticPathingUtility.IsTileObstacleForUnit(landTile, UnitTraversalCapability.Aircraft));
+    }
+
+    [TestMethod]
+    public void OptimisticPathingUtility_GetOrCreateExpeditionState_ResetsWhenDestinationChanges()
+    {
+        var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+        caravan.ID = 42;
+        var tileField = typeof(WorldObject).GetField("tile", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        tileField?.SetValue(caravan, MakeTile(10));
+
+        try
+        {
+            var dest1 = MakeTile(14);
+            ExpeditionDetourState firstState = OptimisticPathingUtility.GetOrCreateExpeditionState(caravan, dest1);
+            Assert.AreEqual(4f, firstState.InitialDirectDistance);
+            Assert.AreEqual(dest1, firstState.DestinationTile);
+
+            firstState.MaxDetourMultiplier = 3.5f;
+            firstState.NotifiedObstacleTiles.Add(12);
+
+            ExpeditionDetourState sameDestState = OptimisticPathingUtility.GetOrCreateExpeditionState(caravan, dest1);
+            Assert.AreSame(firstState, sameDestState);
+            Assert.AreEqual(4f, sameDestState.InitialDirectDistance);
+            Assert.AreEqual(3.5f, sameDestState.MaxDetourMultiplier);
+            Assert.AreEqual(1, sameDestState.NotifiedObstacleTiles.Count);
+
+            var dest2 = MakeTile(110);
+            ExpeditionDetourState newDestState = OptimisticPathingUtility.GetOrCreateExpeditionState(caravan, dest2);
+            Assert.AreEqual(dest2, newDestState.DestinationTile);
+            Assert.AreEqual(100f, newDestState.InitialDirectDistance);
+            Assert.AreEqual(2.0f, newDestState.MaxDetourMultiplier);
+            Assert.AreEqual(0, newDestState.NotifiedObstacleTiles.Count);
+        }
+        finally
+        {
+            OptimisticPathingUtility.ResetExpeditionState(42);
+        }
     }
 }

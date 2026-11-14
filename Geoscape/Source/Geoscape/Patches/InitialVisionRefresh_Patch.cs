@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -20,7 +21,19 @@ public static class InitialVisionRefresh_Patch
     {
         public static void Postfix()
         {
-            SensoryManager.Instance?.RefreshImmediateVision();
+            if (Current.Game == null || Find.World?.grid == null)
+            {
+                return;
+            }
+
+            try
+            {
+                SensoryManager.Instance?.RefreshImmediateVision();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[Project Vigilance] Skipped initial vision refresh during teardown: {ex.Message}");
+            }
         }
     }
 

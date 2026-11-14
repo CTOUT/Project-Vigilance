@@ -179,7 +179,7 @@ public static class IncursionInterceptionUtility
 
     public static void ExecuteHostileInterception(Caravan caravan, WorldObject_Incursion incursion, bool isAmbush = false)
     {
-        Log.Message($"[Project Vigilance] Interception initiated: {caravan.LabelCap} intercepted hostile {incursion.Label} at tile {incursion.Tile}. IsAmbush={isAmbush}");
+        Log.Message($"[Project Vigilance] Interception initiated: {caravan.LabelCap} intercepted {incursion.Label} at tile {incursion.Tile}. IsAmbush={isAmbush}");
 
         // Determine enemy combatants (preserving full caravan/pack animal/visitor composition)
         List<Pawn> enemies = GetOrGenerateIncursionPawns(incursion);

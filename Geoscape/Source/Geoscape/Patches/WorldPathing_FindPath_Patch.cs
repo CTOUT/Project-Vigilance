@@ -239,6 +239,21 @@ public static class WorldPathing_FindPath_Patch
             if (OptimisticPathingUtility.IsPlayerPather(__instance) &&
                 GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
             {
+                PlanetTile nextTile = __instance.nextTile;
+                if (OptimisticPathingUtility.IsTileUnexplored(nextTile) &&
+                    OptimisticPathingUtility.IsTileActuallyImpassable(nextTile))
+                {
+                    SensoryManager.Instance?.MarkSurroundingTilesExplored(nextTile, 0f);
+
+                    Caravan? caravan = OptimisticPathingUtility.GetCaravan(__instance);
+                    if (caravan != null)
+                    {
+                        OptimisticPathingUtility.NotifyCaravanVisionUpdated(caravan);
+                    }
+
+                    return false;
+                }
+
                 if (!__instance.IsNextTilePassable())
                 {
                     Caravan? caravan = OptimisticPathingUtility.GetCaravan(__instance);
@@ -251,6 +266,52 @@ public static class WorldPathing_FindPath_Patch
             }
 
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Vanilla consumes the next path node inside SetupMoveIntoNextTile, i.e. after the caravan has already
+    /// entered its current tile. Checking only the tile being entered misses a hidden obstacle one step further
+    /// along, so this guard inspects the node that is about to become the next tile.
+    /// </summary>
+    [HarmonyPatch(typeof(Caravan_PathFollower), "SetupMoveIntoNextTile")]
+    public static class Caravan_PathFollower_SetupMoveIntoNextTile_Patch
+    {
+        public static bool Prefix(Caravan_PathFollower __instance)
+        {
+            if (!OptimisticPathingUtility.IsPlayerPather(__instance) ||
+                GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            {
+                return true;
+            }
+
+            WorldPath? path = __instance.curPath;
+            if (path == null || !path.Found || path.NodesLeftCount < 2)
+            {
+                return true;
+            }
+
+            PlanetTile upcoming = path.Peek(1);
+            if (!upcoming.Valid || !OptimisticPathingUtility.IsTileActuallyImpassable(upcoming))
+            {
+                return true;
+            }
+
+            SensoryManager.Instance?.MarkSurroundingTilesExplored(upcoming, 0f);
+
+            Caravan? caravan = OptimisticPathingUtility.GetCaravan(__instance);
+            if (caravan != null)
+            {
+                OptimisticPathingUtility.NotifyCaravanVisionUpdated(caravan);
+
+                // If recovery did not replace the stale path, halt rather than step into the obstacle.
+                if (ReferenceEquals(path, __instance.curPath) && OptimisticPathingUtility.IsMoving(__instance))
+                {
+                    __instance.StopDead();
+                }
+            }
+
+            return false;
         }
     }
 
@@ -384,6 +445,36 @@ public static class WorldPathing_FindPath_Patch
         {
             OptimisticPathingUtility.Active = __state;
             return __exception;
+        }
+    }
+
+    /// <summary>
+    /// Hides road discounts on unexplored tiles during optimistic searches, so routes cannot
+    /// follow roads the player has not discovered.
+    /// </summary>
+    [HarmonyPatch(typeof(WorldGrid), nameof(WorldGrid.GetRoadMovementDifficultyMultiplier),
+        new[] { typeof(PlanetTile), typeof(PlanetTile), typeof(System.Text.StringBuilder) })]
+    public static class WorldGrid_GetRoadMovementDifficultyMultiplier_Patch
+    {
+        public static void Postfix(PlanetTile fromTile, PlanetTile toTile, ref float __result)
+        {
+            if (__result >= 1f)
+            {
+                return;
+            }
+
+            if (!(OptimisticPathingUtility.ShouldUseOptimisticPathing() ||
+                  (OptimisticPathingUtility.IsPlayerPlanningRoute &&
+                   GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)))
+            {
+                return;
+            }
+
+            if ((fromTile.Valid && OptimisticPathingUtility.IsTileUnexplored(fromTile)) ||
+                (toTile.Valid && OptimisticPathingUtility.IsTileUnexplored(toTile)))
+            {
+                __result = 1f;
+            }
         }
     }
 }

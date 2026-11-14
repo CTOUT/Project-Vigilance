@@ -183,6 +183,17 @@ public sealed class CaravanExpeditionTests
     }
 
     [TestMethod]
+    public void CaravanExpeditionUtility_GetListeningPostKindLabel_UsesEachStructureName()
+    {
+        Assert.AreEqual("Automated Listening Post",
+            CaravanExpeditionUtility.GetListeningPostKindLabel(ListeningPostKind.AutomatedRelay));
+        Assert.AreEqual("Automated Sonar Station",
+            CaravanExpeditionUtility.GetListeningPostKindLabel(ListeningPostKind.AutomatedSonar));
+        Assert.AreEqual("Signal Beacon",
+            CaravanExpeditionUtility.GetListeningPostKindLabel(ListeningPostKind.SignalBeacon));
+    }
+
+    [TestMethod]
     public void CaravanArrivalAction_ConstructOutpost_PropertiesAndLabels_SignalBeacon()
     {
         var woodDef = ThingDefOf.WoodLog ?? new ThingDef { defName = "WoodLog" };
@@ -543,6 +554,45 @@ public sealed class CaravanExpeditionTests
             OptimisticPathingUtility.IsTileUnexploredOverride = null;
             OptimisticPathingUtility.IsTileImpassableOverride = null;
             OptimisticPathingUtility.Active = false;
+        }
+    }
+
+    [TestMethod]
+    public void TryEnterNextPathTile_UnexploredImpassableTile_BlocksEntry()
+    {
+        SensoryManager? previousSensoryManager = SensoryManager.Instance;
+
+        try
+        {
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            SensoryManager.Instance = null;
+
+            var nextTile = (PlanetTile)503;
+            var playerFaction = new Faction { def = new FactionDef { isPlayer = true } };
+            var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
+            HarmonyLib.Traverse.Create(caravan).Field("tileInt").SetValue((PlanetTile)100);
+            HarmonyLib.Traverse.Create(caravan).Field("factionInt").SetValue(playerFaction);
+            HarmonyLib.Traverse.Create(caravan).Field("spawnedInt").SetValue(true);
+
+            var pather = (Caravan_PathFollower)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan_PathFollower));
+            HarmonyLib.Traverse.Create(pather).Field("caravan").SetValue(caravan);
+            HarmonyLib.Traverse.Create(pather).Field("nextTile").SetValue(nextTile);
+            HarmonyLib.Traverse.Create(pather).Field("destTile").SetValue((PlanetTile)105);
+            HarmonyLib.Traverse.Create(pather).Field("moving").SetValue(true);
+            HarmonyLib.Traverse.Create(caravan).Field("pather").SetValue(pather);
+
+            OptimisticPathingUtility.IsTileUnexploredOverride = tile => tile == nextTile;
+            OptimisticPathingUtility.IsTileImpassableOverride = tile => tile == nextTile;
+
+            bool runOriginal = WorldPathing_FindPath_Patch.Caravan_PathFollower_TryEnterNextPathTile_Patch.Prefix(pather);
+
+            Assert.IsFalse(runOriginal, "The original movement method must not enter an unexplored tile that is actually impassable.");
+        }
+        finally
+        {
+            SensoryManager.Instance = previousSensoryManager;
+            OptimisticPathingUtility.IsTileUnexploredOverride = null;
+            OptimisticPathingUtility.IsTileImpassableOverride = null;
         }
     }
 
@@ -1000,11 +1050,128 @@ public sealed class CaravanExpeditionTests
     {
         var type = typeof(Caravan_PathFollower);
         var mStartPath = type.GetMethod("StartPath", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, null, new[] { typeof(PlanetTile), typeof(CaravanArrivalAction), typeof(bool), typeof(bool) }, null);
+        Assert.IsNotNull(mStartPath);
         var instrs = HarmonyLib.PatchProcessor.GetOriginalInstructions(mStartPath);
-        foreach (var i in instrs.Where(x => x.opcode.Name.Contains("call") || x.opcode.Name.Contains("ldfld") || x.opcode.Name.Contains("stfld") || x.opcode.Name.Contains("ret")))
+        foreach (var i in instrs.Where(x => x.opcode.Name is { } name && (name.Contains("call") || name.Contains("ldfld") || name.Contains("stfld") || name.Contains("ret"))))
         {
             System.Console.WriteLine($"START_PATH: {i.opcode} {i.operand}");
         }
+    }
+
+    [TestMethod]
+    public void IncursionMovement_TerrainDifficulty_ScalesEffectiveSpeedAndTileProgress()
+    {
+        var previousOverride = ProjectVigilance.Geoscape.World.IncursionOriginResolver.StepMovementDifficultyOverride;
+        try
+        {
+            var incursion = new ProjectVigilance.Geoscape.World.WorldObject_Incursion();
+            incursion.SetTileRaw((PlanetTile)100);
+            float baseSpeed = incursion.SpeedTilesPerDay;
+
+            ProjectVigilance.Geoscape.World.IncursionOriginResolver.StepMovementDifficultyOverride = (_, _) => 1.0f;
+            Assert.AreEqual(1.0f, incursion.GetCurrentMovementDifficulty(), 0.0001f);
+            Assert.AreEqual(baseSpeed, incursion.EffectiveSpeedTilesPerDay, 0.001f);
+
+            ProjectVigilance.Geoscape.World.IncursionOriginResolver.StepMovementDifficultyOverride = (_, _) => 3.0f;
+            Assert.AreEqual(3.0f, incursion.GetCurrentMovementDifficulty(), 0.0001f);
+            Assert.AreEqual(baseSpeed / 3.0f, incursion.EffectiveSpeedTilesPerDay, 0.001f);
+
+            ProjectVigilance.Geoscape.World.IncursionOriginResolver.StepMovementDifficultyOverride = (_, _) => 0.5f;
+            Assert.AreEqual(0.5f, incursion.GetCurrentMovementDifficulty(), 0.0001f);
+            Assert.AreEqual(baseSpeed * 2.0f, incursion.EffectiveSpeedTilesPerDay, 0.001f);
+        }
+        finally
+        {
+            ProjectVigilance.Geoscape.World.IncursionOriginResolver.StepMovementDifficultyOverride = previousOverride;
+        }
+    }
+
+    [TestMethod]
+    public void IncursionSpeed_LandFactions_UseFootCaravanBaseline()
+    {
+        float nullSpeed = ProjectVigilance.Geoscape.World.IncursionOriginResolver.GetSpeedForFaction(null);
+        Assert.IsTrue(nullSpeed >= 18f && nullSpeed <= 22f, $"Null faction fallback speed ({nullSpeed}) must match foot caravan baseline.");
+
+        TechLevel[] techLevels =
+        {
+            TechLevel.Neolithic,
+            TechLevel.Medieval,
+            TechLevel.Industrial,
+            TechLevel.Spacer,
+            TechLevel.Ultra,
+            TechLevel.Archotech
+        };
+
+        foreach (TechLevel tl in techLevels)
+        {
+            var faction = new Faction { def = new FactionDef { techLevel = tl } };
+            float speed = ProjectVigilance.Geoscape.World.IncursionOriginResolver.GetSpeedForFaction(faction);
+            Assert.IsTrue(speed >= 18f && speed <= 22f,
+                $"Land faction tech level {tl} foot speed ({speed}) must remain within [18, 22] tiles/day.");
+        }
+    }
+
+    [TestMethod]
+    public void SetupMoveIntoNextTilePatch_TargetsVanillaMethod_AndIgnoresNonPlayerPathers()
+    {
+        Assert.IsNotNull(HarmonyLib.AccessTools.Method(typeof(Caravan_PathFollower), "SetupMoveIntoNextTile"));
+
+        var attr = typeof(WorldPathing_FindPath_Patch.Caravan_PathFollower_SetupMoveIntoNextTile_Patch)
+            .GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false)
+            .Cast<HarmonyLib.HarmonyPatch>()
+            .Single();
+        Assert.AreEqual(typeof(Caravan_PathFollower), attr.info.declaringType);
+        Assert.AreEqual("SetupMoveIntoNextTile", attr.info.methodName);
+
+        var pather = (Caravan_PathFollower)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan_PathFollower));
+        Assert.IsTrue(WorldPathing_FindPath_Patch.Caravan_PathFollower_SetupMoveIntoNextTile_Patch.Prefix(pather),
+            "Pathers without a player caravan must run vanilla movement unchanged.");
+    }
+
+    [TestMethod]
+    public void RetreatPursuit_OnlyAbleHostileForcesChaseCaravan()
+    {
+        Assert.IsTrue(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(true, false, 4, 4));
+        Assert.IsTrue(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(true, false, 4, 2));
+        Assert.IsFalse(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(true, false, 4, 1), "Battered raiders must not pursue.");
+        Assert.IsFalse(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(false, false, 4, 4), "Non-hostile groups must not pursue.");
+        Assert.IsFalse(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(true, true, 4, 4), "Trade caravans must not pursue.");
+        Assert.IsFalse(ProjectVigilance.Geoscape.World.IncursionTacticalRetreatUtility.ShouldPursueRetreatingCaravan(true, false, 0, 0));
+    }
+
+    [TestMethod]
+    public void AmbushPatch_TargetsVanillaAmbushWorker()
+    {
+        var attr = typeof(ProjectVigilance.Geoscape.Patches.IncidentWorker_Ambush_Patch)
+            .GetCustomAttributes(typeof(HarmonyLib.HarmonyPatch), false)
+            .Cast<HarmonyLib.HarmonyPatch>()
+            .Single();
+
+        Assert.AreEqual(typeof(RimWorld.IncidentWorker_Ambush), attr.info.declaringType);
+        Assert.AreEqual("TryExecuteWorker", attr.info.methodName);
+        Assert.IsNotNull(HarmonyLib.AccessTools.Method(typeof(RimWorld.IncidentWorker_Ambush), "TryExecuteWorker"));
+    }
+
+    [TestMethod]
+    public void FindPathTranspiler_InjectsFogCostOverride_IntoVanillaPathfinder()
+    {
+        var findPath = typeof(RimWorld.Planet.WorldPathing).GetMethod(
+            "FindPath",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.DeclaredOnly);
+        Assert.IsNotNull(findPath);
+
+        var original = HarmonyLib.PatchProcessor.GetOriginalInstructions(findPath).ToList();
+        var patched = WorldPathing_FindPath_Patch.FindPath_Patch.Transpiler(original).ToList();
+
+        int injected = patched.Count(i =>
+            i.opcode == System.Reflection.Emit.OpCodes.Call &&
+            i.operand is System.Reflection.MethodInfo mi &&
+            mi.Name == nameof(OptimisticPathingUtility.ModifyMovementDifficulty));
+
+        Assert.IsTrue(injected >= 1,
+            "The fog-of-war terrain cost override was not injected; terrain difficulty would leak through unexplored tiles.");
     }
 
     [TestMethod]

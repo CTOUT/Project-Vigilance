@@ -23,17 +23,21 @@ The first standalone module of the suite—**Overland Incursions**—is implemen
 
 ### What Does It Do?
 
-In vanilla RimWorld, raids and trade caravans instantaneously materialise at the boundary of your map out of thin air. **Overland Incursions** overhauls this completely:
+In vanilla RimWorld, raids, trade caravans, and roadside encounters instantaneously materialise at the boundary of your map out of thin air. **Overland Incursions** overhauls this completely:
 
-- **Physical WorldGrid Transit:** When a storyteller incident fires (e.g. `RaidEnemy` or `TraderCaravanArrival`), the party spawns at a physical origin point on the planet (a nearby enemy base or wilderness staging tile) and physically marches across the world map to your colony.
+- **Grounded Storyteller Raids, Trade Caravans, Meetings & Ambushes:** Intercepts walk-in raids (`RaidEnemy`), neutral arrivals (`TraderCaravanArrival`, `TravelerGroup`, `VisitorGroup`), caravan meetings (`CaravanMeeting`), extortion demands (`CaravanDemand`), and enemy faction ambushes (`Ambush_EnemyFaction`), spawning persistent `WorldObject_Incursion` entities with realistic origin resolution, shroud staging, non-blocking sighting alerts, and post-retreat hostile pursuit on the Geoscape.
+- **Coastal Sonar & Automated Outposts:** Extends planetary surveillance with multi-dish radar interferometry, SIGINT decryption consoles, coastal hydrophone arrays (`Geoscape_SonarArray`) and standalone **Automated Sonar Stations** (`Vigilance_ListeningPost_Sonar`) restricted to connected water tiles, plus caravan-deployable **Automated Listening Posts** and **Signal Beacons**.
+- **Drifting Orbital Constellations:** Simulates satellites along analytical Keplerian orbits with $J_2$ oblateness nodal precession, persistent high-orbit stations, dual-layer Surface/Orbit rendering, and 5 specialised payload roles (including overhead trade passes and caravan navigation boosts).
+- **Campaign Rules Wizard & Fog-of-War Governance:** Provides a native campaign creation wizard (`Page_GeoscapeRules`) with 4 profiles (**Fog of War**, **Planetary Surveillance**, **Hardcore Vigilance**, **Omniscient**), automated landfall on uncharted globes, optimistic fog-of-war caravan routing, two-axis rule mutability, and HMAC-SHA256-verified savegame integrity ledgers.
 - **Realistic ETAs & Tactical Timing:** March speeds are computed dynamically using world pathfinding, distance, and terrain biome costs. Raids can take anywhere from 12 hours to several days to arrive.
 - **Tactical World Map Rendering:**
   - Distinct **IFF Colours:** Hostile forces are marked in alert crimson red, while friendly and neutral trade caravans are rendered in cool cyan.
   - Directional quad alignment pointing naturally toward planetary North.
   - Caravan marching silhouette underlay combined with an upright, prominent faction crest overlay.
+  - Holographic 3D radar perimeter/honeycomb globe overlays and anomalous landmark/site masking.
 - **Interactive Inspection:** Click on approaching world incursions to view real-time telemetry: originating faction, remaining distance, estimated time of arrival (ETA), and combat threat points.
 - **Zero Tech Prerequisites:** Completely era-agnostic and standalone. Can be dropped into any tribal, medieval, or industrial playthrough with zero alien content.
-- **Configurable Settings:** In-game options to synchronise storyteller threat timers upon arrival and adjust transit speeds.
+- **Configurable Settings:** 5-tab Mod Settings UI with a live tactical CRT radar scope preview, storyteller threat cooldown synchronisation, and transit speed multipliers.
 
 ### How to Install for Testing
 
@@ -106,7 +110,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 
 ### Testing, Roadmap & Operations
 
-- **[Milestone 1.3 Quality Assurance & Playtest Plan (TC-01 – TC-28)](docs/milestone_1_3_test_plan.md)**
+- **[Milestone 1.3 Quality Assurance & Playtest Plan (TC-01 – TC-32)](docs/milestone_1_3_test_plan.md)**
 - **[Authoritative Release & Publishing Process](docs/release-process.md)**
 - **[Frequently Asked Questions (FAQ)](docs/faq.md)**
 - **[Implementation Roadmap & TODO](TODO.md)**
@@ -123,7 +127,7 @@ This repository provides cross-platform compilation, automated deployment, forma
 npm run build:geoscape
 # or: dotnet build Geoscape/Source/Geoscape.slnx
 
-# Run automated test suite (MSTest)
+# Run automated test suite (MSTest, 406 tests)
 dotnet test Geoscape/Source/Geoscape.slnx
 
 # Deploy mod to local RimWorld Mods directory

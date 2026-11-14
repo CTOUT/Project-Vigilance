@@ -19,4 +19,12 @@ public static class WorldPawns_ExposeData_Patch
             WorldPawnIntegrityUtility.PrepareWorldPawnsForSave(__instance);
         }
     }
+
+    public static void Postfix(WorldPawns __instance)
+    {
+        if (Scribe.mode == LoadSaveMode.PostLoadInit)
+        {
+            WorldPawnIntegrityUtility.PrepareWorldPawnsForSave(__instance);
+        }
+    }
 }

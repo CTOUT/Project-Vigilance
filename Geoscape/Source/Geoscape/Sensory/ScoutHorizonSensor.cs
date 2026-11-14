@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using ProjectVigilance.Geoscape.Patches;
 using RimWorld;
@@ -23,6 +24,23 @@ public class ScoutHorizonSensor : ISensorProvider
         this.isColony = isColony;
     }
 
+    private static float GetSafeSunGlow(Map? map)
+    {
+        if (map == null || Find.World?.grid == null || !map.Tile.Valid)
+        {
+            return 1.0f;
+        }
+
+        try
+        {
+            return GenCelestial.CurCelestialSunGlow(map);
+        }
+        catch (Exception)
+        {
+            return 1.0f;
+        }
+    }
+
     public WorldObject Source => parentObject;
     public bool IsColony => isColony;
     public bool IsStationary => isColony || parentObject is MapParent;
@@ -39,7 +57,7 @@ public class ScoutHorizonSensor : ISensorProvider
 
                 if (GeoscapeRules.NighttimeSensoryReduction)
                 {
-                    if (GenCelestial.CurCelestialSunGlow(mapParent.Map) < 0.35f)
+                    if (GetSafeSunGlow(mapParent.Map) < 0.35f)
                     {
                         bool anyAwake = HasActiveOrArrivingColonists(
                             mapParent.Map,
@@ -126,7 +144,7 @@ public class ScoutHorizonSensor : ISensorProvider
             if (parentObject is MapParent mapParent && mapParent.HasMap && mapParent.Map != null)
             {
                 Map map = mapParent.Map;
-                float sunGlow = GenCelestial.CurCelestialSunGlow(map);
+                float sunGlow = GetSafeSunGlow(map);
                 bool isNight = sunGlow < 0.35f;
 
                 if (!isNight)

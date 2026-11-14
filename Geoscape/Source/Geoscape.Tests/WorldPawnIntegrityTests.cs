@@ -22,9 +22,19 @@ public sealed class WorldPawnIntegrityTests
     private static readonly FieldInfo TrackedEnemiesField =
         typeof(MapComponent_OverlandAmbush).GetField("trackedEnemies", BindingFlags.Instance | BindingFlags.NonPublic)!;
 
+    private static readonly FieldInfo PawnsWithDirectRelationsWithMeField =
+        typeof(Pawn_RelationsTracker).GetField("pawnsWithDirectRelationsWithMe", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+    private static readonly FieldInfo RelationshipRecordsDictField =
+        typeof(RelationshipRecords).GetField("records", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+    private static int nextThingId = 1000;
+
     private static Pawn CreateUnspawnedPawn(sbyte state = -1)
     {
         var pawn = (Pawn)RuntimeHelpers.GetUninitializedObject(typeof(Pawn));
+        pawn.def = new ThingDef { defName = "Human" };
+        pawn.thingIDNumber = ++nextThingId;
         MapIndexOrStateField.SetValue(pawn, state);
         pawn.relations = new Pawn_RelationsTracker(pawn);
         return pawn;
@@ -147,5 +157,71 @@ public sealed class WorldPawnIntegrityTests
             var instanceProp = typeof(IncursionRetreatManager).GetProperty(nameof(IncursionRetreatManager.Instance))!;
             instanceProp.SetValue(null, previousInstance);
         }
+    }
+
+    [TestMethod]
+    public void SanitizeDanglingRelations_CleansBidirectionalAndPawnsWithDirectRelationsWithMe()
+    {
+        Pawn pawnA = CreateUnspawnedPawn(state: -1);
+        Pawn pawnB = CreateUnspawnedPawn(state: -1);
+
+        var reflexiveDef = new PawnRelationDef
+        {
+            defName = "TestReflexiveRelation",
+            reflexive = true,
+            workerClass = typeof(PawnRelationWorker)
+        };
+
+        var incomingA = (HashSet<Pawn>)PawnsWithDirectRelationsWithMeField.GetValue(pawnA.relations)!;
+        var incomingB = (HashSet<Pawn>)PawnsWithDirectRelationsWithMeField.GetValue(pawnB.relations)!;
+
+        pawnA.relations.DirectRelations.Add(new DirectPawnRelation(reflexiveDef, pawnB, 0));
+        incomingB.Add(pawnA);
+        pawnB.relations.DirectRelations.Add(new DirectPawnRelation(reflexiveDef, pawnA, 0));
+        incomingA.Add(pawnB);
+
+        WorldPawnIntegrityUtility.SanitizeDanglingRelations(
+            pawnA,
+            isInWorldPawnsOverride: p => p == pawnA,
+            isHeldOrSpawnedOverride: _ => false);
+
+        Assert.AreEqual(0, pawnA.relations.DirectRelations.Count, "Dangling relation must be removed from kept pawn.");
+        Assert.AreEqual(0, pawnB.relations.DirectRelations.Count, "Reciprocal relation must be removed from dangling pawn.");
+        Assert.IsFalse(incomingA.Contains(pawnB), "Dangling pawn must be removed from kept pawn's incoming set.");
+        Assert.IsFalse(incomingB.Contains(pawnA), "Kept pawn must be removed from dangling pawn's incoming set.");
+
+        pawnB.relations.ClearAllRelations();
+    }
+
+    [TestMethod]
+    public void SanitizeRelationshipRecords_RemovesDanglingPawnReferencesAndCleansUnusedRecords()
+    {
+        Pawn keptPawn1 = CreateUnspawnedPawn(state: -1);
+        Pawn keptPawn2 = CreateUnspawnedPawn(state: -1);
+        Pawn orphanedPawn = CreateUnspawnedPawn(state: -1);
+
+        var records = new RelationshipRecords();
+        var record = new RelationshipRecord(101, Gender.Female, "Orphan");
+        var recordsDict = (Dictionary<int, RelationshipRecord>)RelationshipRecordsDictField.GetValue(records)!;
+        recordsDict[record.ID] = record;
+
+        record.AddReference(keptPawn1);
+        record.AddReference(keptPawn2);
+        record.AddReference(orphanedPawn);
+
+        WorldPawnIntegrityUtility.SanitizeRelationshipRecords(
+            records,
+            isInWorldPawnsOverride: p => p == keptPawn1 || p == keptPawn2,
+            isHeldOrSpawnedOverride: _ => false);
+
+        Assert.AreEqual(2, record.References.Count, "Both kept pawn references should remain after pruning orphaned pawn.");
+        Assert.IsTrue(records.Records.ContainsKey(101), "Record with two surviving references must be retained.");
+
+        WorldPawnIntegrityUtility.SanitizeRelationshipRecords(
+            records,
+            isInWorldPawnsOverride: p => p == keptPawn1,
+            isHeldOrSpawnedOverride: _ => false);
+
+        Assert.IsFalse(records.Records.ContainsKey(101), "Record with one or fewer surviving references must be pruned by CleanupUnusedRecords.");
     }
 }

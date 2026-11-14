@@ -263,9 +263,7 @@ public static class OutpostAssemblySpeedUtility
     /// </summary>
     public static string GetEstimateLabel(IEnumerable<Pawn>? pawns, ListeningPostKind kind)
     {
-        string outpostName = kind == ListeningPostKind.AutomatedRelay
-            ? "Automated Post"
-            : (kind == ListeningPostKind.AutomatedSonar ? "Automated Sonar" : "Signal Beacon");
+        string outpostName = CaravanExpeditionUtility.GetListeningPostKindLabel(kind);
 
         if (!HasCapableBuilder(pawns))
         {
