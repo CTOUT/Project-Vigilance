@@ -72,8 +72,11 @@ public class SensoryManager : WorldComponent
     private readonly List<ISensorProvider> activeSensorsCache = new(128);
     private readonly HashSet<int> currentActiveVisionTileIds = new(256);
     private readonly HashSet<int> currentActiveIdentifiedTileIds = new(256);
+    private readonly Dictionary<int, SensorDomainFlags> currentActiveTileDomains = new(256);
     private readonly HashSet<PlanetTile> tmpActiveVisionTiles = new(256);
     private readonly HashSet<PlanetTile> tmpActiveIdentifiedTiles = new(256);
+    private readonly Dictionary<PlanetTile, SensorDomainFlags> tmpActiveTileDomains = new(256);
+    private readonly HashSet<PlanetTile> tmpSonarCoverageTiles = new(128);
     private readonly HashSet<PlanetTile> tmpShadowCandidateTiles = new(64);
     private readonly HashSet<int> tmpPenetratedMaskedTileIds = new(64);
     private readonly HashSet<int> newActiveVisionTileIds = new(256);
@@ -750,21 +753,178 @@ public class SensoryManager : WorldComponent
     public static System.Func<IReadOnlyList<ISensorProvider>>? ActiveSensorsOverride { get; set; }
 
     /// <summary>
+    /// Classifies an <see cref="ISensorProvider"/> into its primary sensory domain.
+    /// </summary>
+    public static SensorDomainFlags GetSensorDomain(ISensorProvider? sensor)
+    {
+        if (sensor == null)
+        {
+            return SensorDomainFlags.None;
+        }
+
+        if (sensor.IsOceanicSonar)
+        {
+            return SensorDomainFlags.Sonar;
+        }
+
+        return sensor.IsTechnological ? SensorDomainFlags.Radar : SensorDomainFlags.Visual;
+    }
+
+    /// <summary>
+    /// Formats active <see cref="SensorDomainFlags"/> into a compact player-facing string
+    /// (e.g. "Visual", "Radar", "Sonar", or "Radar + Sonar").
+    /// </summary>
+    public static string FormatSensorDomainFlags(SensorDomainFlags domains)
+    {
+        if (domains == SensorDomainFlags.None)
+        {
+            return "None";
+        }
+
+        var parts = new List<string>(3);
+        if ((domains & SensorDomainFlags.Visual) != 0) parts.Add("Visual");
+        if ((domains & SensorDomainFlags.Radar) != 0) parts.Add("Radar");
+        if ((domains & SensorDomainFlags.Sonar) != 0) parts.Add("Sonar");
+        return string.Join(" + ", parts);
+    }
+
+    /// <summary>
+    /// Returns all active sensory domains currently covering <paramref name="tile"/>.
+    /// </summary>
+    public SensorDomainFlags GetActiveDomainsForTile(PlanetTile tile)
+    {
+        if (!tile.Valid)
+        {
+            return SensorDomainFlags.None;
+        }
+
+        if (ActiveSensorsOverride == null && currentActiveTileDomains.TryGetValue(tile.tileId, out SensorDomainFlags cached))
+        {
+            return cached;
+        }
+
+        SensorDomainFlags domains = SensorDomainFlags.None;
+        IReadOnlyList<ISensorProvider> sensors = ActiveSensorsOverride != null ? ActiveSensorsOverride() : GetActiveSensors();
+        for (int i = 0; i < sensors.Count; i++)
+        {
+            ISensorProvider sensor = sensors[i];
+            if (!sensor.IsSensorActive || !sensor.SensorTile.Valid)
+            {
+                continue;
+            }
+
+            if (TileNeighborsOverride == null && Find.World?.grid != null && sensor.SensorTile.Layer != tile.Layer)
+            {
+                continue;
+            }
+
+            int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
+            if (sensor.IsOceanicSonar)
+            {
+                if (SonarTraversalUtility.IsTileWaterCovered(tile) &&
+                    SonarTraversalUtility.TryGetSonarDetectionDistance(sensor.SensorTile, tile, maxSteps, out _))
+                {
+                    domains |= SensorDomainFlags.Sonar;
+                }
+            }
+            else
+            {
+                int dist;
+                if (DistanceCalculationOverride != null)
+                {
+                    dist = DistanceCalculationOverride(sensor.SensorTile, tile, maxSteps);
+                }
+                else
+                {
+                    try
+                    {
+                        dist = Find.World?.grid != null
+                            ? Find.World.grid.TraversalDistanceBetween(sensor.SensorTile, tile, passImpassable: true, maxDist: maxSteps)
+                            : Math.Abs(sensor.SensorTile.tileId - tile.tileId);
+                    }
+                    catch
+                    {
+                        dist = int.MaxValue;
+                    }
+                }
+
+                if (dist <= maxSteps)
+                {
+                    domains |= GetSensorDomain(sensor);
+                }
+            }
+        }
+
+        if (domains == SensorDomainFlags.None && currentActiveTileDomains.TryGetValue(tile.tileId, out SensorDomainFlags fallback))
+        {
+            return fallback;
+        }
+
+        return domains;
+    }
+
+    /// <summary>
+    /// Returns all active sensory domains currently capable of detecting <paramref name="target"/>.
+    /// </summary>
+    public SensorDomainFlags GetDetectingDomainsForTarget(IDetectableTarget? target)
+    {
+        if (target == null || !target.CurrentTile.Valid)
+        {
+            return SensorDomainFlags.None;
+        }
+
+        SensorDomainFlags domains = SensorDomainFlags.None;
+        IReadOnlyList<ISensorProvider> sensors = ActiveSensorsOverride != null ? ActiveSensorsOverride() : GetActiveSensors();
+        for (int i = 0; i < sensors.Count; i++)
+        {
+            ISensorProvider sensor = sensors[i];
+            if (!sensor.IsSensorActive || !sensor.SensorTile.Valid)
+            {
+                continue;
+            }
+
+            bool detected;
+            try
+            {
+                detected = sensor.CanDetect(target);
+            }
+            catch
+            {
+                detected = false;
+            }
+
+            if (detected)
+            {
+                domains |= GetSensorDomain(sensor);
+            }
+        }
+
+        if (domains == SensorDomainFlags.None)
+        {
+            domains = GetActiveDomainsForTile(target.CurrentTile);
+        }
+
+        return domains;
+    }
+
+    /// <summary>
     /// Populates the provided set with all planet tiles currently enveloped by active sensors (colonies, caravans, radar stations).
     /// Used by WorldDrawLayer_RadarCoverage to render tactical perimeter boundaries, identification horizons, and holographic honeycomb grids.
     /// Outputs tiles within optical identification range, closest distance to perimeter using exact topological rings,
-    /// and mountain-masked radar shadow tiles inside identification range.
+    /// mountain-masked radar shadow tiles inside identification range, and per-tile active sensory domains.
     /// </summary>
     public void PopulateActiveVisionTiles(
         HashSet<PlanetTile> outTiles,
         HashSet<PlanetTile>? outIdentifiedTiles = null,
         Dictionary<PlanetTile, float>? outTileDistancesFromPerimeter = null,
-        HashSet<PlanetTile>? outMaskedShadowTiles = null)
+        HashSet<PlanetTile>? outMaskedShadowTiles = null,
+        Dictionary<PlanetTile, SensorDomainFlags>? outTileDomains = null)
     {
         outTiles.Clear();
         outIdentifiedTiles?.Clear();
         outTileDistancesFromPerimeter?.Clear();
         outMaskedShadowTiles?.Clear();
+        outTileDomains?.Clear();
         tmpShadowCandidateTiles.Clear();
         tmpPenetratedMaskedTileIds.Clear();
 
@@ -791,15 +951,37 @@ public class SensoryManager : WorldComponent
             float radius = sensor.DetectionRadiusInTiles;
             int radiusSteps = Mathf.Max(1, Mathf.RoundToInt(radius));
             int idRadiusSteps = sensor.IdentificationRadiusInTiles;
+            SensorDomainFlags sensorDomain = GetSensorDomain(sensor);
 
             if (sensor.IsOceanicSonar)
             {
-                SonarTraversalUtility.PopulateSonarCoverage(
-                    centerTile,
-                    radiusSteps,
-                    idRadiusSteps,
-                    outTiles,
-                    outIdentifiedTiles);
+                if (outTileDomains != null)
+                {
+                    tmpSonarCoverageTiles.Clear();
+                    SonarTraversalUtility.PopulateSonarCoverage(
+                        centerTile,
+                        radiusSteps,
+                        idRadiusSteps,
+                        tmpSonarCoverageTiles,
+                        outIdentifiedTiles);
+
+                    foreach (PlanetTile waterTile in tmpSonarCoverageTiles)
+                    {
+                        outTiles.Add(waterTile);
+                        outTileDomains.TryGetValue(waterTile, out SensorDomainFlags existing);
+                        outTileDomains[waterTile] = existing | SensorDomainFlags.Sonar;
+                    }
+                    tmpSonarCoverageTiles.Clear();
+                }
+                else
+                {
+                    SonarTraversalUtility.PopulateSonarCoverage(
+                        centerTile,
+                        radiusSteps,
+                        idRadiusSteps,
+                        outTiles,
+                        outIdentifiedTiles);
+                }
                 continue;
             }
 
@@ -813,6 +995,11 @@ public class SensoryManager : WorldComponent
             {
                 var (currentTile, currentStep) = bfsQueue.Dequeue();
                 outTiles.Add(currentTile);
+                if (outTileDomains != null)
+                {
+                    outTileDomains.TryGetValue(currentTile, out SensorDomainFlags existing);
+                    outTileDomains[currentTile] = existing | sensorDomain;
+                }
 
                 if (idRadiusSteps > 0 && currentStep <= idRadiusSteps)
                 {
@@ -1330,8 +1517,9 @@ public class SensoryManager : WorldComponent
         {
             tmpActiveVisionTiles.Clear();
             tmpActiveIdentifiedTiles.Clear();
+            tmpActiveTileDomains.Clear();
             newActiveVisionTileIds.Clear();
-            PopulateActiveVisionTiles(tmpActiveVisionTiles, tmpActiveIdentifiedTiles);
+            PopulateActiveVisionTiles(tmpActiveVisionTiles, tmpActiveIdentifiedTiles, outTileDomains: tmpActiveTileDomains);
 
             foreach (PlanetTile pt in tmpActiveVisionTiles)
             {
@@ -1345,6 +1533,12 @@ public class SensoryManager : WorldComponent
             foreach (PlanetTile idPt in tmpActiveIdentifiedTiles)
             {
                 currentActiveIdentifiedTileIds.Add(idPt.tileId);
+            }
+
+            currentActiveTileDomains.Clear();
+            foreach (KeyValuePair<PlanetTile, SensorDomainFlags> kvp in tmpActiveTileDomains)
+            {
+                currentActiveTileDomains[kvp.Key.tileId] = kvp.Value;
             }
 
             if (activeVisionChanged)
@@ -1826,6 +2020,7 @@ public class SensoryManager : WorldComponent
         lastActiveSensorStates.Clear();
         currentActiveVisionTileIds.Clear();
         currentActiveIdentifiedTileIds.Clear();
+        currentActiveTileDomains.Clear();
         SweepRevision++;
         PerformSensorySweep();
         WorldDrawLayer_HazeOfWar.Instance?.SetDirty();

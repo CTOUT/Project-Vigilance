@@ -68,11 +68,31 @@ public static class SensoryNarrativeUtility
     /// <summary>
     /// Returns the appropriate world map label for an unidentified contact at Tier 2 (Contact).
     /// </summary>
-    public static string GetContactLabel(ISensorProvider? sensor = null, int trackingId = 0)
+    public static string GetContactLabel(ISensorProvider? sensor = null, int trackingId = 0, SensorDomainFlags domainFlags = SensorDomainFlags.None)
     {
         if (IsLowTech)
         {
             return trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
+        }
+
+        if (domainFlags == SensorDomainFlags.None && sensor != null)
+        {
+            domainFlags = SensoryManager.GetSensorDomain(sensor);
+        }
+
+        if ((domainFlags & SensorDomainFlags.Sonar) != 0)
+        {
+            return trackingId > 0 ? $"Sonar Contact-{trackingId}" : "Sonar Contact";
+        }
+
+        if ((domainFlags & SensorDomainFlags.Radar) != 0)
+        {
+            return trackingId > 0 ? $"Radar Contact-{trackingId}" : "Radar Contact";
+        }
+
+        if ((domainFlags & SensorDomainFlags.Visual) != 0)
+        {
+            return trackingId > 0 ? $"Visual Contact-{trackingId}" : "Visual Contact";
         }
 
         if (sensor != null && !sensor.IsTechnological)

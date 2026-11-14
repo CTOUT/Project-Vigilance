@@ -702,7 +702,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
             if (!isClassified)
             {
-                return SensoryNarrativeUtility.GetContactLabel(trackingId: trackingId);
+                return SensoryNarrativeUtility.GetContactLabel(trackingId: trackingId, domainFlags: GetActiveDetectingDomains());
             }
 
             if (incidentDef != null || Faction != null)
@@ -2112,6 +2112,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
     }
 
+    private SensorDomainFlags GetActiveDetectingDomains()
+    {
+        return SensoryManager.Instance?.GetDetectingDomainsForTarget(this) ?? SensorDomainFlags.None;
+    }
+
     public override string GetInspectString()
     {
         if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Contact)
@@ -2128,9 +2133,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         string factionName = isClassified
             ? (Faction?.Name ?? "Unknown")
             : (SensoryNarrativeUtility.IsLowTech ? "Unknown Faction" : "Unidentified Faction");
+        SensorDomainFlags activeDomains = GetActiveDetectingDomains();
         string label = isClassified
             ? $"{GetIdentifiedGroupLabel()}{idTag}"
-            : SensoryNarrativeUtility.GetContactLabel(trackingId: trackingId);
+            : SensoryNarrativeUtility.GetContactLabel(trackingId: trackingId, domainFlags: activeDomains);
 
         if (isEngagedInTacticalMap)
         {
@@ -2210,8 +2216,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     string designation = trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
                     return $"{designation}\nStatus: Camped for the night\nPace: Stationary (Resuming march at dawn, ~{restHoursLeft:F1}h)\nObservations: Campfires spotted on horizon";
                 }
-                string highTechDesignation = trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
-                return $"{highTechDesignation}\nStatus: Stationary (Camped at night)\nPace: Zero movement telemetry (~{restHoursLeft:F1}h until dawn)";
+                return $"{label.CapitalizeFirst()}\nStatus: Stationary (Camped at night)\nPace: Zero movement telemetry (~{restHoursLeft:F1}h until dawn)";
             }
 
             return $"{label.CapitalizeFirst()} ({factionName})\nCamped for the night (Resuming march at dawn, ~{restHoursLeft:F1}h)\nETA: ~{remainingHours:F1} hours ({Mathf.CeilToInt(actualRemainingTiles)} hexes remaining)";
@@ -2219,6 +2224,9 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
         if (!isClassified)
         {
+            string domainTag = activeDomains != SensorDomainFlags.None
+                ? $"Telemetry ({SensoryManager.FormatSensorDomainFlags(activeDomains)})"
+                : "Telemetry";
             bool isMasked = SensoryTerrainUtility.IsTargetMasked(Tile);
             if (isMasked)
             {
@@ -2227,8 +2235,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                     string designation = trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
                     return $"{designation}\nStatus: Masked by rugged terrain\nPace: ~{currentStepSpeed:F0} hexes/day\nObservations: Force is navigating deep mountain valleys and canyons; classification delayed until exiting to open terrain";
                 }
-                string highTechDesignation = trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
-                return $"{highTechDesignation}\nStatus: Terrain Masked\nSpeed: ~{currentStepSpeed:F0} hexes/day\nTelemetry: Contact signal degraded by mountainous terrain masking; requires open terrain or SIGINT decryption to classify";
+                return $"{label.CapitalizeFirst()}\nStatus: Terrain Masked\nSpeed: ~{currentStepSpeed:F0} hexes/day\n{domainTag}: Contact signal degraded by mountainous terrain masking; requires open terrain or SIGINT decryption to classify";
             }
 
             if (SensoryNarrativeUtility.IsLowTech)
@@ -2236,8 +2243,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 string designation = trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
                 return $"{designation}\nStatus: Spotted in the distance\nPace: ~{currentStepSpeed:F0} hexes/day\nObservations: Identity and intent unknown from this distance";
             }
-            string standardDesignation = trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
-            return $"{standardDesignation}\nStatus: Tracking in progress\nSpeed: ~{currentStepSpeed:F0} hexes/day\nTelemetry: Insufficient sensor data to classify faction";
+            return $"{label.CapitalizeFirst()}\nStatus: Tracking in progress\nSpeed: ~{currentStepSpeed:F0} hexes/day\n{domainTag}: Insufficient sensor data to classify faction";
         }
 
         Map? targetMap = Current.Game.FindMap(destinationTile);

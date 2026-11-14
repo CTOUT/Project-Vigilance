@@ -24,9 +24,13 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private const float IdentificationHalfWidth = 0.038f;      // Distinct bold optical classification horizon ring width
     private const float InteriorHalfWidth = 0.016f;            // Baseline holographic honeycomb grid line width
 
+    public static readonly Color32 SonarPerimeterColorRgb = new(0, 210, 255, 255);
+    public static readonly Color32 VisualPerimeterColorRgb = new(235, 225, 185, 255);
+
     private readonly HashSet<PlanetTile> activeTilesCache = new(256);
     private readonly HashSet<PlanetTile> identifiedTilesCache = new(64);
     private readonly HashSet<PlanetTile> maskedShadowTilesCache = new(64);
+    private readonly Dictionary<PlanetTile, SensorDomainFlags> tileDomainsCache = new(256);
     private readonly Dictionary<PlanetTile, float> tileDistancesCache = new(256);
     private readonly Dictionary<EdgeKey, EdgeInfo> edgesCache = new(1024);
     private readonly List<int> tmpIndices = new(8);
@@ -145,7 +149,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         identifiedTilesCache.Clear();
         tileDistancesCache.Clear();
         maskedShadowTilesCache.Clear();
-        sensory.PopulateActiveVisionTiles(activeTilesCache, identifiedTilesCache, tileDistancesCache, maskedShadowTilesCache);
+        tileDomainsCache.Clear();
+        sensory.PopulateActiveVisionTiles(activeTilesCache, identifiedTilesCache, tileDistancesCache, maskedShadowTilesCache, tileDomainsCache);
 
         int subMeshIndex = 0;
         bool drawOutlines = GeoscapeMod.Settings.radarOutlineStyle != RadarOutlineStyle.None;
@@ -257,6 +262,10 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 bool isIdentified = identifiedTilesCache.Contains(tile);
                 bool isShadow = maskedShadowTilesCache.Contains(tile);
                 tileDistancesCache.TryGetValue(tile, out float hexesFromPerim);
+                if (!tileDomainsCache.TryGetValue(tile, out SensorDomainFlags tileDomain) || tileDomain == SensorDomainFlags.None)
+                {
+                    tileDomain = SensorDomainFlags.Radar;
+                }
 
                 tmpVerts.Clear();
                 tmpNeighbors.Clear();
@@ -292,6 +301,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                         if (!isIdentified) info.HasUnidentifiedTile = true;
                         if (isShadow) info.HasShadowTile = true;
                         if (isIdentified && !isShadow) info.HasUnshadowedIdentifiedTile = true;
+                        info.DomainFlags |= tileDomain;
                         info.HexesFromPerimeterSum += hexesFromPerim;
                         edgesCache[key] = info;
                     }
@@ -323,6 +333,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                             HasUnidentifiedTile = !isIdentified,
                             HasShadowTile = isShadow,
                             HasUnshadowedIdentifiedTile = isIdentified && !isShadow,
+                            DomainFlags = tileDomain,
                             HexesFromPerimeterSum = hexesFromPerim
                         };
                     }
@@ -348,7 +359,9 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                                        info.HasShadowTile &&
                                        info.HasUnshadowedIdentifiedTile;
 
-                if (!isOuterPerimeter && !isIdentificationHorizon && !isShadowContour && !drawGrid)
+                bool hasTechDomain = (info.DomainFlags & (SensorDomainFlags.Radar | SensorDomainFlags.Sonar)) != 0;
+
+                if (!isOuterPerimeter && !isIdentificationHorizon && !isShadowContour && (!drawGrid || !hasTechDomain))
                 {
                     continue;
                 }
@@ -392,7 +405,18 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 if (isOuterPerimeter)
                 {
                     halfWidth = PerimeterHalfWidth;
-                    color = perimeterColor;
+                    if ((info.DomainFlags & SensorDomainFlags.Radar) != 0)
+                    {
+                        color = perimeterColor;
+                    }
+                    else if ((info.DomainFlags & SensorDomainFlags.Sonar) != 0)
+                    {
+                        color = new Color32(SonarPerimeterColorRgb.r, SonarPerimeterColorRgb.g, SonarPerimeterColorRgb.b, alphaPerimeter);
+                    }
+                    else
+                    {
+                        color = new Color32(VisualPerimeterColorRgb.r, VisualPerimeterColorRgb.g, VisualPerimeterColorRgb.b, alphaPerimeter);
+                    }
                 }
                 else if (isIdentificationHorizon)
                 {
@@ -427,8 +451,15 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                     }
 
                     byte interiorAlpha = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.honeycombGridOpacity * factor) * 255);
-                    color = baseColor;
-                    color.a = interiorAlpha;
+                    if ((info.DomainFlags & SensorDomainFlags.Sonar) != 0)
+                    {
+                        color = new Color32(SonarPerimeterColorRgb.r, SonarPerimeterColorRgb.g, SonarPerimeterColorRgb.b, interiorAlpha);
+                    }
+                    else
+                    {
+                        color = baseColor;
+                        color.a = interiorAlpha;
+                    }
                 }
 
                 Vector3 v0 = info.V0;
@@ -725,6 +756,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         public bool HasUnidentifiedTile;
         public bool HasShadowTile;
         public bool HasUnshadowedIdentifiedTile;
+        public SensorDomainFlags DomainFlags;
         public float HexesFromPerimeterSum;
     }
 }

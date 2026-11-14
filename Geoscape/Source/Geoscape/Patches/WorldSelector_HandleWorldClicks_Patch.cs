@@ -208,9 +208,10 @@ public static class WorldSelector_HandleWorldClicks_Patch
         }
 
         var allObjects = worldObjectsHolder?.AllWorldObjects;
-        Settlement? playerColonyAtDest = playerSettlements.FirstOrDefault(s => s.Tile == clickedTile);
-        WorldObject_ListeningPost? post = allObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == effectiveTile);
-        WorldObject? destObj = playerColonyAtDest ?? allObjects?.FirstOrDefault(w => w.Tile == clickedTile && !(w is WorldObject_ListeningPost));
+        Settlement? playerColonyAtDest = playerSettlements.FirstOrDefault(s => s.Tile == effectiveTile);
+        WorldObject_ListeningPost? post = allObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == effectiveTile && !p.Destroyed);
+        WorldObject? blockingSite = OutpostTileOccupancyUtility.GetBlockingFacilityOrSiteAt(effectiveTile, playerSettlements);
+        WorldObject? destObj = playerColonyAtDest ?? blockingSite ?? allObjects?.FirstOrDefault(w => w.Tile == effectiveTile && !(w is WorldObject_ListeningPost));
 
         string destName = $"Tile {effectiveTile.tileId}";
         if (destObj != null)
@@ -253,7 +254,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                 effectiveTile,
                 isImpassable,
                 targetName,
-                destObj,
+                blockingSite,
                 post,
                 playerColonyAtDest,
                 worldGrid);
@@ -273,7 +274,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                 effectiveTile,
                 isImpassable,
                 targetName,
-                destObj,
+                blockingSite,
                 post,
                 worldGrid,
                 clickedTile,
@@ -315,7 +316,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                         effectiveTile,
                         isImpassable,
                         targetName,
-                        destObj,
+                        blockingSite,
                         post,
                         playerColonyAtDest,
                         worldGrid);
@@ -352,7 +353,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                         effectiveTile,
                         isImpassable,
                         targetName,
-                        destObj,
+                        blockingSite,
                         post,
                         worldGrid,
                         clickedTile,
@@ -579,7 +580,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                     }, MenuOptionPriority.Low));
                 }
             }
-            else
+            else if (destObj == null && playerColonyAtDest == null)
             {
                 bool canAffordRelay = OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out string missingRelay);
                 string relayLabel = canAffordRelay
@@ -1028,7 +1029,8 @@ public static class WorldSelector_HandleWorldClicks_Patch
         }
 
         string destName = $"Tile {effectiveTile.tileId}";
-        WorldObject? destObj = worldObjectsHolder?.AllWorldObjects?.FirstOrDefault(w => w.Tile == clickedTile && !(w is WorldObject_ListeningPost));
+        WorldObject? blockingSite = OutpostTileOccupancyUtility.GetBlockingFacilityOrSiteAt(effectiveTile);
+        WorldObject? destObj = blockingSite ?? worldObjectsHolder?.AllWorldObjects?.FirstOrDefault(w => w.Tile == effectiveTile && !(w is WorldObject_ListeningPost));
         if (destObj != null)
         {
             bool isDestMasked = SensoryManager.ShouldMaskWorldObjectAsUnknown(destObj);
@@ -1045,10 +1047,9 @@ public static class WorldSelector_HandleWorldClicks_Patch
             CaravanExpeditionUtility.OpenCaravanFormingDialog(settlement.Map, effectiveTile);
         }, MenuOptionPriority.Default));
 
-        bool hasOutpost = worldObjectsHolder?.AllWorldObjects != null &&
-                          worldObjectsHolder.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == effectiveTile);
+        bool hasOutpost = OutpostTileOccupancyUtility.TryGetListeningPostAt(effectiveTile, out _);
 
-        if (!hasOutpost)
+        if (!hasOutpost && blockingSite == null)
         {
             Map? map = GetSafeMap(settlement);
             if (map != null)

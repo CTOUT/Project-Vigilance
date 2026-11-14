@@ -426,6 +426,12 @@ public static class CaravanExpeditionUtility
             return;
         }
 
+        if (!OutpostTileOccupancyUtility.CanConstructOutpostAt(targetTile, out string blockedReason))
+        {
+            Messages.Message(blockedReason, MessageTypeDefOf.RejectInput, false);
+            return;
+        }
+
         // 1. Register pending directive
         RegisterPendingDirective(targetTile, new OutpostConstructionDirective
         {

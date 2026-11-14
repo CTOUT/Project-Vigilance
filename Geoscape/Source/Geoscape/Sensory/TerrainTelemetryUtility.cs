@@ -148,6 +148,28 @@ public static class TerrainTelemetryUtility
     }
 
     /// <summary>
+    /// Formats a compact single-line telemetry summary describing which active sensor domains cover <paramref name="tile"/>
+    /// and the current reconnaissance fidelity level, or an empty string if no active sensor covers it.
+    /// </summary>
+    public static string FormatActiveTelemetrySummary(PlanetTile tile)
+    {
+        if (!tile.Valid || SensoryManager.Instance == null)
+        {
+            return string.Empty;
+        }
+
+        SensorDomainFlags domains = SensoryManager.Instance.GetActiveDomainsForTile(tile);
+        if (domains == SensorDomainFlags.None)
+        {
+            return string.Empty;
+        }
+
+        TileIntelLevel level = GetTileIntelLevel(tile);
+        string fidelity = level == TileIntelLevel.Identified ? "Identified" : "Detected";
+        return $"Telemetry: {SensoryManager.FormatSensorDomainFlags(domains)} ({fidelity})";
+    }
+
+    /// <summary>
     /// Builds the coarse inspect-pane summary for a <see cref="TileIntelLevel.DetectedOnly"/> tile,
     /// including coordinates, hilliness, surface roads/rivers, 5-degree estimated temperature,
     /// and a signature notice when a hidden man-made landmark is present.
@@ -199,6 +221,13 @@ public static class TerrainTelemetryUtility
         sb.AppendLine();
         sb.Append("Estimated temperature: ");
         sb.Append(FormatEstimatedTemperature(tile));
+
+        string telemetrySummary = FormatActiveTelemetrySummary(tile);
+        if (!string.IsNullOrEmpty(telemetrySummary))
+        {
+            sb.AppendLine();
+            sb.Append(telemetrySummary);
+        }
 
         if (HasUnidentifiedManMadeLandmark(tile))
         {

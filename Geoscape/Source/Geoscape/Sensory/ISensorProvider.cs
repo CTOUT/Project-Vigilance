@@ -1,7 +1,20 @@
+using System;
 using RimWorld.Planet;
 using UnityEngine;
 
 namespace ProjectVigilance.Geoscape.Sensory;
+
+/// <summary>
+/// Discrete surveillance domains capable of covering Geoscape tiles and detecting contacts.
+/// </summary>
+[Flags]
+public enum SensorDomainFlags
+{
+    None = 0,
+    Visual = 1 << 0,
+    Radar = 1 << 1,
+    Sonar = 1 << 2
+}
 
 /// <summary>
 /// Contract implemented by any sensor source (colonies, caravans, listening posts, radar dishes).

@@ -71,12 +71,9 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
                 return FloatMenuAcceptanceReport.WithFailMessage("Automated sonar stations require a coastal tile adjacent to water.");
             }
 
-            var worldObjects = Current.Game?.World?.worldObjects;
-            bool hasCompletedPost = worldObjects?.AllWorldObjects != null &&
-                           worldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == target && !p.IsConstructing);
-            if (hasCompletedPost)
+            if (!OutpostTileOccupancyUtility.CanConstructOutpostAt(target, out string blockedReason, allowUnderConstructionPost: true))
             {
-                return FloatMenuAcceptanceReport.WithFailMessage("An active outpost already exists at this location.");
+                return FloatMenuAcceptanceReport.WithFailMessage(blockedReason);
             }
         }
 
@@ -107,6 +104,25 @@ public class CaravanArrivalAction_ConstructOutpost : CaravanArrivalAction
         }
 
         PlanetTile targetTile = caravan.Tile.Valid ? caravan.Tile : (destinationTile.Valid ? destinationTile : caravan.Tile);
+
+        if (OutpostTileOccupancyUtility.TryGetListeningPostAt(targetTile, out WorldObject_ListeningPost? existingPost, includeUnderConstruction: true) &&
+            existingPost != null)
+        {
+            if (existingPost.IsConstructing)
+            {
+                Messages.Message($"Caravan {caravan.LabelCap} arrived at Tile {targetTile} and will resume construction of {existingPost.LabelCap}.", MessageTypeDefOf.PositiveEvent, false);
+                return;
+            }
+
+            Messages.Message($"Cannot construct outpost at Tile {targetTile}: tile already occupied by {existingPost.LabelCap}.", MessageTypeDefOf.RejectInput, false);
+            return;
+        }
+
+        if (!OutpostTileOccupancyUtility.CanConstructOutpostAt(targetTile, out string blockedReason, allowUnderConstructionPost: false))
+        {
+            Messages.Message(blockedReason, MessageTypeDefOf.RejectInput, false);
+            return;
+        }
 
         List<Pawn>? pawns = null;
         try

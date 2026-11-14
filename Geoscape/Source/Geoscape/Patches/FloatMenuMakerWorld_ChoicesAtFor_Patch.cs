@@ -121,10 +121,10 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 return;
             }
 
-            bool hasOutpost = SafeWorldObjects?.AllWorldObjects != null &&
-                              SafeWorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
+            bool hasOutpost = OutpostTileOccupancyUtility.TryGetListeningPostAt(clickedTile, out WorldObject_ListeningPost? post);
+            WorldObject? blockingSite = OutpostTileOccupancyUtility.GetBlockingFacilityOrSiteAt(clickedTile);
 
-            if (!hasOutpost)
+            if (!hasOutpost && blockingSite == null)
             {
                 __result ??= new List<FloatMenuOption>();
 
@@ -227,16 +227,12 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                     }
                 }
             }
-            else
+            else if (post != null)
             {
-                WorldObject_ListeningPost? post = SafeWorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
-                if (post != null)
+                __result ??= new List<FloatMenuOption>();
+                foreach (var opt in post.GetFloatMenuOptions(caravan))
                 {
-                    __result ??= new List<FloatMenuOption>();
-                    foreach (var opt in post.GetFloatMenuOptions(caravan))
-                    {
-                        AddOptionIfNotPresent(__result, opt);
-                    }
+                    AddOptionIfNotPresent(__result, opt);
                 }
             }
         }
@@ -292,10 +288,10 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 }
                 else
                 {
-                    bool hasOutpost = SafeWorldObjects?.AllWorldObjects != null &&
-                                      SafeWorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == clickedTile);
+                    bool hasOutpost = OutpostTileOccupancyUtility.TryGetListeningPostAt(clickedTile, out WorldObject_ListeningPost? post);
+                    WorldObject? blockingSite = OutpostTileOccupancyUtility.GetBlockingFacilityOrSiteAt(clickedTile);
 
-                    if (!hasOutpost)
+                    if (!hasOutpost && blockingSite == null)
                     {
                         // Move here
                         __result.Add(new FloatMenuOption(
@@ -423,7 +419,6 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                     }
                     else
                     {
-                        WorldObject_ListeningPost? post = SafeWorldObjects?.AllWorldObjects?.OfType<WorldObject_ListeningPost>().FirstOrDefault(p => p.Tile == clickedTile);
                         if (post != null)
                         {
                             if (post.IsConstructing)
@@ -494,6 +489,17 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                                     MenuOptionPriority.Default));
                             }
                         }
+                        else if (blockingSite != null)
+                        {
+                            // Tile is occupied by a camp, site, or ruins: allow movement without outpost deployment
+                            __result.Add(new FloatMenuOption(
+                                $"Move to Tile {clickedTile.tileId}",
+                                () =>
+                                {
+                                    caravan.pather.StartPath(clickedTile, null, repathImmediately: true, resetPauseStatus: true);
+                                },
+                                MenuOptionPriority.Default));
+                        }
                     }
                 }
             }
@@ -518,10 +524,10 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                         },
                         MenuOptionPriority.Default));
 
-                    bool hasOutpostNearby = SafeWorldObjects?.AllWorldObjects != null &&
-                                            SafeWorldObjects.AllWorldObjects.OfType<WorldObject_ListeningPost>().Any(p => p.Tile == bestNearby);
+                    bool hasOutpostNearby = OutpostTileOccupancyUtility.TryGetListeningPostAt(bestNearby, out _);
+                    WorldObject? blockingSiteNearby = OutpostTileOccupancyUtility.GetBlockingFacilityOrSiteAt(bestNearby);
 
-                    if (!hasOutpostNearby)
+                    if (!hasOutpostNearby && blockingSiteNearby == null)
                     {
                         bool canAffordRelay = OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out string missingRelay);
                         string relayLabel = canAffordRelay

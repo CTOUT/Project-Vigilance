@@ -19,6 +19,66 @@ namespace ProjectVigilance.Geoscape.Patches;
 public static class StartingSiteSelectionFeedback_Patch
 {
     /// <summary>
+    /// Enforces tile exclusivity on outpost-occupied tiles when founding a new settlement or colony.
+    /// Runs at high priority so occupied outpost tiles reject before unexplored-terrain masking runs.
+    /// </summary>
+    [HarmonyPatch(typeof(TileFinder), nameof(TileFinder.IsValidTileForNewSettlement), typeof(PlanetTile), typeof(StringBuilder), typeof(bool))]
+    public static class TileFinder_IsValidTileForNewSettlement_OutpostExclusivity_Patch
+    {
+        [HarmonyPostfix]
+        [HarmonyPriority(Priority.High)]
+        public static void Postfix(PlanetTile tile, StringBuilder? reason, ref bool __result)
+        {
+            if (__result &&
+                OutpostTileOccupancyUtility.TryGetListeningPostAt(tile, out WorldObject_ListeningPost? post) &&
+                post != null)
+            {
+                __result = false;
+                if (reason != null)
+                {
+                    reason.Clear();
+                    reason.Append(OutpostTileOccupancyUtility.GetSettleOrCampBlockedByOutpostMessage(post));
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Prevents creating a temporary camp or map on a tile occupied by an outpost.
+    /// </summary>
+    [HarmonyPatch(typeof(SettleInEmptyTileUtility), nameof(SettleInEmptyTileUtility.CanCreateMapAt), typeof(PlanetTile), typeof(bool))]
+    public static class SettleInEmptyTileUtility_CanCreateMapAt_Patch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(PlanetTile tile, ref bool __result)
+        {
+            if (__result && OutpostTileOccupancyUtility.TryGetListeningPostAt(tile, out _))
+            {
+                __result = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Updates the caravan "Make Camp" command with an explicit explanation when blocked by an outpost.
+    /// </summary>
+    [HarmonyPatch(typeof(SettleInEmptyTileUtility), nameof(SettleInEmptyTileUtility.SetupCamp), typeof(Caravan))]
+    public static class SettleInEmptyTileUtility_SetupCamp_Patch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(Caravan? caravan, Command? __result)
+        {
+            if (caravan != null &&
+                __result != null &&
+                OutpostTileOccupancyUtility.TryGetListeningPostAt(caravan.Tile, out WorldObject_ListeningPost? post) &&
+                post != null)
+            {
+                __result.Disable(OutpostTileOccupancyUtility.GetSettleOrCampBlockedByOutpostMessage(post));
+            }
+        }
+    }
+
+    /// <summary>
     /// Intercepts settlement validity checks. Under Fog of War, if an unexplored tile cannot support
     /// a colony (e.g. ocean, impassable mountains), replaces explicit terrain rejection reasons
     /// with an ambiguous telemetry error to prevent sonar-probing the shroud.
