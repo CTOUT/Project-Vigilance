@@ -906,7 +906,23 @@ public class GeoscapeSettings : ModSettings
                     "Developer Mode override. Bypasses all mutability constraints, allowing downgrades and editing of immutable rules. All changes are marked [Unsafe] in the audit ledger.");
                 if (req != prev)
                 {
-                    UnsafeRuleOverride.SetRequested(req);
+                    if (!req)
+                    {
+                        UnsafeRuleOverride.SetRequested(false);
+                    }
+                    else
+                    {
+                        string warnText = "WARNING: Enabling unsafe rule transitions allows bypassing all campaign mutability constraints (including irreversible downgrades and immutable rule overrides).\n\n" +
+                                          "Modifying locked rules mid-campaign can desynchronise active incursion intelligence, corrupt fog-of-war exploration state, or compromise campaign integrity.\n\n" +
+                                          "This override lasts for this game session only, but any rule changes made while active are permanently signed into the campaign audit ledger.\n\n" +
+                                          "Do you wish to enable Developer Mode unsafe rule transitions?";
+                        Dialog_MessageBox confirmBox = Dialog_MessageBox.CreateConfirmation(
+                            warnText,
+                            () => UnsafeRuleOverride.SetRequested(true),
+                            destructive: true,
+                            title: "Enable Unsafe Rule Transitions");
+                        Find.WindowStack?.Add(confirmBox);
+                    }
                 }
             }
 

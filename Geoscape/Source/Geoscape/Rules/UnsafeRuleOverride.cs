@@ -13,6 +13,9 @@ public static class UnsafeRuleOverride
     private static bool requested;
 
     [ThreadStatic]
+    private static bool? lastDevMode;
+
+    [ThreadStatic]
     private static Func<bool>? devModeProviderOverride;
 
     public static Func<bool>? DevModeProviderOverride
@@ -44,6 +47,12 @@ public static class UnsafeRuleOverride
 
     public static void Notify_DevModeChanged(bool devModeNow)
     {
+        if (lastDevMode.HasValue && lastDevMode.Value == devModeNow)
+        {
+            return;
+        }
+        lastDevMode = devModeNow;
+
         if (devModeNow && requested)
         {
             RecordTransition(true, "Developer mode switched on while override requested");
@@ -82,5 +91,6 @@ public static class UnsafeRuleOverride
     {
         requested = false;
         devModeProviderOverride = null;
+        lastDevMode = null;
     }
 }

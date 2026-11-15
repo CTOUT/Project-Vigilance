@@ -355,15 +355,63 @@ public class CampaignRulesTests
         Assert.IsTrue(UnsafeRuleOverride.Effective);
         Assert.AreEqual(RuleChangeKind.DevOverrideEnabled, campaign.Ledger[campaign.Ledger.Count - 1].kind);
 
+        // Apply an unsafe rule change while override is active
+        campaign.ForceApplyUnsafe(campaign.Rules.Visibility, VisibilityMode.PlanetarySurveillance);
+        Assert.AreEqual(RuleChangeKind.UnsafeChange, campaign.Ledger[campaign.Ledger.Count - 1].kind);
+
         // Turn off DevMode and notify
         devMode = false;
         UnsafeRuleOverride.Notify_DevModeChanged(false);
         Assert.IsFalse(UnsafeRuleOverride.Effective);
         Assert.IsFalse(UnsafeRuleOverride.Requested);
 
-        // Check ledger recorded disabled transition
-        Assert.IsTrue(campaign.Ledger.Count >= 2);
-        Assert.AreEqual(RuleChangeKind.DevOverrideDisabled, campaign.Ledger[campaign.Ledger.Count - 1].kind);
+        // Audit trail must preserve override activation, rule mutation, and override deactivation
+        Assert.AreEqual(3, campaign.Ledger.Count);
+        Assert.AreEqual(RuleChangeKind.DevOverrideEnabled, campaign.Ledger[0].kind);
+        Assert.AreEqual(RuleChangeKind.UnsafeChange, campaign.Ledger[1].kind);
+        Assert.AreEqual(RuleChangeKind.DevOverrideDisabled, campaign.Ledger[2].kind);
+    }
+
+    [TestMethod]
+    public void UnsafeRuleOverride_TransientToggleWithoutRuleEdits_CancelsLedgerRecord()
+    {
+        GeoscapeCampaignRules campaign = new();
+        GeoscapeCampaignRules.TestInstance = campaign;
+
+        bool devMode = true;
+        UnsafeRuleOverride.DevModeProviderOverride = () => devMode;
+
+        // Repeated toggles without rule edits
+        for (int i = 0; i < 5; i++)
+        {
+            UnsafeRuleOverride.SetRequested(true);
+            Assert.AreEqual(1, campaign.Ledger.Count);
+            Assert.AreEqual(RuleChangeKind.DevOverrideEnabled, campaign.Ledger[0].kind);
+
+            UnsafeRuleOverride.SetRequested(false);
+            Assert.AreEqual(0, campaign.Ledger.Count);
+        }
+    }
+
+    [TestMethod]
+    public void UnsafeRuleOverride_DeduplicatesConsecutiveTransitions()
+    {
+        GeoscapeCampaignRules campaign = new();
+        GeoscapeCampaignRules.TestInstance = campaign;
+
+        bool devMode = true;
+        UnsafeRuleOverride.DevModeProviderOverride = () => devMode;
+
+        // Duplicate enabled notifications
+        campaign.Record(RuleChangeKind.DevOverrideEnabled);
+        campaign.Record(RuleChangeKind.DevOverrideEnabled);
+        Assert.AreEqual(1, campaign.Ledger.Count);
+
+        // Duplicate disabled notifications
+        campaign.Record(RuleChangeKind.Escalation, "ruleKey", "from", "to");
+        campaign.Record(RuleChangeKind.DevOverrideDisabled);
+        campaign.Record(RuleChangeKind.DevOverrideDisabled);
+        Assert.AreEqual(3, campaign.Ledger.Count);
     }
 
     // =========================================================================

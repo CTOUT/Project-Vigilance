@@ -575,6 +575,24 @@ public sealed class GeoscapeCampaignRules : WorldComponent
         EnsureInitialised();
         int now = CurrentTick;
 
+        // Cancel out transient developer override toggles if no rule edits occurred while active
+        if (kind == RuleChangeKind.DevOverrideDisabled && ledger.Count > 0 && ledger[ledger.Count - 1].kind == RuleChangeKind.DevOverrideEnabled)
+        {
+            ledger.RemoveAt(ledger.Count - 1);
+            return;
+        }
+
+        // Deduplicate consecutive identical override state events
+        if (kind == RuleChangeKind.DevOverrideEnabled && ledger.Count > 0 && ledger[ledger.Count - 1].kind == RuleChangeKind.DevOverrideEnabled)
+        {
+            return;
+        }
+
+        if (kind == RuleChangeKind.DevOverrideDisabled && ledger.Count > 0 && ledger[ledger.Count - 1].kind == RuleChangeKind.DevOverrideDisabled)
+        {
+            return;
+        }
+
         // Merge repeated edits to the same key within the same tick (e.g. dev-mode slider drags)
         if (ledger.Count > 0 && !string.IsNullOrEmpty(ruleKey))
         {
