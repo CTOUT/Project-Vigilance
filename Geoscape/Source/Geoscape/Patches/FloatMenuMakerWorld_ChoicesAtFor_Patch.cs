@@ -187,7 +187,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 bool canAffordBeacon = OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out string missingBeacon);
                 if (!canAffordBeacon)
                 {
-                    __result.Add(new FloatMenuOption($"Construct Signal Beacon ({missingBeacon})", null, MenuOptionPriority.Default)
+                    __result.Add(new FloatMenuOption($"Construct Signal Beacon ({missingBeacon})", null, MenuOptionPriority.Low)
                     {
                         Disabled = true
                     });
@@ -259,7 +259,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                         {
                             Messages.Message($"Caravan {caravan.LabelCap} en route towards unexplored sector {clickedTile.tileId}.", MessageTypeDefOf.TaskCompletion, false);
                         }
-                    }, MenuOptionPriority.Default)
+                    }, MenuOptionPriority.High)
                 };
                 return;
             }
@@ -508,7 +508,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
             {
                 __result ??= new List<FloatMenuOption>();
 
-                __result.Add(new FloatMenuOption($"Tile {clickedTile.tileId} is impassable (Mountain / Ocean)", null, MenuOptionPriority.Default)
+                __result.Add(new FloatMenuOption($"Tile {clickedTile.tileId} is impassable (Mountain / Ocean)", null, MenuOptionPriority.Low)
                 {
                     Disabled = true
                 });

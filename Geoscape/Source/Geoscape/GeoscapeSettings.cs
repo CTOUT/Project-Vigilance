@@ -60,8 +60,8 @@ public class GeoscapeSettings : ModSettings
 
     private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.Sensory;
     private static readonly Vector2[] scrollPositions = new Vector2[5];
-    private static readonly float[] tabHeights = { 460f, 520f, 320f, 480f, 420f };
-    private static float radarColumnsHeight = 170f;
+    private static readonly float[] tabHeights = { 960f, 520f, 320f, 480f, 420f };
+    private static float radarColumnsHeight = 180f;
     private static float shadowGridHeight = 56f;
 
     private static readonly Color LatchedTabFill = new(0.12f, 0.22f, 0.32f, 0.85f);

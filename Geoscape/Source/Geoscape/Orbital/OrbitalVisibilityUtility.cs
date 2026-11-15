@@ -172,11 +172,11 @@ public static class OrbitalVisibilityUtility
     }
 
     /// <summary>
-    /// Checks whether the given map possesses an active, powered Comms Console.
+    /// Returns the first operational, powered Comms Console on the given map, or null if none exist.
     /// </summary>
-    public static bool HasPoweredCommsConsole(Map map)
+    public static Building_CommsConsole? FindPoweredCommsConsole(Map map)
     {
-        if (map?.listerBuildings?.allBuildingsColonist == null) return false;
+        if (map?.listerBuildings?.allBuildingsColonist == null) return null;
         var buildings = map.listerBuildings.allBuildingsColonist;
         for (int i = 0; i < buildings.Count; i++)
         {
@@ -186,10 +186,18 @@ public static class OrbitalVisibilityUtility
                 CompPowerTrader power = console.GetComp<CompPowerTrader>();
                 if (power == null || power.PowerOn)
                 {
-                    return true;
+                    return console;
                 }
             }
         }
-        return false;
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether the given map possesses an active, powered Comms Console.
+    /// </summary>
+    public static bool HasPoweredCommsConsole(Map map)
+    {
+        return FindPoweredCommsConsole(map) != null;
     }
 }

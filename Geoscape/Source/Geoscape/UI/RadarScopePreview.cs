@@ -115,6 +115,7 @@ internal static class RadarScopePreview
         // 9. Tactical Bezel & Corner Brackets
         DrawCornerBrackets(rect);
         Widgets.DrawBox(rect, 1, BaseContent.GreyTex);
+        Widgets.DrawHighlightIfMouseover(rect);
 
         // 10. Sample Telemetry Blips
         // Colony Core
@@ -140,6 +141,11 @@ internal static class RadarScopePreview
         Text.Font = GameFont.Tiny;
         GUI.color = ScopeLabelColor;
         Widgets.Label(new Rect(rect.x + 5f, rect.y + 3f, 95f, 16f), "HUD SCOPE");
+
+        GUI.color = new Color(0f, 0.85f, 1f, 0.85f);
+        Text.Anchor = TextAnchor.UpperRight;
+        Widgets.Label(new Rect(rect.xMax - 22f, rect.y + 3f, 18f, 16f), "(?)");
+        Text.Anchor = TextAnchor.UpperLeft;
 
         GUI.color = IdentifiedLabelColor;
         Widgets.Label(new Rect(idContactPos.x + 4f, idContactPos.y - 7f, 28f, 14f), "TR-1");

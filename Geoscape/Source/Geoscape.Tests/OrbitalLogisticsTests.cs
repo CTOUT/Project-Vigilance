@@ -408,4 +408,40 @@ public sealed class OrbitalLogisticsTests
             WorldObject_DrawPos_Patch.IsSpaceObjectOverride = null;
         }
     }
+
+    [TestMethod]
+    public void Satellite_Trade_CheckColonyOverpass_WhenNotPlaying_DoesNotThrow()
+    {
+        Satellite_Trade sat = new();
+        sat.InitializeSatellite(
+            SatelliteRole.Trade,
+            new OrbitalParameters(600f, 62500, 42f, 0f, -3.5f, 0f, 0.8f, 0),
+            stationId: 101,
+            callsign: "Trade-Test-1");
+
+        // Act & Assert
+        sat.CheckColonyOverpass();
+        Assert.AreEqual(0, sat.ActiveOverpassMapIds.Count);
+    }
+
+    [TestMethod]
+    public void Satellite_Trade_PostRemove_ClearsActiveOverpassMapIds()
+    {
+        Satellite_Trade sat = new();
+        sat.InitializeSatellite(
+            SatelliteRole.Trade,
+            new OrbitalParameters(600f, 62500, 42f, 0f, -3.5f, 0f, 0.8f, 0),
+            stationId: 101,
+            callsign: "Trade-Test-1");
+
+        sat.PostRemove();
+        Assert.AreEqual(0, sat.ActiveOverpassMapIds.Count);
+    }
+
+    [TestMethod]
+    public void OrbitalVisibilityUtility_FindPoweredCommsConsole_NullMap_ReturnsNull()
+    {
+        Assert.IsNull(OrbitalVisibilityUtility.FindPoweredCommsConsole(null!));
+        Assert.IsFalse(OrbitalVisibilityUtility.HasPoweredCommsConsole(null!));
+    }
 }

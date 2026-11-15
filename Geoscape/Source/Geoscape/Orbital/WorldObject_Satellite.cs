@@ -118,14 +118,20 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
     private void SetTileSafe(PlanetTile newTile)
     {
-        if (Find.World?.worldObjects != null)
+        try
         {
-            Tile = newTile;
+            if (Find.World?.worldObjects != null && newTile.Tile != null)
+            {
+                Tile = newTile;
+                return;
+            }
         }
-        else
+        catch (NullReferenceException)
         {
-            WorldObjectAccessUtility.SetTileRaw(this, newTile);
+            // Fallback for layers or world states lacking ground tile definitions (e.g. FastTileFinder NRE)
         }
+
+        WorldObjectAccessUtility.SetTileRaw(this, newTile);
     }
 
     public override void SpawnSetup()
@@ -136,7 +142,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
             satelliteCallsign = LabelCap.NullOrEmpty() ? $"{role}-{ID}" : LabelCap;
         }
 
-        Tile = CurrentSubSatelliteTile;
+        SetTileSafe(CurrentSubSatelliteTile);
         OrbitalManager.Instance?.RegisterSatellite(this);
 
         if (IsSensorActive && (Faction?.IsPlayer == true || (Faction == null && Find.World == null)))
@@ -147,7 +153,11 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
     public override void PostRemove()
     {
-        base.PostRemove();
+        if (Current.ProgramState == ProgramState.Playing)
+        {
+            base.PostRemove();
+        }
+
         OrbitalManager.Instance?.DeregisterSatellite(this);
 
         if (IsSensorActive)

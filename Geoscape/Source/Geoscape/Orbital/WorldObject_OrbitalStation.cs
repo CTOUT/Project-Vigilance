@@ -68,7 +68,7 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
         }
 
         // Align tile to current sub-station coordinates
-        Tile = CurrentSubSatelliteTile;
+        SetTileSafe(CurrentSubSatelliteTile);
         OrbitalManager.Instance?.RegisterStation(this);
     }
 
@@ -109,14 +109,20 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
 
     private void SetTileSafe(PlanetTile newTile)
     {
-        if (Find.World?.worldObjects != null)
+        try
         {
-            Tile = newTile;
+            if (Find.World?.worldObjects != null && newTile.Tile != null)
+            {
+                Tile = newTile;
+                return;
+            }
         }
-        else
+        catch (NullReferenceException)
         {
-            WorldObjectAccessUtility.SetTileRaw(this, newTile);
+            // Fallback for layers or world states lacking ground tile definitions (e.g. FastTileFinder NRE)
         }
+
+        WorldObjectAccessUtility.SetTileRaw(this, newTile);
     }
 
     public void RegisterChildSatellite(WorldObject_Satellite satellite)

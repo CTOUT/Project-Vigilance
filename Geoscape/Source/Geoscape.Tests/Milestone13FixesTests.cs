@@ -32,6 +32,28 @@ public sealed class Milestone13FixesTests
     public void Cleanup() => GeoscapeTestHarness.ResetAllStaticState();
 
     [TestMethod]
+    public void DebugActionsVigilance_AllActionsAreAllowedInGameState()
+    {
+        var methods = typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance).GetMethods(
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+
+        int actionCount = 0;
+        foreach (var m in methods)
+        {
+            var attr = m.GetCustomAttributes(typeof(LudeonTK.DebugActionAttribute), false).FirstOrDefault() as LudeonTK.DebugActionAttribute;
+            if (attr != null)
+            {
+                actionCount++;
+                // Cannot have both WorldRenderedNow (4) and IsCurrentlyOnMap (8) because RimWorld checks them with logical AND
+                bool hasWorld = (attr.allowedGameStates & LudeonTK.AllowedGameStates.WorldRenderedNow) != 0;
+                bool hasMap = (attr.allowedGameStates & LudeonTK.AllowedGameStates.IsCurrentlyOnMap) != 0;
+                Assert.IsFalse(hasWorld && hasMap, $"Method {m.Name} combines WorldRenderedNow and IsCurrentlyOnMap, making it impossible to satisfy in RimWorld!");
+            }
+        }
+        Assert.IsTrue(actionCount >= 10, "Expected at least 10 debug actions.");
+    }
+
+    [TestMethod]
     public void AutomatedSonar_CalculatesCorrectBaseRadii()
     {
         var (detection, identification) = WorldObject_ListeningPost.CalculateRadii(

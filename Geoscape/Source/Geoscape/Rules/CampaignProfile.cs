@@ -58,4 +58,14 @@ public static class CampaignProfileExtensions
         CampaignProfile.Custom                => "Custom",
         _                                     => profile.ToString()
     };
+
+    public static string GetTooltipDescription(this CampaignProfile profile) => profile switch
+    {
+        CampaignProfile.FogOfWar              => "Standard Project Vigilance experience. Unexplored hexes shrouded in darkness; dynamic charting through caravans, outposts, and radar networks.",
+        CampaignProfile.PlanetarySurveillance => "World geography and biomes known from orbital scans. Dynamic incursions and outposts concealed outside sensor range.",
+        CampaignProfile.HardcoreVigilance     => "Strict sensory limits: planetary shroud, tightened lookout horizons, terrain masking, and nocturnal vigilance penalties.",
+        CampaignProfile.Omniscient            => "Vanilla RimWorld global visibility: all settlements, terrain, and landmarks revealed from day one.",
+        CampaignProfile.Custom                => "Fine-tuned custom ruleset configured through individual simulation toggles.",
+        _                                     => string.Empty
+    };
 }

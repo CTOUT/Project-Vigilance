@@ -355,4 +355,44 @@ public sealed class HazeConcealmentAndRumourTests
         Assert.IsFalse(SensoryManager.RequiresSiteIdentification(caravan));
         Assert.IsFalse(SensoryManager.RequiresSiteIdentification(waypoint));
     }
+
+    [TestMethod]
+    public void QuestPart_Delay_CompTick_SuspendsTimeoutAndFreezesTicksLeftWhileConcealed()
+    {
+        var hazeManager = new HazeReconnaissanceManager(null!);
+        HazeReconnaissanceManager.Instance = hazeManager;
+
+        var site = new Site { ID = 99101, customLabel = "Ancient Treasure Vault" };
+        HarmonyLib.Traverse.Create(site).Field("tile").SetValue((PlanetTile)88);
+        HarmonyLib.Traverse.Create(site).Field("spawned").SetValue(true);
+        HazeReconnaissanceManager.WorldObjectLookupOverride = id => id == 99101 ? site : null;
+
+        var timeoutPart = new QuestPart_WorldObjectTimeout
+        {
+            worldObject = site,
+            delayTicks = 60000
+        };
+
+        int enableTick = 5000;
+
+        // When not concealed: Prefix returns true
+        Assert.IsTrue(ProjectVigilance.Geoscape.Patches.QuestPart_Delay_QuestPartTick_Patch.Prefix(timeoutPart, ref enableTick));
+        Assert.AreEqual(5000, enableTick);
+
+        // When concealed: Prefix increments enableTick and returns false (freezing TicksLeft countdown)
+        hazeManager.RegisterConcealedSite(site);
+        Assert.IsTrue(hazeManager.IsSiteConcealed(site));
+
+        bool canTickConcealed = ProjectVigilance.Geoscape.Patches.QuestPart_Delay_QuestPartTick_Patch.Prefix(timeoutPart, ref enableTick);
+        Assert.IsFalse(canTickConcealed, "QuestPart_Delay must be suspended while target world object is concealed.");
+        Assert.AreEqual(5001, enableTick, "enableTick must increment in lockstep with game ticks to freeze remaining duration.");
+
+        // When uncovered: normal ticking resumes
+        hazeManager.UncoverSite(site, suppressDiscoveryLetter: true);
+        Assert.IsFalse(hazeManager.IsSiteConcealed(site));
+
+        bool canTickUncovered = ProjectVigilance.Geoscape.Patches.QuestPart_Delay_QuestPartTick_Patch.Prefix(timeoutPart, ref enableTick);
+        Assert.IsTrue(canTickUncovered, "QuestPart_Delay must resume normal ticking once target world object is uncovered.");
+        Assert.AreEqual(5001, enableTick, "enableTick must not advance further once uncovered.");
+    }
 }

@@ -226,11 +226,13 @@ public static class CampaignRuleWidgets
                                  "This change will reveal previously shrouded strategic information, unpause dynamic camp timers, and re-evaluate caravan routes.\n\n" +
                                  "IMPORTANT: This action is permanent for this save game and cannot be reversed.\n\n" +
                                  "Do you wish to proceed?";
-                Dialog_MessageBox escBox = Dialog_MessageBox.CreateConfirmation(
+                Dialog_MessageBox escBox = new(
                     escText,
+                    "Escalate Rule",
                     () => campaign.ForceApplyEscalation(rule, proposed),
-                    destructive: false,
-                    title: "Confirm Campaign Rule Escalation");
+                    "Keep Current",
+                    null,
+                    "Confirm Campaign Rule Escalation");
                 Find.WindowStack?.Add(escBox);
                 break;
 

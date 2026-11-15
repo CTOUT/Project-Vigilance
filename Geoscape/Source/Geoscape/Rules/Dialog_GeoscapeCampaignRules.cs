@@ -16,7 +16,7 @@ public sealed class Dialog_GeoscapeCampaignRules : Window
     private readonly GeoscapeCampaignRules? campaign;
     private readonly Action? onClose;
     private Vector2 scrollPosition = Vector2.zero;
-    private float lastViewHeight = 720f;
+    private float lastViewHeight = 960f;
 
     public override Vector2 InitialSize => new(700f, 760f);
 
@@ -59,7 +59,7 @@ public sealed class Dialog_GeoscapeCampaignRules : Window
         float btnWidth = (presetBarRect.width - 18f) / 4f;
 
         DrawPresetButton(new Rect(presetBarRect.x, presetBarRect.y, btnWidth, 28f), CampaignProfile.FogOfWar, "Fog of War", currentProf);
-        DrawPresetButton(new Rect(presetBarRect.x + btnWidth + 6f, presetBarRect.y, btnWidth, 28f), CampaignProfile.PlanetarySurveillance, "Planetary Surv.", currentProf);
+        DrawPresetButton(new Rect(presetBarRect.x + btnWidth + 6f, presetBarRect.y, btnWidth, 28f), CampaignProfile.PlanetarySurveillance, "Surveillance", currentProf);
         DrawPresetButton(new Rect(presetBarRect.x + (btnWidth + 6f) * 2f, presetBarRect.y, btnWidth, 28f), CampaignProfile.HardcoreVigilance, "Hardcore", currentProf);
         DrawPresetButton(new Rect(presetBarRect.x + (btnWidth + 6f) * 3f, presetBarRect.y, btnWidth, 28f), CampaignProfile.Omniscient, "Omniscient", currentProf);
 
@@ -124,6 +124,8 @@ public sealed class Dialog_GeoscapeCampaignRules : Window
 
     private void DrawPresetButton(Rect rect, CampaignProfile profile, string label, CampaignProfile current)
     {
+        TooltipHandler.TipRegion(rect, profile.GetTooltipDescription());
+
         if (Widgets.ButtonText(rect, label))
         {
             if (campaign == null)

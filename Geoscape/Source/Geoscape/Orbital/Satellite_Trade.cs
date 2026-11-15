@@ -16,8 +16,10 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
     private ThingOwner<Thing> goods;
     private TraderKindDef? traderKind;
     private int randomPriceFactorSeed;
+    private List<int> activeOverpassMapIds = new();
 
     public new IThingHolder? ParentHolder => base.ParentHolder;
+    public IReadOnlyList<int> ActiveOverpassMapIds => activeOverpassMapIds;
 
     public Satellite_Trade()
     {
@@ -107,6 +109,99 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
         }
     }
 
+    public override void PostRemove()
+    {
+        base.PostRemove();
+        activeOverpassMapIds.Clear();
+    }
+
+    protected override void Tick()
+    {
+        base.Tick();
+
+        int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
+        if (currentTick % 250 == 0)
+        {
+            CheckColonyOverpass();
+        }
+    }
+
+    public void CheckColonyOverpass()
+    {
+        if (Current.ProgramState != ProgramState.Playing || Find.Maps == null || Find.LetterStack == null)
+        {
+            return;
+        }
+
+        List<Map> maps = Find.Maps;
+        for (int i = 0; i < maps.Count; i++)
+        {
+            Map map = maps[i];
+            if (map == null || !map.IsPlayerHome || !map.Tile.Valid)
+            {
+                continue;
+            }
+
+            Building_CommsConsole? console = OrbitalVisibilityUtility.FindPoweredCommsConsole(map);
+            bool isOverhead = CoversTile(map.Tile);
+            bool wasActive = activeOverpassMapIds.Contains(map.Index);
+
+            if (isOverhead)
+            {
+                if (!wasActive && console != null && CanTradeNow)
+                {
+                    activeOverpassMapIds.Add(map.Index);
+                    NotifyEnteredOverpass(map, console);
+                }
+            }
+            else if (wasActive)
+            {
+                activeOverpassMapIds.Remove(map.Index);
+                NotifyDepartedOverpass(map);
+            }
+        }
+
+        for (int i = activeOverpassMapIds.Count - 1; i >= 0; i--)
+        {
+            int mapId = activeOverpassMapIds[i];
+            bool mapExists = false;
+            for (int j = 0; j < maps.Count; j++)
+            {
+                if (maps[j].Index == mapId)
+                {
+                    mapExists = true;
+                    break;
+                }
+            }
+
+            if (!mapExists)
+            {
+                activeOverpassMapIds.RemoveAt(i);
+            }
+        }
+    }
+
+    private void NotifyEnteredOverpass(Map map, Building_CommsConsole console)
+    {
+        string traderLabel = TraderKind?.label.CapitalizeFirst() ?? "Orbital Trader";
+        string title = $"Trade Satellite in Range: {OrbitalCallsign}";
+        string colonyName = map.Parent?.LabelCap ?? "Colony";
+
+        string text = $"An orbital trade satellite, {OrbitalCallsign} ({traderLabel}), has entered communication range of {colonyName}.\n\n" +
+                      $"Faction: {Faction?.Name ?? "Independent"}\n" +
+                      $"Communication Window: ~3.8 in-game hours\n\n" +
+                      $"Use a Comms Console to open trade communications before the satellite drifts out of orbital range.";
+
+        Find.LetterStack.ReceiveLetter(title, text, LetterDefOf.PositiveEvent, new LookTargets(console));
+    }
+
+    private void NotifyDepartedOverpass(Map map)
+    {
+        string colonyName = map.Parent?.LabelCap ?? "colony";
+        string text = $"Trade satellite {OrbitalCallsign} has moved out of orbital communication range of {colonyName}.";
+        Messages.Message(text, MessageTypeDefOf.NeutralEvent, false);
+    }
+
     #region ICommunicable Implementation
 
     public string GetCallLabel() => $"{OrbitalCallsign} ({Faction?.Name ?? "Independent"})";
@@ -190,7 +285,9 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
         Scribe_Deep.Look(ref goods, "goods", this);
         Scribe_Defs.Look(ref traderKind, "traderKind");
         Scribe_Values.Look(ref randomPriceFactorSeed, "randomPriceFactorSeed", 0);
+        Scribe_Collections.Look(ref activeOverpassMapIds, "activeOverpassMapIds", LookMode.Value);
 
         goods ??= new ThingOwner<Thing>(this);
+        activeOverpassMapIds ??= new();
     }
 }

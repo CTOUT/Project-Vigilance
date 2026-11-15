@@ -55,7 +55,26 @@ public class ChoiceLetter_TacticalEncounter : ChoiceLetter
     {
         get
         {
-            // Option 1: Enter the Battlescape / Local Map
+            // Primary Option when encounter cleared: Reform Caravan
+            if (canReformCaravan && battleMap != null && battleMap.Index >= 0 && Find.Maps.Contains(battleMap))
+            {
+                DiaOption reformOption = new DiaOption("Reform Caravan Now")
+                {
+                    action = () =>
+                    {
+                        Pawn? colonist = battleMap.mapPawns?.FreeColonistsSpawned?.FirstOrDefault();
+                        if (colonist != null)
+                        {
+                            CameraJumper.TryJumpAndSelect(colonist);
+                        }
+                        IncursionTacticalRetreatUtility.OpenReformCaravanDialog(battleMap);
+                    },
+                    resolveTree = true
+                };
+                yield return reformOption;
+            }
+
+            // Option: Enter the Battlescape / Local Map
             if (battleMap != null && battleMap.Index >= 0 && Find.Maps.Contains(battleMap))
             {
                 string label = !string.IsNullOrEmpty(battleButtonLabel) ? battleButtonLabel : "Go to Battlescape";
@@ -78,7 +97,7 @@ public class ChoiceLetter_TacticalEncounter : ChoiceLetter
                 yield return jumpToMap;
             }
 
-            // Option 2: View on the Geoscape / World Map
+            // Option: View on the Geoscape / World Map
             if ((targetWorldObject != null && targetWorldObject.Spawned) || targetTile.Valid)
             {
                 string label = !string.IsNullOrEmpty(worldButtonLabel) ? worldButtonLabel : "Go to cell (Geoscape)";
@@ -100,26 +119,7 @@ public class ChoiceLetter_TacticalEncounter : ChoiceLetter
                 yield return jumpToWorld;
             }
 
-            // Option 3: Reform Caravan (if applicable)
-            if (canReformCaravan && battleMap != null && battleMap.Index >= 0 && Find.Maps.Contains(battleMap))
-            {
-                DiaOption reformOption = new DiaOption("Reform Caravan Now")
-                {
-                    action = () =>
-                    {
-                        Pawn? colonist = battleMap.mapPawns?.FreeColonistsSpawned?.FirstOrDefault();
-                        if (colonist != null)
-                        {
-                            CameraJumper.TryJumpAndSelect(colonist);
-                        }
-                        IncursionTacticalRetreatUtility.OpenReformCaravanDialog(battleMap);
-                    },
-                    resolveTree = true
-                };
-                yield return reformOption;
-            }
-
-            // Option 4: Close
+            // Option: Close
             yield return Option_Close;
         }
     }

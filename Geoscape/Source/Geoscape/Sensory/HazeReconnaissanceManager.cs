@@ -19,15 +19,17 @@ public class ConcealedSiteRecord : IExposable
     public string siteLabel = string.Empty;
     public Letter? suppressedLetter;
     public int concealedAtTick;
+    public int questId = -1;
 
     public ConcealedSiteRecord() { }
 
-    public ConcealedSiteRecord(WorldObject wo, Letter? letter = null)
+    public ConcealedSiteRecord(WorldObject wo, Letter? letter = null, int questId = -1)
     {
         worldObjectId = wo.ID;
         tile = wo.Tile;
         siteLabel = HazeReconnaissanceManager.GetSafeSiteLabel(wo);
         suppressedLetter = letter;
+        this.questId = questId;
         concealedAtTick = (Current.Game != null && Current.ProgramState == ProgramState.Playing)
             ? (Find.TickManager?.TicksGame ?? 0)
             : 0;
@@ -40,6 +42,7 @@ public class ConcealedSiteRecord : IExposable
         Scribe_Values.Look(ref siteLabel, "siteLabel", string.Empty);
         Scribe_Deep.Look(ref suppressedLetter, "suppressedLetter");
         Scribe_Values.Look(ref concealedAtTick, "concealedAtTick");
+        Scribe_Values.Look(ref questId, "questId", -1);
     }
 }
 
@@ -172,14 +175,30 @@ public class HazeReconnaissanceManager : WorldComponent
     {
         if (wo == null) return;
 
+        Quest? associatedQuest = FindAssociatedQuest(wo, letter);
+        int qId = associatedQuest?.id ?? -1;
+
         if (!concealedSites.ContainsKey(wo.ID))
         {
-            concealedSites[wo.ID] = new ConcealedSiteRecord(wo, letter);
+            concealedSites[wo.ID] = new ConcealedSiteRecord(wo, letter, qId);
             Log.Message($"[Project Vigilance] Concealed dynamic site '{GetSafeSiteLabel(wo)}' at tile {wo.Tile} in unmonitored Haze. Suspending timeout clock.");
         }
-        else if (letter != null && concealedSites[wo.ID].suppressedLetter == null)
+        else
         {
-            concealedSites[wo.ID].suppressedLetter = letter;
+            if (letter != null && concealedSites[wo.ID].suppressedLetter == null)
+            {
+                concealedSites[wo.ID].suppressedLetter = letter;
+            }
+            if (qId >= 0 && concealedSites[wo.ID].questId < 0)
+            {
+                concealedSites[wo.ID].questId = qId;
+            }
+        }
+
+        if (associatedQuest != null)
+        {
+            associatedQuest.hiddenInUI = true;
+            Log.Message($"[Project Vigilance] Concealed quest '{associatedQuest.name}' in Quests UI until site '{GetSafeSiteLabel(wo)}' is uncovered.");
         }
     }
 
@@ -302,6 +321,16 @@ public class HazeReconnaissanceManager : WorldComponent
             string safeLabel = GetSafeSiteLabel(wo);
             Log.Message($"[Project Vigilance] Uncovered dynamic site '{safeLabel}' at tile {wo.Tile}. Resuming timeout clock and dispatching discovery letter.");
 
+            if (record.questId >= 0 && Current.ProgramState == ProgramState.Playing && Current.Game?.questManager != null)
+            {
+                Quest? quest = Find.QuestManager.QuestsListForReading?.FirstOrDefault(q => q.id == record.questId);
+                if (quest != null)
+                {
+                    quest.hiddenInUI = false;
+                    Log.Message($"[Project Vigilance] Revealed quest '{quest.name}' in Quests UI for uncovered site '{safeLabel}'.");
+                }
+            }
+
             isDeliveringSuppressedLetter = true;
             try
             {
@@ -359,6 +388,88 @@ public class HazeReconnaissanceManager : WorldComponent
         TaggedString title = $"Site Discovered: {safeLabel}";
         TaggedString body = $"Our reconnaissance has uncovered an active {safeLabel} at hex {wo.Tile.tileId}.\n\nIt is now charted on the planetary map.";
         Find.LetterStack.ReceiveLetter(title, body, LetterDefOf.PositiveEvent, new GlobalTargetInfo(wo));
+    }
+
+    public static Quest? FindAssociatedQuest(WorldObject wo, Letter? letter = null)
+    {
+        if (letter is ChoiceLetter choiceLetter && choiceLetter.quest != null)
+        {
+            return choiceLetter.quest;
+        }
+
+        if (Current.ProgramState != ProgramState.Playing || Current.Game?.questManager == null) return null;
+
+        var quests = Find.QuestManager?.QuestsListForReading;
+        if (quests == null) return null;
+
+        for (int i = 0; i < quests.Count; i++)
+        {
+            Quest q = quests[i];
+            if (q == null) continue;
+
+            if (q.QuestLookTargets != null)
+            {
+                foreach (var target in q.QuestLookTargets)
+                {
+                    if (target.WorldObject == wo || (target.Tile.Valid && target.Tile == wo.Tile))
+                    {
+                        return q;
+                    }
+                }
+            }
+
+            if (q.PartsListForReading != null)
+            {
+                for (int j = 0; j < q.PartsListForReading.Count; j++)
+                {
+                    if (q.PartsListForReading[j] is QuestPart_WorldObjectTimeout woTimeout && woTimeout.worldObject == wo)
+                    {
+                        return q;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public WorldObject? GetConcealedSiteForQuest(Quest quest)
+    {
+        if (quest == null || concealedSites.Count == 0) return null;
+
+        foreach (var rec in concealedSites.Values)
+        {
+            if (rec.questId == quest.id)
+            {
+                return FindWorldObjectById(rec.worldObjectId);
+            }
+        }
+
+        if (quest.QuestLookTargets != null)
+        {
+            foreach (var target in quest.QuestLookTargets)
+            {
+                if (target.WorldObject != null && IsSiteConcealed(target.WorldObject))
+                {
+                    return target.WorldObject;
+                }
+            }
+        }
+
+        if (quest.PartsListForReading != null)
+        {
+            for (int i = 0; i < quest.PartsListForReading.Count; i++)
+            {
+                if (quest.PartsListForReading[i] is QuestPart_WorldObjectTimeout woTimeout &&
+                    woTimeout.worldObject != null &&
+                    IsSiteConcealed(woTimeout.worldObject))
+                {
+                    return woTimeout.worldObject;
+                }
+            }
+        }
+
+        return null;
     }
 
     public static WorldObject? FindWorldObjectById(int id)

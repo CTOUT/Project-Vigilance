@@ -53,7 +53,7 @@ public class Page_GeoscapeRules : Page
 
         // 2x2 Preset Profile Selection Cards (Full height, never truncated)
         float cardsTop = descRect.yMax + 8f;
-        float cardHeight = 132f;
+        float cardHeight = 144f;
         float cardWidth = (mainRect.width - 16f) / 2f;
 
         // Card 1: Fog of War (Recommended)
@@ -79,7 +79,7 @@ public class Page_GeoscapeRules : Page
             activeProfile == CampaignProfile.PlanetarySurveillance);
 
         // Card 3: Hardcore Vigilance
-        Rect card3Rect = new(mainRect.x, cardsTop + cardHeight + 10f, cardWidth, cardHeight);
+        Rect card3Rect = new(mainRect.x, cardsTop + cardHeight + 8f, cardWidth, cardHeight);
         DrawProfileCard(
             card3Rect,
             CampaignProfile.HardcoreVigilance,
@@ -90,7 +90,7 @@ public class Page_GeoscapeRules : Page
             activeProfile == CampaignProfile.HardcoreVigilance);
 
         // Card 4: Omniscient (Vanilla)
-        Rect card4Rect = new(mainRect.x + cardWidth + 16f, cardsTop + cardHeight + 10f, cardWidth, cardHeight);
+        Rect card4Rect = new(mainRect.x + cardWidth + 16f, cardsTop + cardHeight + 8f, cardWidth, cardHeight);
         DrawProfileCard(
             card4Rect,
             CampaignProfile.Omniscient,
@@ -101,7 +101,7 @@ public class Page_GeoscapeRules : Page
             activeProfile == CampaignProfile.Omniscient);
 
         // Customise Individual Rules Bar (Anomaly-style modal launcher)
-        float actionTop = cardsTop + (cardHeight * 2f) + 16f;
+        float actionTop = cardsTop + (cardHeight * 2f) + 14f;
         Rect actionRect = new(mainRect.x, actionTop, mainRect.width, 32f);
 
         if (Widgets.ButtonText(new Rect(actionRect.x, actionRect.y, 290f, 32f), "Customise Individual Rules..."))
@@ -119,7 +119,7 @@ public class Page_GeoscapeRules : Page
         Text.Anchor = TextAnchor.UpperLeft;
 
         // Comprehensive Rule Summary Card
-        float summaryTop = actionRect.yMax + 12f;
+        float summaryTop = actionRect.yMax + 10f;
         float summaryHeight = mainRect.yMax - summaryTop;
         Rect summaryRect = new(mainRect.x, summaryTop, mainRect.width, summaryHeight);
         Widgets.DrawMenuSection(summaryRect);
@@ -163,6 +163,14 @@ public class Page_GeoscapeRules : Page
     {
         Widgets.DrawMenuSection(rect);
 
+        if (Widgets.ButtonInvisible(rect))
+        {
+            draft?.ApplyProfile(profile);
+            SoundDefOf.Click?.PlayOneShotOnCamera();
+        }
+
+        Widgets.DrawHighlightIfMouseover(rect);
+
         if (isSelected)
         {
             Widgets.DrawHighlightSelected(rect);
@@ -183,7 +191,7 @@ public class Page_GeoscapeRules : Page
         {
             Text.Font = GameFont.Tiny;
             GUI.color = badgeColor;
-            Rect badgeRect = new(titleRect.xMax + 10f, inner.y + 5f, inner.width - titleWidth - 10f, 20f);
+            Rect badgeRect = new(titleRect.xMax + 10f, inner.y + 4f, inner.width - titleWidth - 10f, 20f);
             Widgets.Label(badgeRect, $"[{badge}]");
             GUI.color = Color.white;
         }
@@ -194,27 +202,22 @@ public class Page_GeoscapeRules : Page
         Rect descRect = new(inner.x, inner.y + 28f, inner.width, inner.height - 28f);
         Widgets.Label(descRect, description);
         GUI.color = Color.white;
-
-        // Interaction
-        if (Widgets.ButtonInvisible(rect))
-        {
-            draft?.ApplyProfile(profile);
-            SoundDefOf.Click?.PlayOneShotOnCamera();
-        }
-
-        Widgets.DrawHighlightIfMouseover(rect);
     }
 
     private static void DrawSummaryLine(float x, ref float y, float width, string label, string value)
     {
-        Rect labelRect = new(x, y, 220f, 22f);
-        Rect valueRect = new(x + 230f, y, width - 230f, 22f);
+        float labelWidth = 220f;
+        float valueWidth = width - labelWidth - 10f;
+        float textHeight = Mathf.Max(22f, Text.CalcHeight(value, valueWidth));
+
+        Rect labelRect = new(x, y, labelWidth, 22f);
+        Rect valueRect = new(x + labelWidth + 10f, y, valueWidth, textHeight);
 
         GUI.color = new Color(0.75f, 0.75f, 0.75f);
         Widgets.Label(labelRect, $"{label}:");
         GUI.color = Color.white;
         Widgets.Label(valueRect, value);
 
-        y += 24f;
+        y += Mathf.Max(24f, textHeight + 2f);
     }
 }
