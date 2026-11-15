@@ -531,4 +531,95 @@ public sealed class Milestone13FixesTests
         Assert.IsFalse(dispatchOptions.Any(o => o.Label.Contains("Dispatch Construction Expedition", StringComparison.OrdinalIgnoreCase)),
             "Settlement dispatch menu must not offer outpost construction on a tile occupied by an existing settlement/site.");
     }
+
+    [TestMethod]
+    public void DebugActionsVigilance_WorldPlacementActionsUseToolWorld()
+    {
+        var targetActionNames = new[]
+        {
+            "Incursion: Spawn Skirmish Collision Pair",
+            "Outpost: Deploy Listening Post",
+            "Outpost: Deploy Sonar Station",
+            "Outpost: Deploy Signal Beacon",
+            "Orbital: Spawn Trade Satellite Overhead",
+            "Orbital: Spawn Recon Satellite Overhead"
+        };
+
+        var methods = typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance).GetMethods(
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+
+        foreach (var actionName in targetActionNames)
+        {
+            var method = methods.FirstOrDefault(m =>
+            {
+                var attr = m.GetCustomAttributes(typeof(LudeonTK.DebugActionAttribute), false).FirstOrDefault() as LudeonTK.DebugActionAttribute;
+                return attr != null && attr.name == actionName;
+            });
+
+            Assert.IsNotNull(method, $"Expected to find debug action method for '{actionName}'");
+            var attr = method.GetCustomAttributes(typeof(LudeonTK.DebugActionAttribute), false).First() as LudeonTK.DebugActionAttribute;
+            Assert.AreEqual(LudeonTK.DebugActionType.ToolWorld, attr!.actionType, $"Action '{actionName}' must have actionType = ToolWorld for interactive globe placement.");
+            Assert.AreEqual(LudeonTK.AllowedGameStates.PlayingOnWorld, attr.allowedGameStates, $"Action '{actionName}' must have allowedGameStates = PlayingOnWorld.");
+        }
+    }
+
+    [TestMethod]
+    public void SensoryNarrativeUtility_HandlesNullSensorGracefully()
+    {
+        // Must not throw NullReferenceException when sensor is null (e.g. retreating forces outside radar coverage)
+        string title = ProjectVigilance.Geoscape.Sensory.SensoryNarrativeUtility.GetContactLetterTitle(null, trackingId: 42);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(title));
+        Assert.IsTrue(title.Contains("42"));
+
+        string body = ProjectVigilance.Geoscape.Sensory.SensoryNarrativeUtility.GetContactLetterBody(null, "Sector 100", speedTilesPerDay: 12f, trackingId: 42);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(body));
+        Assert.IsTrue(body.Contains("Sector 100"));
+
+        string attr = ProjectVigilance.Geoscape.Sensory.SensoryNarrativeUtility.GetAttributionLine(null);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(attr));
+
+        string advice = ProjectVigilance.Geoscape.Sensory.SensoryNarrativeUtility.GetHostileClosingAdvice(null);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(advice));
+    }
+
+    [TestMethod]
+    public void OverheadSatellite_CoordinatesMatchTargetLatitudeAndLongitude()
+    {
+        float targetLat = 38.69f;
+        float targetLon = 37.46f;
+        float extraInc = 5f;
+        float inclination = UnityEngine.Mathf.Clamp(UnityEngine.Mathf.Abs(targetLat) + extraInc, 10f, 89.9f);
+
+        float incRad = inclination * UnityEngine.Mathf.Deg2Rad;
+        float latRad = targetLat * UnityEngine.Mathf.Deg2Rad;
+        float sinU = UnityEngine.Mathf.Sin(latRad) / UnityEngine.Mathf.Sin(incRad);
+        float uRad = UnityEngine.Mathf.Asin(UnityEngine.Mathf.Clamp(sinU, -1f, 1f));
+        float uDeg = uRad * UnityEngine.Mathf.Rad2Deg;
+        if (uDeg < 0f) uDeg += 360f;
+        uRad = uDeg * UnityEngine.Mathf.Deg2Rad;
+
+        float yNode = UnityEngine.Mathf.Sin(uRad) * UnityEngine.Mathf.Cos(incRad);
+        float xNode = UnityEngine.Mathf.Cos(uRad);
+        float alphaNodeDeg = UnityEngine.Mathf.Atan2(yNode, xNode) * UnityEngine.Mathf.Rad2Deg;
+        float raanDeg = ((targetLon - alphaNodeDeg + 180f) % 360f + 360f) % 360f - 180f;
+
+        var orbit = new ProjectVigilance.Geoscape.Orbital.OrbitalParameters(
+            altitudeKm: 600f,
+            periodTicks: 62500,
+            inclinationDeg: inclination,
+            ascendingNodeDeg: raanDeg,
+            precessionRateDegPerDay: -3.5f,
+            meanAnomalyEpochDeg: uDeg,
+            orbitalDriftDegPerDay: 0.8f,
+            epochTick: 1000);
+
+        ProjectVigilance.Geoscape.Orbital.OrbitalFlightModel.CalculateSubSatelliteCoordinates(
+            orbit,
+            currentTick: 1000,
+            out float subLat,
+            out float subLon);
+
+        Assert.AreEqual(targetLat, subLat, 0.05f, "Calculated sub-satellite latitude must match target latitude.");
+        Assert.AreEqual(targetLon, subLon, 0.05f, "Calculated sub-satellite longitude must match target longitude.");
+    }
 }

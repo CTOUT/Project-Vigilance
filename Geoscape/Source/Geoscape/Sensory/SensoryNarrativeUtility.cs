@@ -124,14 +124,14 @@ public static class SensoryNarrativeUtility
     /// <summary>
     /// Returns the notification letter title for an initial contact early warning.
     /// </summary>
-    public static string GetContactLetterTitle(ISensorProvider sensor, int trackingId = 0)
+    public static string GetContactLetterTitle(ISensorProvider? sensor, int trackingId = 0)
     {
         if (IsLowTech)
         {
             return trackingId > 0 ? $"Sighting: Strangers #{trackingId}" : "Sighting: Approaching Strangers";
         }
 
-        if (!sensor.IsTechnological)
+        if (sensor != null && !sensor.IsTechnological)
         {
             return trackingId > 0 ? $"Early Warning: Force #{trackingId}" : "Early Warning: Approaching Force";
         }
@@ -142,42 +142,49 @@ public static class SensoryNarrativeUtility
     /// <summary>
     /// Returns the notification letter body text for an initial contact early warning.
     /// </summary>
-    public static string GetContactLetterBody(ISensorProvider sensor, string targetName, float speedTilesPerDay, int trackingId = 0)
+    public static string GetContactLetterBody(ISensorProvider? sensor, string targetName, float speedTilesPerDay, int trackingId = 0)
     {
         string designation = trackingId > 0
             ? (IsLowTech ? $"party #{trackingId}" : $"Contact-{trackingId}")
             : (IsLowTech ? "an approaching group" : "an unidentified contact");
 
+        string sensorLabel = sensor?.SensorLabel ?? (IsLowTech ? "Lookouts" : "Regional Sensors");
+
         if (IsLowTech)
         {
-            return $"{sensor.SensorLabel} have spotted {designation} moving across the wilderness towards {targetName}.\n\n" +
+            return $"{sensorLabel} have spotted {designation} moving across the wilderness towards {targetName}.\n\n" +
                    $"Direction: Towards {targetName}\n" +
                    $"Estimated Pace: ~{speedTilesPerDay:F0} hexes/day\n" +
-                   $"Spotted by: {sensor.SensorLabel}\n\n" +
+                   $"Spotted by: {sensorLabel}\n\n" +
                    "From this distance, our lookouts cannot tell who they are or what their intentions might be. Prepare our defences or send scouts to investigate.";
         }
 
-        if (sensor.IsTechnological)
+        if (sensor != null && sensor.IsTechnological)
         {
-            return $"{sensor.SensorLabel} have detected {designation} advancing towards {targetName}.\n\n" +
+            return $"{sensorLabel} have detected {designation} advancing towards {targetName}.\n\n" +
                    $"Heading: Towards {targetName}\n" +
                    $"Estimated Speed: ~{speedTilesPerDay:F0} hexes/day\n" +
-                   $"Sensor: {sensor.SensorLabel}\n\n" +
+                   $"Sensor: {sensorLabel}\n\n" +
                    "Telemetry is currently insufficient to determine faction alignment or intentions. Prepare colony defences or scramble reconnaissance to investigate.";
         }
 
-        return $"{sensor.SensorLabel} have spotted {designation} advancing towards {targetName}.\n\n" +
+        return $"{sensorLabel} have spotted {designation} advancing towards {targetName}.\n\n" +
                $"Heading: Towards {targetName}\n" +
                $"Estimated Speed: ~{speedTilesPerDay:F0} hexes/day\n" +
-               $"Reported by: {sensor.SensorLabel}\n\n" +
+               $"Reported by: {sensorLabel}\n\n" +
                "Observations are currently insufficient to determine faction alignment or intentions. Prepare colony defences or dispatch scouts to investigate.";
     }
 
     /// <summary>
     /// Returns the attribution prefix line for classified confirmation letters (e.g. "Sensor: ...", "Reported by: ...", "Spotted by: ...").
     /// </summary>
-    public static string GetAttributionLine(ISensorProvider sensor)
+    public static string GetAttributionLine(ISensorProvider? sensor)
     {
+        if (sensor == null)
+        {
+            return IsLowTech ? "Spotted by: Lookouts" : "Reported by: Regional Observers";
+        }
+
         if (sensor.IsTechnological)
         {
             return $"Sensor: {sensor.SensorLabel}";
@@ -194,14 +201,14 @@ public static class SensoryNarrativeUtility
     /// <summary>
     /// Returns the tactical recommendation for a confirmed hostile warband.
     /// </summary>
-    public static string GetHostileClosingAdvice(ISensorProvider sensor)
+    public static string GetHostileClosingAdvice(ISensorProvider? sensor)
     {
         if (IsLowTech)
         {
             return "Prepare our warriors for battle, or send a party to confront them before they reach the settlement.";
         }
 
-        if (sensor.IsTechnological)
+        if (sensor != null && sensor.IsTechnological)
         {
             return "Prepare your colony for tactical engagement, or deploy an interception caravan to confront them in the field.";
         }

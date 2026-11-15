@@ -38,13 +38,92 @@ public static class DebugActionsVigilance
 
     private static PlanetTile ResolveTargetTile()
     {
-        PlanetTile tile = GenWorld.MouseTile();
-        if (tile.Valid) return tile;
+        // 1. If currently in World view and mouse is hovering over a valid globe tile without window obstruction
+        // (This is the primary path when invoked as ToolWorld or directly clicking the 3D globe)
+        if (WorldRendererUtility.WorldRendered)
+        {
+            bool isMouseObscured = Find.WindowStack != null && Find.WindowStack.MouseObscuredNow;
+            if (!isMouseObscured)
+            {
+                PlanetTile mouseTile = GenWorld.MouseTile();
+                if (mouseTile.Valid) return mouseTile;
+            }
 
+            // 2. If mouse is obscured by a dev menu/palette window, prioritize player's explicitly selected tile
+            if (Find.WorldSelector != null && Find.WorldSelector.SelectedTile.Valid)
+            {
+                return Find.WorldSelector.SelectedTile;
+            }
+
+            // 3. Or selected world object's tile
+            if (Find.WorldSelector?.SingleSelectedObject != null && Find.WorldSelector.SingleSelectedObject.Tile.Valid)
+            {
+                return Find.WorldSelector.SingleSelectedObject.Tile;
+            }
+        }
+
+        // 4. If a tile is selected on WorldSelector (even if camera is currently on map view)
+        if (Find.WorldSelector != null && Find.WorldSelector.SelectedTile.Valid)
+        {
+            return Find.WorldSelector.SelectedTile;
+        }
+
+        // 5. Fallback to active player map
         Map map = Find.CurrentMap;
-        if (map != null && map.Tile.Valid) return map.Tile;
+        if (map != null && map.Tile.Valid)
+        {
+            return map.Tile;
+        }
+
+        // 6. Last resort: GenWorld.MouseTile
+        PlanetTile fallbackMouse = GenWorld.MouseTile();
+        if (fallbackMouse.Valid) return fallbackMouse;
 
         return PlanetTile.Invalid;
+    }
+
+    private static OrbitalParameters CreateOverheadOrbitParameters(
+        PlanetTile targetTile,
+        float altitudeKm,
+        int periodTicks,
+        float extraInclinationDeg,
+        float precessionRateDegPerDay,
+        float orbitalDriftDegPerDay)
+    {
+        float lon = Find.WorldGrid?.LongLatOf(targetTile).x ?? 0f;
+        float lat = Find.WorldGrid?.LongLatOf(targetTile).y ?? 0f;
+        int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
+
+        // Ensure inclination is strictly greater than latitude so ground track passes directly overhead
+        float inclination = Mathf.Clamp(Mathf.Abs(lat) + extraInclinationDeg, 10f, 89.9f);
+
+        // Solve for argument of latitude u at epoch such that latitudeDeg == lat at epochTick
+        float incRad = inclination * Mathf.Deg2Rad;
+        float latRad = lat * Mathf.Deg2Rad;
+        float sinU = Mathf.Sin(latRad) / Mathf.Sin(incRad);
+        sinU = Mathf.Clamp(sinU, -1f, 1f);
+        float uRad = Mathf.Asin(sinU);
+        float uDeg = uRad * Mathf.Rad2Deg;
+        if (uDeg < 0f) uDeg += 360f;
+        uRad = uDeg * Mathf.Deg2Rad;
+
+        // Angular displacement from ascending node along equator
+        float yNode = Mathf.Sin(uRad) * Mathf.Cos(incRad);
+        float xNode = Mathf.Cos(uRad);
+        float alphaNodeDeg = Mathf.Atan2(yNode, xNode) * Mathf.Rad2Deg;
+
+        // Solve for Ascending Node RAAN such that longitudeDeg == lon at epochTick
+        float raanDeg = ((lon - alphaNodeDeg + 180f) % 360f + 360f) % 360f - 180f;
+
+        return new OrbitalParameters(
+            altitudeKm: altitudeKm,
+            periodTicks: periodTicks,
+            inclinationDeg: inclination,
+            ascendingNodeDeg: raanDeg,
+            precessionRateDegPerDay: precessionRateDegPerDay,
+            meanAnomalyEpochDeg: uDeg,
+            orbitalDriftDegPerDay: orbitalDriftDegPerDay,
+            epochTick: currentTick);
     }
 
     #region Incursion & Skirmish Actions
@@ -95,7 +174,7 @@ public static class DebugActionsVigilance
         IncidentDefOf.VisitorGroup.Worker.TryExecute(parms);
     }
 
-    [DebugAction("Project Vigilance", "Incursion: Spawn Skirmish Collision Pair", allowedGameStates = AllowedGameStates.Playing)]
+    [DebugAction("Project Vigilance", "Incursion: Spawn Skirmish Collision Pair", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
     private static void SpawnSkirmishCollisionPair()
     {
         PlanetTile targetTile = ResolveTargetTile();
@@ -150,7 +229,7 @@ public static class DebugActionsVigilance
 
     #region Outpost Actions
 
-    [DebugAction("Project Vigilance", "Outpost: Deploy Listening Post", allowedGameStates = AllowedGameStates.Playing)]
+    [DebugAction("Project Vigilance", "Outpost: Deploy Listening Post", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
     private static void DeployListeningPost()
     {
         PlanetTile targetTile = ResolveTargetTile();
@@ -178,7 +257,7 @@ public static class DebugActionsVigilance
         Messages.Message($"Deployed operational Listening Post at tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
     }
 
-    [DebugAction("Project Vigilance", "Outpost: Deploy Sonar Station", allowedGameStates = AllowedGameStates.Playing)]
+    [DebugAction("Project Vigilance", "Outpost: Deploy Sonar Station", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
     private static void DeploySonarStation()
     {
         PlanetTile targetTile = ResolveTargetTile();
@@ -186,6 +265,11 @@ public static class DebugActionsVigilance
         {
             Messages.Message("Select a valid globe tile or enter game world.", MessageTypeDefOf.RejectInput, false);
             return;
+        }
+
+        if (!SonarTraversalUtility.HasCoastalAccess(targetTile))
+        {
+            Messages.Message($"Note: Tile {targetTile} lacks coastal access (no adjacent water tiles). Sonar array will have zero acoustic propagation until water is adjacent.", MessageTypeDefOf.CautionInput, false);
         }
 
         var def = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_ListeningPost_Sonar")
@@ -202,7 +286,7 @@ public static class DebugActionsVigilance
         Messages.Message($"Deployed operational Sonar Station at tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
     }
 
-    [DebugAction("Project Vigilance", "Outpost: Deploy Signal Beacon", allowedGameStates = AllowedGameStates.Playing)]
+    [DebugAction("Project Vigilance", "Outpost: Deploy Signal Beacon", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
     private static void DeploySignalBeacon()
     {
         PlanetTile targetTile = ResolveTargetTile();
@@ -231,7 +315,7 @@ public static class DebugActionsVigilance
 
     #region Orbital Logistics Actions
 
-    [DebugAction("Project Vigilance", "Orbital: Spawn Trade Satellite Overhead", allowedGameStates = AllowedGameStates.Playing)]
+    [DebugAction("Project Vigilance", "Orbital: Spawn Trade Satellite Overhead", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
     private static void SpawnTradeSatelliteOverhead()
     {
         PlanetTile targetTile = ResolveTargetTile();
@@ -241,19 +325,13 @@ public static class DebugActionsVigilance
             return;
         }
 
-        float lon = Find.WorldGrid?.LongLatOf(targetTile).x ?? 0f;
-        float lat = Find.WorldGrid?.LongLatOf(targetTile).y ?? 0f;
-        int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
-
-        OrbitalParameters orbitParams = new(
+        OrbitalParameters orbitParams = CreateOverheadOrbitParameters(
+            targetTile,
             altitudeKm: 600f,
             periodTicks: 62500,
-            inclinationDeg: Mathf.Abs(lat) + 5f,
-            ascendingNodeDeg: lon,
+            extraInclinationDeg: 5f,
             precessionRateDegPerDay: -3.5f,
-            meanAnomalyEpochDeg: 0f,
-            orbitalDriftDegPerDay: 0.8f,
-            epochTick: currentTick);
+            orbitalDriftDegPerDay: 0.8f);
 
         Faction fac = Find.FactionManager?.AllFactionsListForReading.FirstOrDefault(f => !f.IsPlayer && !f.HostileTo(Faction.OfPlayer))
             ?? Faction.OfPlayer;
@@ -261,14 +339,15 @@ public static class DebugActionsVigilance
         var def = OrbitalDefOf.Vigilance_Satellite_Trade ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_Satellite_Trade");
         var sat = (Satellite_Trade)WorldObjectMaker.MakeWorldObject(def);
         sat.SetFaction(fac);
-        sat.InitializeSatellite(SatelliteRole.Trade, orbitParams, stationId: -1, callsign: "Merchant-Overhead-1", footprintRadius: 16f);
+        int uniqueId = Find.TickManager != null ? (Find.TickManager.TicksGame % 10000) : Rand.Range(100, 999);
+        sat.InitializeSatellite(SatelliteRole.Trade, orbitParams, stationId: -1, callsign: $"Merchant-{uniqueId}", footprintRadius: 16f);
         Find.WorldObjects.Add(sat);
         sat.CheckColonyOverpass();
 
         Messages.Message($"Spawned Trade Satellite '{sat.OrbitalCallsign}' ({fac.Name}) directly overhead tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
     }
 
-    [DebugAction("Project Vigilance", "Orbital: Spawn Recon Satellite Overhead", allowedGameStates = AllowedGameStates.Playing)]
+    [DebugAction("Project Vigilance", "Orbital: Spawn Recon Satellite Overhead", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
     private static void SpawnReconSatelliteOverhead()
     {
         PlanetTile targetTile = ResolveTargetTile();
@@ -278,28 +357,23 @@ public static class DebugActionsVigilance
             return;
         }
 
-        float lon = Find.WorldGrid?.LongLatOf(targetTile).x ?? 0f;
-        float lat = Find.WorldGrid?.LongLatOf(targetTile).y ?? 0f;
-        int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
-
-        OrbitalParameters orbitParams = new(
+        OrbitalParameters orbitParams = CreateOverheadOrbitParameters(
+            targetTile,
             altitudeKm: 450f,
             periodTicks: 45000,
-            inclinationDeg: Mathf.Abs(lat) + 10f,
-            ascendingNodeDeg: lon,
+            extraInclinationDeg: 10f,
             precessionRateDegPerDay: -4.5f,
-            meanAnomalyEpochDeg: 0f,
-            orbitalDriftDegPerDay: 1.2f,
-            epochTick: currentTick);
+            orbitalDriftDegPerDay: 1.2f);
 
         var def = OrbitalDefOf.Vigilance_Satellite_Recon ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_Satellite_Recon");
         var sat = (WorldObject_Satellite)WorldObjectMaker.MakeWorldObject(def);
         sat.SetFaction(Faction.OfPlayer);
-        sat.InitializeSatellite(SatelliteRole.Reconnaissance, orbitParams, stationId: -1, callsign: "Recon-Overhead-1", footprintRadius: 12f);
+        int uniqueId = Find.TickManager != null ? (Find.TickManager.TicksGame % 10000) : Rand.Range(100, 999);
+        sat.InitializeSatellite(SatelliteRole.Reconnaissance, orbitParams, stationId: -1, callsign: $"Recon-{uniqueId}", footprintRadius: 12f);
         Find.WorldObjects.Add(sat);
         SensoryManager.Instance?.PerformSensorySweep();
 
-        Messages.Message($"Spawned Recon Satellite 'Recon-Overhead-1' directly overhead tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
+        Messages.Message($"Spawned Recon Satellite '{sat.OrbitalCallsign}' directly overhead tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
     }
 
     #endregion

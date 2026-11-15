@@ -114,6 +114,20 @@
   - Implement the pre-settlement expedition phase for uncharted rim worlds, allowing players to survey regional geography, waterways, and mountain passes before committing to a permanent base location.
   - **Landing Cargo / Mission Assets:** Keep heavy starting resources (bulk steel, food crates, components) off-map in orbital staging pods, deploying via drop pods only when the player stakes their colony claim via Colony Beacon.
   - **Scenario Opt-In Architecture:** Configurable via `ExpeditionStartMode` (`Disabled`, `ScenarioDefault`, `ForceExpedition`) with XML `DefModExtension` support, automatically bypassing orbital/space starts (Odyssey, GravShips, SOS2).
+- [ ] **Custom Visual Asset Pipeline & Faction Livery Tinting:**
+  - **Orbital Infrastructure (`Textures/World/Orbital/`):**
+    - Replace placeholder vanilla quest icons (`Sites/DownedRefugee` "Running Man" and `Sites/Outpost` "Watchtower") with dedicated orbital sprites.
+    - Persistent Orbital Station Hub (`WorldObject_OrbitalStation`): Spoke-and-hub modular space station and orbital dock.
+    - Specialized Satellite Chassis (`WorldObject_Satellite`): Unique sprites for Reconnaissance (telescope/SAR aperture), Trade (cargo container / docking bay), Navigation (GPS array), Communication (twin high-gain dishes), and Military (tactical sensor / fire-control).
+  - **Lightweight Geoscape Outposts (`Textures/World/Outposts/`):**
+    - Dedicated world map markers for Automated Listening Posts (sensor mast / solar radome), Automated Sonar Stations (coastal shelter with offshore hydrophone buoy line), and Signal Beacons (raised brazier with wood/stone materials).
+    - Encounter Aftermath: Smouldering battlefield wreckage and debris site replacing `Sites/GenericSite`.
+  - **Battlescape Sensory Buildings (`Textures/Things/Building/Sensory/`):**
+    - Lookout Watchtower: Dedicated 2×3 footprint timber/stone observation tower with staircase and covered viewing platform, replacing `SteleLarge`.
+    - Colony Sensory Infrastructure: Custom graphics for Early-Warning Radar Dome (3×3), Spacer Phased Array (4×4), SIGINT Decryption Console (3×2), and Coastal Hydrophone Station (3×3).
+  - **Dynamic Faction Colour Shifting Specification:**
+    - All world entity icons and satellite sprites must be authored as neutral grayscale / white silhouette masks with transparent backgrounds (`RGBA32`).
+    - Ensures clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions (Outlanders, Pirates, Empire, Tribals, and modded factions).
 - [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
 - [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.

@@ -49,7 +49,7 @@ public static class EarlyWarningDispatcher
 
         incursion.UpdateSampledPosition();
 
-        if (!GeoscapeRules.EarlyWarningLetters)
+        if (!GeoscapeRules.EarlyWarningLetters || incursion.IsRetreating)
         {
             return;
         }
@@ -100,6 +100,7 @@ public static class EarlyWarningDispatcher
             : "the approaching contact";
 
         bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
+        string sensorLabel = sensor?.SensorLabel ?? (SensoryNarrativeUtility.IsLowTech ? "Lookouts" : "Sensors");
 
         switch (incursion.GroupKind)
         {
@@ -107,7 +108,7 @@ public static class EarlyWarningDispatcher
             {
                 string title = SensoryNarrativeUtility.IsLowTech ? $"Hostile Warband: {factionStr}" : $"Hostile Incursion: {factionStr}";
                 string closingAdvice = SensoryNarrativeUtility.GetHostileClosingAdvice(sensor);
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a hostile warband from {factionStr} marching towards {targetName}.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} is a hostile warband from {factionStr} marching towards {targetName}.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}\n\n" +
@@ -121,7 +122,7 @@ public static class EarlyWarningDispatcher
             {
                 string traderDetail = incursion.IncidentParms?.traderKind != null ? $" ({incursion.IncidentParms.traderKind.label})" : string.Empty;
                 string title = SensoryNarrativeUtility.IsLowTech ? $"Trading Caravan: {factionStr}" : $"Approaching Caravan: {factionStr}";
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a friendly trade caravan{traderDetail} from {factionStr} heading towards {targetName}.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} is a friendly trade caravan{traderDetail} from {factionStr} heading towards {targetName}.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}\n\n" +
@@ -134,7 +135,7 @@ public static class EarlyWarningDispatcher
             case IncursionGroupKind.Visitors:
             {
                 string title = $"Approaching Visitors: {factionStr}";
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a party of visitors from {factionStr} travelling towards {targetName}.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} is a party of visitors from {factionStr} travelling towards {targetName}.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}\n\n" +
@@ -147,7 +148,7 @@ public static class EarlyWarningDispatcher
             case IncursionGroupKind.Travelers:
             {
                 string title = $"Travellers Passing Near: {factionStr}";
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a group of travellers from {factionStr} moving through the region near {targetName}.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} is a group of travellers from {factionStr} moving through the region near {targetName}.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}\n\n" +
@@ -160,7 +161,7 @@ public static class EarlyWarningDispatcher
             case IncursionGroupKind.TributeCollector:
             {
                 string title = $"Royal Tribute Collector: {factionStr}";
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a royal tribute collector from {factionStr} heading towards {targetName}.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} is a royal tribute collector from {factionStr} heading towards {targetName}.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}\n\n" +
@@ -173,7 +174,7 @@ public static class EarlyWarningDispatcher
             case IncursionGroupKind.Pilgrims:
             {
                 string title = $"Approaching Pilgrims: {factionStr}";
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} is a group of pilgrims from {factionStr} travelling towards {targetName}.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} is a group of pilgrims from {factionStr} travelling towards {targetName}.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}\n\n" +
@@ -187,7 +188,7 @@ public static class EarlyWarningDispatcher
             {
                 string title = $"Approaching Beggars: {factionStr}";
                 string beggarsDetail = SensoryNarrativeUtility.GetBeggarsIntentDescription();
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} is an impoverished group travelling towards {targetName}.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} is an impoverished group travelling towards {targetName}.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}\n\n" +
@@ -200,7 +201,7 @@ public static class EarlyWarningDispatcher
             case IncursionGroupKind.AlliedReinforcements:
             {
                 string title = $"Allied Reinforcements: {factionStr}";
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} is an allied military contingent from {factionStr} marching towards {targetName} to reinforce your defences.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} is an allied military contingent from {factionStr} marching towards {targetName} to reinforce your defences.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}\n\n" +
@@ -216,7 +217,7 @@ public static class EarlyWarningDispatcher
                 string title = isHostile
                     ? (SensoryNarrativeUtility.IsLowTech ? $"Hostile Warband: {factionStr}" : $"Hostile Incursion: {factionStr}")
                     : $"Approaching Force: {factionStr}";
-                string text = $"{sensor.SensorLabel} have confirmed that {contactName} from {factionStr} is moving towards {targetName}.\n\n" +
+                string text = $"{sensorLabel} have confirmed that {contactName} from {factionStr} is moving towards {targetName}.\n\n" +
                               $"Target: {targetName}\n" +
                               $"Estimated Arrival: ~{remainingHours:F1} hours (~{Mathf.CeilToInt(actualRemainingTiles)} hexes away)\n" +
                               $"{attrLine}";
