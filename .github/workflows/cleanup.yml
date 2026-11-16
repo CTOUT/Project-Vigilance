@@ -9,6 +9,10 @@ on:
     - cron: "0 3 * * *" # daily at 03:00 UTC
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   cleanup:
     runs-on: ubuntu-latest
