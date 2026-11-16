@@ -10,7 +10,7 @@ The proposed hard-shadow rule is a gameplay change, not a necessary consequence 
 
 In Project Vigilance, **Oceanic Sonar** (provided by Coastal Hydrophone Arrays `Geoscape_SonarArray` and Automated Sonar Stations `ListeningPostKind.AutomatedSonar`) is designed to track maritime contacts strictly across water bodies (`tile.WaterCovered == true`).
 
-Currently, `SonarTraversalUtility.PopulateSonarCoverage` uses a graph-based Breadth-First Search (BFS) that traverses from neighbor to neighbor across water tiles. While it prevents entering land hexes directly, it allows sound to navigate through contiguous water around capes, peninsulas, and headlands, illuminating water bodies on the far side of landmasses where direct geometric line of sight is obstructed.
+Currently, `SonarTraversalUtility.PopulateSonarCoverage` uses a graph-based Breadth-First Search (BFS) that traverses from neighbour to neighbour across water tiles. While it prevents entering land hexes directly, it allows sound to navigate through contiguous water around capes, peninsulas, and headlands, illuminating water bodies on the far side of landmasses where direct geometric line of sight is obstructed.
 
 As observed in playtesting, a coastal sonar station built on the southern shore wraps around the peninsula and illuminates the western bay on the other side of the landmass:
 
@@ -77,9 +77,9 @@ flowchart TD
   - If `originWaterTile == targetTile` or they are immediate neighbors, returns `true` (both are water).
   - Obtains 3D tile centers $C_O$ and $C_T$.
   - Steps along the ray segment from $C_O$ towards $C_T$ across the hex grid:
-    - At each step, evaluates forward neighbors (neighbors strictly closer to $C_T$ than current).
-    - Identifies the forward neighbor closest to the line segment $C_O \to C_T$.
-    - If the best forward neighbor (or all tied forward candidates) is NOT water (`!IsTileWaterCovered`), the ray has struck land: returns `false`.
+    - At each step, evaluates forward neighbours (neighbours strictly closer to $C_T$ than current).
+    - Identifies the forward neighbour closest to the line segment $C_O \to C_T$.
+    - If the best forward neighbour (or all tied forward candidates) is NOT water (`!IsTileWaterCovered`), the ray has struck land: returns `false`.
     - If water, advances `current` to that tile and repeats until reaching `targetTile`.
   - If tile centers are unavailable (e.g. topological tests without coordinates), falls back to verifying that the candidate tile is within valid directional reach.
 - In `PopulateSonarCoverage`:

@@ -15,7 +15,7 @@ Each release publishes synchronised artifacts across two primary channels:
 2. **Steam Workshop & Steam Collection:**
    - **Mod Item ([#3822378226](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)):** Built assemblies, Defs, Patches, and About metadata uploaded via RimWorld's in-game mod uploader.
    - **Mod Description:** BBCode formatted overview ([`docs/workshop_description.bbcode`](workshop_description.bbcode)).
-   - **Change Notes:** Versioned changelog entry in BBCode ([`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.3.0.txt)).
+   - **Change Notes:** Versioned changelog entry in BBCode ([`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.4.0.txt)).
    - **Collection Description ([#3822385427](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)):** BBCode overview of active and planned suite modules ([`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode)).
 
 ---
@@ -56,7 +56,7 @@ Maintain synchronization for community-facing Steam portals:
    - Update version tags (e.g. `vX.Y LIVE`).
    - Add bullet points under **Key Features** for new capabilities.
    - Verify **Reporting Bugs & Feedback** directs users to GitHub Issues (preferred) and Steam Discussions, specifying `Player.log` and reproduction steps.
-2. **Change Notes ([`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.3.0.txt)):**
+2. **Change Notes ([`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.4.0.txt)):**
    - Create a dedicated BBCode change note formatted with `[h2]`, `[list]`, `[*]`, `[b]`, and `[i]`.
    - Organize into feature categories: new mechanics, tactical behaviors, fixes, and performance optimizations.
 3. **Collection Description ([`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode)):**
@@ -120,7 +120,7 @@ This pipeline will:
 2. **Update Workshop Metadata via Steam:**
    - Visit the [Workshop Item Page](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226).
    - Click **Edit title & description** -> Paste contents of [`docs/workshop_description.bbcode`](workshop_description.bbcode).
-   - Click **Add / edit change notes** -> Edit the auto-generated update entry and paste contents of [`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.3.0.txt).
+   - Click **Add / edit change notes** -> Edit the auto-generated update entry and paste contents of [`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.4.0.txt).
 3. **Update Steam Collection:**
    - Visit the [Steam Collection Page](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427).
    - Click **Edit title and description** -> Paste contents of [`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode).

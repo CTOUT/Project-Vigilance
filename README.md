@@ -110,7 +110,7 @@ To maintain performance, simplicity, and community compatibility, the project is
 
 ### Testing, Roadmap & Operations
 
-- **[Milestone 1.3 Quality Assurance & Playtest Plan (TC-01 – TC-32)](docs/milestone_1_3_test_plan.md)**
+- **[Milestone 1.3 Quality Assurance & Playtest Plan (TC-01 – TC-32)](docs/archive/milestone_1_3_test_plan.md)**
 - **[Authoritative Release & Publishing Process](docs/release-process.md)**
 - **[Frequently Asked Questions (FAQ)](docs/faq.md)**
 - **[Implementation Roadmap & TODO](TODO.md)**
