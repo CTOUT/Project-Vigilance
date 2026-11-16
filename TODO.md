@@ -100,16 +100,22 @@
 - [ ] Implement crash site generation (`SiteDef` with wreckage, debris, and survivor spawns).
 - [ ] Create tactical deployment and extraction drop-zone mechanics.
 - [ ] Build amphibious transport capabilities (Triton analogue for aquatic sites).
-- [ ] **Odyssey DLC Synergy:** Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
+- [ ] **Odyssey DLC Synergy & Non-Destructive Gravcore Takeoff:**
+  - Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
+  - Patch gravcore launch sequence to eliminate permanent world tile destruction, preserving planetary terrain integrity during orbital deployments without external mod dependencies.
 - [ ] **Standalone Test:** Validate interception combat and dropship deployment against standard pirate shuttles without Module 1.
 
 ---
 
 ## Phase 3.5: Tactical Battlescape & Sensory (Standalone Framework)
 
-- [ ] **3-Mode Battlescape Visibility (`MapComponent_TacticalVisibility`):**
-  - **Mode 1: Classic Haze of War:** Obsidian Shroud (Tier 0) → Slate Memory Haze (Tier 1) → Live Line-of-Sight (Tier 2).
-  - **Mode 2: Tactical Site Surveillance:** Pre-charted terrain/structure footprints with masked dynamic hostiles.
+- [ ] **3-Mode Battlescape Visibility & Directional Line-of-Sight (`MapComponent_TacticalVisibility`):**
+  - **Epistemic Information Policy:** Exact Battlescape analogue to Geoscape Fog of War ("You don't know what you don't know"). Players only see active sightlines of friendly pawns; terrain uncovers through physical exploration; out-of-sight cells drop into stale memory haze.
+  - **Mode 1: Classic Haze of War:**
+    - _Obsidian Shroud (Tier 0):_ Completely unmapped black pitch across unexplored sectors.
+    - _Slate Memory Haze (Tier 1):_ Discovered terrain and structures remain visible as last observed (honest staleness); dynamic pawns, items, and changes are masked.
+    - _Live Line-of-Sight (Tier 2):_ Dynamic raycast field-of-view updated via pawn facing and optical range.
+  - **Mode 2: Tactical Site Surveillance:** Pre-charted structural blueprints with masked dynamic hostiles.
   - **Mode 3: Omniscient:** Vanilla spectator fallback.
 - [ ] **Zero-Allocation Spatial Cell Bitmasks:** Implement `ulong[] cellExploredBitset` and `ulong[] cellVisibleBitset` on `.NET 10` for maps up to 100,000 cells without GC allocations.
 - [ ] **Multi-Tier Sensory Modelling:**
@@ -119,11 +125,16 @@
 - [ ] **Tactical Field Equipment:**
   - Handheld Motion Scanner with 250-tick acoustic sonar pulses emitting blips through walls.
   - Directional rail flashlights, deployable spotlight structures, illumination flares, and smoke/chaff screens.
-- [ ] **Guerrilla & Pod AI (Anti-Killbox Doctrines):**
-  - Fireteam pod cohesion (dormant patrol states vs. localized alert without whole-map swarms).
-  - Ambush and fatal-funnel crossfire setups holding fire until optimal range.
-  - Peeling fallback and suppressive covering fire retreats linking up with rear pods.
-  - Perimeter breaching with sappers/explosives avoiding turret killboxes.
+- [ ] **Guerrilla & Pod AI (Anti-Killbox & Anti-Cheese Doctrines):**
+  - **Overhaul Suicide/Kamikaze Raids:** Replace reckless headlong rushes with tactical squad behaviour (stealth, cover-to-cover movement, coordinated flanking).
+  - **Anti-Cheese & Anti-Trap Pathfinding:** Threat-evaluation heuristics that detect high-density trap corridors, superheated/freezer death traps, and IED bait mazes, actively choosing alternative approach vectors.
+  - **Sapper & Perimeter Breaching:** Sapper squads target structural perimeter weaknesses with breach axes and explosives rather than filtering through fatal funnels.
+  - **Fireteam Pod Cohesion:** Fireteam pods remain in dormant patrol/overwatch states until alerted, preventing whole-map swarms.
+  - **Suppress & Peel Retreats:** Battered squads execute covering fire, smoke deployment, and peeling retreats to link with reserve pods rather than fighting to the last man.
+- [ ] **Material Thermal Integrity & Realistic Combustion:**
+  - **Non-Flammable Structural Metals:** Eliminate basic oxygen flammability on structural metals (Steel, Plasteel, Uranium: `flammability = 0f`), stopping metal walls, doors, and furniture from catching fire from normal sparks and campfires.
+  - **Extreme Concussion & Alien Plasma:** Reserve thermal destruction for structural explosives, superheated furnace conditions, incendiary fuels, and alien plasma.
+  - **Alien Metallurgy Foundation:** Establishes realistic material properties for future alien materials (Alien Alloys, Elerium-115) in Module 3.
 - [ ] **Geoscape-to-Battlescape Integration:**
   - Radar intel tier dictates insertion Fog of War state and landing zone (LZ) security.
   - Live tactical countdown timers linked to inbound Geoscape reinforcements (mission doom clock).
