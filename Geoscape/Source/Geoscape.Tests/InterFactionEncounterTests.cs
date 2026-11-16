@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RimWorld;
 using RimWorld.Planet;
+using UnityEngine;
 using Verse;
 using ProjectVigilance.Geoscape.World;
 using ProjectVigilance.Geoscape.Patches;
@@ -13,6 +14,16 @@ namespace Geoscape.Tests;
 [TestClass]
 public sealed class InterFactionEncounterTests
 {
+    [TestInitialize]
+    public void Setup()
+    {
+        GeoscapeTestHarness.EnsureEnvironmentInitialised();
+        GeoscapeTestHarness.InitMockWorld(out _);
+    }
+
+    [TestCleanup]
+    public void Cleanup() => GeoscapeTestHarness.ResetAllStaticState();
+
     [TestMethod]
     public void TechMultiplier_CalculatesAccuratelyAcrossAllTechLevels()
     {
@@ -307,5 +318,21 @@ public sealed class InterFactionEncounterTests
         aftermath.SetupAftermath(null, null, res, null, null, null);
         Assert.IsTrue(aftermath.ExpiryTick > 0, "Expiry tick must be scheduled into the future.");
         Assert.IsNotNull(aftermath.SalvageLoot, "SalvageLoot container must be initialized.");
+    }
+
+    [TestMethod]
+    public void Dialog_ScavengeAftermath_InitializesAndRespectsCaravanCapacity()
+    {
+        var aftermath = new WorldObject_EncounterAftermath();
+        if (ThingDefOf.Silver != null)
+        {
+            Thing silver = ThingMaker.MakeThing(ThingDefOf.Silver);
+            silver.stackCount = 500;
+            aftermath.SalvageLoot.TryAdd(silver);
+        }
+
+        var caravan = GeoscapeTestHarness.CreateCaravan((PlanetTile)100);
+        var dialog = new Dialog_ScavengeAftermath(caravan, aftermath);
+        Assert.AreEqual(new Vector2(740f, 620f), dialog.InitialSize);
     }
 }

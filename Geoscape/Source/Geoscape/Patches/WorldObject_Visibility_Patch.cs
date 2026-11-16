@@ -281,17 +281,8 @@ public static class WorldObject_Visibility_Patch
 
                 if (IsValidOrbitalLayerActive())
                 {
-                    // If viewing the Orbit/space layer (e.g. Odyssey Asteroid or Orbit layer), ensure expanding icon is fully visible
-                    PlanetLayer? sel = Find.WorldSelector?.SelectedLayer;
-                    if (sel?.Def?.isSpace == true || sel?.Def?.defName == "Orbit")
-                    {
-                        __result = Mathf.Max(__result, 1f);
-                    }
-                    else if (__result <= 0f)
-                    {
-                        // On planetary surface view, fallback to standard expanding icon transition
-                        __result = Mathf.Max(__result, ExpandableWorldObjectsUtility.ExpandMoreTransitionPct);
-                    }
+                    // Orbital entities in high planetary orbit maintain full expanding icon visibility across both surface and space views
+                    __result = 1f;
                 }
             }
             else if (wo.Faction?.IsPlayer == true && (wo is MapParent || wo is Caravan || wo is WorldObject_ListeningPost))

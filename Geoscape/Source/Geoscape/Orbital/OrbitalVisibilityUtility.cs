@@ -45,11 +45,18 @@ public static class OrbitalVisibilityUtility
         ref Material? cachedMat,
         ref Faction? cachedFaction)
     {
-        if (Find.World != null)
+        try
         {
-            baseSetFaction(newFaction);
+            if (Find.World != null && Find.WorldObjects != null && Find.FactionManager != null)
+            {
+                baseSetFaction(newFaction);
+            }
+            else
+            {
+                WorldObjectFactionField?.SetValue(wo, newFaction);
+            }
         }
-        else
+        catch
         {
             WorldObjectFactionField?.SetValue(wo, newFaction);
         }

@@ -41,7 +41,7 @@ public class CaravanArrivalAction_ScavengeAftermath : CaravanArrivalAction
     {
         if (aftermath != null && aftermath.Spawned && caravan.Tile == aftermath.Tile)
         {
-            aftermath.ScavengeByCaravan(caravan);
+            aftermath.OpenScavengeDialog(caravan);
         }
     }
 

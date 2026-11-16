@@ -80,7 +80,8 @@ public static class OrbitalFlightModel
     }
 
     /// <summary>
-    /// Converts latitude and longitude in degrees to a 3D unit direction vector.
+    /// Converts latitude and longitude in degrees to a 3D unit direction vector matching RimWorld's WorldGrid coordinate system.
+    /// In RimWorld: +Y is North Pole, -Z is Prime Meridian (lon=0), +X is 90° East meridian.
     /// </summary>
     public static Vector3 SphericalToDirection(float latitudeDeg, float longitudeDeg)
     {
@@ -88,9 +89,9 @@ public static class OrbitalFlightModel
         float lonRad = longitudeDeg * Mathf.Deg2Rad;
 
         float cosLat = Mathf.Cos(latRad);
-        float x = cosLat * Mathf.Cos(lonRad);
+        float x = cosLat * Mathf.Sin(lonRad);
         float y = Mathf.Sin(latRad);
-        float z = cosLat * Mathf.Sin(lonRad);
+        float z = -cosLat * Mathf.Cos(lonRad);
 
         return new Vector3(x, y, z).normalized;
     }

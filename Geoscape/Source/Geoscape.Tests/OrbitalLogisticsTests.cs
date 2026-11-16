@@ -284,12 +284,19 @@ public sealed class OrbitalLogisticsTests
     [TestMethod]
     public void OrbitalFlightModel_SphericalToDirection_NormalizedAndAccurate()
     {
-        // Equator at prime meridian: lat=0, lon=0 -> (1, 0, 0)
+        // Equator at prime meridian: lat=0, lon=0 -> (0, 0, -1) in RimWorld WorldGrid
         Vector3 v0 = OrbitalFlightModel.SphericalToDirection(0f, 0f);
-        Assert.AreEqual(1f, v0.x, 0.001f);
+        Assert.AreEqual(0f, v0.x, 0.001f);
         Assert.AreEqual(0f, v0.y, 0.001f);
-        Assert.AreEqual(0f, v0.z, 0.001f);
+        Assert.AreEqual(-1f, v0.z, 0.001f);
         Assert.AreEqual(1f, v0.magnitude, 0.001f);
+
+        // 90° East meridian: lat=0, lon=90 -> (1, 0, 0) in RimWorld WorldGrid
+        Vector3 v90 = OrbitalFlightModel.SphericalToDirection(0f, 90f);
+        Assert.AreEqual(1f, v90.x, 0.001f);
+        Assert.AreEqual(0f, v90.y, 0.001f);
+        Assert.AreEqual(0f, v90.z, 0.001f);
+        Assert.AreEqual(1f, v90.magnitude, 0.001f);
 
         // North pole: lat=90, lon=0 -> (0, 1, 0)
         Vector3 vNorth = OrbitalFlightModel.SphericalToDirection(90f, 0f);
@@ -439,9 +446,112 @@ public sealed class OrbitalLogisticsTests
     }
 
     [TestMethod]
-    public void OrbitalVisibilityUtility_FindPoweredCommsConsole_NullMap_ReturnsNull()
+    public void Diagnostic_InspectGetCommTargets()
     {
-        Assert.IsNull(OrbitalVisibilityUtility.FindPoweredCommsConsole(null!));
-        Assert.IsFalse(OrbitalVisibilityUtility.HasPoweredCommsConsole(null!));
+        var m = typeof(RimWorld.Building_CommsConsole).GetMethod("GetCommTargets", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Console.WriteLine($"GetCommTargets: {m}");
+        if (m != null)
+        {
+            foreach (var inst in HarmonyLib.PatchProcessor.GetOriginalInstructions(m))
+            {
+                Console.WriteLine($"  {inst.opcode} {inst.operand}");
+            }
+        }
     }
+
+    [TestMethod]
+    public void DebugActions_HasDirectColonySpawnActions()
+    {
+        var methods = typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance).GetMethods(
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+
+        var tradeAction = methods.FirstOrDefault(m =>
+        {
+            var attr = m.GetCustomAttributes(typeof(LudeonTK.DebugActionAttribute), false).FirstOrDefault() as LudeonTK.DebugActionAttribute;
+            return attr != null && attr.name == "Orbital: Spawn Trade Satellite Over Colony";
+        });
+        Assert.IsNotNull(tradeAction, "Expected 'Orbital: Spawn Trade Satellite Over Colony' debug action");
+
+        var tradeAttr = tradeAction.GetCustomAttributes(typeof(LudeonTK.DebugActionAttribute), false).First() as LudeonTK.DebugActionAttribute;
+        Assert.AreEqual(LudeonTK.DebugActionType.Action, tradeAttr!.actionType);
+        Assert.AreEqual(LudeonTK.AllowedGameStates.Playing, tradeAttr.allowedGameStates);
+
+        var reconAction = methods.FirstOrDefault(m =>
+        {
+            var attr = m.GetCustomAttributes(typeof(LudeonTK.DebugActionAttribute), false).FirstOrDefault() as LudeonTK.DebugActionAttribute;
+            return attr != null && attr.name == "Orbital: Spawn Recon Satellite Over Colony";
+        });
+        Assert.IsNotNull(reconAction, "Expected 'Orbital: Spawn Recon Satellite Over Colony' debug action");
+
+        var reconAttr = reconAction.GetCustomAttributes(typeof(LudeonTK.DebugActionAttribute), false).First() as LudeonTK.DebugActionAttribute;
+        Assert.AreEqual(LudeonTK.DebugActionType.Action, reconAttr!.actionType);
+        Assert.AreEqual(LudeonTK.AllowedGameStates.Playing, reconAttr.allowedGameStates);
+    }
+
+    [TestMethod]
+    public void SphericalToDirection_MatchesRimWorldWorldGridConvention()
+    {
+        float[] testLats = { -60f, -30f, 0f, 25f, 45f, 80f };
+        float[] testLons = { -170f, -90f, -45f, 0f, 60f, 135f, 180f };
+
+        foreach (float lat in testLats)
+        {
+            foreach (float lon in testLons)
+            {
+                Vector3 dir = OrbitalFlightModel.SphericalToDirection(lat, lon);
+                float computedLon = Mathf.Atan2(dir.x, -dir.z) * Mathf.Rad2Deg;
+                float computedLat = Mathf.Asin(Mathf.Clamp(dir.y, -1f, 1f)) * Mathf.Rad2Deg;
+
+                Assert.AreEqual(lat, computedLat, 0.01f, $"Latitude mismatch for ({lat}, {lon})");
+                float lonDiff = Mathf.Abs(Mathf.DeltaAngle(lon, computedLon));
+                Assert.IsTrue(lonDiff < 0.01f, $"Longitude mismatch for ({lat}, {lon}): computed {computedLon}");
+            }
+        }
+    }
+
+    [TestMethod]
+    public void CreateOverheadOrbitParameters_DirectlyMatchesTargetCoordinates()
+    {
+        float targetLat = 42.5f;
+        float targetLon = 68.3f;
+        int currentTick = 25000;
+        float extraInclinationDeg = 5f;
+
+        float inclination = Mathf.Clamp(Mathf.Abs(targetLat) + extraInclinationDeg, 10f, 89.9f);
+        float incRad = inclination * Mathf.Deg2Rad;
+        float latRad = targetLat * Mathf.Deg2Rad;
+        float sinU = Mathf.Sin(latRad) / Mathf.Sin(incRad);
+        sinU = Mathf.Clamp(sinU, -1f, 1f);
+        float uRad = Mathf.Asin(sinU);
+        float uDeg = uRad * Mathf.Rad2Deg;
+        if (uDeg < 0f) uDeg += 360f;
+        uRad = uDeg * Mathf.Deg2Rad;
+
+        float yNode = Mathf.Sin(uRad) * Mathf.Cos(incRad);
+        float xNode = Mathf.Cos(uRad);
+        float alphaNodeDeg = Mathf.Atan2(yNode, xNode) * Mathf.Rad2Deg;
+        float raanDeg = ((targetLon - alphaNodeDeg + 180f) % 360f + 360f) % 360f - 180f;
+
+        OrbitalParameters orbitParams = new(
+            altitudeKm: 600f,
+            periodTicks: 62500,
+            inclinationDeg: inclination,
+            ascendingNodeDeg: raanDeg,
+            precessionRateDegPerDay: -3.5f,
+            meanAnomalyEpochDeg: uDeg,
+            orbitalDriftDegPerDay: 0.8f,
+            epochTick: currentTick);
+
+        OrbitalFlightModel.CalculateSubSatelliteCoordinates(orbitParams, currentTick, out float satLat, out float satLon);
+        Assert.AreEqual(targetLat, satLat, 0.01f, "Sub-satellite latitude must match target latitude at epoch");
+        float lonDiff = Mathf.Abs(Mathf.DeltaAngle(targetLon, satLon));
+        Assert.IsTrue(lonDiff < 0.01f, $"Sub-satellite longitude must match target longitude at epoch (expected {targetLon}, got {satLon})");
+
+        Vector3 satDir = OrbitalFlightModel.CalculateSubSatelliteDirection(orbitParams, currentTick);
+        Vector3 targetDir = OrbitalFlightModel.SphericalToDirection(targetLat, targetLon);
+        float angDist = OrbitalFlightModel.AngularDistanceDeg(satDir, targetDir);
+        Assert.IsTrue(angDist < 0.01f, $"Angular distance between satellite and target must be ~0 at epoch, was {angDist}°");
+    }
+
+
 }

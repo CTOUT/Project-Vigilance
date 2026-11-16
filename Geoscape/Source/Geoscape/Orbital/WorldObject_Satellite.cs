@@ -39,6 +39,25 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
     public override bool VisibleInBackground => true;
 
+    private Texture2D? cachedExpandingIcon;
+    public override Texture2D ExpandingIcon
+    {
+        get
+        {
+            if (cachedExpandingIcon == null)
+            {
+                if (def?.expandingIconTexture != null)
+                {
+                    cachedExpandingIcon = ContentFinder<Texture2D>.Get(def.expandingIconTexture, false);
+                }
+                cachedExpandingIcon ??= ContentFinder<Texture2D>.Get("World/WorldObjects/Expanding/Satellite", false)
+                    ?? ContentFinder<Texture2D>.Get("World/WorldObjects/Expanding/TravelingTransportPods", false)
+                    ?? base.ExpandingIcon;
+            }
+            return cachedExpandingIcon ?? base.ExpandingIcon;
+        }
+    }
+
     public override Color ExpandingIconColor => Faction != null ? Faction.Color : Color.white;
 
     public override Material Material =>
@@ -92,7 +111,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
                 return Faction.IsPlayer;
             }
 
-            return Find.World == null;
+            return Find.World == null || Find.FactionManager == null;
         }
     }
     public bool IsStationary => false;
@@ -289,6 +308,16 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
         }
         sb.Append(GetOrbitalInspectString());
         return sb.ToString().TrimEnd();
+    }
+
+    public override void DrawExtraSelectionOverlays()
+    {
+        base.DrawExtraSelectionOverlays();
+        PlanetTile subTile = CurrentSubSatelliteTile;
+        if (subTile.Valid)
+        {
+            GenDraw.DrawWorldRadiusRing(subTile, Mathf.RoundToInt(footprintRadiusInTiles));
+        }
     }
 
     public override void ExposeData()

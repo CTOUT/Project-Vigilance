@@ -1,8 +1,10 @@
 using System.Collections.Generic;
+using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using Verse.AI;
 
 namespace ProjectVigilance.Geoscape.Orbital;
 
@@ -224,6 +226,62 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
         {
             console.GiveUseCommsJob(myPawn, this);
         }, MenuOptionPriority.InitiateSocial), myPawn, console);
+    }
+
+    public override IEnumerable<Gizmo> GetGizmos()
+    {
+        foreach (Gizmo g in base.GetGizmos())
+        {
+            yield return g;
+        }
+
+        Map? homeMap = Find.Maps?.FirstOrDefault(m => m.IsPlayerHome && CoversTile(m.Tile));
+        if (homeMap != null)
+        {
+            Building_CommsConsole? console = OrbitalVisibilityUtility.FindPoweredCommsConsole(homeMap);
+            var cmd = new Command_Action
+            {
+                defaultLabel = $"Open Comms ({homeMap.Parent?.LabelCap ?? "Colony"})",
+                defaultDesc = console != null
+                    ? $"Establish direct orbital trade link via the powered Comms Console at {homeMap.Parent?.LabelCap ?? "the colony"}."
+                    : $"The satellite is within range of {homeMap.Parent?.LabelCap ?? "the colony"}, but requires an operational powered Comms Console to establish communication.",
+                icon = ContentFinder<Texture2D>.Get("UI/Commands/Trade", false) ?? BaseContent.BadTex,
+                action = () =>
+                {
+                    Pawn? negotiator = homeMap.mapPawns.FreeColonistsSpawned
+                        .Where(p => !p.Downed && !p.InMentalState && (console == null || p.CanReach(console, PathEndMode.InteractionCell, Danger.Some)))
+                        .OrderByDescending(p => p.skills?.GetSkill(SkillDefOf.Social)?.Level ?? 0)
+                        .FirstOrDefault();
+
+                    if (negotiator != null)
+                    {
+                        if (console != null)
+                        {
+                            console.GiveUseCommsJob(negotiator, this);
+                        }
+                        else
+                        {
+                            TryOpenComms(negotiator);
+                        }
+                    }
+                    else
+                    {
+                        Messages.Message("No available colonist to operate the Comms Console.", MessageTypeDefOf.RejectInput, false);
+                    }
+                }
+            };
+
+            if (console == null)
+            {
+                cmd.Disable("No operational powered Comms Console.");
+            }
+            else if (!CanTradeNow)
+            {
+                cmd.Disable("Trade unavailable.");
+            }
+
+            yield return cmd;
+        }
     }
 
     #endregion

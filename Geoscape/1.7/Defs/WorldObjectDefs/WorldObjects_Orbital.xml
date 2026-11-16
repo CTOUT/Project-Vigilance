@@ -7,10 +7,10 @@
     <label>orbital station</label>
     <description>A persistent orbital operational centre and logistics hub. Serves as a deployment, command, and maintenance nexus for faction satellite constellations in high planetary orbit.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.Orbital.WorldObject_OrbitalStation</worldObjectClass>
-    <texture>World/WorldObjects/Expanding/Sites/Outpost</texture>
+    <texture>World/WorldObjects/Expanding/SettlementPlatform</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/Outpost</expandingIconTexture>
+    <expandingIconTexture>World/WorldObjects/Expanding/SettlementPlatform</expandingIconTexture>
     <expandingIconPriority>50</expandingIconPriority>
     <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
@@ -22,10 +22,10 @@
     <label>reconnaissance satellite</label>
     <description>An autonomous optical and synthetic-aperture radar satellite orbiting on a high-inclination polar track. Sweeps planetary hexes, dispersing the Haze of War and revealing dynamic incursions.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.Orbital.WorldObject_Satellite</worldObjectClass>
-    <texture>World/WorldObjects/Expanding/Sites/DownedRefugee</texture>
+    <texture>World/WorldObjects/Expanding/Satellite</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/DownedRefugee</expandingIconTexture>
+    <expandingIconTexture>World/WorldObjects/Expanding/Satellite</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
     <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
@@ -37,10 +37,10 @@
     <label>trade satellite</label>
     <description>A mobile commercial orbital platform carrying cargo and commodities. When passing directly overhead colonies equipped with a powered comms console, opens orbital trade negotiations.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.Orbital.Satellite_Trade</worldObjectClass>
-    <texture>World/WorldObjects/Expanding/Sites/Outpost</texture>
+    <texture>World/WorldObjects/Expanding/Satellite</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/Outpost</expandingIconTexture>
+    <expandingIconTexture>World/WorldObjects/Expanding/Satellite</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
     <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
@@ -52,10 +52,10 @@
     <label>navigation satellite</label>
     <description>A positioning and telemetry constellation platform. Transmits continuous global positioning coordinates, providing overland speed bonuses for friendly surface caravans under its footprint.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.Orbital.WorldObject_Satellite</worldObjectClass>
-    <texture>World/WorldObjects/Expanding/Sites/DownedRefugee</texture>
+    <texture>World/WorldObjects/Expanding/Satellite</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/DownedRefugee</expandingIconTexture>
+    <expandingIconTexture>World/WorldObjects/Expanding/Satellite</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
     <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
@@ -67,10 +67,10 @@
     <label>communication satellite</label>
     <description>A high-apogee orbital relay platform linking unmanned remote listening posts across oceans and mountain chains to the central colony geoscape grid.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.Orbital.WorldObject_Satellite</worldObjectClass>
-    <texture>World/WorldObjects/Expanding/Sites/DownedRefugee</texture>
+    <texture>World/WorldObjects/Expanding/Satellite</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/DownedRefugee</expandingIconTexture>
+    <expandingIconTexture>World/WorldObjects/Expanding/Satellite</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
     <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>
@@ -82,10 +82,10 @@
     <label>military satellite</label>
     <description>A tactical defense and fire-control satellite. Provides targeting telemetry, instant incursion analysis, and orbital deterrence against hostile incursions in contested sectors.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.Orbital.WorldObject_Satellite</worldObjectClass>
-    <texture>World/WorldObjects/Expanding/Sites/DownedRefugee</texture>
+    <texture>World/WorldObjects/Expanding/Satellite</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/DownedRefugee</expandingIconTexture>
+    <expandingIconTexture>World/WorldObjects/Expanding/Satellite</expandingIconTexture>
     <expandingIconPriority>48</expandingIconPriority>
     <fullyExpandedInSpace>true</fullyExpandedInSpace>
     <saved>true</saved>

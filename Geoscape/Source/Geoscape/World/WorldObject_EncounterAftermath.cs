@@ -226,9 +226,9 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
 
         if (caravan.Tile == Tile)
         {
-            yield return new FloatMenuOption("Scavenge aftermath (Salvage loot & tend survivors)", () =>
+            yield return new FloatMenuOption("Scavenge aftermath (Select loot & tend survivors)", () =>
             {
-                ScavengeByCaravan(caravan);
+                OpenScavengeDialog(caravan);
             }, MenuOptionPriority.High);
         }
         else
@@ -238,6 +238,12 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
                 caravan.pather.StartPath(Tile, new CaravanArrivalAction_ScavengeAftermath(this), true);
             }, MenuOptionPriority.Default);
         }
+    }
+
+    public void OpenScavengeDialog(Caravan caravan)
+    {
+        if (caravan == null || !caravan.Spawned) return;
+        Find.WindowStack?.Add(new Dialog_ScavengeAftermath(caravan, this));
     }
 
     public void ScavengeByCaravan(Caravan caravan)
