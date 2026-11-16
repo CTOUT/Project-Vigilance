@@ -398,22 +398,42 @@ public class MapComponent_OverlandAmbush : MapComponent
         }
     }
 
+    private bool HasActiveEngagements()
+    {
+        if (engagements == null) return false;
+        for (int i = 0; i < engagements.Count; i++)
+        {
+            if (!engagements[i].isDisengaged)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public override void MapComponentTick()
     {
         base.MapComponentTick();
 
-        if (ambushSprung || engagements.Any(e => !e.isDisengaged))
+        if (!isActive && !ambushSprung && (engagements == null || engagements.Count == 0) && (allEnemies == null || allEnemies.Count == 0))
+        {
+            return;
+        }
+
+        if (ambushSprung || HasActiveEngagements())
         {
             if (Find.TickManager.TicksGame % 60 == 0)
             {
                 // Process each engaged incursion independently
-                for (int i = 0; i < engagements.Count; i++)
+                if (engagements != null)
                 {
-                    var record = engagements[i];
-                    if (record.isDisengaged || record.incursion == null || !record.incursion.Spawned)
+                    for (int i = 0; i < engagements.Count; i++)
                     {
-                        continue;
-                    }
+                        var record = engagements[i];
+                        if (record.isDisengaged || record.incursion == null || !record.incursion.Spawned)
+                        {
+                            continue;
+                        }
 
                     // While the primary ambush remains concealed and un-sprung, let the ambush sweep below handle sourceIncursion
                     if (isActive && !ambushSprung && record.incursion == sourceIncursion)
@@ -502,9 +522,10 @@ public class MapComponent_OverlandAmbush : MapComponent
                         Log.Message($"[Project Vigilance] Incursion {record.incursion.TrackingId} ({record.contactLabel}) fully neutralized on battlefield. Incursion destroyed.");
                     }
                 }
+            }
 
                 // Fallback for legacy single-incursion if engagements was empty
-                if (engagements.Count == 0 && sourceIncursion != null && sourceIncursion.Spawned)
+                if ((engagements == null || engagements.Count == 0) && sourceIncursion != null && sourceIncursion.Spawned)
                 {
                     var livingHostiles = allEnemies.Where(p => p != null && !p.Dead && !p.Downed && p.Spawned).ToList();
                     if (livingHostiles.Count == 0)
@@ -536,8 +557,8 @@ public class MapComponent_OverlandAmbush : MapComponent
                 }
 
                 // Check if all engagements have disengaged
-                bool anyActive = engagements.Any(e => !e.isDisengaged);
-                if (!anyActive && engagements.Count > 0 && (!isActive || ambushSprung))
+                bool anyActive = HasActiveEngagements();
+                if (!anyActive && engagements != null && engagements.Count > 0 && (!isActive || ambushSprung))
                 {
                     ambushSprung = false;
                     sourceIncursion = null;

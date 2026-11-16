@@ -410,4 +410,18 @@ public sealed class EncounterRetreatCleanupTests
         Assert.AreEqual(IntelligenceTier.Classified, incursion.CurrentIntelligenceTier, "Incursion must have Classified tier upon retreat.");
         Assert.IsFalse(incursion.IsEngagedInTacticalMap, "Incursion must disengage from tactical map.");
     }
+
+    [TestMethod]
+    public void MapComponentTick_WhenIdle_FastExitsWithoutAccessingTickManager()
+    {
+        var ambush = (MapComponent_OverlandAmbush)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(MapComponent_OverlandAmbush));
+        var engagementsField = typeof(MapComponent_OverlandAmbush).GetField("engagements", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var allEnemiesField = typeof(MapComponent_OverlandAmbush).GetField("allEnemies", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        engagementsField?.SetValue(ambush, new List<IncursionEngagementRecord>());
+        allEnemiesField?.SetValue(ambush, new List<Verse.Pawn>());
+
+        // If it doesn't fast-exit, it would touch Find.TickManager or map and throw NullReferenceException
+        ambush.MapComponentTick();
+    }
 }

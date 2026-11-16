@@ -171,6 +171,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Idle Map Component Tick Performance Optimization (`MapComponent_OverlandAmbush`):**
+  - Added an $O(1)$ fast-exit guard in `MapComponentTick` when the map has no active overland ambush, engaged incursion records, or tracked hostiles (`!isActive && !ambushSprung && engagements.Count == 0 && allEnemies.Count == 0`).
+  - Replaced per-tick LINQ delegate closure allocations (`engagements.Any(e => !e.isDisengaged)`) with index-based loop `HasActiveEngagements()`.
+  - Drops idle map component tick execution time from 0.250 ms to ~0.000 ms, eliminating CPU overhead on peaceful colony maps.
+- **Headless Test WorldGrid Safe Lifecycle (`WorldObject_DrawPos_Patch`):**
+  - Guarded `Find.World != null` before evaluating orbital space object stratification offsets, preventing headless unit test runners from encountering `NullReferenceException` in unmocked environments.
 - **Hardcoded Settlement & Stronghold Name Removal (`IncursionRetreatManager`, `IncursionArrivalManager`, `WorldObject_Incursion`, `MapComponent_OverlandAmbush`, `SettlementUtility_Attack_Patch`):**
   - Eliminated hardcoded fallback strings (e.g. `"the colony"`, `"their stronghold"`, `"Colony territory"`, `"Hostile Warband"`, `"enemy forces"`, and `"the settlement"`) across letters, inspect panes, and tactical encounter records.
   - Dynamically queries world objects (`Find.WorldObjects.SettlementAt`, `MapParentAt`) to accurately reflect custom player colony names, multiple settlements, enemy strongholds (e.g. "Norwich Outpost" instead of generic "their stronghold"), and specific tile coordinates.

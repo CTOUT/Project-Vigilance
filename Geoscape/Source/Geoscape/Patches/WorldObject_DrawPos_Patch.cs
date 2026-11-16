@@ -29,9 +29,23 @@ public static class WorldObject_DrawPos_Patch
             return;
         }
 
-        bool isSpace = IsSpaceObjectOverride != null
-            ? IsSpaceObjectOverride(__instance)
-            : (Find.WorldGrid != null && (__instance.Tile.Layer?.Def?.isSpace == true || __instance.Tile.Layer?.Def?.defName == "Orbit"));
+        bool isSpace = false;
+        if (IsSpaceObjectOverride != null)
+        {
+            isSpace = IsSpaceObjectOverride(__instance);
+        }
+        else if (Find.World != null)
+        {
+            try
+            {
+                var layer = __instance.Tile.Layer;
+                isSpace = layer?.Def?.isSpace == true || layer?.Def?.defName == "Orbit";
+            }
+            catch
+            {
+                isSpace = false;
+            }
+        }
 
         if (isSpace)
         {
