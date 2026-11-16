@@ -603,8 +603,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                     }
                 }, MenuOptionPriority.Default) { Disabled = !canAffordRelay });
 
-                bool hasLocalCoast = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(effectiveTile);
-                if (Prefs.DevMode && hasLocalCoast)
+                if (SonarGatingUtility.ShouldOfferSonarDeployment(effectiveTile))
                 {
                     bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
                     string sonarLabel = canAffordSonar
@@ -782,8 +781,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                     }
                 }, MenuOptionPriority.Default) { Disabled = !canAffordRelay });
 
-                bool destHasCoast = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(effectiveTile);
-                if (Prefs.DevMode && destHasCoast)
+                if (SonarGatingUtility.ShouldOfferSonarDeployment(effectiveTile))
                 {
                     bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
                     string sonarPrefix = isImpassable
@@ -1075,8 +1073,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                     Disabled = !canAffordRelay
                 });
 
-                bool destHasCoast = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(effectiveTile);
-                if (Prefs.DevMode && destHasCoast)
+                if (SonarGatingUtility.ShouldOfferSonarDeployment(effectiveTile))
                 {
                     bool canAffordSonar = CaravanExpeditionUtility.CanColonyDeployAutomatedSonar(map, out int mapSonarSteel, out int mapSonarComp);
                     string sonarPrefix = isImpassable

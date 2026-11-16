@@ -11,6 +11,9 @@ namespace ProjectVigilance.Geoscape.Rules;
 /// </summary>
 public static class CampaignRuleWidgets
 {
+    // WCAG AA compliant contrast ratio (>4.5:1) on dark backgrounds
+    private static readonly Color DisabledTextColor = new(1f, 1f, 1f, 0.55f);
+
     public static void DrawBool(
         Listing_Standard listing,
         CampaignRule<bool> rule,
@@ -42,7 +45,7 @@ public static class CampaignRuleWidgets
 
         if (disabled)
         {
-            GUI.color = new Color(1f, 1f, 1f, 0.38f);
+            GUI.color = DisabledTextColor;
         }
 
         listing.CheckboxLabeled(label, ref valRef, rule.Description);
@@ -89,7 +92,7 @@ public static class CampaignRuleWidgets
 
         if (isLocked)
         {
-            GUI.color = new Color(1f, 1f, 1f, 0.38f);
+            GUI.color = DisabledTextColor;
             listing.Label(header, tooltip: rule.Description);
             listing.Slider(current, min, max);
             GUI.color = Color.white;
@@ -157,7 +160,7 @@ public static class CampaignRuleWidgets
 
         if (disabled)
         {
-            GUI.color = new Color(1f, 1f, 1f, 0.38f);
+            GUI.color = DisabledTextColor;
         }
 
         if (listing.RadioButton(displayLabel, isSelected, tabIn: 0f, tooltip: tooltip, tooltipDelay: null, disabled: disabled))

@@ -68,6 +68,9 @@ public static class RuleLedgerSigner
             record.note,
             campaignId);
 
-        return string.Equals(record.hash, expected, StringComparison.OrdinalIgnoreCase);
+        byte[] a = Encoding.UTF8.GetBytes(record.hash.ToLowerInvariant());
+        byte[] b = Encoding.UTF8.GetBytes(expected.ToLowerInvariant());
+
+        return CryptographicOperations.FixedTimeEquals(a, b);
     }
 }

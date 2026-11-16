@@ -2,7 +2,7 @@
 
 ## Active Roadmap: Phase 2 — Geoscape & Radar Grid (Standalone Framework)
 
-### Milestone 1.3: Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters
+### Milestone 1.3: Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters [COMPLETED & VERIFIED]
 
 - [x] **Tactical Radar Coverage & Perimeter Outlines (`WorldDrawLayer_RadarCoverage`):** Implemented native 3D mesh overlay rendering glowing perimeter boundary rings and hexagonal holographic honeycomb grid over active sensor envelopes on the planetary globe. Configurable styles (Boundary & Grid, Boundary Only, None), 5 color palettes (Tactical Cyan, Surveillance Amber, Emerald Phosphor, Crimson Alert, Ghost White), adjustable opacity, and optional background surveillance dimming (Option 3 Hybrid). Zero-allocation hot path with dynamic sensor movement tracking.
 - [x] **Colony Technological Radar Infrastructure:**
@@ -104,11 +104,17 @@
   - Enhanced right-click interaction in `WorldSelector.HandleWorldClicks` eliminating the requirement to pre-select an origin settlement or caravan.
   - Dynamically discovers player caravans and colonies, sorted by proximity to target, presenting clear contextual options (_"Move caravan [CaravanName] to [Target] ([N] tiles away)"_ and _"Send caravan from [ColonyName] to [Target] ([N] tiles away)"_).
   - Integrates Civilization-style settlement staging (`CaravanArrivalAction_HoldPosition`: hold position outside settlements without entering or merging), listening post construction/dismantling expeditions, caravan formation, and fog-of-war exploration routing.
-- [x] **Milestone 1.3 Automated Verification (`Geoscape.Tests`):** Full MSTest suite passing (**406 unit tests**) covering campaign rules, HMAC integrity reconciliation, coastal sonar traversal, optimistic pathing safeguards, outpost assembly, orbital logistics, grounded encounters, and sensory masking.
+- [x] **WorldGrid Distance & Sensor Footprint Mathematical Alignment (`OrbitalFlightModel`):** Replaced degree-to-hex constant approximations (`1.8f`) with native `Find.WorldGrid.ApproxDistanceInTiles(angularDistanceRadians)`, guaranteeing 1:1 mathematical alignment with `GenDraw.DrawWorldRadiusRing` flood-fill geometry.
+- [x] **Comms Console Overhead Trade Deduplication & Operational Guards (`Building_CommsConsole_GetCommTargets_Patch`):** Guarded target enumeration with local `HashSet<string>` and validated `sat.CanTradeNow`, preventing duplicate entries or invalid contact yields.
+- [x] **Orbital Visuals & Dedicated Sprites (`WorldObjects_Orbital.xml`):** Replaced watchtower placeholder icons with dedicated satellite and settlement platform sprites (`World/WorldObjects/Expanding/Satellite`).
+- [x] **Debug Actions & Testing Hygiene (`DebugActionsVigilance`):** Added unique suffix identifiers (tick timestamp) to spawned orbital assets and introduced bulk clean-up actions (`Orbital: Clear All Satellites`, `Orbital: Despawn Overhead Satellites`).
+- [x] **Milestone Scope Gating & Content Stabilization:** Formally gated experimental features (coastal sonar array, non-standard satellites: Recon, Nav, Comms, Military) to `Prefs.DevMode` and debug menus for future dedicated milestones.
+- [x] **Headless Unit Test Safe Lifecycle (`WorldObject_Satellite`):** Guarded against uninitialized `Find.WorldObjects` and `Find.FactionManager` singletons in `SetFactionSafe` and sensor status checks.
+- [x] **Milestone 1.3 Automated Verification (`Geoscape.Tests`):** Full MSTest suite passing (**424 unit tests**) covering campaign rules, HMAC integrity reconciliation, coastal sonar traversal, optimistic pathing safeguards, outpost assembly, orbital logistics, grounded encounters, and sensory masking.
 
 ---
 
-### Milestone 1.4: Planetary Coordination & Version Support
+### Milestone 1.4: Planetary Coordination & Version Support [ACTIVE ROADMAP]
 
 - [ ] **Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
   - Implement the pre-settlement expedition phase for uncharted rim worlds, allowing players to survey regional geography, waterways, and mountain passes before committing to a permanent base location.
@@ -128,6 +134,7 @@
   - **Dynamic Faction Colour Shifting Specification:**
     - All world entity icons and satellite sprites must be authored as neutral grayscale / white silhouette masks with transparent backgrounds (`RGBA32`).
     - Ensures clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions (Outlanders, Pirates, Empire, Tribals, and modded factions).
+- [ ] **Modular Separation — Aquatic Operations Extraction (`Vigilance.Aquatics`):** Migrate Coastal Sonar (`SonarTraversalUtility`, `PlaceWorker_CoastalSonar`, `Geoscape_SonarArray`, `Vigilance_ListeningPost_Sonar`) out of `ProjectVigilance.Geoscape` into the standalone `Vigilance.Aquatics` module in Milestone 1.4 or later, establishing soft contract boundaries via `ISensorProvider` and laying groundwork for oceanic bathymetry.
 - [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
 - [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
 - [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.

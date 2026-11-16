@@ -3,6 +3,7 @@
 ## Goal Description
 
 Overhaul Project Vigilance's orbital mechanics from exclusively drifting, perpetual satellites into a **hybrid orbital ecosystem**:
+
 1. **Targeted Tactical Probes (Expendable & Time-Limited):** Allow players to deploy reconnaissance and navigation probes locked directly above a chosen planetary hex for a finite operational duration (5–10 in-game days), replacing random orbital drift with deliberate tactical intent.
 2. **Strategic Platforms (Permanent, Uplink-Restricted & Balanced):** Maintain high-orbit strategic platforms (Military fire-control and Comms relays) constrained by a hard **Ground Uplink Channel Capacity** (X-COM style) and strict **charge/cooldown limits** to prevent spammable encounter trivialisation.
 3. **Space Junk Prevention (Automatic De-orbit):** Expired probes and depleted military platforms automatically burn up in the atmosphere, preventing unbounded save game bloat and visual map clutter.
@@ -17,6 +18,7 @@ Overhaul Project Vigilance's orbital mechanics from exclusively drifting, perpet
 
 > [!IMPORTANT]
 > **Hybrid Orbit Separation:**
+>
 > - **Commercial Trade Satellites** remain **Drifting Keplerian** orbits (global fleet capped at 2–3 vessels) to preserve the organic storyteller visit cadence across player and NPC colonies.
 > - **Tactical Probes (Recon, Nav)** become **Stationary Geostationary** devices locked above the launch hex, with a hard countdown timer (e.g. 7 days).
 > - **Strategic Platforms (Military, Comms)** become **Stationary Geostationary** devices supported by ground base infrastructure.
@@ -24,6 +26,7 @@ Overhaul Project Vigilance's orbital mechanics from exclusively drifting, perpet
 > [!WARNING]
 > **Military Satellite Balancing:**
 > To prevent trivialising world encounters, Military Satellites will feature a dual restriction:
+>
 > 1. **Finite Kinetic Charges:** Exactly 3 strikes per satellite before complete payload exhaustion and forced de-orbit.
 > 2. **Capacitor Recharge Cooldown:** 3 in-game days (180,000 ticks) recharge between strikes, requiring 2,000W active colony power from a linked Comms Console.
 
@@ -40,18 +43,18 @@ graph TD
     subgraph Launch & Deployment
         Pod[Transport Pod / Rocket Silo] -->|Target World Hex| Deploy[Deploy Orbital Probe]
         Deploy -->|Recon / Nav Kit| TacProbe[Tactical Probe<br>Fixed Hex / 5-10 Days]
-        Deploy -->|Orbital Platform Kit| StratPlat[Strategic Platform<br>Fixed Hex / Permanent]
+        Deploy -->|Orbital Platform Kit| StrategicPlatform[Strategic Platform<br>Fixed Hex / Permanent]
     end
 
     subgraph Ground Infrastructure Capacity
         Console[Comms Console<br>1 Uplink Slot] --> UplinkMgr[Orbital Uplink Manager]
         PhasedArray[Spacer Phased Array<br>+2 Uplink Slots] --> UplinkMgr
-        UplinkMgr -.->|Controls Capacity| StratPlat
+        UplinkMgr -.->|Controls Capacity| StrategicPlatform
     end
 
     subgraph Tactical Lifecycle & De-orbit
         TacProbe -->|Battery Drained| Decay[Atmospheric Burnup & Cleanup]
-        StratPlat -->|3 Strikes Expended| Decay
+        StrategicPlatform -->|3 Strikes Expended| Decay
     end
 
     subgraph Enemy Counter-Measures
@@ -68,12 +71,14 @@ graph TD
 ### 1. Core Orbital Physics & Ground Track Extension
 
 #### [MODIFY] `Geoscape/Source/Geoscape/Orbital/IOrbitalEntity.cs`
+
 - Add `OrbitalStationkeepingMode StationkeepingMode { get; }` enum:
   - `DriftingKeplerian`: Standard drifting ground tracks (Trade Satellites, unmaintained stations).
   - `StationaryGeosynchronous`: Pinned to fixed geographic surface hex coordinates ($\vec{P} = \text{const}$).
 - Add `int TicksRemaining { get; }` and `bool IsExpendable { get; }` for finite lifespan tracking.
 
 #### [MODIFY] `Geoscape/Source/Geoscape/Orbital/OrbitalFlightModel.cs`
+
 - Add support for `StationaryGeosynchronous` orbit calculations:
   - Evaluates fixed sub-satellite direction vector matching the target world hex center:
     $$\hat{P}_{\text{stationary}} = \text{Find.WorldGrid.GetTileCenter}(T_{\text{target}}).\text{normalized}$$
@@ -84,6 +89,7 @@ graph TD
 ### 2. Lifespan, Battery & De-Orbit Engine
 
 #### [NEW] `Geoscape/Source/Geoscape/Orbital/CompOrbitalLifespan.cs`
+
 - WorldObject component managing power/propellant decay for tactical probes:
   - `int lifespanTicksTotal`: Initial fuel capacity (e.g. 420,000 ticks / 7.0 days).
   - `int lifespanTicksRemaining`: Remaining operational ticks.
@@ -126,6 +132,7 @@ public class CompOrbitalLifespan : WorldObjectComp
 ### 3. Ground Uplink Channel Capacity (X-COM Style)
 
 #### [NEW] `Geoscape/Source/Geoscape/Orbital/OrbitalUplinkManager.cs`
+
 - WorldComponent managing player orbital capacity:
   - Calculates total active uplink channels:
     - Base `Building_CommsConsole`: +1 channel per powered console.
@@ -140,19 +147,20 @@ public class CompOrbitalLifespan : WorldObjectComp
 
 ### 4. Balanced Tactical Probes vs Strategic Platforms
 
-| Platform | Role | Mode | Lifespan | Launch Mechanism | Gameplay Effect |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Tactical Recon Probe** | Reconnaissance | Fixed Hex | 7 days | Pod / Mortar Launch | Uncovers Fog of War, reveals all hidden camps/incursions in 16-tile radius. |
-| **Tactical Nav Probe** | Navigation | Fixed Hex | 10 days | Pod / Mortar Launch | Fixed 24-tile corridor granting +15% caravan speed. |
-| **Strategic Military Platform** | Military / Fire Support | Fixed Hex | 3 Strikes | Heavy Rocket Launch | Fixed 18-tile defense dome. 3 kinetic strikes (3-day cooldown). |
-| **Strategic Comms Relay** | Communication | Fixed Hex | Permanent (Uplink) | Heavy Rocket Launch | 32-tile trans-oceanic/mountain relay for remote outposts. |
-| **Commercial Trade Satellite** | Trade | Drifting (Keplerian) | Permanent | Station Respawn (Fleet: 2–3) | Roaming global merchants with ~3.8 hr trade window. |
+| Platform                        | Role                    | Mode                 | Lifespan           | Launch Mechanism             | Gameplay Effect                                                             |
+| :------------------------------ | :---------------------- | :------------------- | :----------------- | :--------------------------- | :-------------------------------------------------------------------------- |
+| **Tactical Recon Probe**        | Reconnaissance          | Fixed Hex            | 7 days             | Pod / Mortar Launch          | Uncovers Fog of War, reveals all hidden camps/incursions in 16-tile radius. |
+| **Tactical Nav Probe**          | Navigation              | Fixed Hex            | 10 days            | Pod / Mortar Launch          | Fixed 24-tile corridor granting +15% caravan speed.                         |
+| **Strategic Military Platform** | Military / Fire Support | Fixed Hex            | 3 Strikes          | Heavy Rocket Launch          | Fixed 18-tile defense dome. 3 kinetic strikes (3-day cooldown).             |
+| **Strategic Comms Relay**       | Communication           | Fixed Hex            | Permanent (Uplink) | Heavy Rocket Launch          | 32-tile trans-oceanic/mountain relay for remote outposts.                   |
+| **Commercial Trade Satellite**  | Trade                   | Drifting (Keplerian) | Permanent          | Station Respawn (Fleet: 2–3) | Roaming global merchants with ~3.8 hr trade window.                         |
 
 ---
 
 ### 5. Military Satellite Strike Cooldown & Payload Depletion
 
 #### [MODIFY] `Geoscape/Source/Geoscape/Orbital/WorldObject_Satellite.cs` (or specialized `Satellite_Military.cs`)
+
 - Adds `int strikesRemaining = 3;`
 - Adds `int rechargeCooldownTicks = 0;` (180,000 ticks = 3 in-game days).
 - Ground Targeting Gizmo:
@@ -170,17 +178,19 @@ public class CompOrbitalLifespan : WorldObjectComp
 ### 6. Hostile Anti-Satellite (ASAT) Countermeasures
 
 #### [NEW] `Geoscape/Source/Geoscape/Orbital/WorldObjectComp_AsatSilo.cs`
+
 - Component attached to major Pirate and hostile Outlander bases:
   - Has an interception radius (e.g. 15 world tiles).
   - Detects low/medium orbit player satellites entering its airspace.
   - Dispatches an **ASAT Warning Letter**:
-    > *"Hostile Surface-to-Orbit Silo Active: The pirate settlement at [BaseName] has acquired radar lock on our reconnaissance satellite. Unless the silo is disabled within 12 hours, surface-launched missiles will intercept our orbital asset."*
+    > _"Hostile Surface-to-Orbit Silo Active: The pirate settlement at [BaseName] has acquired radar lock on our reconnaissance satellite. Unless the silo is disabled within 12 hours, surface-launched missiles will intercept our orbital asset."_
   - If base is not raided or satellite relocated within 12 hours:
     - Hostile missile intercept animation on globe.
     - Satellite destroyed.
     - Dispatches red alert letter (`ThreatBig`).
 
 #### [NEW] `Geoscape/Source/Geoscape/Sensory/IncursionComp_EcmJammer.cs`
+
 - Attached to high-tier mech incursions (e.g. Warqueen or Apocriton forces):
   - Emits a 6-tile radius **Electronic Warfare Bubble**.
   - Satellites passing overhead have their sensor footprint suppressed inside the bubble (marked as `SIGINT JAMMED: SENSORS BLINDED`).
@@ -190,6 +200,7 @@ public class CompOrbitalLifespan : WorldObjectComp
 ## Verification Plan
 
 ### Automated Unit Tests (`Geoscape.Tests`)
+
 1. **Lifespan Decay & Burnup Test:**
    - Verify `CompOrbitalLifespan` ticks down correctly.
    - Verify satellite de-orbits and deregisters from `OrbitalManager` at tick 0 without NRE.
@@ -207,6 +218,7 @@ public class CompOrbitalLifespan : WorldObjectComp
    - Verify satellite entering pirate ASAT envelope triggers 12-hour grace period and subsequent destruction.
 
 ### Manual Verification
+
 1. Deploy a Tactical Recon Probe over a quest sector: verify it stays locked above the sector and reveals Fog of War continuously.
 2. Fast-forward 7 days: verify the probe burns up and disappears with a clean notification.
 3. Construct a Military Platform: fire 1 strike, verify 3-day cooldown on inspect pane and power draw.

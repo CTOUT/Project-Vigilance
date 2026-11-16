@@ -123,6 +123,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consumed pending `CaravanArrivalAction_InterceptIncursion` arrival orders on interception (`StopDead()`) and enforced encounter cooldown timers (`IsCaravanOnCooldown`) on `1a` interception checks and arrival handling, while clearing any stale cooldown (`ResetCaravanCooldown`) when manually selecting `"Hail & Trade"`.
 - **Outpost Kind Label Standardisation (`CaravanExpeditionUtility.GetListeningPostKindLabel`):**
   - Unified outpost kind labels (`"Automated Listening Post"`, `"Automated Sonar Station"`, `"Signal Beacon"`) across `WorldObject_ListeningPost`, `Dialog_FormCaravan_Patches`, and `OutpostAssemblySpeedUtility`.
+- **WorldGrid Distance & Sensor Footprint Mathematical Alignment (`OrbitalFlightModel`):**
+  - Fixed `IsTileWithinFootprint` which previously estimated hex distances using an arbitrary constant approximation (`1.8f`), causing mathematical footprints to diverge radically from visual overlays.
+  - Replaced with RimWorld's native `Find.WorldGrid.ApproxDistanceInTiles(angularDistanceRadians)`, aligning mathematical sensor and speed boost calculations 1:1 with `GenDraw.DrawWorldRadiusRing` flood-fill geometry.
+- **Comms Console Overhead Trade Deduplication & Operational Guards (`Building_CommsConsole_GetCommTargets_Patch`):**
+  - Added a local `HashSet<string>` deduplication guard across yielded orbital comms options, preventing duplicate entries for overhead satellites.
+  - Added an explicit `sat.CanTradeNow` operational check before yielding trade contacts, ensuring satellites only appear in the comms menu when active, powered, and in range.
+- **Orbital Sprite Presentation & Icon Cleanup (`WorldObjects_Orbital.xml`):**
+  - Replaced placeholder watchtower sprites (`Sites/Outpost`) with dedicated satellite icons (`World/WorldObjects/Expanding/Satellite`) and settlement platform markers.
+- **Debug Tooling & Save State Hygiene (`DebugActionsVigilance`):**
+  - Appended unique suffix identifiers (tick timestamp) to spawned orbital entities and merchant callsigns to prevent entity collisions.
+  - Added paired cleanup debug actions: `Orbital: Clear All Satellites` and `Orbital: Despawn Overhead Satellites` for pristine testing hygiene.
+- **Milestone Scope Gating & Experimental Content Guarding (`Buildings_Radar.xml`, `DebugActionsVigilance`):**
+  - Gated experimental coastal sonar arrays (`Geoscape_SonarArray`, `Vigilance_ListeningPost_Sonar`) and non-standard satellite roles (Recon, Nav, Comms, Military) behind `Prefs.DevMode` and debug actions, stabilizing Milestone 1.3 around fully polished core features.
+- **Headless Unit Test Safe Lifecycle (`WorldObject_Satellite`):**
+  - Guarded against uninitialized `Find.WorldObjects` and `Find.FactionManager` singletons in `SetFactionSafe` and sensor status checks, allowing headless test runners to execute without mocking entire engine singletons.
+- **Automated Test Suite Expansion (`Geoscape.Tests`):**
+  - Expanded automated MSTest test coverage to **424 passing unit tests** across all campaign rules, orbital logistics, distance calculations, and sensory systems.
 
 ## [0.3.0] - 2026-10-26
 

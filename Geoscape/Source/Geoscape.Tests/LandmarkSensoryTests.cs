@@ -12,10 +12,8 @@ namespace Geoscape.Tests;
 
 [TestClass]
 [DoNotParallelize]
-public sealed class LandmarkSensoryTests
+public sealed class LandmarkSensoryTests : GeoscapeTestBase
 {
-    [TestCleanup]
-    public void Cleanup() => GeoscapeTestHarness.ResetAllStaticState();
 
     [TestMethod]
     public void IsManMadeLandmarkDef_DistinguishesStructuresFromGeography()

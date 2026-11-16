@@ -154,8 +154,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                 });
 
                 // 2. Deploy Automated Sonar Station (DevMode / Debug only for Milestone 1.3)
-                bool hasCoastalAccess = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(clickedTile);
-                if (Prefs.DevMode && hasCoastalAccess)
+                if (SonarGatingUtility.ShouldOfferSonarDeployment(clickedTile))
                 {
                     bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
                     string sonarLabel = canAffordSonar
@@ -328,8 +327,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                         });
 
                         // Travel and deploy Automated Sonar Station (DevMode / Debug only for Milestone 1.3)
-                        bool destHasCoastal = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(clickedTile);
-                        if (Prefs.DevMode && destHasCoastal)
+                        if (SonarGatingUtility.ShouldOfferSonarDeployment(clickedTile))
                         {
                             bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
                             string sonarLabel = canAffordSonar
@@ -553,8 +551,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                             Disabled = !canAffordRelay
                         });
 
-                        bool nearbyHasCoastal = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(bestNearby);
-                        if (Prefs.DevMode && nearbyHasCoastal)
+                        if (SonarGatingUtility.ShouldOfferSonarDeployment(bestNearby))
                         {
                             bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
                             string sonarLabel = canAffordSonar

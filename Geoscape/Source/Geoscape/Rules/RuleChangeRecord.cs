@@ -79,6 +79,23 @@ public sealed class RuleChangeRecord : IExposable
         Scribe_Values.Look(ref to, "to");
         Scribe_Values.Look(ref note, "note");
         Scribe_Values.Look(ref hash, "hash");
+
+        if (Scribe.mode == LoadSaveMode.LoadingVars)
+        {
+            ClampString(ref ruleKey, 128);
+            ClampString(ref from, 256);
+            ClampString(ref to, 256);
+            ClampString(ref note, 1024);
+            ClampString(ref hash, 128);
+        }
+    }
+
+    private static void ClampString(ref string? str, int maxLen)
+    {
+        if (str != null && str.Length > maxLen)
+        {
+            str = str.Substring(0, maxLen);
+        }
     }
 
     public override string ToString()

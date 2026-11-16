@@ -123,3 +123,13 @@ Answers to common community inquiries regarding compatibility, design philosophy
 > - **Immutable rules** (e.g. sensory radii, nighttime biological rest, combat synchronisation) are locked at Day 0 to maintain campaign challenge integrity. Developer Mode allows temporary, audited session overrides (`allowUnsafeRuleTransitions`) that clear automatically on exit.
 >
 > All ledger transitions in `GeoscapeCampaignRules` are sealed with chained **cryptographic HMAC-SHA256 signatures** (`RuleLedgerSigner`). On save load, **non-destructive replay reconciliation** (`ReconcileLedgerOnLoad()`) verifies every signature against the Day-0 snapshot and active rules; any unrecorded direct XML edits or forged signatures log a diagnostic warning and append an `ExternalModification` audit record (`"External Modification Detected"`) without corrupting or blocking your save.
+
+---
+
+### 9. Orbital Infrastructure & Scope Gating
+
+**Q: Which satellites are active in Milestone 1.3?**
+
+> In Milestone 1.3, **Commercial Trade Satellites** are fully active, operating along closed-form analytical Keplerian orbits with nodal precession and storyteller-calibrated pass frequencies (~3.8 hr overpass window). When overhead a colony with a powered Comms Console, colonists can hail the satellite for direct orbital trading with drop pod cargo deliveries.
+>
+> **Non-standard satellite roles (Reconnaissance, Navigation, Communications, Military)** and **Coastal Sonar Arrays** are gated behind Developer Mode (`Prefs.DevMode`) and debug menus. They are parked for dedicated future milestones (Milestone 1.6: Tactical Orbital Warfare and Aquatic Operations) to ensure the core radar and trading gameplay loop remains pristine and balanced.

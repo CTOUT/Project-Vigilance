@@ -57,7 +57,7 @@ Geoscape/
     │   ├── Sensory/          # Radar coverage, listening posts, optimistic pathing & Haze
     │   ├── UI/               # Live tactical HUD radar scope preview & geometry helpers
     │   └── World/            # Incursion simulation, collision detection & skirmishes
-    └── Geoscape.Tests/       # Automated MSTest test suite (406 tests)
+    └── Geoscape.Tests/       # Automated MSTest test suite (424 tests)
 ```
 
 ---

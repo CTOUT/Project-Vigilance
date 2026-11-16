@@ -11,20 +11,8 @@ namespace Geoscape.Tests;
 
 [TestClass]
 [DoNotParallelize]
-public sealed class CaravanExpeditionTests
+public sealed class CaravanExpeditionTests : GeoscapeTestBase
 {
-    [TestInitialize]
-    public void Setup()
-    {
-        GeoscapeTestHarness.ResetAllStaticState();
-        GeoscapeTestHarness.EnsureEnvironmentInitialised();
-    }
-
-    [TestCleanup]
-    public void Cleanup()
-    {
-        GeoscapeTestHarness.ResetAllStaticState();
-    }
 
     [TestMethod]
     public void Inspect_WorldGrid_ApproxDistanceInTiles()

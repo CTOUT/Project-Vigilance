@@ -82,10 +82,11 @@ public static class Building_CommsConsole_GetGizmos_Patch
             List<Satellite_Trade>? activeTradeSats = OrbitalManager.Instance?.GetActiveTradeSatellitesOverTile(console.Map.Tile);
             if (activeTradeSats != null && activeTradeSats.Count > 0)
             {
+                HashSet<string> yieldedCallsigns = new();
                 for (int i = 0; i < activeTradeSats.Count; i++)
                 {
                     Satellite_Trade sat = activeTradeSats[i];
-                    if (sat == null || !sat.CanTradeNow) continue;
+                    if (sat == null || !sat.CanTradeNow || !yieldedCallsigns.Add(sat.OrbitalCallsign)) continue;
                     string traderTitle = sat.TraderKind?.label.CapitalizeFirst() ?? "Orbital Trader";
                     yield return new Command_Action
                     {
@@ -94,23 +95,44 @@ public static class Building_CommsConsole_GetGizmos_Patch
                         icon = ContentFinder<Texture2D>.Get("UI/Commands/Trade", false) ?? BaseContent.BadTex,
                         action = () =>
                         {
-                            Pawn? negotiator = console.Map.mapPawns.FreeColonistsSpawned
-                                .Where(p => !p.Downed && !p.InMentalState && p.CanReach(console, PathEndMode.InteractionCell, Danger.Some))
-                                .OrderByDescending(p => p.skills?.GetSkill(SkillDefOf.Social)?.Level ?? 0)
-                                .FirstOrDefault();
-
+                            Pawn? negotiator = FindBestNegotiator(console.Map, console);
                             if (negotiator != null)
                             {
                                 console.GiveUseCommsJob(negotiator, sat);
                             }
                             else
                             {
-                                sat.TryOpenComms(console.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault()!);
+                                Pawn? fallback = console.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault();
+                                if (fallback != null)
+                                {
+                                    sat.TryOpenComms(fallback);
+                                }
                             }
                         }
                     };
                 }
             }
         }
+    }
+
+    private static Pawn? FindBestNegotiator(Map map, Building_CommsConsole console)
+    {
+        Pawn? best = null;
+        int bestSkill = -1;
+        List<Pawn> colonists = map.mapPawns.FreeColonistsSpawned;
+        for (int i = 0; i < colonists.Count; i++)
+        {
+            Pawn p = colonists[i];
+            if (!p.Downed && !p.InMentalState && p.CanReach(console, PathEndMode.InteractionCell, Danger.Some))
+            {
+                int skill = p.skills?.GetSkill(SkillDefOf.Social)?.Level ?? 0;
+                if (skill > bestSkill)
+                {
+                    bestSkill = skill;
+                    best = p;
+                }
+            }
+        }
+        return best;
     }
 }
