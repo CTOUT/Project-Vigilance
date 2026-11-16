@@ -1,37 +1,78 @@
-[h1]Project Vigilance: Overland Incursions[/h1]
-[b]Replaces instantaneous map-edge teleportation with physical overland planetary transit, dynamic multi-vector staging, realistic transit ETAs, sensory sight horizons, classic 3-tier Haze of War, and tactical ground interception.[/b]
+[h1]Project Vigilance: Overland Incursions &amp; Geoscape Strategy[/h1]
+[b]Replaces instantaneous map-edge teleportation with physical overland planetary transit, dynamic multi-vector staging, early-warning radar networks, multi-dish interferometry, drifting orbital satellites, lightweight listening posts, and tactical ground interception.[/b]
 No high-tech requirements. Zero prerequisites. Safe to add mid-save.
 [hr][/hr]
 [h2]Key Features[/h2]
 [list]
+[*] [b]Campaign Creation Wizard &amp; Mutability (New in v0.4):[/b]
+    [list]
+    [*] Integrated campaign wizard page stitched between Storyteller and World settings with 4 gameplay profiles: [i]Classic Fog of War[/i] (recommended default), [i]Planetary Surveillance[/i], [i]Hardcore Vigilance[/i], and [i]Omniscient[/i].
+    [*] Granular rule customisation modal allowing players to configure fog behavior, caravan sight, incursion staging, and radar power scaling.
+    [*] Blind Touchdown: Landing site selection under Fog of War masks unviable mountain/ocean drops and Biotech pollution/climate warnings so you land blind into the uncharted rimworld.
+    [*] Cryptographic HMAC-SHA256 audit ledger tracking rule transitions, escalations, and settings history.
+    [/list]
+[*] [b]Planetary Radar Infrastructure &amp; Multi-Dish Interferometry (New in v0.4):[/b]
+    [list]
+    [*] Native 3D glowing perimeter boundaries and hexagonal honeycomb radar meshes projected directly onto the planetary globe.
+    [*] New colony sensory structures across tech tiers: [i]Lookout Tower[/i] (Neolithic/Medieval), [i]Early-Warning Radar Dome[/i] (Industrial), [i]Spacer Phased Array[/i], and [i]SIGINT Decryption Console[/i].
+    [*] Dynamic power scaling: radars consume minimal standby power until scanning or actively tracking contacts.
+    [*] Multi-dish stacking: secondary dishes expand optical identification horizons outward (from 10 rings up to 22 rings) with built-in fail-safe redundancy.
+    [*] Model B+ Vantage &amp; Terrain Masking: Hill/mountain origins boost lookout vantage, while rugged mountains delay classification until incursions exit into open valleys (penetrated by Spacer Phased Arrays + SIGINT).
+    [/list]
+[*] [b]Unmanned Listening Posts &amp; Signal Beacons (New in v0.4):[/b]
+    [list]
+    [*] Deploy unmanned solar listening relays and stone/wood signal beacons directly from travelling caravans via right-click global hex interaction.
+    [*] Dismantle outposts at any time to recover 75% of consumed construction materials.
+    [*] Repair sabotaged stations damaged by passing hostile warbands.
+    [/list]
+[*] [b]Two-Stage Early Warning &amp; Concealed Haze Sites (New in v0.4):[/b]
+    [list]
+    [*] Two-stage alert escalation: Stage 1 outer perimeter warning (pulsing amber contact blip, concealed faction/threat) transitioning to Stage 2 upon crossing the optical classification threshold.
+    [*] Haze of War site concealment: dynamic camps, quest sites, and bandit outposts in unmonitored sectors remain hidden until charted by radar sweeps, scout caravans, or traveller rumors.
+    [*] Quest expiration timers are paused while sites remain shrouded in the Haze.
+    [/list]
+[*] [b]Simulated Inter-Faction Encounters &amp; Trade Routes (New in v0.4):[/b]
+    [list]
+    [*] Organic NPC trade network: physical NPC caravans travel between faction settlements with genuine cargo rosters.
+    [*] Grounded storyteller caravan meetings and ambushes physically march across the world map.
+    [*] Algebraic background skirmishes resolve in-flight clashes between rival forces occupying the same tile without tactical map lag.
+    [*] Spawns persistent battlefield aftermath sites containing salvageable trade loot and wounded survivor pawns.
+    [/list]
+[*] [b]Drifting Keplerian Orbital Logistics &amp; Trade Satellites (New in v0.4):[/b]
+    [list]
+    [*] Physically consistent analytical Keplerian flight model with J2 planetary oblateness nodal precession, creating smoothly drifting ground tracks across planetary longitudes.
+    [*] Persistent Orbital Station hubs for orbital factions (such as Trader's Guild / Merchant's Bazaar).
+    [*] Dedicated trade satellites with periodic comms console trading windows and drop pod cargo delivery.
+    [*] Dual-layer rendering across surface and Odyssey orbit views with dynamic faction livery color tinting.
+    [/list]
 [*] [b]Real-Time Planetary Transit:[/b] Raids, trade caravans, and visitors spawn at genuine world origin settlements or wilderness staging camps and march across the globe in real time.
-[*] [b]Tactical Ground Interception & Forward Ambush (New in v0.3):[/b]
+[*] [b]Tactical Ground Interception &amp; Forward Ambush:[/b]
     [list]
     [*] Intercept approaching hostile incursions directly on the global hex grid before they reach your colony.
-    [*] Right-click commands on detected incursions: [i]Intercept & Engage[/i], [i]Hail & Trade[/i], or [i]Warn Away / Turn Back[/i].
+    [*] Right-click commands on detected incursions: [i]Intercept &amp; Engage[/i], [i]Hail &amp; Trade[/i], or [i]Warn Away / Turn Back[/i].
     [*] Stalk unaware enemy columns or launch daring night ambushes while hostile warbands are camped asleep.
     [*] Intercepting caravans dynamically adjust course with predictive pursuit vectoring as their quarry moves.
     [/list]
-[*] [b]Retreat Lifecycle, Pursuit & Kidnap Recovery (New in v0.3):[/b]
+[*] [b]Retreat Lifecycle, Pursuit &amp; Kidnap Recovery:[/b]
     [list]
     [*] Fleeing raiders physically retreat across the world map with wounds, carried loot, and captured colonists intact.
     [*] Overland physiology: wounded marchers bleed, heal, self-tend with carried medicine, or suffer exhaustion.
     [*] Intercept retreating kidnappers on the road to rescue captured colonists before they reach home territory—or mount a base assault on their stronghold to liberate prisoners from settlement incarceration!
     [*] Threat-aware tactical retreats: fleeing colonists evaluate visible enemies, turrets, and fire exposure across all map boundaries to pick the safest evacuation corridor.
     [/list]
-[*] [b]Evacuated Colony Hierarchy & Track Pursuit (New in v0.3):[/b]
+[*] [b]Evacuated Colony Hierarchy &amp; Track Pursuit:[/b]
     [list]
     [*] Hostile forces reaching an evacuated player colony or abandoned settlement don't disappear into thin air.
     [*] Raiders execute a 3-tier tactical hierarchy: search for tracks and launch dynamic hot pursuit after fleeing player caravans, divert toward nearby secondary outposts, or ransack the vacant site and march home.
     [/list]
-[*] [b]Night Owl & Schedule-Aware Caravaning (New in v0.3):[/b]
+[*] [b]Night Owl &amp; Schedule-Aware Caravaning:[/b]
     [list]
     [*] Caravans respect colonist traits and timetable schedules rather than enforcing rigid 22:00–06:00 sleep locks.
     [*] Pure Night Owl squads camp during the day (11:00–18:00) and march through the night with zero optical darkness penalties.
     [*] Mixed squads march by majority shift while keeping the other on camp watch—granting 24/7 daytime visibility.
     [*] Set custom sleep shifts or force-march through rest hours via the colonist [i]Schedule[/i] tab.
     [/list]
-[*] [b]Pack Animal Cargo & Roadside Trading (New in v0.3):[/b]
+[*] [b]Pack Animal Cargo &amp; Roadside Trading:[/b]
     [list]
     [*] Trade goods and provisions are carried in pack animal inventories across all battle maps and transits (no floor-dumping).
     [*] Barter with friendly travelling merchants directly on the road without duplicating stock upon colony arrival.
@@ -43,26 +84,22 @@ No high-tech requirements. Zero prerequisites. Safe to add mid-save.
     [*] [i]Obscured:[/i] Surveyed world geography and settlements remain visible, but active incursions are hidden outside sensor coverage.
     [*] [i]Monitored:[/i] Full live sensory visibility projected by your colonies, outposts, and travelling caravans.
     [/list]
-[*] [b]Watertight Information Security & X-COM Tracking IDs:[/b] Approaching forces outside your immediate sight lines are designated with persistent tracking numbers ([i]Contact-1[/i], [i]Contact-2[/i] or [i]Approaching Strangers #1[/i] for tribals). Originating faction, threat points, and route overlays remain classified until scouted.
-[*] [b]Dynamic Nighttime & Sleep Simulation:[/b]
+[*] [b]Watertight Information Security &amp; X-COM Tracking IDs:[/b] Approaching forces outside your immediate sight lines are designated with persistent tracking numbers ([i]Contact-1[/i], [i]Contact-2[/i] or [i]Approaching Strangers #1[/i] for tribals). Originating faction, threat points, and route overlays remain classified until scouted.
+[*] [b]Dynamic Nighttime &amp; Sleep Simulation:[/b]
     [list]
     [*] Visual detection horizons drop by 50% during local planetary darkness.
     [*] Settlement lookouts collapse to a tight perimeter when all conscious colonists are asleep in bed.
     [*] Biological warbands and trade caravans stop and make camp between 22:00 and 06:00 local solar time, while tireless Mechanoid and Anomaly incursions march 24/7.
     [/list]
-[*] [b]Dynamic Staging & Multi-Vector Raids:[/b] Incursions originate from nearby settlements or procedurally staged wilderness camps, converging on your base from diverse tactical vectors.
-[*] [b]Realistic ETAs & Terrain Costs:[/b] Overland speeds reflect real biomes, roads, rivers, and mountains. Incursions take anywhere from 12 in-game hours to several days to arrive.
-[*] [b]Tactical Map Rendering & IFF Markers:[/b] Crimson red markers for hostile incursions; cyan markers for friendly and neutral caravans, combining marching silhouettes with high-contrast faction crests.
-[*] [b]Interactive World Telemetry:[/b] Click detected incursions to inspect speed, distance, live ETA, and combat threat ratings.
-[*] [b]Configurable In-Game Settings:[/b] Customise settlement sight range, caravan vision, night reduction penalties, and march speed multipliers directly in Mod Options.
+[*] [b]Configurable In-Game Settings:[/b] Customise settlement sight range, caravan vision, night reduction penalties, and march speed multipliers directly in Mod Options. Features a live CRT radar scope preview!
 [/list]
 [hr][/hr]
-[h2]Compatibility & Performance[/h2]
+[h2]Compatibility &amp; Performance[/h2]
 [list]
 [*] [b]DLC Compatibility:[/b] 100% compatible with the base game, as well as Royalty, Ideology, Biotech, Anomaly, and Odyssey.
 [*] [b]Save Games:[/b] Safe to add to existing saves. Safe to remove (any in-flight world incursions will simply disband cleanly).
 [*] [b]Era Agnostic:[/b] Fits seamlessly into neolithic, medieval, industrial, or spacer playthroughs.
-[*] [b]Performance:[/b] Zero-allocation spatial bitmasks and time-sliced 3D mesh layers guarantee buttery-smooth 60 FPS panning with zero TPS impact.
+[*] [b]Performance:[/b] Zero-allocation spatial bitmasks and time-sliced 3D mesh layers guarantee buttery-smooth 60+ FPS panning with zero TPS impact.
 [/list]
 [h2]Recommended Load Order[/h2]
 [olist]
@@ -72,17 +109,17 @@ No high-tech requirements. Zero prerequisites. Safe to add mid-save.
 [*] [b]Project Vigilance - Overland Incursions[/b]
 [/olist]
 [hr][/hr]
-[h2]Reporting Bugs & Feedback[/h2]
+[h2]Reporting Bugs &amp; Feedback[/h2]
 Have a bug report, suggestion, or feedback?
 [list]
 [*] [b]GitHub Issues (Preferred):[/b] [url=https://github.com/CTOUT/Project-Vigilance/issues]Report an Issue on GitHub[/url] — Recommended for fastest troubleshooting! Please include your debug log (via the in-game log window or [i]Player.log[/i]), RimWorld version, and steps to reproduce.
-[*] [b]Steam Discussions & Comments:[/b] If you prefer Steam, feel free to open a topic in our [url=https://steamcommunity.com/sharedfiles/filedetails/discussions/3822378226]Workshop Discussions[/url] or leave a comment below. Please include error details or a log link whenever possible!
+[*] [b]Steam Discussions &amp; Comments:[/b] If you prefer Steam, feel free to open a topic in our [url=https://steamcommunity.com/sharedfiles/filedetails/discussions/3822378226]Workshop Discussions[/url] or leave a comment below. Please include error details or a log link whenever possible!
 [/list]
 [hr][/hr]
-[h2]Links & Community[/h2]
+[h2]Links &amp; Community[/h2]
 [list]
 [*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427]Official Steam Collection[/url]
 [*] [url=https://github.com/CTOUT/Project-Vigilance]GitHub Source Repository[/url]
-[*] [url=https://github.com/CTOUT/Project-Vigilance/releases]Direct Downloads & Changelog[/url]
-[*] [url=https://github.com/CTOUT/Project-Vigilance/discussions]Community Discussions & Feedback[/url]
+[*] [url=https://github.com/CTOUT/Project-Vigilance/releases]Direct Downloads &amp; Changelog[/url]
+[*] [url=https://github.com/CTOUT/Project-Vigilance/discussions]Community Discussions &amp; Feedback[/url]
 [/list]

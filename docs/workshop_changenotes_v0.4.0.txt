@@ -1,0 +1,58 @@
+[h2]v0.4.0 — Milestone 1.3: Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters[/h2]
+[list]
+[*] [b]Campaign Creation Wizard & Mutability Framework:[/b]
+    [list]
+    [*] New native campaign setup page stitched between Storyteller and World settings with 4 gameplay profiles: [i]Classic Fog of War[/i] (recommended default), [i]Planetary Surveillance[/i], [i]Hardcore Vigilance[/i], and [i]Omniscient[/i].
+    [*] Granular rule customisation modal allowing players to configure fog behavior, caravan sight, incursion staging, and radar power scaling.
+    [*] First-time mod adoption dialogue for existing saves with a 1-day grace period.
+    [*] Cryptographic HMAC-SHA256 audit ledger tracking rule transitions, escalations, and settings history.
+    [*] Blind Touchdown: Landing site selection under Fog of War masks unviable mountain/ocean drops and Biotech pollution/climate warnings so you land blind into the uncharted rimworld.
+    [/list]
+[*] [b]Planetary Radar Infrastructure & Multi-Dish Interferometry:[/b]
+    [list]
+    [*] Native 3D glowing perimeter boundaries and hexagonal honeycomb radar meshes projected directly onto the planetary globe.
+    [*] New colony sensory structures across tech tiers: [i]Lookout Tower[/i] (Neolithic/Medieval), [i]Early-Warning Radar Dome[/i] (Industrial), [i]Spacer Phased Array[/i], and [i]SIGINT Decryption Console[/i].
+    [*] Dynamic power scaling: radars consume minimal standby power until scanning or actively tracking contacts.
+    [*] Multi-dish stacking: secondary dishes expand optical identification horizons outward (from 10 rings up to 22 rings) with built-in fail-safe redundancy.
+    [*] Model B+ Vantage & Terrain Masking: Hill/mountain origins boost lookout vantage, while rugged mountains delay classification until incursions exit into open valleys (penetrated by Spacer Phased Arrays + SIGINT).
+    [/list]
+[*] [b]Unmanned Listening Posts & Signal Beacons:[/b]
+    [list]
+    [*] Deploy unmanned solar listening relays and stone/wood signal beacons directly from travelling caravans via right-click global hex interaction.
+    [*] Dismantle outposts at any time to recover 75% of consumed construction materials.
+    [*] Repair sabotaged stations damaged by passing hostile warbands.
+    [/list]
+[*] [b]Two-Stage Early Warning & Concealed Haze Sites:[/b]
+    [list]
+    [*] Two-stage alert escalation: Stage 1 outer perimeter warning (pulsing amber contact blip, concealed faction/threat) transitioning to Stage 2 upon crossing the optical classification threshold.
+    [*] Haze of War site concealment: dynamic camps, quest sites, and bandit outposts in unmonitored sectors remain hidden until charted by radar sweeps, scout caravans, or traveller rumors.
+    [*] Quest expiration timers are paused while sites remain shrouded in the Haze.
+    [/list]
+[*] [b]Simulated Inter-Faction Encounters & Aftermaths:[/b]
+    [list]
+    [*] Organic NPC trade network: physical NPC caravans travel between faction settlements with genuine cargo rosters.
+    [*] Grounded storyteller caravan meetings and ambushes physically march across the world map.
+    [*] Algebraic background skirmishes resolve in-flight clashes between rival forces occupying the same tile without tactical map lag.
+    [*] Spawns persistent battlefield aftermath sites containing salvageable trade loot and wounded survivor pawns.
+    [/list]
+[*] [b]Drifting Keplerian Orbital Logistics & Trade Satellites:[/b]
+    [list]
+    [*] Physically consistent analytical Keplerian flight model with J2 planetary oblateness nodal precession, creating smoothly drifting ground tracks across planetary longitudes.
+    [*] Persistent Orbital Station hubs for orbital factions (such as Trader's Guild / Merchant's Bazaar).
+    [*] Dedicated trade satellites with periodic comms console trading windows and drop pod cargo delivery.
+    [*] Dual-layer rendering across surface and Odyssey orbit views with dynamic faction livery color tinting.
+    [/list]
+[*] [b]Tactical Map & UI Polish:[/b]
+    [list]
+    [*] Civilization-style smart right-click contextual dispatch: move caravans or deploy listening posts from settlements with a single click.
+    [*] X-COM style contact disambiguation popup resolving overlapping world objects and co-located entities.
+    [*] 5-tab Mod Settings menu featuring a live CRT radar scope preview and configurable mountain radar shadow styles.
+    [*] Optimistic Fog-of-War travel routing with automated obstacle avoidance and impassable tile safeguards.
+    [/list]
+[*] [b]Fixes & Performance:[/b]
+    [list]
+    [*] Idle map component tick optimization: eliminated frame overhead down to 0.000 ms on peaceful colony maps.
+    [*] Single-pass graph traversal on sensory sweeps, staying well within the 1.0 ms TickRare budget.
+    [*] Full MSTest test suite: 425 automated unit tests passing on .NET 10 / Waylith.
+    [/list]
+[/list]
