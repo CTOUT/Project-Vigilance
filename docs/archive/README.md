@@ -15,6 +15,7 @@ Active plans, specs, and operations guides reside in the parent `docs/` folder.
 
 ## Milestone 1.3 (v0.4.0)
 
+- **[Workshop Change Notes v0.4.0](workshop_changenotes_v0.4.0.txt):** Steam Workshop release notes for v0.4.0.
 - **[Milestone 1.3 Test Plan](milestone_1_3_test_plan.md):** 32-test quality assurance and playtest suite for Milestone 1.3 release.
 - **[Milestone 1.3 Optimization Plan](milestone_1_3_optimization_plan.md):** Code hardening, security reviews, accessibility checks, and performance optimization plan.
 - **[Walkthrough: Milestone 1.3 Optimization](walkthrough_milestone_1_3_optimization.md):** Accomplishments and verification walkthrough for the Milestone 1.3 optimization pass.
