@@ -2,7 +2,7 @@
 
 ## Active Roadmap: Phase 2 — Geoscape & Radar Grid (Standalone Framework)
 
-### Milestone 1.4: Planetary Coordination & Version Support [ACTIVE ROADMAP]
+### Milestone 1.4: Tooling, Visual Assets & Structural Materials [ACTIVE ROADMAP]
 
 - [ ] **Stream 1: Tooling & CI/CD — Mock Reference Assemblies & Headless Tests:**
   - **Game Assembly Stubs (`refasmer`):** Generate stripped public API reference assemblies for RimWorld 1.7 Waylith core assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`). Store stubs in `lib/ref/` or configure an automated generation script (`scripts/generate-reference-assemblies.ps1`).
@@ -22,24 +22,42 @@
   - **Dynamic Faction Colour Shifting Specification:**
     - All world entity icons and satellite sprites must be authored as neutral grayscale / white silhouette masks with transparent backgrounds (`RGBA32`).
     - Clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions (Outlanders, Pirates, Empire, Tribals, and modded factions).
-- [ ] **Stream 3: Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
+- [ ] **Stream 3: Material Thermal Integrity & Realistic Combustion:**
+  - **Non-Flammable Structural Metals:** Eliminate basic oxygen flammability on structural metals (Steel, Plasteel, Uranium: `flammability = 0f`), stopping metal walls, doors, and furniture from catching fire from normal sparks and campfires.
+  - **Extreme Concussion & Alien Plasma:** Reserve thermal destruction for structural explosives, superheated furnace conditions, incendiary fuels, and alien plasma.
+  - **Alien Metallurgy Foundation:** Establishes realistic material properties for future alien materials (Alien Alloys, Elerium-115).
+- [ ] **Stream 4: Standalone Verification:**
+  - Validate custom textures, materials, and headless CI build on clean RimWorld 1.7 installation.
+
+---
+
+### Milestone 1.5: Planetary Expedition & World Integrity
+
+- [ ] **Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
   - **Pre-Settlement Survey Phase:** Implement pre-settlement expedition phase for uncharted rim worlds, allowing players to traverse and survey regional geography, waterways, and mountain passes before committing to a permanent settlement hex.
   - **Off-Map Orbital Staging Reserves:** Keep heavy starting supplies (bulk steel, food crates, components, heavy weaponry) off-map in orbital staging pods, preventing caravan encumbrance during initial land exploration.
   - **Colony Beacon Site Claiming:** Dedicated deployable structure (`Geoscape_ColonyBeacon`) carried by expedition party. Activating "Stake Colony Claim" creates player colony map and triggers precision drop pods delivering orbital staging cargo.
   - **Fail-Safe & Anti-Soft-Lock Guards:** Auto-deploy emergency drop pods if expedition party suffers catastrophic defeat, or allow secondary beacon fabrication at crafting spots if beacon is lost.
   - **Scenario Opt-In Architecture:** Configurable via `ExpeditionStartMode` (`Disabled`, `ScenarioDefault`, `ForceExpedition`) with XML `DefModExtension` support, automatically bypassing orbital/space starts (Odyssey, GravShips, SOS2).
-- [ ] **Stream 4: Intelligent Multi-Base Strike Coordination:**
+- [ ] **Odyssey DLC Synergy & Non-Destructive Gravcore Takeoff:**
+  - Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
+  - Patch gravcore launch sequence to eliminate permanent world tile destruction, preserving planetary terrain integrity during orbital deployments without external mod dependencies.
+
+---
+
+### Milestone 1.6: Theatre Coordination & Aquatic Operations
+
+- [ ] **Intelligent Multi-Base Strike Coordination:**
   - Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic.
   - Coordinate diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements based on proximity and strategic threat level.
-- [ ] **Stream 5: Modular Separation — Aquatic Operations Extraction (`Vigilance.Aquatics`):**
+- [ ] **Modular Separation — Aquatic Operations Extraction (`Vigilance.Aquatics`):**
   - Migrate Coastal Sonar (`SonarTraversalUtility`, `PlaceWorker_CoastalSonar`, `Geoscape_SonarArray`, `Vigilance_ListeningPost_Sonar`) out of `ProjectVigilance.Geoscape` into standalone `Vigilance.Aquatics` module.
   - Establish soft contract boundaries via `ISensorProvider` and lay groundwork for oceanic bathymetry.
-- [ ] **Stream 6: Community Request — RimWorld 1.6 Legacy Backport Assessment:**
+- [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:**
   - Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on previous release.
   - Document conditional compilation symbols or shared project structures required for dual-version support.
-- [ ] **Stream 7: Standalone Verification & Future Investigation:**
-  - **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
-  - **Elevation-Aware Visual Observation:** Evaluate whether `tile.elevation` should provide additional vantage bonus for optical observation systems (Lookout Watchtowers, Signal Beacons, Caravan Lookouts) beyond existing `Hilliness`-based modifiers; high-altitude mountain tiles (> X metres) receiving additional observation bonus. Avoid applying to radar systems unless testing demonstrates benefit.
+- [ ] **Future Investigation: Elevation-Aware Visual Observation:**
+  - Evaluate whether `tile.elevation` should provide additional vantage bonus for optical observation systems (Lookout Watchtowers, Signal Beacons, Caravan Lookouts) beyond existing `Hilliness`-based modifiers; high-altitude mountain tiles (> X metres) receiving additional observation bonus. Avoid applying to radar systems unless testing demonstrates benefit.
 
 ---
 
@@ -75,7 +93,7 @@
 
 ---
 
-### Milestone 1.5: Foundation Framework, Modding Extensibility & Community Localisation
+### Milestone 1.7: Foundation Framework, Modding Extensibility & Community Localisation
 
 - [ ] **RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**
   - **Externalise Hardcoded Phraseology:** Extract hardcoded English string literals across C# classes (notification letters, dialogue trees, float menu options, inspect strings, narrative logs, and settings window tabs) into RimWorld's standard translation lookup pattern (`"Key".Translate(...)`).
@@ -93,21 +111,9 @@
 
 ---
 
-## Phase 3: Module 2 — Interception & Rapid Response (Standalone Framework)
+## Phase 3: Tactical Battlescape & Subterranean Operations (Standalone Framework)
 
-- [ ] Define craft stats (speed, fuel, range, armament slots).
-- [ ] Build tactical air interception dialogue UI.
-- [ ] Implement crash site generation (`SiteDef` with wreckage, debris, and survivor spawns).
-- [ ] Create tactical deployment and extraction drop-zone mechanics.
-- [ ] Build amphibious transport capabilities (Triton analogue for aquatic sites).
-- [ ] **Odyssey DLC Synergy & Non-Destructive Gravcore Takeoff:**
-  - Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
-  - Patch gravcore launch sequence to eliminate permanent world tile destruction, preserving planetary terrain integrity during orbital deployments without external mod dependencies.
-- [ ] **Standalone Test:** Validate interception combat and dropship deployment against standard pirate shuttles without Module 1.
-
----
-
-## Phase 3.5: Tactical Battlescape & Sensory (Standalone Framework)
+### Milestone 2.0: Battlescape Fog of War & Directional Sensory
 
 - [ ] **3-Mode Battlescape Visibility & Directional Line-of-Sight (`MapComponent_TacticalVisibility`):**
   - **Epistemic Information Policy:** Exact Battlescape analogue to Geoscape Fog of War ("You don't know what you don't know"). Players only see active sightlines of friendly pawns; terrain uncovers through physical exploration; out-of-sight cells drop into stale memory haze.
@@ -125,23 +131,53 @@
 - [ ] **Tactical Field Equipment:**
   - Handheld Motion Scanner with 250-tick acoustic sonar pulses emitting blips through walls.
   - Directional rail flashlights, deployable spotlight structures, illumination flares, and smoke/chaff screens.
-- [ ] **Guerrilla & Pod AI (Anti-Killbox & Anti-Cheese Doctrines):**
-  - **Overhaul Suicide/Kamikaze Raids:** Replace reckless headlong rushes with tactical squad behaviour (stealth, cover-to-cover movement, coordinated flanking).
-  - **Anti-Cheese & Anti-Trap Pathfinding:** Threat-evaluation heuristics that detect high-density trap corridors, superheated/freezer death traps, and IED bait mazes, actively choosing alternative approach vectors.
-  - **Sapper & Perimeter Breaching:** Sapper squads target structural perimeter weaknesses with breach axes and explosives rather than filtering through fatal funnels.
-  - **Fireteam Pod Cohesion:** Fireteam pods remain in dormant patrol/overwatch states until alerted, preventing whole-map swarms.
-  - **Suppress & Peel Retreats:** Battered squads execute covering fire, smoke deployment, and peeling retreats to link with reserve pods rather than fighting to the last man.
-- [ ] **Material Thermal Integrity & Realistic Combustion:**
-  - **Non-Flammable Structural Metals:** Eliminate basic oxygen flammability on structural metals (Steel, Plasteel, Uranium: `flammability = 0f`), stopping metal walls, doors, and furniture from catching fire from normal sparks and campfires.
-  - **Extreme Concussion & Alien Plasma:** Reserve thermal destruction for structural explosives, superheated furnace conditions, incendiary fuels, and alien plasma.
-  - **Alien Metallurgy Foundation:** Establishes realistic material properties for future alien materials (Alien Alloys, Elerium-115) in Module 3.
 - [ ] **Geoscape-to-Battlescape Integration:**
   - Radar intel tier dictates insertion Fog of War state and landing zone (LZ) security.
   - Live tactical countdown timers linked to inbound Geoscape reinforcements (mission doom clock).
 
 ---
 
-## Phase 4: Module 3 — Alien Containment & Biology (Standalone Base System)
+### Milestone 2.1: Guerrilla & Pod AI (Anti-Cheese Combat)
+
+- [ ] **Overhaul Suicide/Kamikaze Raids:**
+  - Replace reckless headlong rushes with tactical squad behaviour (stealth, cover-to-cover movement, coordinated flanking).
+- [ ] **Anti-Cheese & Anti-Trap Pathfinding:**
+  - Threat-evaluation heuristics that detect high-density trap corridors, superheated/freezer death traps, and IED bait mazes, actively choosing alternative approach vectors or siege standoff.
+- [ ] **Sapper & Perimeter Breaching Doctrines:**
+  - Sapper squads target structural perimeter weaknesses with breach axes and explosives rather than filtering through fatal funnels.
+- [ ] **Fireteam Pod Cohesion & Overwatch:**
+  - Fireteam pods remain in dormant patrol/overwatch states until alerted, preventing whole-map swarms.
+- [ ] **Suppress & Peel Retreats:**
+  - Battered squads execute covering fire, smoke deployment, and peeling retreats to link with reserve pods rather than fighting to the last man.
+
+---
+
+### Milestone 2.2: Subterranean Operations & X-COM Base Engineering
+
+- [ ] **Subterranean Map Generation (`PocketMapUtility`):**
+  - Reuse multi-map pocket layer architecture (Anomaly Pit Gates, Odyssey underground dungeons) to generate a subterranean bedrock map layer beneath the player's colony.
+- [ ] **Buildable Base Access Elevator & Freight Shaft (`Building_BaseElevator`):**
+  - Surface-to-subterranean transit structure providing power, thermal conduit, and pawn transport between floors.
+- [ ] **Bidirectional NPC Traversal (Anti-Bunker Cheese):**
+  - Custom transfer job driver (`JobDriver_UseElevator`) allowing pawns, livestock, and enemy raiders to traverse between surface and underground maps.
+  - Hostile forces actively pursue fleeing colonists into subterranean levels; eliminates invulnerable bunker exploits.
+- [ ] **Subterranean Base Infrastructure & Hazards:**
+  - Structural support struts, cave-in risks, subterranean ventilation/heat exchange, and excavation of alien relics or deep-dwelling infestations.
+
+---
+
+## Phase 4: Module 2 — Interception & Rapid Response (Standalone Framework)
+
+- [ ] Define craft stats (speed, fuel, range, armament slots).
+- [ ] Build tactical air interception dialogue UI.
+- [ ] Implement crash site generation (`SiteDef` with wreckage, debris, and survivor spawns).
+- [ ] Create tactical deployment and extraction drop-zone mechanics.
+- [ ] Build amphibious transport capabilities (Triton analogue for aquatic sites).
+- [ ] **Standalone Test:** Validate interception combat and dropship deployment against standard pirate shuttles without Module 1.
+
+---
+
+## Phase 5: Module 3 — Alien Containment & Biology (Standalone Base System)
 
 - [ ] Implement stasis pods and containment cell comps.
 - [ ] Hook into Anomaly DLC study mechanics (with standalone fallback for non-DLC).
@@ -153,7 +189,7 @@
 
 ---
 
-## Phase 5: Module 4 — Invasion Campaign & Panic (Dependent Campaign Engine)
+## Phase 6: Module 4 — Invasion Campaign & Panic (Dependent Campaign Engine)
 
 - [ ] Build Council of Planetary Factions funding and monthly evaluation ledger.
 - [ ] Implement regional panic tracking per territory.
@@ -163,7 +199,7 @@
 
 ---
 
-## Phase 6: Module 5 — Alien Arsenal & Factions (Thematic Content Pack)
+## Phase 7: Module 5 — Alien Arsenal & Factions (Thematic Content Pack)
 
 - [ ] Implement alien pawn kinds (Sectoids, Mutons, Chryssalids, Aquatoids, Deep Ones).
 - [ ] Create weapon sets: Laser, Plasma, Sonic, and Harpoon/Gauss.
