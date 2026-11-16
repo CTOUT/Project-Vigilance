@@ -30,3 +30,9 @@
 
 - All project architectural plans, design specifications, audit reports, and test plans must reside directly within the repository (`docs/`) rather than external ephemeral storage.
 - Keep documentation version-controlled alongside corresponding code changes.
+
+## 7. High-Frequency Component Tick Fast-Bail ($O(1)$)
+
+- Any `MapComponent` or `WorldComponent` overriding `MapComponentTick()` or `WorldComponentTick()` must perform an $O(1)$ state check at the top of the method before iterating collections or evaluating game state.
+- When idle (no active hostiles, raids, ambushes, or tracked targets), the tick method must exit immediately (`return;`) in < 50 ns to eliminate CPU overhead and GC churn on peaceful maps.
+- Avoid LINQ expressions (e.g., `list.Any(...)`, `list.Where(...)`) in per-tick loops; use zero-allocation indexed for-loops or cached boolean flags.
