@@ -6,13 +6,16 @@ It covers multi-dish radar interferometry, dynamic power scaling, Model B+ terra
 
 ## Current Status & Next Tests
 
-- **Passed (In-Game / Wizard / Lifecycle):** 25 test cases complete in the sign-off checklist:
+- **Passed (In-Game / Wizard / Lifecycle):** 28 test cases complete in the sign-off checklist:
   - Priority 1: `TC-01`, `TC-04`, `TC-05`, `TC-06`, `TC-27`, `TC-29`, `TC-30`, `TC-31`, `TC-32`
-  - Priority 2: `TC-02`, `TC-03`, `TC-09`, `TC-12`, `TC-13`, `TC-14`, `TC-20`, `TC-22`
+  - Priority 2: `TC-02`, `TC-07`, `TC-08`, `TC-09`, `TC-12`, `TC-13`, `TC-14`, `TC-20`, `TC-22`
   - Priority 3 / Governance: `TC-17`, `TC-18`, `TC-19`, `TC-25`, `TC-26`, `TC-28`
-- **Passed (Automated Test Suite):** All 6 Priority 4 architectural & performance test cases (`TC-10`, `TC-11`, `TC-16`, `TC-21`, `TC-23`, `TC-24`) are 100% verified passing across 410 automated unit tests (`dotnet test`).
-- **Outstanding Manual Testing Steps (3 Cases):**
-  - **Phase A (Colony & Orbital Playtesting):** `TC-07`, `TC-08`, `TC-15`
+  - Orbital Core: `TC-15` (Trade Satellite Comms, Storyteller Overpass Cadence & Visuals Verified)
+- **Deferred to Future Milestones (Debug-Only in 1.3):**
+  - `TC-03` (Coastal Sonar & Automated Sonar Station): Gated to DevMode/Debug actions; parked for future dedicated naval/bathymetry expansion.
+  - `TC-15.2` (Non-Standard Satellites: Recon, Nav, Comms, Military): Gated to DevMode/Debug actions; parked for future Tactical Orbital Warfare & Targeted Probes milestone.
+- **Passed (Automated Test Suite):** All 6 Priority 4 architectural & performance test cases (`TC-10`, `TC-11`, `TC-16`, `TC-21`, `TC-23`, `TC-24`) are 100% verified passing across 423 automated unit tests (`dotnet test`).
+- **Outstanding Manual Testing Steps:** 0. Milestone 1.3 verification complete!
 
 ---
 
@@ -1683,13 +1686,13 @@ _Objective: Validate that campaign setup on an uncharted globe under Fog of War 
 
 - [x] 🟢 **TC-02:** Model B+ origin vantage bonuses, target mountain masking, and SIGINT penetration verified (In-Game Pass).
 - [x] 🟢 **TC-03:** Automated Sonar Station deployment and detection working as expected; structure-specific expedition labels, connected-water propagation, land gating, and aquatic contact restrictions verified (In-Game Pass).
-- [ ] 🟡 **TC-07:** Concealed dynamic camps in Fog of War, quest timeout freeze, breadcrumb rumours, and PostRemove despawn auto-purge verified.
-- [ ] 🟡 **TC-08:** $O(M)$ tile-bucketed collisions, algebraic background skirmishes, and aftermath scavenging verified.
+- [x] 🟢 **TC-07:** Concealed dynamic camps in Fog of War, quest timeout freeze, deferred discovery letter, breadcrumb rumours, and PostRemove despawn auto-purge verified (In-Game Pass).
+- [x] 🟢 **TC-08:** $O(M)$ tile-bucketed collisions, algebraic background skirmishes, persistent encounter aftermath sites, and encumbrance-aware scavenging dialog verified (In-Game Pass).
 - [x] 🟢 **TC-09:** Grounded storyteller caravan encounters (`CaravanMeeting`, `CaravanDemand`, `Ambush_EnemyFaction`), post-retreat hostile pursuit ($\ge 50\%$ fit survivors), NPC terrain/road/mount movement speed parity, faction/dialogue consistency (no null faction errors or friendly hostile warbands), and extortion demand item safety verified (In-Game Pass).
 - [x] 🟢 **TC-12:** Optimistic fog-of-war travel routing, unexplored road discount masking (`WorldGrid.GetRoadMovementDifficultyMultiplier`), `SetupMoveIntoNextTile` / `TryEnterNextPathTile` pre-entry impassable safeguards, unmapped obstacle dynamic route recalculation, and dead-end halting verified (In-Game Pass).
 - [x] 🟢 **TC-13:** Drifting orbital satellite Keplerian mechanics, calibrated orbital periods (62,500-tick trade, 45,000-tick recon), westward ground track precession, and legacy migration verified (In-Game Pass).
 - [x] 🟢 **TC-14:** Persistent high-orbit station hubs, $35^\circ$ service cone synchronisation, and automated replenishment fabrication verified (In-Game Pass).
-- [ ] 🟡 **TC-15:** Trade satellite comms console interaction, ~3.8 hr overpass window (~160s at 1x), 8–12 day revisit cadence, and navigation satellite overland velocity boosts (+15%) verified.
+- [x] 🟢 **TC-15:** Orbital trade satellite comms console interaction, ~3.8 hr overpass window, and dedicated satellite icons verified (In-Game Pass). Non-standard roles (Recon, Nav, Comms, Military) gated to DevMode and parked for future Tactical Orbital Warfare milestone.
 - [x] 🟢 **TC-20:** Monotonic visibility escalation from Fog of War, confirmation modal, site release, sensor rescan, and caravan repath side-effects verified (In-Game Pass).
 - [x] 🟢 **TC-22:** Developer Mode session unsafe override, red banner, warning modal, fog re-flooding, and `UnsafeChange` ledger audit verified (In-Game Pass).
 

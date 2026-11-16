@@ -160,6 +160,16 @@
 
 ---
 
+### Future Milestone: Tactical Orbital Warfare, Targeted Probes & ASAT Defence
+
+- **Architectural Design Blueprint:** [`tactical_orbital_warfare_plan.md`](file:///C:/Users/Chris/.gemini/antigravity/brain/98664d67-cd4d-4d8d-9e27-045ad183a79f/tactical_orbital_warfare_plan.md)
+- [ ] **Expendable Tactical Probes (Recon & Navigation):** Targeted hex deployment via transport pods or launch silos; finite operational lifespans (5–10 in-game days) with battery/fuel decay and automatic atmospheric de-orbit burnup.
+- [ ] **Strategic Orbital Platforms & Ground Uplink Bandwidth:** High-orbit geostationary military and comms platforms bounded by colony Comms Console and Phased Array uplink channel capacity (X-COM style).
+- [ ] **Military Satellite Strike Restrictions:** Finite kinetic payload (3 strikes total), 3-day capacitor recharge cooldown, and 2,000W ground targeting lock requirement.
+- [ ] **Hostile Anti-Satellite (ASAT) Countermeasures:** Surface-to-orbit missile silos at pirate outposts intercepting low-orbit assets; electronic warfare / SIGINT jamming bubbles on advanced mech incursions.
+
+---
+
 ### Milestone 1.5: Foundation Framework, Modding Extensibility & Community Localisation
 
 - [ ] **RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**

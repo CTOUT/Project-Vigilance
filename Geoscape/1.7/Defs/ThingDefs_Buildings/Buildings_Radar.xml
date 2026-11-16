@@ -265,7 +265,8 @@
     <passability>Impassable</passability>
     <castEdgeShadows>true</castEdgeShadows>
     <fillPercent>1.0</fillPercent>
-    <designationCategory>Security</designationCategory>
+    <!-- Disabled from survival Architect menu for Milestone 1.3 (debug spawn only until future naval/sonar polish) -->
+    <!-- <designationCategory>Security</designationCategory> -->
     <terrainAffordanceNeeded>Heavy</terrainAffordanceNeeded>
     <techLevel>Industrial</techLevel>
     <researchPrerequisites>

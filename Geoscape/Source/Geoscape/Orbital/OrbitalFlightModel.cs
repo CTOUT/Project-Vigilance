@@ -14,7 +14,7 @@ public static class OrbitalFlightModel
 {
     public const int TicksPerRimWorldDay = 60000;
     public const float DegreesPerTickPlanetaryRotation = 360f / TicksPerRimWorldDay;
-    public const float ApproxDegreesPerHexTile = 1.8f;
+    public const float ApproxDegreesPerHexTile = 0.65f;
 
     private static readonly List<PlanetTile> tmpNeighbors = new(8);
 
@@ -218,7 +218,9 @@ public static class OrbitalFlightModel
     }
 
     /// <summary>
-    /// Evaluates whether a target tile lies within the satellite's ground footprint using zero-allocation angular dot-product math.
+    /// Evaluates whether a target tile lies within the satellite's ground footprint.
+    /// Uses RimWorld's WorldGrid spherical tile distance conversion when WorldGrid is available,
+    /// ensuring exact parity with GenDraw.DrawWorldRadiusRing visual overlays.
     /// </summary>
     public static bool IsTileWithinFootprint(
         Vector3 satelliteDir,
@@ -231,11 +233,11 @@ public static class OrbitalFlightModel
         }
 
         Vector3 tileCenter = Find.World.grid.GetTileCenter(targetTile).normalized;
-        float dot = Vector3.Dot(satelliteDir.normalized, tileCenter);
-        float maxAngularRadiusDeg = footprintRadiusInTiles * ApproxDegreesPerHexTile;
-        float minCos = Mathf.Cos(maxAngularRadiusDeg * Mathf.Deg2Rad);
+        float dot = Mathf.Clamp(Vector3.Dot(satelliteDir.normalized, tileCenter), -1f, 1f);
+        float angularDistanceRadians = Mathf.Acos(dot);
 
-        return dot >= minCos;
+        float distInTiles = Find.WorldGrid.ApproxDistanceInTiles(angularDistanceRadians);
+        return distInTiles <= footprintRadiusInTiles;
     }
 
     /// <summary>
@@ -274,15 +276,11 @@ public static class OrbitalFlightModel
             return null;
         }
 
-        Vector3 targetCenter = Find.World.grid.GetTileCenter(targetTile).normalized;
-        float maxAngularRadiusDeg = footprintRadiusInTiles * ApproxDegreesPerHexTile;
-        float minCos = Mathf.Cos(maxAngularRadiusDeg * Mathf.Deg2Rad);
-
         int endTick = fromTick + lookaheadTicks;
         for (int t = fromTick; t < endTick; t += stepTicks)
         {
             Vector3 satDir = CalculateSubSatelliteDirection(parameters, t);
-            if (Vector3.Dot(satDir, targetCenter) >= minCos)
+            if (IsTileWithinFootprint(satDir, targetTile, footprintRadiusInTiles))
             {
                 return t;
             }

@@ -153,9 +153,9 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                     Disabled = !canAffordRelay
                 });
 
-                // 2. Deploy Automated Sonar Station (120 Steel, 4 Components, Coastal Water Adjacency required)
+                // 2. Deploy Automated Sonar Station (DevMode / Debug only for Milestone 1.3)
                 bool hasCoastalAccess = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(clickedTile);
-                if (hasCoastalAccess)
+                if (Prefs.DevMode && hasCoastalAccess)
                 {
                     bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
                     string sonarLabel = canAffordSonar
@@ -327,9 +327,9 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                             Disabled = !canAffordRelay
                         });
 
-                        // Travel and deploy Automated Sonar Station (Requires Coastal Access)
+                        // Travel and deploy Automated Sonar Station (DevMode / Debug only for Milestone 1.3)
                         bool destHasCoastal = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(clickedTile);
-                        if (destHasCoastal)
+                        if (Prefs.DevMode && destHasCoastal)
                         {
                             bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
                             string sonarLabel = canAffordSonar
@@ -554,7 +554,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
                         });
 
                         bool nearbyHasCoastal = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(bestNearby);
-                        if (nearbyHasCoastal)
+                        if (Prefs.DevMode && nearbyHasCoastal)
                         {
                             bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
                             string sonarLabel = canAffordSonar

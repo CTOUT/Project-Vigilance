@@ -15,6 +15,12 @@ namespace Geoscape.Tests;
 public sealed class OrbitalLogisticsTests
 {
     [TestMethod]
+    public void OrbitalFlightModel_IsTileWithinFootprint_InvalidTile_ReturnsFalse()
+    {
+        Assert.IsFalse(OrbitalFlightModel.IsTileWithinFootprint(Vector3.up, PlanetTile.Invalid, 24f));
+    }
+
+    [TestMethod]
     public void OrbitalFlightModel_DriftingGroundTrack_LatitudesStayWithinInclination()
     {
         // Arrange: 45 degree inclination, 3450 tick period (low orbit)

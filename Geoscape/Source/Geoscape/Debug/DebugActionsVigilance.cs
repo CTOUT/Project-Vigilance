@@ -448,6 +448,59 @@ public static class DebugActionsVigilance
         Messages.Message($"Spawned Recon Satellite '{sat.OrbitalCallsign}' overhead tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
     }
 
+    [DebugAction("Project Vigilance", "Orbital: Spawn Nav Satellite Over Colony", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
+    private static void SpawnNavSatelliteOverColony()
+    {
+        PlanetTile colonyTile = ResolveColonyTile();
+        if (!colonyTile.Valid)
+        {
+            Messages.Message("No active player colony found to spawn satellite over.", MessageTypeDefOf.RejectInput, false);
+            return;
+        }
+
+        SpawnNavSatelliteInternal(colonyTile);
+    }
+
+    [DebugAction("Project Vigilance", "Orbital: Spawn Nav Satellite Overhead", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
+    private static void SpawnNavSatelliteOverhead()
+    {
+        PlanetTile targetTile = ResolveTargetTile();
+        if (!targetTile.Valid)
+        {
+            Messages.Message("Select a valid globe tile or enter game world.", MessageTypeDefOf.RejectInput, false);
+            return;
+        }
+
+        SpawnNavSatelliteInternal(targetTile);
+    }
+
+    private static void SpawnNavSatelliteInternal(PlanetTile targetTile)
+    {
+        OrbitalParameters orbitParams = CreateOverheadOrbitParameters(
+            targetTile,
+            altitudeKm: 12000f,
+            periodTicks: 120000,
+            extraInclinationDeg: 12f,
+            precessionRateDegPerDay: -1.2f,
+            orbitalDriftDegPerDay: 0.4f);
+
+        var def = OrbitalDefOf.Vigilance_Satellite_Nav ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_Satellite_Nav");
+        var sat = (WorldObject_Satellite)WorldObjectMaker.MakeWorldObject(def);
+        sat.SetFaction(Faction.OfPlayer);
+        int uniqueId = Find.TickManager != null ? (Find.TickManager.TicksGame % 10000) : Rand.Range(100, 999);
+        sat.InitializeSatellite(SatelliteRole.Navigation, orbitParams, stationId: -1, callsign: $"Nav-{uniqueId}", footprintRadius: 24f);
+        Find.WorldObjects.Add(sat);
+
+        if (WorldRendererUtility.WorldRendered)
+        {
+            Find.WorldSelector?.ClearSelection();
+            Find.WorldSelector?.Select(sat);
+            Find.WorldCameraDriver?.JumpTo(sat.DrawPos);
+        }
+
+        Messages.Message($"Spawned Navigation Satellite '{sat.OrbitalCallsign}' overhead tile {targetTile} (Footprint: 24 tiles).", MessageTypeDefOf.PositiveEvent, false);
+    }
+
     [DebugAction("Project Vigilance", "Orbital: Despawn Overhead Satellites", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
     private static void DespawnOverheadSatellites()
     {

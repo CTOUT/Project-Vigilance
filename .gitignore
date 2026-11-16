@@ -48,7 +48,8 @@ npm-debug.log*
 .github/hooks/
 .github/plugin/
 .github/workflows/*.md
-.agents/
+.agents/*
+!.agents/rules/
 .kiro/
 .claude/
 .cursor/

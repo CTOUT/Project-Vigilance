@@ -289,7 +289,6 @@ public class OrbitalManager : WorldComponent
 
         // Count active satellites linked to this parent station
         bool hasTrade = false;
-        bool hasRecon = false;
 
         for (int i = 0; i < satellites.Count; i++)
         {
@@ -297,18 +296,12 @@ public class OrbitalManager : WorldComponent
             if (sat.ParentStationId == station.ID)
             {
                 if (sat.Role == SatelliteRole.Trade) hasTrade = true;
-                if (sat.Role == SatelliteRole.Reconnaissance) hasRecon = true;
             }
         }
 
         if (!hasTrade)
         {
             SpawnSatelliteForStation(station, SatelliteRole.Trade);
-        }
-
-        if (!hasRecon)
-        {
-            SpawnSatelliteForStation(station, SatelliteRole.Reconnaissance);
         }
     }
 

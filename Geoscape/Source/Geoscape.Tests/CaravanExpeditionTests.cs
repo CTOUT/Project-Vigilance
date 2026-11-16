@@ -27,6 +27,19 @@ public sealed class CaravanExpeditionTests
     }
 
     [TestMethod]
+    public void Inspect_WorldGrid_ApproxDistanceInTiles()
+    {
+        if (Find.World?.grid != null)
+        {
+            var layer = Find.World.grid.Surface;
+            float tilesPerRadian = layer.ApproxDistanceInTiles(1.0f);
+            float degPerTile = Mathf.Rad2Deg / tilesPerRadian;
+            System.Console.WriteLine($"Tiles per radian: {tilesPerRadian:F2}");
+            System.Console.WriteLine($"Actual degrees per tile: {degPerTile:F3}°");
+        }
+    }
+
+    [TestMethod]
     public void TryConsumePendingDirectiveForCaravan_MatchesByExplicitDestinationTile()
     {
         var caravan = (Caravan)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Caravan));
