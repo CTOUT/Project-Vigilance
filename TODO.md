@@ -4,11 +4,11 @@
 
 ### Milestone 1.4: Planetary Coordination & Version Support [ACTIVE ROADMAP]
 
-- [ ] **Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
-  - Implement the pre-settlement expedition phase for uncharted rim worlds, allowing players to survey regional geography, waterways, and mountain passes before committing to a permanent base location.
-  - **Landing Cargo / Mission Assets:** Keep heavy starting resources (bulk steel, food crates, components) off-map in orbital staging pods, deploying via drop pods only when the player stakes their colony claim via Colony Beacon.
-  - **Scenario Opt-In Architecture:** Configurable via `ExpeditionStartMode` (`Disabled`, `ScenarioDefault`, `ForceExpedition`) with XML `DefModExtension` support, automatically bypassing orbital/space starts (Odyssey, GravShips, SOS2).
-- [ ] **Custom Visual Asset Pipeline & Faction Livery Tinting:**
+- [ ] **Stream 1: Tooling & CI/CD — Mock Reference Assemblies & Headless Tests:**
+  - **Game Assembly Stubs (`refasmer`):** Generate stripped public API reference assemblies for RimWorld 1.7 Waylith core assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`). Store stubs in `lib/ref/` or configure an automated generation script (`scripts/generate-reference-assemblies.ps1`).
+  - **Automated Pull Request CI (`dotnet-ci.yml`):** Configure GitHub Actions workflow running `dotnet build` and `dotnet test` on pull requests against `main`, executing full MSTest headless test suite in Linux runners without shipping proprietary game bytecode.
+  - **Zero-Warning Enforcement:** Integrate `TreatWarningsAsErrors` into PR CI verification step.
+- [ ] **Stream 2: Custom Visual Asset Pipeline & Faction Livery Tinting:**
   - **Orbital Infrastructure (`Textures/World/Orbital/`):**
     - Replace placeholder vanilla quest icons (`Sites/DownedRefugee` "Running Man" and `Sites/Outpost` "Watchtower") with dedicated orbital sprites.
     - Persistent Orbital Station Hub (`WorldObject_OrbitalStation`): Spoke-and-hub modular space station and orbital dock.
@@ -21,16 +21,25 @@
     - Colony Sensory Infrastructure: Custom graphics for Early-Warning Radar Dome (3×3), Spacer Phased Array (4×4), SIGINT Decryption Console (3×2), and Coastal Hydrophone Station (3×3).
   - **Dynamic Faction Colour Shifting Specification:**
     - All world entity icons and satellite sprites must be authored as neutral grayscale / white silhouette masks with transparent backgrounds (`RGBA32`).
-    - Ensures clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions (Outlanders, Pirates, Empire, Tribals, and modded factions).
-- [ ] **Modular Separation — Aquatic Operations Extraction (`Vigilance.Aquatics`):** Migrate Coastal Sonar (`SonarTraversalUtility`, `PlaceWorker_CoastalSonar`, `Geoscape_SonarArray`, `Vigilance_ListeningPost_Sonar`) out of `ProjectVigilance.Geoscape` into the standalone `Vigilance.Aquatics` module in Milestone 1.4 or later, establishing soft contract boundaries via `ISensorProvider` and laying groundwork for oceanic bathymetry.
-- [ ] **Intelligent Multi-Base Strike Coordination:** Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic capable of orchestrating diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements.
-- [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:** Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on the previous release.
-- [ ] **Automated CI/CD — Mock Reference Assemblies & Headless Tests:** Generate stripped public API stubs (via `refasmer`) for RimWorld 1.7 Waylith game assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`) and configure a dedicated GitHub Actions workflow (`dotnet-ci.yml`) to run automated `dotnet build` and `dotnet test` on pull requests.
-- [ ] **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
-- [ ] **Future Investigation: Elevation-Aware Visual Observation:**
-  - Evaluate whether `tile.elevation` should provide an additional vantage bonus for optical observation systems (Lookout Watchtowers, Signal Beacons, Caravan Lookouts) beyond the existing `Hilliness`-based modifiers.
-  - Consider whether exceptionally high-altitude mountain tiles (> X metres) should receive an additional observation bonus.
-  - Do not apply to radar systems unless future gameplay testing demonstrates a clear benefit.
+    - Clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions (Outlanders, Pirates, Empire, Tribals, and modded factions).
+- [ ] **Stream 3: Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
+  - **Pre-Settlement Survey Phase:** Implement pre-settlement expedition phase for uncharted rim worlds, allowing players to traverse and survey regional geography, waterways, and mountain passes before committing to a permanent settlement hex.
+  - **Off-Map Orbital Staging Reserves:** Keep heavy starting supplies (bulk steel, food crates, components, heavy weaponry) off-map in orbital staging pods, preventing caravan encumbrance during initial land exploration.
+  - **Colony Beacon Site Claiming:** Dedicated deployable structure (`Geoscape_ColonyBeacon`) carried by expedition party. Activating "Stake Colony Claim" creates player colony map and triggers precision drop pods delivering orbital staging cargo.
+  - **Fail-Safe & Anti-Soft-Lock Guards:** Auto-deploy emergency drop pods if expedition party suffers catastrophic defeat, or allow secondary beacon fabrication at crafting spots if beacon is lost.
+  - **Scenario Opt-In Architecture:** Configurable via `ExpeditionStartMode` (`Disabled`, `ScenarioDefault`, `ForceExpedition`) with XML `DefModExtension` support, automatically bypassing orbital/space starts (Odyssey, GravShips, SOS2).
+- [ ] **Stream 4: Intelligent Multi-Base Strike Coordination:**
+  - Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic.
+  - Coordinate diversionary raids, staggered multi-base assaults, or synchronised offensive campaigns across player settlements based on proximity and strategic threat level.
+- [ ] **Stream 5: Modular Separation — Aquatic Operations Extraction (`Vigilance.Aquatics`):**
+  - Migrate Coastal Sonar (`SonarTraversalUtility`, `PlaceWorker_CoastalSonar`, `Geoscape_SonarArray`, `Vigilance_ListeningPost_Sonar`) out of `ProjectVigilance.Geoscape` into standalone `Vigilance.Aquatics` module.
+  - Establish soft contract boundaries via `ISensorProvider` and lay groundwork for oceanic bathymetry.
+- [ ] **Stream 6: Community Request — RimWorld 1.6 Legacy Backport Assessment:**
+  - Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on previous release.
+  - Document conditional compilation symbols or shared project structures required for dual-version support.
+- [ ] **Stream 7: Standalone Verification & Future Investigation:**
+  - **Standalone Test:** Validate radar detection, listening posts, and fog of war in vanilla RimWorld 1.7 with zero other Vigilance mods loaded.
+  - **Elevation-Aware Visual Observation:** Evaluate whether `tile.elevation` should provide additional vantage bonus for optical observation systems (Lookout Watchtowers, Signal Beacons, Caravan Lookouts) beyond existing `Hilliness`-based modifiers; high-altitude mountain tiles (> X metres) receiving additional observation bonus. Avoid applying to radar systems unless testing demonstrates benefit.
 
 ---
 
