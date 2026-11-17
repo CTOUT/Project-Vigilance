@@ -138,15 +138,31 @@ public class OrbitalManager : WorldComponent
     /// Scans for orbital-only factions (such as TradersGuild or factions with no ground settlements)
     /// and ensures they maintain an operational persistent orbital station and satellite network.
     /// Also guarantees a minimum global trade fleet (2-3 vessels) to align with vanilla storyteller cadences.
+    /// Pre-indexes ground settlements in O(S) so faction classification is O(1).
     /// </summary>
     public void EnsureOrbitalFactionInfrastructure()
     {
         FactionManager? factionManager = Find.FactionManager;
         if (factionManager == null || Find.WorldObjects == null) return;
 
+        // Pre-gather all factions with surface settlements once in O(S) so per-faction checks are O(1)
+        var settlements = Find.WorldObjects.Settlements;
+        HashSet<Faction>? factionsWithSettlements = null;
+        if (settlements != null && settlements.Count > 0)
+        {
+            factionsWithSettlements = new HashSet<Faction>(settlements.Count);
+            for (int i = 0; i < settlements.Count; i++)
+            {
+                if (settlements[i].Faction != null)
+                {
+                    factionsWithSettlements.Add(settlements[i].Faction);
+                }
+            }
+        }
+
         foreach (Faction faction in factionManager.AllFactionsVisible)
         {
-            if (IsOrbitalFaction(faction))
+            if (IsOrbitalFaction(faction, factionsWithSettlements))
             {
                 EnsureStationForFaction(faction);
             }
@@ -179,7 +195,7 @@ public class OrbitalManager : WorldComponent
         }
     }
 
-    public static bool IsOrbitalFaction(Faction? faction)
+    public static bool IsOrbitalFaction(Faction? faction, HashSet<Faction>? factionsWithSettlements = null)
     {
         if (faction == null) return false;
 
@@ -195,6 +211,11 @@ public class OrbitalManager : WorldComponent
         // Factions with 0 surface settlements that are non-hidden and non-defeated
         if (!faction.IsPlayer && !faction.defeated && !faction.Hidden)
         {
+            if (factionsWithSettlements != null)
+            {
+                return !factionsWithSettlements.Contains(faction);
+            }
+
             int settlementCount = 0;
             if (Find.WorldObjects != null)
             {

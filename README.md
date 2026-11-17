@@ -94,10 +94,10 @@ To maintain performance, simplicity, and community compatibility, the project is
 - **[Vision & Architectural Pillars](docs/architecture/vision-and-pillars.md)**
 - **[Modular System Architecture](docs/architecture/modular-system.md)**
 - **[DLC Integration Architecture](docs/architecture/dlc-integrations.md)**
-- **[Design Blueprint: Campaign Rules, Mutability Framework & Campaign Identity](Documentation/Design/Campaign_Rules_And_Mutability_Blueprint.md)**
-- **[Design Blueprint: Orbital Logistics & Drifting Satellite Infrastructure](Documentation/Design/Orbital_Logistics_And_Drifting_Satellites_Blueprint.md)**
-- **[Design Blueprint: Classic X-COM Geoscape Experience](Documentation/Design/Classic_XCom_Geoscape_Blueprint.md)**
-- **[Interactive Mockup: Geoscape Command Deck Prototype](Documentation/Design/Mockups/geoscape_command_deck_mockup.html)**
+- **[Design Blueprint: Campaign Rules, Mutability Framework & Campaign Identity](docs/archive/Campaign_Rules_And_Mutability_Blueprint.md)**
+- **[Design Blueprint: Orbital Logistics & Drifting Satellite Infrastructure](docs/archive/Orbital_Logistics_And_Drifting_Satellites_Blueprint.md)**
+- **[Design Blueprint: Classic X-COM Geoscape Experience](docs/archive/Classic_XCom_Geoscape_Blueprint.md)**
+- **[Interactive Mockup: Geoscape Command Deck Prototype](docs/archive/Mockups/geoscape_command_deck_mockup.html)**
 
 ### Module Specifications
 

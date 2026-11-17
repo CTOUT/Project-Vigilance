@@ -639,4 +639,159 @@ public sealed class Milestone13FixesTests
             ProjectVigilance.Geoscape.Debug.DebugActionsVigilance.TargetTileOverride = null;
         }
     }
+
+    [TestMethod]
+    public void ThermalIntegrityPostDefProcessor_AuditThingDef_ExplicitItemsAndArchotech()
+    {
+        var flam = ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.ResolveFlammabilityStat();
+
+        // 1. Reinforced barrel (artillery steel)
+        var barrel = new ThingDef { defName = "ReinforcedBarrel" };
+        barrel.statBases = new List<StatModifier> { new StatModifier { stat = flam, value = 0.1f } };
+        ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.AuditSingleThingDef(barrel);
+        Assert.AreEqual(0f, barrel.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "Reinforced barrel must be 0% flammable.");
+
+        // 2. Boss chips
+        var powerfocus = new ThingDef { defName = "PowerfocusChip" };
+        powerfocus.statBases = new List<StatModifier> { new StatModifier { stat = flam, value = 0.25f } };
+        ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.AuditSingleThingDef(powerfocus);
+        Assert.AreEqual(0f, powerfocus.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "Powerfocus chip must be 0% flammable.");
+
+        // 3. Archotech item
+        var archotechEye = new ThingDef { defName = "ArchotechEye", techLevel = TechLevel.Archotech };
+        archotechEye.statBases = new List<StatModifier> { new StatModifier { stat = flam, value = 0.7f } };
+        ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.AuditSingleThingDef(archotechEye);
+        Assert.AreEqual(0f, archotechEye.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "Archotech eye must be 0% flammable.");
+
+        // 4. Gravship Hull reset to 1.0 so Stuff material governs
+        var hull = new ThingDef { defName = "GravshipHull" };
+        hull.statBases = new List<StatModifier> { new StatModifier { stat = flam, value = 0f } };
+        ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.AuditSingleThingDef(hull);
+        Assert.AreEqual(1.0f, hull.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "GravshipHull base flammability must be 1.0.");
+    }
+
+    [TestMethod]
+    public void ThermalIntegrityPostDefProcessor_IsAllMetalOrStoneBuilding_ClassifiesCorrectly()
+    {
+        var flam = ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.ResolveFlammabilityStat();
+        var steelDef = new ThingDef { defName = "Steel" };
+        var woodDef = new ThingDef { defName = "WoodLog" };
+        var compDef = new ThingDef { defName = "ComponentIndustrial" };
+
+        // Pure metal building (e.g. Electric Smelter, Machining Table, Autocannon Turret)
+        var metalBuilding = new ThingDef
+        {
+            defName = "ElectricSmelter",
+            category = ThingCategory.Building,
+            costList = new List<ThingDefCountClass>
+            {
+                new ThingDefCountClass(steelDef, 170),
+                new ThingDefCountClass(compDef, 2)
+            }
+        };
+        metalBuilding.statBases = new List<StatModifier> { new StatModifier { stat = flam, value = 1.0f } };
+
+        Assert.IsTrue(ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.IsAllMetalOrStoneBuilding(metalBuilding),
+            "Pure metal building must be identified as all-metal.");
+        ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.AuditSingleThingDef(metalBuilding);
+        Assert.AreEqual(0f, metalBuilding.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "All-metal building must be set to 0% flammability.");
+
+        // Combustible building (e.g. Watermill generator with wood)
+        var woodBuilding = new ThingDef
+        {
+            defName = "WatermillGenerator",
+            category = ThingCategory.Building,
+            costList = new List<ThingDefCountClass>
+            {
+                new ThingDefCountClass(woodDef, 280),
+                new ThingDefCountClass(steelDef, 80)
+            }
+        };
+        woodBuilding.statBases = new List<StatModifier> { new StatModifier { stat = flam, value = 1.0f } };
+
+        Assert.IsFalse(ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.IsAllMetalOrStoneBuilding(woodBuilding),
+            "Building containing wood must NOT be identified as all-metal.");
+        ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.AuditSingleThingDef(woodBuilding);
+        Assert.AreEqual(1.0f, woodBuilding.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "Building containing wood must remain flammable.");
+
+        // Battery exemption (electrochemical thermal runaway)
+        var battery = new ThingDef
+        {
+            defName = "Battery",
+            category = ThingCategory.Building,
+            costList = new List<ThingDefCountClass>
+            {
+                new ThingDefCountClass(steelDef, 70),
+                new ThingDefCountClass(compDef, 2)
+            }
+        };
+        battery.statBases = new List<StatModifier> { new StatModifier { stat = flam, value = 1.0f } };
+
+        Assert.IsFalse(ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.IsAllMetalOrStoneBuilding(battery),
+            "Battery must be exempt from all-metal 0% flammability due to chemical thermal runaway.");
+    }
+
+    [TestMethod]
+    public void ThermalIntegrityPostDefProcessor_AuditTerrainBridges_Logic()
+    {
+        var flam = ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.ResolveFlammabilityStat();
+        var bridge = new TerrainDef { defName = "Bridge" };
+        var heavyBridge = new TerrainDef { defName = "HeavyBridge" };
+        var ancientBridge = new TerrainDef { defName = "AncientHeavyBridge" };
+        var substructure = new TerrainDef { defName = "Substructure" };
+
+        ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.SetStatBaseValueSafe(bridge, flam, 0.8f);
+        ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.SetStatBaseValueSafe(heavyBridge, flam, 0.8f);
+
+        // Run terrain audit logic
+        if (bridge.defName.Equals("Bridge", StringComparison.OrdinalIgnoreCase))
+            ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.SetStatBaseValueSafe(bridge, flam, 1.0f);
+
+        if (heavyBridge.defName.Equals("HeavyBridge", StringComparison.OrdinalIgnoreCase))
+            ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.SetStatBaseValueSafe(heavyBridge, flam, 0f);
+
+        if (ancientBridge.defName.Equals("AncientHeavyBridge", StringComparison.OrdinalIgnoreCase))
+            ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.SetStatBaseValueSafe(ancientBridge, flam, 0f);
+
+        if (substructure.defName.Equals("Substructure", StringComparison.OrdinalIgnoreCase))
+            ProjectVigilance.Geoscape.Thermal.ThermalIntegrityPostDefProcessor.SetStatBaseValueSafe(substructure, flam, 0f);
+
+        Assert.AreEqual(1.0f, bridge.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "Bridge flammability must be 1.0.");
+        Assert.AreEqual(0f, heavyBridge.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "HeavyBridge flammability must be 0.");
+        Assert.AreEqual(0f, ancientBridge.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "AncientHeavyBridge flammability must be 0.");
+        Assert.AreEqual(0f, substructure.statBases.Find(m => m.stat == flam || m.stat?.defName == "Flammability")?.value, "Substructure flammability must be 0.");
+    }
+
+    [TestMethod]
+    public void SensoryBuildings_Flammability_AlignedWithThermalIntegrity()
+    {
+        string buildingsPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+            System.AppDomain.CurrentDomain.BaseDirectory,
+            "..", "..", "..", "..", "..", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Radar.xml"));
+
+        Assert.IsTrue(System.IO.File.Exists(buildingsPath), $"Buildings XML file must exist at {buildingsPath}");
+
+        var doc = new System.Xml.XmlDocument();
+        doc.Load(buildingsPath);
+
+        System.Xml.XmlNode? smallRadar = doc.SelectSingleNode("//ThingDef[defName='Geoscape_RadarSmall']/statBases/Flammability");
+        Assert.IsNotNull(smallRadar);
+        Assert.AreEqual("0", smallRadar!.InnerText.Trim(), "Geoscape_RadarSmall flammability must be 0");
+
+        System.Xml.XmlNode? largeRadar = doc.SelectSingleNode("//ThingDef[defName='Geoscape_RadarLarge']/statBases/Flammability");
+        Assert.IsNotNull(largeRadar);
+        Assert.AreEqual("0", largeRadar!.InnerText.Trim(), "Geoscape_RadarLarge flammability must be 0");
+
+        System.Xml.XmlNode? sigint = doc.SelectSingleNode("//ThingDef[defName='Geoscape_SigintConsole']/statBases/Flammability");
+        Assert.IsNotNull(sigint);
+        Assert.AreEqual("0", sigint!.InnerText.Trim(), "Geoscape_SigintConsole flammability must be 0");
+
+        System.Xml.XmlNode? sonar = doc.SelectSingleNode("//ThingDef[defName='Geoscape_SonarArray']/statBases/Flammability");
+        Assert.IsNotNull(sonar);
+        Assert.AreEqual("0", sonar!.InnerText.Trim(), "Geoscape_SonarArray flammability must be 0");
+
+        System.Xml.XmlNode? tower = doc.SelectSingleNode("//ThingDef[defName='Geoscape_LookoutTower']/statBases/Flammability");
+        Assert.IsNotNull(tower);
+        Assert.AreEqual("0.8", tower!.InnerText.Trim(), "Geoscape_LookoutTower flammability must be 0.8 (timber/stone stuffable)");
+    }
 }

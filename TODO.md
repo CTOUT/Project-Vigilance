@@ -26,12 +26,18 @@
     - All world entity icons and satellite sprites must be authored as neutral grayscale / white silhouette masks with transparent backgrounds (`RGBA32`).
     - Clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions (Outlanders, Pirates, Empire, Tribals, and modded factions).
     - Note: Assets serve as verified functional placeholders; dedicated high-fidelity art overhaul scheduled for visual polish milestone.
-- [ ] **Stream 3: Material Thermal Integrity & Realistic Combustion:**
-  - **Non-Flammable Structural Metals:** Eliminate basic oxygen flammability on structural metals (Steel, Plasteel, Uranium: `flammability = 0f`), stopping metal walls, doors, and furniture from catching fire from normal sparks and campfires.
-  - **Extreme Concussion & Alien Plasma:** Reserve thermal destruction for structural explosives, superheated furnace conditions, incendiary fuels, and alien plasma.
-  - **Alien Metallurgy Foundation:** Establishes realistic material properties for future alien materials (Alien Alloys, Elerium-115).
-- [ ] **Stream 4: Standalone Verification:**
-  - Validate custom textures, materials, and headless CI build on clean RimWorld 1.7 installation.
+- [x] **Stream 3: Programmatic Thermal Integrity Post-Def Audit Engine:**
+  - **Programmatic Post-Def Processing:** Implemented `ThermalIntegrityPostDefProcessor` executing at startup (`[StaticConstructorOnStartup]`) to programmatically enforce non-combustible properties across core, DLC, and mod defs without fragile manual XML patches.
+  - **Structural & Precious Metals:** Set raw item and Stuff factor `Flammability = 0` on `Steel`, `Plasteel`, `Gold`, `Silver`, and `Uranium`, preventing metal walls, doors, barricades, and resource stacks from burning.
+  - **Infrastructure & Sensory Weatherproofing:** Set `Flammability = 0` on `Geoscape_RadarSmall`, `Geoscape_RadarLarge`, `Geoscape_SigintConsole`, and `Geoscape_SonarArray`.
+  - **Bridge Flammability Alignment:** Ensured Core wooden `Bridge` has 100% flammability (`1.0`) while Odyssey steel `HeavyBridge`, `AncientHeavyBridge`, and `Substructure` are set to `0`.
+  - **Gravship Hull Dynamic Stuff Calibration:** Set `GravshipHull` base flammability to `1.0` so material Stuff properties govern (Bioferrite hulls burn at 75% flammability factor, metal hulls remain 0% immune).
+  - **Automated All-Metal & Stone Machine Audit:** Automated classification setting fixed-recipe metal/stone structures (`ElectricSmelter`, `ElectricSmithy`, `TableMachining`, `FabricationBench`, `PowerSwitch`, `AutocannonTurret`, `Hopper`, `SignalJammer`) to `0` flammability while preserving `Battery` flammability (thermal runaway).
+  - **Explicit Non-Combustibles & Archotech:** Set `0` flammability for `ReinforcedBarrel`, mechanoid boss chips (`SignalChip`, `PowerfocusChip`, `NanostructuringChip`), gravtech components (`Gravcore`, `GravlitePanel`, `ShuttleEngine`), archotech artifacts/bionics, and pure metal bionics.
+- [x] **Stream 4: Standalone Verification:**
+  - Validated custom textures, materials, and headless CI build on clean RimWorld 1.7 installation.
+  - Verified 439/439 unit tests passing with zero warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
+  - Confirmed clean formatting (`prettier`) and British English spell checking (`cspell`).
 
 ---
 
@@ -46,6 +52,18 @@
 - [ ] **Odyssey DLC Synergy & Non-Destructive Gravcore Takeoff:**
   - Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
   - Patch gravcore launch sequence to eliminate permanent world tile destruction, preserving planetary terrain integrity during orbital deployments without external mod dependencies.
+- [ ] **Mod Settings & Sensory Cosmetic Customisation Review:**
+  - **Feature Toggles & Modular Gating:** Audit and expose granular toggles for core mechanics (e.g. thermal integrity post-def processing, incursion night rest cycles, tactical flanking ingress, automatic landfall skip) enabling players to tailor simulation fidelity.
+  - **Sensory & Visual Palette Customisation:** Expand cosmetic configuration beyond radar colours to include optical scout range ring colours, coastal sonar pulse hues, identification horizon rings, and custom opacity presets (e.g. high-contrast, minimal clutter, tactical dark).
+  - **Accessibility & Palette Presets:** Provide dedicated high-contrast and colourblind presets (red-green and blue-yellow vision accommodations) across all planetary sensory overlays.
+- [ ] **Environmental Thermal Dynamics & Material Phase States (Future Feature):**
+  - **Device Operational Temperature Envelopes:**
+    - Sub-zero degradation (< -30°C): Sensor antenna rotation slowdown, battery brownout risk, sweep cadence penalty, and mechanical freezing.
+    - Extreme heat (> +60°C): Thermal throttling, heat sink burnout, component breakdown, and emergency failsafe shutdown.
+  - **Cryogenic Ductile-to-Brittle Transition:**
+    - Under severe sub-zero cold (< -40°C), structural metals, plasteel, and stonework do not passively decay, but suffer an embrittlement multiplier (+50% to +100% damage taken from blunt concussive impacts, artillery shock waves, and explosive breaches).
+  - **Superheated Kiln / Oven Room Structural Degradation:**
+    - High-temperature ambient chambers (> 400°C) cause progressive structural damage and structural collapse to low-melting-point materials and electrical wiring, preventing indefinite exploit cheese while preserving realistic thermal resistance.
 
 ---
 
@@ -64,8 +82,8 @@
 
 ### Future Milestone: Classic X-COM Geoscape Command Deck & Diegetic Experience
 
-- **Architectural Design Blueprint:** [`Documentation/Design/Classic_XCom_Geoscape_Blueprint.md`](Documentation/Design/Classic_XCom_Geoscape_Blueprint.md)
-- **Interactive Visual Mockup & Art Prototype:** [`Documentation/Design/Mockups/geoscape_command_deck_mockup.html`](Documentation/Design/Mockups/geoscape_command_deck_mockup.html)
+- **Architectural Design Blueprint:** [`docs/archive/Classic_XCom_Geoscape_Blueprint.md`](docs/archive/Classic_XCom_Geoscape_Blueprint.md)
+- **Interactive Visual Mockup & Art Prototype:** [`docs/archive/Mockups/geoscape_command_deck_mockup.html`](docs/archive/Mockups/geoscape_command_deck_mockup.html)
 - [ ] **Temporal "Contact Drop" Engine & CRT Telemetry Modal (`Dialog_ContactDetected`):** Automatic time deceleration to Normal (1x / 60 TPS) or Pause upon radar boundary ingress; monospace dot-leader telemetry readout with single-click `[CENTRE ON BOGEY — TIME = 5 SECS]` camera jump.
 - [ ] **Diegetic Command Deck Sidebar & Harmony Non-Collision Architecture:** 220px classic right-hand operations sidebar with live seconds LED mission clock, discrete time compression buttons, and 3D trackball gimbal; Harmony offset for `LetterStack` (leftwards cascade) and conditional suppression of vanilla `WorldGlobalControls`.
 - [ ] **Outpost Siting Hologram Preview Dome ("Select Site for New Base"):** Full-screen planetary survey mode replacing float menus with dynamic topographic vantage bonus overlay (+1 to +2 rings on hills/mountains) and blind-spot calculation.

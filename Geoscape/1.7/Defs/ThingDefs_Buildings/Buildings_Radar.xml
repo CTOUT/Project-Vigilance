@@ -84,7 +84,7 @@
     <statBases>
       <MaxHitPoints>350</MaxHitPoints>
       <WorkToBuild>2600</WorkToBuild>
-      <Flammability>0.4</Flammability>
+      <Flammability>0</Flammability>
       <Mass>120</Mass>
     </statBases>
     <costList>
@@ -147,7 +147,7 @@
     <statBases>
       <MaxHitPoints>550</MaxHitPoints>
       <WorkToBuild>4800</WorkToBuild>
-      <Flammability>0.2</Flammability>
+      <Flammability>0</Flammability>
       <Mass>250</Mass>
     </statBases>
     <costList>
@@ -214,7 +214,7 @@
     <statBases>
       <MaxHitPoints>250</MaxHitPoints>
       <WorkToBuild>3200</WorkToBuild>
-      <Flammability>0.3</Flammability>
+      <Flammability>0</Flammability>
       <Mass>75</Mass>
     </statBases>
     <costList>
@@ -278,7 +278,7 @@
     <statBases>
       <MaxHitPoints>350</MaxHitPoints>
       <WorkToBuild>2800</WorkToBuild>
-      <Flammability>0.3</Flammability>
+      <Flammability>0</Flammability>
       <Mass>140</Mass>
     </statBases>
     <costList>

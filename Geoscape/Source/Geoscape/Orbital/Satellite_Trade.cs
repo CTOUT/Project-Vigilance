@@ -144,16 +144,19 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
                 continue;
             }
 
-            Building_CommsConsole? console = OrbitalVisibilityUtility.FindPoweredCommsConsole(map);
-            bool isOverhead = CoversTile(map.Tile);
             bool wasActive = activeOverpassMapIds.Contains(map.Index);
+            bool isOverhead = CoversTile(map.Tile);
 
             if (isOverhead)
             {
-                if (!wasActive && console != null && CanTradeNow)
+                if (!wasActive && CanTradeNow)
                 {
-                    activeOverpassMapIds.Add(map.Index);
-                    NotifyEnteredOverpass(map, console);
+                    Building_CommsConsole? console = OrbitalVisibilityUtility.FindPoweredCommsConsole(map);
+                    if (console != null)
+                    {
+                        activeOverpassMapIds.Add(map.Index);
+                        NotifyEnteredOverpass(map, console);
+                    }
                 }
             }
             else if (wasActive)

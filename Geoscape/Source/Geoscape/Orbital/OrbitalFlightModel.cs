@@ -280,7 +280,24 @@ public static class OrbitalFlightModel
         }
 
         Vector3 tileCenter = Find.World.grid.GetTileCenter(targetTile).normalized;
-        float dot = Mathf.Clamp(Vector3.Dot(satelliteDir.normalized, tileCenter), -1f, 1f);
+        return IsTileWithinFootprint(satelliteDir, tileCenter, footprintRadiusInTiles);
+    }
+
+    /// <summary>
+    /// Fast allocation-free footprint test against a pre-normalized target tile center vector.
+    /// Eliminates repeated GetTileCenter lookups in multi-tick lookahead loops.
+    /// </summary>
+    public static bool IsTileWithinFootprint(
+        Vector3 satelliteDir,
+        Vector3 targetTileCenterNormalized,
+        float footprintRadiusInTiles)
+    {
+        if (Find.World?.grid == null)
+        {
+            return false;
+        }
+
+        float dot = Mathf.Clamp(Vector3.Dot(satelliteDir.normalized, targetTileCenterNormalized), -1f, 1f);
         float angularDistanceRadians = Mathf.Acos(dot);
 
         float distInTiles = Find.WorldGrid.ApproxDistanceInTiles(angularDistanceRadians);
@@ -309,6 +326,7 @@ public static class OrbitalFlightModel
 
     /// <summary>
     /// Scans future ticks to predict when the next satellite overpass will cover the target colony or outpost tile.
+    /// Precomputes target tile normal to execute lookahead loop with zero allocation and zero redundant grid lookups.
     /// </summary>
     public static int? PredictNextPassTick(
         OrbitalParameters parameters,
@@ -323,11 +341,12 @@ public static class OrbitalFlightModel
             return null;
         }
 
+        Vector3 targetCenter = Find.World.grid.GetTileCenter(targetTile).normalized;
         int endTick = fromTick + lookaheadTicks;
         for (int t = fromTick; t < endTick; t += stepTicks)
         {
             Vector3 satDir = CalculateSubSatelliteDirection(parameters, t);
-            if (IsTileWithinFootprint(satDir, targetTile, footprintRadiusInTiles))
+            if (IsTileWithinFootprint(satDir, targetCenter, footprintRadiusInTiles))
             {
                 return t;
             }

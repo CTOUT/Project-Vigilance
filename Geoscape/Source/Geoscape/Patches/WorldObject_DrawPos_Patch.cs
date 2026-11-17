@@ -18,13 +18,7 @@ public static class WorldObject_DrawPos_Patch
 
     public static void Postfix(WorldObject __instance, ref Vector3 __result)
     {
-        if (__instance == null)
-        {
-            return;
-        }
-
-        // Custom orbital entities calculate their own precise Keplerian flight positions
-        if (__instance is IOrbitalEntity)
+        if (__instance == null || __instance is IOrbitalEntity || __instance is MapParent || __instance is Caravan || __instance is Site)
         {
             return;
         }

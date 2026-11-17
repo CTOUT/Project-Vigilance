@@ -190,7 +190,18 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
         get
         {
             if (parentStationId < 0 || Find.World?.worldObjects == null) return "Station Hub";
-            return Find.World.worldObjects.AllWorldObjects.Find(wo => wo.ID == parentStationId)?.LabelCap ?? "Station Hub";
+            WorldObject? station = OrbitalManager.Instance?.GetStationById(parentStationId);
+            if (station != null) return station.LabelCap;
+
+            var all = Find.World.worldObjects.AllWorldObjects;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i].ID == parentStationId)
+                {
+                    return all[i].LabelCap;
+                }
+            }
+            return "Station Hub";
         }
     }
 
@@ -212,8 +223,20 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
     private void CheckServiceAreaProximity(int currentTick)
     {
-        WorldObject? parentStation = OrbitalManager.Instance?.GetStationById(parentStationId)
-            ?? Find.World?.worldObjects?.AllWorldObjects.Find(wo => wo.ID == parentStationId);
+        WorldObject? parentStation = OrbitalManager.Instance?.GetStationById(parentStationId);
+        if (parentStation == null && Find.World?.worldObjects != null)
+        {
+            var all = Find.World.worldObjects.AllWorldObjects;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i].ID == parentStationId)
+                {
+                    parentStation = all[i];
+                    break;
+                }
+            }
+        }
+
         if (parentStation != null && parentStation.Tile.Valid && Find.World?.grid != null)
         {
             Vector3 stationDir = Find.World.grid.GetTileCenter(parentStation.Tile).normalized;

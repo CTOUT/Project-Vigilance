@@ -17,6 +17,16 @@ public static class SpaceObject_InspectString_Patch
 {
     public static System.Func<WorldObject, bool>? IsSpaceObjectOverride { get; set; }
 
+    [System.ThreadStatic]
+    private static StringBuilder? cachedSb;
+
+    private static StringBuilder GetPooledStringBuilder()
+    {
+        cachedSb ??= new StringBuilder(256);
+        cachedSb.Clear();
+        return cachedSb;
+    }
+
     public static void Postfix(WorldObject __instance, ref string __result)
     {
         if (__instance == null || __instance is IOrbitalEntity || __instance is WorldObject_ListeningPost || __instance is MapParent || __instance is Caravan || __instance is Site)
@@ -67,7 +77,7 @@ public static class SpaceObject_InspectString_Patch
         float visualAlt = Mathf.Max(0f, radius - 100f);
         float approxKm = OrbitalFlightModel.VisualAltitudeToAltitudeKm(visualAlt);
 
-        StringBuilder sb = new();
+        StringBuilder sb = GetPooledStringBuilder();
         if (!string.IsNullOrEmpty(__result))
         {
             sb.AppendLine(__result);
@@ -87,18 +97,25 @@ public static class SpaceObject_InspectString_Patch
 
     public static string GetSpaceObjectClassification(WorldObject wo)
     {
-        string defName = wo.def?.defName?.ToLowerInvariant() ?? "";
-        string label = (wo.def?.label ?? defName).ToLowerInvariant();
+        string defName = wo.def?.defName ?? string.Empty;
+        string label = wo.def?.label ?? defName;
 
-        if (defName.Contains("asteroid") || label.Contains("asteroid"))
+        if (defName.IndexOf("asteroid", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            label.IndexOf("asteroid", System.StringComparison.OrdinalIgnoreCase) >= 0)
         {
             return "Deep Space Asteroid";
         }
-        if (defName.Contains("station") || defName.Contains("ring") || label.Contains("station") || label.Contains("ring"))
+        if (defName.IndexOf("station", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            defName.IndexOf("ring", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            label.IndexOf("station", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            label.IndexOf("ring", System.StringComparison.OrdinalIgnoreCase) >= 0)
         {
             return "Orbital Habitat / Station";
         }
-        if (defName.Contains("wreck") || defName.Contains("derelict") || label.Contains("wreck") || label.Contains("derelict"))
+        if (defName.IndexOf("wreck", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            defName.IndexOf("derelict", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            label.IndexOf("wreck", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+            label.IndexOf("derelict", System.StringComparison.OrdinalIgnoreCase) >= 0)
         {
             return "Derelict Debris";
         }

@@ -145,8 +145,7 @@ public static class OrbitalVisibilityUtility
                             float maxRange = radar.DetectionRadiusInTiles;
                             if (Find.WorldGrid != null)
                             {
-                                int dist = Find.WorldGrid.TraversalDistanceBetween(
-                                    map.Tile, targetTile, passImpassable: true, maxDist: (int)maxRange);
+                                float dist = Find.WorldGrid.ApproxDistanceInTiles(map.Tile, targetTile);
                                 if (dist <= maxRange)
                                 {
                                     return true;

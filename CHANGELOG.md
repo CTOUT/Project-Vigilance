@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Milestone 1.4: Tooling, Visual Assets & Structural Materials
+
+#### Added
+
+- **Public Reference Assembly Stubs & Zero-Warning CI Pipeline (`lib/ref/`, `.github/workflows/dotnet-ci.yml`, `scripts/generate-reference-assemblies.ps1`):**
+  - Generated stripped public API reference assemblies via `refasmer` for core game assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`, `0Harmony.dll`) in `lib/ref/`.
+  - Configured automated GitHub Actions workflow enforcing zero warnings (`/p:TreatWarningsAsErrors=true`) on pull requests and commits without requiring game installs.
+- **Custom Visual Asset Pipeline & Faction Livery Masks (`Textures/ProjectVigilance/Geoscape/`):**
+  - Authored custom 128×128 `RGBA32` functional placeholder sprites with neutral grayscale palette masks for clean runtime `Faction.Color` multiplication.
+  - Dedicated world markers for Orbital Logistics Hub (`OrbitalHub.png`), specialized satellites (Recon, Trade, Nav, Comms, Military), and lightweight outpost markers (`Outpost_Radar.png`, `Outpost_Beacon.png`, `Outpost_Sonar.png`, `EncounterAftermath.png`).
+  - Battlescape sensory infrastructure orthographic graphics: Lookout Watchtower (`LookoutTower.png`), Early-Warning Radar Dome (`RadarDomeSmall.png`), Spacer Phased Array (`PhasedArrayLarge_*.png`), SIGINT Decryption Console (`SigintConsole_*.png`), and Coastal Hydrophone Station (`SonarStation.png`).
+- **Programmatic Thermal Integrity Post-Def Engine (`ThermalIntegrityPostDefProcessor`):**
+  - Executed at startup (`[StaticConstructorOnStartup]`) to programmatically enforce non-combustible properties across core, DLC, and mod defs without fragile manual XML patches.
+  - Eliminated oxygen combustion on structural and precious metals (`Steel`, `Plasteel`, `Gold`, `Silver`, `Uranium` raw item stat and Stuff factor set to `0`).
+  - Automated all-metal machinery audit setting fixed-recipe metal/stone structures (`ElectricSmelter`, `ElectricSmithy`, `TableMachining`, `FabricationBench`, `PowerSwitch`, `AutocannonTurret`, `Hopper`, `SignalJammer`, sensory radar buildings) to `0` flammability while preserving chemical battery flammability (thermal runaway).
+  - Aligned bridge flammability: Core wooden `Bridge` to 100% flammability (`1.0`), heavy steel and ancient bridges (`HeavyBridge`, `AncientHeavyBridge`, `Substructure`) to `0`.
+  - Calibrated Odyssey Gravship Hull base flammability to `1.0` so material Stuff properties govern (Bioferrite hulls burn at 75%, metal hulls remain 0% immune).
+
+#### Changed
+
+- **Keplerian Orbital Flight Optimization:**
+  - Hoisted invariant target tile normal in `PredictNextPassTick`, saving 1,200 repeated spherical normalizations per overpass calculation.
+  - Replaced BFS traversal distance checks with $O(1)$ native `Find.WorldGrid.ApproxDistanceInTiles` in `OrbitalVisibilityUtility`.
+  - Added $O(1)$ ground object fast-bail in `WorldObject.get_DrawPos` postfix and pooled string allocations in inspect panes.
+- **Documentation Standardization:**
+  - Consolidated pre-milestone 1.4 architectural blueprints and mockups into `docs/archive/`.
+
 ## [0.4.0] - 2026-11-16
 
 ### Milestone 1.3: Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters
