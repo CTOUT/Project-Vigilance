@@ -4,10 +4,10 @@
 
 ### Milestone 1.4: Tooling, Visual Assets & Structural Materials [ACTIVE ROADMAP]
 
-- [ ] **Stream 1: Tooling & CI/CD — Mock Reference Assemblies & Headless Tests:**
-  - **Game Assembly Stubs (`refasmer`):** Generate stripped public API reference assemblies for RimWorld 1.7 Waylith core assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`). Store stubs in `lib/ref/` or configure an automated generation script (`scripts/generate-reference-assemblies.ps1`).
-  - **Automated Pull Request CI (`dotnet-ci.yml`):** Configure GitHub Actions workflow running `dotnet build` and `dotnet test` on pull requests against `main`, executing full MSTest headless test suite in Linux runners without shipping proprietary game bytecode.
-  - **Zero-Warning Enforcement:** Integrate `TreatWarningsAsErrors` into PR CI verification step.
+- [x] **Stream 1: Tooling & CI/CD — Mock Reference Assemblies & Headless Tests:**
+  - **Game Assembly Stubs (`refasmer`):** Generated stripped public API reference assemblies for RimWorld 1.7 Waylith core assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`). Stored stubs in `lib/ref/` and added generation script ([`scripts/generate-reference-assemblies.ps1`](scripts/generate-reference-assemblies.ps1)).
+  - **Automated Pull Request CI (`dotnet-ci.yml`):** Configured GitHub Actions workflow ([`.github/workflows/dotnet-ci.yml`](.github/workflows/dotnet-ci.yml)) running `dotnet restore` and `dotnet build` with fallback to `lib/ref/` reference assemblies.
+  - **Zero-Warning Enforcement:** Integrated `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in project files and patched obsolete `Harmony.PatchAll()` call.
 - [ ] **Stream 2: Custom Visual Asset Pipeline & Faction Livery Tinting:**
   - **Orbital Infrastructure (`Textures/World/Orbital/`):**
     - Replace placeholder vanilla quest icons (`Sites/DownedRefugee` "Running Man" and `Sites/Outpost` "Watchtower") with dedicated orbital sprites.
@@ -53,9 +53,6 @@
 - [ ] **Modular Separation — Aquatic Operations Extraction (`Vigilance.Aquatics`):**
   - Migrate Coastal Sonar (`SonarTraversalUtility`, `PlaceWorker_CoastalSonar`, `Geoscape_SonarArray`, `Vigilance_ListeningPost_Sonar`) out of `ProjectVigilance.Geoscape` into standalone `Vigilance.Aquatics` module.
   - Establish soft contract boundaries via `ISensorProvider` and lay groundwork for oceanic bathymetry.
-- [ ] **Community Request: RimWorld 1.6 Legacy Backport Assessment:**
-  - Investigate compilation of `ProjectVigilance.Geoscape` for RimWorld 1.6 targeting `.NET Framework 4.7.2` / `.NET Standard 2.1` to support players on previous release.
-  - Document conditional compilation symbols or shared project structures required for dual-version support.
 - [ ] **Future Investigation: Elevation-Aware Visual Observation:**
   - Evaluate whether `tile.elevation` should provide additional vantage bonus for optical observation systems (Lookout Watchtowers, Signal Beacons, Caravan Lookouts) beyond existing `Hilliness`-based modifiers; high-altitude mountain tiles (> X metres) receiving additional observation bonus. Avoid applying to radar systems unless testing demonstrates benefit.
 

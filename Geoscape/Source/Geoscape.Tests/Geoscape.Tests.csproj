@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Default Steam paths by platform -->
     <RimWorldPath Condition="'$(RimWorldPath)' == '' and '$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))'">D:\Games\Steam\steamapps\common\RimWorld</RimWorldPath>
     <RimWorldPath Condition="'$(RimWorldPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;)) and Exists('$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/RimWorld')">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/RimWorld</RimWorldPath>
@@ -11,6 +12,13 @@
     <HarmonyPath Condition="'$(HarmonyPath)' == '' and '$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))'">D:\Games\Steam\steamapps\workshop\content\294100\2009463077\1.7\Assemblies\0Harmony.dll</HarmonyPath>
     <HarmonyPath Condition="'$(HarmonyPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;)) and Exists('$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll')">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyPath>
     <HarmonyPath Condition="'$(HarmonyPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))">$(HOME)/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyPath>
+    <!-- Fallback to repository reference assemblies if local game path or harmony does not exist -->
+    <RimWorldResolvedPath Condition="Exists('$(RimWorldPath)/Assembly-CSharp.dll')">$(RimWorldPath)</RimWorldResolvedPath>
+    <RimWorldResolvedPath Condition="'$(RimWorldResolvedPath)' == '' and Exists('$(MSBuildThisFileDirectory)../../../lib/ref/Assembly-CSharp.dll')">$(MSBuildThisFileDirectory)../../../lib/ref</RimWorldResolvedPath>
+    <RimWorldResolvedPath Condition="'$(RimWorldResolvedPath)' == ''">$(RimWorldPath)</RimWorldResolvedPath>
+    <HarmonyResolvedPath Condition="Exists('$(HarmonyPath)')">$(HarmonyPath)</HarmonyResolvedPath>
+    <HarmonyResolvedPath Condition="'$(HarmonyResolvedPath)' == '' and Exists('$(MSBuildThisFileDirectory)../../../lib/ref/0Harmony.dll')">$(MSBuildThisFileDirectory)../../../lib/ref/0Harmony.dll</HarmonyResolvedPath>
+    <HarmonyResolvedPath Condition="'$(HarmonyResolvedPath)' == ''">$(HarmonyPath)</HarmonyResolvedPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,27 +35,27 @@
 
   <ItemGroup>
     <Reference Include="0Harmony">
-      <HintPath>$(HarmonyPath)</HintPath>
+      <HintPath>$(HarmonyResolvedPath)</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="Assembly-CSharp">
-      <HintPath>$(RimWorldPath)/Assembly-CSharp.dll</HintPath>
+      <HintPath>$(RimWorldResolvedPath)/Assembly-CSharp.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="RimWorld">
-      <HintPath>$(RimWorldPath)/RimWorld.dll</HintPath>
+      <HintPath>$(RimWorldResolvedPath)/RimWorld.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="UnityStubs">
-      <HintPath>$(RimWorldPath)/UnityStubs.dll</HintPath>
+      <HintPath>$(RimWorldResolvedPath)/UnityStubs.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="Waylith.UnityCompat">
-      <HintPath>$(RimWorldPath)/Waylith.UnityCompat.dll</HintPath>
+      <HintPath>$(RimWorldResolvedPath)/Waylith.UnityCompat.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="CommunityToolkit.HighPerformance">
-      <HintPath>$(RimWorldPath)/CommunityToolkit.HighPerformance.dll</HintPath>
+      <HintPath>$(RimWorldResolvedPath)/CommunityToolkit.HighPerformance.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>

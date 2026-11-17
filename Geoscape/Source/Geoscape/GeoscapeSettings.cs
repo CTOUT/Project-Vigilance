@@ -840,14 +840,14 @@ public class GeoscapeSettings : ModSettings
         Text.Font = GameFont.Small;
         listing.GapLine();
 
-        Rect modTableRect = listing.GetRect(130f);
+        Rect modTableRect = listing.GetRect(140f);
         Widgets.DrawBoxSolid(modTableRect, new Color(0.08f, 0.11f, 0.14f, 0.8f));
         Widgets.DrawBox(modTableRect);
         Rect modContentRect = modTableRect.ContractedBy(8f);
 
-        string modulesStatus = "• Module 1: Geoscape & Radar Grid (Active — v0.3.0)\n" +
+        string modulesStatus = $"• Module 1: Geoscape & Radar Grid (Active — {GeoscapeMod.FormatBuildDetails()})\n" +
                                "   Planetary fog of war, early-warning radar domes, sensor grids, incursion tracking.\n" +
-                               "• Module 2: Tactical Ground Interception & Forward Ambush (Active — v0.3.0)\n" +
+                               "• Module 2: Tactical Ground Interception & Forward Ambush (Active — v0.4.0)\n" +
                                "   Dynamic overland pursuit, unaware column ambushes, field scouting recon, hostage rescue.\n" +
                                "• Module 3: Containment & Biology (Planned)\n" +
                                "   Stasis holding pods, surgical autopsies, and alien/entity reverse-engineering.";

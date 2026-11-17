@@ -1,3 +1,4 @@
+using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 using Verse;
@@ -18,9 +19,29 @@ public class GeoscapeMod : Mod
     {
         Settings = GetSettings<GeoscapeSettings>();
         var harmony = new Harmony(PackageId);
-        harmony.PatchAll();
+        harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-        Log.Message("[Project Vigilance] Initialized Module 1: Geoscape & Radar Grid (1.7 Waylith / .NET 10). Harmony patches applied.");
+        Log.Message($"[Project Vigilance] Initialized Module 1: Geoscape & Radar Grid ({FormatBuildDetails()}). Harmony patches applied.");
+    }
+
+    public static string FormatBuildDetails()
+    {
+        var asm = typeof(GeoscapeMod).Assembly;
+        var infoVer = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrEmpty(infoVer) && infoVer.Contains('+'))
+        {
+            var parts = infoVer.Split('+');
+            string ver = parts[0];
+            string hash = parts[1];
+            if (hash.Length > 7)
+            {
+                hash = hash.Substring(0, 7);
+            }
+            infoVer = $"{ver}+{hash}";
+        }
+
+        string versionStr = !string.IsNullOrEmpty(infoVer) ? $"v{infoVer}" : $"v{BuildInfo.Version}";
+        return $"{versionStr} | {BuildInfo.Configuration} | Built {BuildInfo.BuildDate}";
     }
 
     public override void DoSettingsWindowContents(Rect inRect)

@@ -1,0 +1,42 @@
+name: .NET CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Geoscape/**"
+      - "lib/ref/**"
+      - ".github/workflows/dotnet-ci.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Geoscape/**"
+      - "lib/ref/**"
+      - ".github/workflows/dotnet-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build & Verify (Zero Warnings)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@6acd5cb3c1f0995f50ef75f284e3d1dd3033f5d5 # v4.2.0
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore Dependencies
+        run: dotnet restore Geoscape/Source/Geoscape.slnx
+
+      - name: Build Solution (Zero-Warning Enforcement)
+        run: dotnet build Geoscape/Source/Geoscape.slnx --configuration Release --no-restore /p:TreatWarningsAsErrors=true
