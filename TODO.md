@@ -2,7 +2,7 @@
 
 ## Active Roadmap: Phase 2 — Geoscape & Radar Grid (Standalone Framework)
 
-### Milestone 1.4: Tooling, Visual Assets & Structural Materials [ACTIVE ROADMAP]
+### Milestone 1.4: Tooling, Visual Assets & Structural Materials [COMPLETED & SYNCED]
 
 - [x] **Stream 1: Tooling & CI/CD — Mock Reference Assemblies & Headless Tests:**
   - **Game Assembly Stubs (`refasmer`):** Generated stripped public API reference assemblies for RimWorld 1.7 Waylith core assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`). Stored stubs in `lib/ref/` and added generation script ([`scripts/generate-reference-assemblies.ps1`](scripts/generate-reference-assemblies.ps1)).
@@ -41,7 +41,43 @@
 
 ---
 
-### Milestone 1.5: Planetary Expedition & World Integrity
+### Milestone 1.5: Foundation Framework, Modular Architecture & Player Configuration [ACTIVE ROADMAP]
+
+- [ ] **Stream 1: Modular Architecture & Collection Packaging Review:**
+  - **Modular Separation of Concerns:** Define formal boundaries between `ProjectVigilance.Core` (foundation bitmasks, 3D world draw layers, Keplerian orbit solver, shared contracts) and pluggable domain modules (`ProjectVigilance.Geoscape`, `ProjectVigilance.Aquatics`, `ProjectVigilance.Battlescape`).
+  - **Dynamic Unified Mod Options Interface (`ISettingsTabProvider`):** Single `"Project Vigilance"` entry in RimWorld's native Mod Options list with dynamically auto-detecting tabs based on loaded sub-modules, clean redirection from sub-mod entries, and per-module typed XML settings persistence.
+  - **Packaging & Multi-Assembly Strategy:** Monorepo multi-assembly compilation (`ProjectVigilance.Core.dll`, `ProjectVigilance.Geoscape.dll`, etc.) paired with `LoadFolders.xml` for flexible Steam Workshop collection distribution.
+- [ ] **Stream 2: RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**
+  - **User-Facing Phraseology Extraction:** Extract all user-facing English string literals across C# classes (notification letters, dialogue trees, float menus, inspect strings, and settings) into standard translation lookups (`"PV_Key".Translate(...)`). Keep internal diagnostics and developer debug exceptions in English.
+  - **Structured Reference Dictionaries:** Create clean, documented reference XML files in `Geoscape/1.7/Languages/English/Keyed/`:
+    - `Geoscape_Letters.xml`: Early warning alerts, threat escalation, encounter aftermath, quest breadcrumbs.
+    - `Geoscape_Dialog.xml`: Campaign rules wizard, first-time mod adoption modal, contact telemetry.
+    - `Geoscape_Inspect.xml`: Satellite inspect panes, incursion telemetry, terrain masking alerts, listening post status.
+    - `Geoscape_FloatMenus.xml`: World right-click menus, outpost deployment, repair/salvage actions, caravan interception choices.
+    - `Geoscape_Settings.xml`: Mod settings tab labels, toggle labels, slider headers, CRT scope preview legends.
+  - **Parameter Tokens & Formatting:** Enforce proper replacement tokens (`{0}`, `{1}`) and RimWorld grammar helpers (`CapitalizeFirst`, gender, and pluralisation rules).
+- [ ] **Stream 3: Mod Settings & Sensory Cosmetic Customisation Review:**
+  - **Curated Theme Dropdown with Custom Override:**
+    - Curated palette presets: _Tactical Cyan_ (Default), _Amber CRT_ (1980s Retro), _Emerald Phosphor_ (Military Surplus), _Crimson Alert_ (High Urgency), _Ghost White_ (Minimalist Monochromatic).
+    - Accessibility presets: _Protanopia / Deuteranopia_ (Red-Green Safe), _Tritanopia_ (Blue-Yellow Safe), and _High-Contrast Tactical_.
+    - Optional `"Use Custom Palette Overrides"` toggle revealing granular RGB/HSV sliders for Radar, Identification Horizon, Optical Scout Horizon, and Coastal Sonar.
+  - **Feature Toggles & Modular Gating:** Audit and expose granular toggles for core mechanics (`enableThermalIntegrityAudit`, `incursionsRestAtNight`, `enableTacticalIngressFlanking`, `startingSiteSelection`, `optimisticCaravanDetours`, `enableInterFactionCollisions`).
+  - **Live CRT Scope Preview Integration:** Update the `180x180 px` `RadarScopePreview` widget to simultaneously display simulated Radar, Sonar, and Optical horizons with real-time palette updates.
+- [ ] **Stream 4: Modder Extensibility Hooks & Foundation Library Architecture:**
+  - **XML `DefModExtension` Integration:** Enable external mod developers to configure custom structures or vehicles as sensors (`DefModExtension_Sensor`) or trackable targets (`DefModExtension_Detectable`) without hard compile-time code dependencies.
+  - **Public Sensor & Target Provider API:** Expose and document formal registration interfaces (`ISensorProvider`, `IDetectableTarget`) with dynamic registration on `SensoryManager` (`RegisterDynamicSensor`, `UnregisterDynamicSensor`, `RegisterDynamicTarget`, `UnregisterDynamicTarget`).
+  - **Incursion & Tactical Event Lifecycle Hooks:** Expose public C# event delegates (`OnIncursionSpawned`, `OnIncursionDeparted`, `OnContactDetected`, `OnContactClassified`, `OnContactLost`, `OnIncursionIntercepted`, `OnAmbushSprung`, `OnCaptiveIncarcerated`).
+- [ ] **Stream 5: Agent Skill & Engineering Rule Enshrinement:**
+  - Update `GEMINI.md` and `.agents/rules/rimworld-development.md` with durable post-retrofit compliance rules:
+    - _Rule 8:_ Keyed Localisation Mandatory (`"PV_*".Translate()`, zero hardcoded English literals in UI).
+    - _Rule 9:_ Mod Settings & Feature Gating Required (all new mechanics expose toggles/settings).
+    - _Rule 10:_ Extensibility & Modder Hooks Mandatory (`DefModExtension` and public lifecycle events).
+    - _Rule 11:_ Sensory Palette Customisation & A11y (curated themes, colourblind presets, WCAG AA contrast).
+    - _Rule 12:_ Modular Separation & Loose Coupling (interface contracts, soft dependencies).
+
+---
+
+### Milestone 1.6: Planetary Expedition & World Integrity
 
 - [ ] **Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
   - **Pre-Settlement Survey Phase:** Implement pre-settlement expedition phase for uncharted rim worlds, allowing players to traverse and survey regional geography, waterways, and mountain passes before committing to a permanent settlement hex.
@@ -52,10 +88,6 @@
 - [ ] **Odyssey DLC Synergy & Non-Destructive Gravcore Takeoff:**
   - Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
   - Patch gravcore launch sequence to eliminate permanent world tile destruction, preserving planetary terrain integrity during orbital deployments without external mod dependencies.
-- [ ] **Mod Settings & Sensory Cosmetic Customisation Review:**
-  - **Feature Toggles & Modular Gating:** Audit and expose granular toggles for core mechanics (e.g. thermal integrity post-def processing, incursion night rest cycles, tactical flanking ingress, automatic landfall skip) enabling players to tailor simulation fidelity.
-  - **Sensory & Visual Palette Customisation:** Expand cosmetic configuration beyond radar colours to include optical scout range ring colours, coastal sonar pulse hues, identification horizon rings, and custom opacity presets (e.g. high-contrast, minimal clutter, tactical dark).
-  - **Accessibility & Palette Presets:** Provide dedicated high-contrast and colourblind presets (red-green and blue-yellow vision accommodations) across all planetary sensory overlays.
 - [ ] **Environmental Thermal Dynamics & Material Phase States (Future Feature):**
   - **Device Operational Temperature Envelopes:**
     - Sub-zero degradation (< -30°C): Sensor antenna rotation slowdown, battery brownout risk, sweep cadence penalty, and mechanical freezing.
@@ -67,7 +99,7 @@
 
 ---
 
-### Milestone 1.6: Theatre Coordination & Aquatic Operations
+### Milestone 1.7: Theatre Coordination & Aquatic Operations
 
 - [ ] **Intelligent Multi-Base Strike Coordination:**
   - Replace disconnected per-colony storyteller triggers with theatre-aware campaign logic.
@@ -75,12 +107,12 @@
 - [ ] **Modular Separation — Aquatic Operations Extraction (`Vigilance.Aquatics`):**
   - Migrate Coastal Sonar (`SonarTraversalUtility`, `PlaceWorker_CoastalSonar`, `Geoscape_SonarArray`, `Vigilance_ListeningPost_Sonar`) out of `ProjectVigilance.Geoscape` into standalone `Vigilance.Aquatics` module.
   - Establish soft contract boundaries via `ISensorProvider` and lay groundwork for oceanic bathymetry.
-- [ ] **Future Investigation: Elevation-Aware Visual Observation:**
+- [ ] **Elevation-Aware Visual Observation:**
   - Evaluate whether `tile.elevation` should provide additional vantage bonus for optical observation systems (Lookout Watchtowers, Signal Beacons, Caravan Lookouts) beyond existing `Hilliness`-based modifiers; high-altitude mountain tiles (> X metres) receiving additional observation bonus. Avoid applying to radar systems unless testing demonstrates benefit.
 
 ---
 
-### Future Milestone: Classic X-COM Geoscape Command Deck & Diegetic Experience
+### Milestone 1.8: Classic X-COM Geoscape Command Deck & Diegetic Experience
 
 - **Architectural Design Blueprint:** [`docs/archive/Classic_XCom_Geoscape_Blueprint.md`](docs/archive/Classic_XCom_Geoscape_Blueprint.md)
 - **Interactive Visual Mockup & Art Prototype:** [`docs/archive/Mockups/geoscape_command_deck_mockup.html`](docs/archive/Mockups/geoscape_command_deck_mockup.html)
@@ -92,7 +124,7 @@
 
 ---
 
-### Future Milestone: Imperfect Intelligence, Curiosity & Living Shroud
+### Milestone 1.9: Imperfect Intelligence, Curiosity & Living Shroud
 
 - [ ] **Signal Confidence, Bearing Cones & Interferometric Triangulation:** Attach explicit confidence tags (`Unconfirmed`, `Bearing Only`, `Clutter`, `Confirmed`) and error arcs/strength brackets to marginal contacts; sharpen fixes automatically when two or more sensor stations overlap.
 - [ ] **Explored Haze Staleness & Off-Screen World Drift:** Track `Last Observed` timestamps across unmonitored Explored Haze tiles and settlements so off-screen skirmishes, collapse, or territorial turnover cause historical map memory to go stale honestly rather than updating magically.
@@ -102,31 +134,13 @@
 
 ---
 
-### Future Milestone: Tactical Orbital Warfare, Targeted Probes & ASAT Defence
+### Milestone 1.10: Tactical Orbital Warfare, Targeted Probes & ASAT Defence
 
 - **Architectural Design Blueprint:** [`docs/tactical_orbital_warfare_plan.md`](docs/tactical_orbital_warfare_plan.md)
 - [ ] **Expendable Tactical Probes (Recon & Navigation):** Targeted hex deployment via transport pods or launch silos; finite operational lifespans (5–10 in-game days) with battery/fuel decay and automatic atmospheric de-orbit burnup.
 - [ ] **Strategic Orbital Platforms & Ground Uplink Bandwidth:** High-orbit geostationary military and comms platforms bounded by colony Comms Console and Phased Array uplink channel capacity (X-COM style).
 - [ ] **Military Satellite Strike Restrictions:** Finite kinetic payload (3 strikes total), 3-day capacitor recharge cooldown, and 2,000W ground targeting lock requirement.
 - [ ] **Hostile Anti-Satellite (ASAT) Countermeasures:** Surface-to-orbit missile silos at pirate outposts intercepting low-orbit assets; electronic warfare / SIGINT jamming bubbles on advanced mech incursions.
-
----
-
-### Milestone 1.7: Foundation Framework, Modding Extensibility & Community Localisation
-
-- [ ] **RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**
-  - **Externalise Hardcoded Phraseology:** Extract hardcoded English string literals across C# classes (notification letters, dialogue trees, float menu options, inspect strings, narrative logs, and settings window tabs) into RimWorld's standard translation lookup pattern (`"Key".Translate(...)`).
-  - **English Reference Dictionary:** Structure clean, documented reference XML files in `Languages/English/Keyed/` (`Geoscape_Letters.xml`, `Geoscape_Dialog.xml`, `Geoscape_Inspect.xml`, `Geoscape_Settings.xml`) so community translation teams can readily author and maintain non-English translations without modifying compiled C# assemblies.
-  - **Parameter Tokens & Formatting:** Use proper replacement tokens (`{0}`, `{1}`) and RimWorld grammar helpers (`CapitalizeFirst`, gender, and pluralisation rules) to ensure clean grammar and flexibility in all destination languages.
-- [ ] **Modder Extensibility Hooks & Foundation Library Architecture:**
-  - **DefModExtension & XML Registration:** Enable external mod developers to configure custom structures as radar stations or sensor nodes via XML `DefModExtension` without requiring hard compile-time code dependencies.
-  - **Public Sensor & Target Provider API:** Expose formal registration interfaces (`ISensorProvider`, `IDetectableTarget`) so third-party mods (e.g. satellite systems, psychic reconnaissance, aircraft, or custom vehicle frameworks) can register dynamic sensors or detectable overland craft directly with `SensoryManager`.
-  - **Incursion & Tactical Event Lifecycle Hooks:** Expose public C# event delegates and callbacks across key operational milestones:
-    - Incursion inception, routing, and departure (`OnIncursionSpawned`, `OnIncursionDeparted`).
-    - Contact detection, classification, and loss-of-contact (`OnContactDetected`, `OnContactClassified`, `OnContactLost`).
-    - Global hex interception, forward ambush triggering, and tactical disengage (`OnIncursionIntercepted`, `OnAmbushSprung`, `OnTacticalDisengage`).
-    - Colony arrival, physical retreat initiation, and captive incarceration (`OnIncursionArrived`, `OnIncursionRetreatStarted`, `OnCaptiveIncarcerated`).
-  - **Foundation Library Extraction Evaluation:** Assess isolating core spatial bitmask grids, native 3D mesh world layers, overland waypoint pathing, and abstract sensor/incursion contracts into a standalone foundation framework (`ProjectVigilance.Core` or `VigilanceFoundation`) that other planetary or tactical mods can depend on as a lightweight base library.
 
 ---
 
