@@ -224,6 +224,13 @@
 
 ## Phase 6: Module 4 — Invasion Campaign & Panic (Dependent Campaign Engine)
 
+- [ ] **Dual Storyteller & Campaign Progression Architecture:**
+  - **Universal Campaign Threat Governor (Any Storyteller):**
+    - Intercept and throttle alien incursion generation across any storyteller (Cassandra, Randy, modded).
+    - Hard-gate craft classes and alien tiers (Small Scout -> Medium Scout -> Harvester -> Terror Ship -> Battleship) by elapsed campaign days, panic thresholds, and tech milestones.
+    - Prevents premature lethal encounters (e.g. day-6 battleships under Randy Random).
+  - **Dedicated Thematic Storyteller (`StorytellerDef_XCOM`):**
+    - Authentic 1994 pacing: monthly Council report cards, calm research intervals, and clustered multi-wave strategic operations.
 - [ ] Build Council of Planetary Factions funding and monthly evaluation ledger.
 - [ ] Implement regional panic tracking per territory.
 - [ ] Implement Alien Strategic AI (mission generation: Scout, Harvest, Infiltration, Terror, and coordinated multi-base planetary offensives).
