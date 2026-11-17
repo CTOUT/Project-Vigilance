@@ -96,11 +96,59 @@ public static class OrbitalFlightModel
         return new Vector3(x, y, z).normalized;
     }
 
+    public const float MinVisualAltitude = 4f;
+    public const float MaxVisualAltitude = 34f;
+    public const float MaxOrbitalRenderRadius = 135f;
+
     /// <summary>
-    /// Computes the 3D position vector for world rendering, using clamped logarithmic altitude scaling
+    /// Maps physical orbital altitude (150 km to 40,000 km) to 3D world visual altitude units (4f to 34f).
+    /// Uses 3 stratified altitude bands:
+    /// - Low Earth Orbit (LEO): 150 km - 1,500 km -> 4f - 10f (skimming just above atmosphere)
+    /// - Medium Earth Orbit (MEO): 1,500 km - 15,000 km -> 10f - 24f (stations, navigation)
+    /// - Geostationary / High Orbit (GEO): 15,000 km - 40,000 km -> 24f - 34f (deep relays, outer rim)
+    /// </summary>
+    public static float AltitudeKmToVisualAltitude(float altitudeKm)
+    {
+        float clamped = Mathf.Clamp(altitudeKm, 150f, 40000f);
+        if (clamped <= 1500f)
+        {
+            float t = (clamped - 150f) / (1500f - 150f);
+            return Mathf.Lerp(4f, 10f, t);
+        }
+        if (clamped <= 15000f)
+        {
+            float t = (clamped - 1500f) / (15000f - 1500f);
+            return Mathf.Lerp(10f, 24f, t);
+        }
+        float tGeo = (clamped - 15000f) / (40000f - 15000f);
+        return Mathf.Lerp(24f, 34f, tGeo);
+    }
+
+    /// <summary>
+    /// Inverse mapping: converts 3D world visual altitude units (4f to 34f) back to physical orbital altitude in km.
+    /// </summary>
+    public static float VisualAltitudeToAltitudeKm(float visualAlt)
+    {
+        float clamped = Mathf.Clamp(visualAlt, 4f, 34f);
+        if (clamped <= 10f)
+        {
+            float t = (clamped - 4f) / (10f - 4f);
+            return Mathf.Lerp(150f, 1500f, t);
+        }
+        if (clamped <= 24f)
+        {
+            float t = (clamped - 10f) / (24f - 10f);
+            return Mathf.Lerp(1500f, 15000f, t);
+        }
+        float tGeo = (clamped - 24f) / (34f - 24f);
+        return Mathf.Lerp(15000f, 40000f, tGeo);
+    }
+
+    /// <summary>
+    /// Computes the 3D position vector for world rendering, using banded altitude scaling
     /// and deterministic orbital shell stratification above the planet surface.
-    /// Clamps visual altitude between 14 and 35 units above the globe so high-orbit stations (35,786 km)
-    /// remain gracefully framed around the planet rather than lost in deep space.
+    /// Clamps visual altitude between 4 and 34 units above the globe so high-orbit stations (35,786 km)
+    /// remain gracefully framed around the planet while low-orbit satellites hug the planetary limb.
     /// </summary>
     public static Vector3 CalculateOrbitalPosition(
         OrbitalParameters parameters,
@@ -110,20 +158,19 @@ public static class OrbitalFlightModel
     {
         Vector3 dir = CalculateSubSatelliteDirection(parameters, currentTick);
 
-        // Non-linear logarithmic altitude scaling:
-        // Clamped between 150 km (Low LEO) and 40,000 km (High GEO)
-        float clampedAlt = Mathf.Clamp(parameters.AltitudeKm, 150f, 40000f);
-        float logNorm = Mathf.Clamp01((Mathf.Log10(clampedAlt) - 2.176f) / (4.602f - 2.176f));
-
-        // Base visual altitude ranges from 14f (LEO, r ~ 114) to 34f (GEO, r ~ 134)
-        float visualAlt = Mathf.Lerp(14f, 34f, logNorm);
+        // Stratified altitude scaling based on orbital band
+        float visualAlt = AltitudeKmToVisualAltitude(parameters.AltitudeKm);
 
         // Deterministic pseudo-random altitude jitter based on orbital parameters hash
         // Prevents satellites and stations with identical orbital parameters from sharing the exact same altitude ring
         int hash = parameters.GetHashCode() & 0x7FFFFFFF;
-        float jitter = (((hash % 100) - 50) / 50f) * 1.5f;
+        float jitter = (((hash % 100) - 50) / 50f) * 0.5f;
 
-        float renderRadius = basePlanetRadius + visualAlt + jitter;
+        // Hard clamp enforces that orbital bodies never escape camera framing
+        float renderRadius = Mathf.Clamp(
+            basePlanetRadius + visualAlt + jitter,
+            basePlanetRadius + MinVisualAltitude,
+            basePlanetRadius + MaxVisualAltitude);
         return dir * renderRadius;
     }
 
@@ -287,5 +334,69 @@ public static class OrbitalFlightModel
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Constructs orbital parameters calibrated so the ground track passes directly over <paramref name="targetTile"/>
+    /// at the current game tick. Solves for RAAN and mean anomaly algebraically.
+    /// </summary>
+    public static OrbitalParameters CreateOverheadOrbitParameters(
+        PlanetTile targetTile,
+        float altitudeKm,
+        int periodTicks,
+        float extraInclinationDeg = 5f,
+        float precessionRateDegPerDay = -1.5f,
+        float orbitalDriftDegPerDay = 1.5f)
+    {
+        float lon = Find.WorldGrid?.LongLatOf(targetTile).x ?? 0f;
+        float lat = Find.WorldGrid?.LongLatOf(targetTile).y ?? 0f;
+        int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
+        return CreateOverheadOrbitParameters(lat, lon, currentTick, altitudeKm, periodTicks, extraInclinationDeg, precessionRateDegPerDay, orbitalDriftDegPerDay);
+    }
+
+    /// <summary>
+    /// Constructs orbital parameters calibrated so the ground track passes directly over (<paramref name="lat"/>, <paramref name="lon"/>)
+    /// at <paramref name="currentTick"/>. Solves for RAAN and mean anomaly algebraically.
+    /// </summary>
+    public static OrbitalParameters CreateOverheadOrbitParameters(
+        float lat,
+        float lon,
+        int currentTick,
+        float altitudeKm,
+        int periodTicks,
+        float extraInclinationDeg = 5f,
+        float precessionRateDegPerDay = -1.5f,
+        float orbitalDriftDegPerDay = 1.5f)
+    {
+        // Ensure inclination is strictly greater than latitude so ground track passes directly overhead
+        float inclination = Mathf.Clamp(Mathf.Abs(lat) + extraInclinationDeg, 10f, 89.9f);
+
+        // Solve for argument of latitude u at epoch such that latitudeDeg == lat at epochTick
+        float incRad = inclination * Mathf.Deg2Rad;
+        float latRad = lat * Mathf.Deg2Rad;
+        float sinU = Mathf.Sin(latRad) / Mathf.Sin(incRad);
+        sinU = Mathf.Clamp(sinU, -1f, 1f);
+        float uRad = Mathf.Asin(sinU);
+        float uDeg = uRad * Mathf.Rad2Deg;
+        if (uDeg < 0f) uDeg += 360f;
+        uRad = uDeg * Mathf.Deg2Rad;
+
+        // Angular displacement from ascending node along equator
+        float yNode = Mathf.Sin(uRad) * Mathf.Cos(incRad);
+        float xNode = Mathf.Cos(uRad);
+        float alphaNodeDeg = Mathf.Atan2(yNode, xNode) * Mathf.Rad2Deg;
+
+        // Solve for Ascending Node RAAN such that longitudeDeg == lon at epochTick
+        float raanDeg = ((lon - alphaNodeDeg + 180f) % 360f + 360f) % 360f - 180f;
+
+        return new OrbitalParameters(
+            altitudeKm: altitudeKm,
+            periodTicks: periodTicks,
+            inclinationDeg: inclination,
+            ascendingNodeDeg: raanDeg,
+            precessionRateDegPerDay: precessionRateDegPerDay,
+            meanAnomalyEpochDeg: uDeg,
+            orbitalDriftDegPerDay: orbitalDriftDegPerDay,
+            epochTick: currentTick);
     }
 }

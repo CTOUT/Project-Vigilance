@@ -7,10 +7,10 @@
     <label>encounter aftermath</label>
     <description>The wreckage and casualties of an overland skirmish between planetary factions. Scattered trade crates, discarded armaments, and wounded survivors remain among the debris.</description>
     <worldObjectClass>ProjectVigilance.Geoscape.World.WorldObject_EncounterAftermath</worldObjectClass>
-    <texture>World/WorldObjects/Sites/GenericSite</texture>
+    <texture>ProjectVigilance/Geoscape/World/Outposts/EncounterAftermath</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/ItemStash</expandingIconTexture>
+    <expandingIconTexture>ProjectVigilance/Geoscape/World/Outposts/EncounterAftermath</expandingIconTexture>
     <expandingIconPriority>42</expandingIconPriority>
     <saved>true</saved>
   </WorldObjectDef>

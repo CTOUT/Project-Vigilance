@@ -622,4 +622,21 @@ public sealed class Milestone13FixesTests
         Assert.AreEqual(targetLat, subLat, 0.05f, "Calculated sub-satellite latitude must match target latitude.");
         Assert.AreEqual(targetLon, subLon, 0.05f, "Calculated sub-satellite longitude must match target longitude.");
     }
+
+    [TestMethod]
+    public void DebugActionsVigilance_ResolveTargetTile_TargetTileOverride_TakesPrecedence()
+    {
+        try
+        {
+            var expectedTile = (RimWorld.Planet.PlanetTile)5432;
+            ProjectVigilance.Geoscape.Debug.DebugActionsVigilance.TargetTileOverride = () => expectedTile;
+
+            RimWorld.Planet.PlanetTile resolved = ProjectVigilance.Geoscape.Debug.DebugActionsVigilance.ResolveTargetTile();
+            Assert.AreEqual(expectedTile, resolved, "TargetTileOverride must be returned by ResolveTargetTile when set.");
+        }
+        finally
+        {
+            ProjectVigilance.Geoscape.Debug.DebugActionsVigilance.TargetTileOverride = null;
+        }
+    }
 }

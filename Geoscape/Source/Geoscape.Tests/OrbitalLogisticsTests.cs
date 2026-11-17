@@ -380,45 +380,48 @@ public sealed class OrbitalLogisticsTests
         Vector3 posGeo = OrbitalFlightModel.CalculateOrbitalPosition(geo, 0, basePlanetRadius: 100f);
         float rGeo = posGeo.magnitude;
 
-        // Assert: LEO should be just above surface (115 - 122 units)
-        Assert.IsTrue(rLeo >= 115f && rLeo <= 122f, $"LEO position radius was {rLeo:F2}, expected [115, 122]");
+        // Assert: LEO should hug the atmosphere (104 - 108 units)
+        Assert.IsTrue(rLeo >= 104f && rLeo <= 108f, $"LEO position radius was {rLeo:F2}, expected [104, 108]");
 
-        // Assert: GEO must not blow out to deep space (~472 units), but remain framed around the planet (130 - 137 units)
-        Assert.IsTrue(rGeo >= 130f && rGeo <= 137f, $"GEO position radius was {rGeo:F2}, expected [130, 137]");
-        Assert.IsTrue(rGeo > rLeo + 10f, $"GEO radius ({rGeo:F2}) must be distinctly higher than LEO ({rLeo:F2})");
+        // Assert: GEO must remain framed around the planet (130 - 135 units)
+        Assert.IsTrue(rGeo >= 130f && rGeo <= 135f, $"GEO position radius was {rGeo:F2}, expected [130, 135]");
+        Assert.IsTrue(rGeo > rLeo + 20f, $"GEO radius ({rGeo:F2}) must be distinctly higher than LEO ({rLeo:F2})");
     }
 
     [TestMethod]
     public void WorldObject_DrawPos_Patch_SpaceObjects_StratifiesDeterministically()
     {
-        try
+        lock (typeof(WorldObject_DrawPos_Patch))
         {
-            WorldObject_DrawPos_Patch.IsSpaceObjectOverride = _ => true;
-
-            WorldObject woSpace = new()
+            try
             {
-                ID = 42,
-                def = new WorldObjectDef { defName = "Odyssey_SpaceStation" }
-            };
+                WorldObject_DrawPos_Patch.IsSpaceObjectOverride = _ => true;
 
-            Vector3 basePos = new Vector3(100f, 0f, 0f);
-            Vector3 resultPos = basePos;
+                WorldObject woSpace = new()
+                {
+                    ID = 42,
+                    def = new WorldObjectDef { defName = "Odyssey_SpaceStation" }
+                };
 
-            WorldObject_DrawPos_Patch.Postfix(woSpace, ref resultPos);
+                Vector3 basePos = new Vector3(100f, 0f, 0f);
+                Vector3 resultPos = basePos;
 
-            // Stratification must modify radius within bounded range [-5f, +7f]
-            float delta = resultPos.magnitude - basePos.magnitude;
-            Assert.IsTrue(delta >= -5.01f && delta <= 7.01f, $"Radial jitter {delta:F2} outside expected [-5, +7] range.");
-            Assert.AreNotEqual(0f, delta, 0.001f, "Radial jitter should be non-zero for space objects.");
+                WorldObject_DrawPos_Patch.Postfix(woSpace, ref resultPos);
 
-            // Calling again with same ID must produce identical deterministic position
-            Vector3 repeatPos = basePos;
-            WorldObject_DrawPos_Patch.Postfix(woSpace, ref repeatPos);
-            Assert.AreEqual(resultPos.x, repeatPos.x, 0.001f);
-        }
-        finally
-        {
-            WorldObject_DrawPos_Patch.IsSpaceObjectOverride = null;
+                // Stratification must modify radius within bounded range [-5f, +7f]
+                float delta = resultPos.magnitude - basePos.magnitude;
+                Assert.IsTrue(delta >= -5.01f && delta <= 7.01f, $"Radial jitter {delta:F2} outside expected [-5, +7] range.");
+                Assert.AreNotEqual(0f, delta, 0.001f, "Radial jitter should be non-zero for space objects.");
+
+                // Calling again with same ID must produce identical deterministic position
+                Vector3 repeatPos = basePos;
+                WorldObject_DrawPos_Patch.Postfix(woSpace, ref repeatPos);
+                Assert.AreEqual(resultPos.x, repeatPos.x, 0.001f);
+            }
+            finally
+            {
+                WorldObject_DrawPos_Patch.IsSpaceObjectOverride = null;
+            }
         }
     }
 
@@ -559,5 +562,155 @@ public sealed class OrbitalLogisticsTests
         Assert.IsTrue(angDist < 0.01f, $"Angular distance between satellite and target must be ~0 at epoch, was {angDist}°");
     }
 
+    [TestMethod]
+    public void OrbitalFlightModel_CalculateOrbitalPosition_EnforcesHardOrbitalRenderCeiling()
+    {
+        // Scenario: A celestial body with extreme altitude (e.g. 500,000 km) and high jitter must never
+        // exceed MaxOrbitalRenderRadius (135.5 units) to prevent camera blowout / off-screen regression.
+        OrbitalParameters extremeOrbit = new(
+            altitudeKm: 500000f,
+            periodTicks: 100000,
+            inclinationDeg: 15f,
+            ascendingNodeDeg: 0f,
+            precessionRateDegPerDay: 0f,
+            meanAnomalyEpochDeg: 0f,
+            orbitalDriftDegPerDay: 0f,
+            epochTick: 0);
 
+        Vector3 pos = OrbitalFlightModel.CalculateOrbitalPosition(extremeOrbit, 0, basePlanetRadius: 100f);
+        float r = pos.magnitude;
+
+        Assert.IsTrue(r <= OrbitalFlightModel.MaxOrbitalRenderRadius,
+            $"Render radius {r:F2} exceeded hard ceiling limit of {OrbitalFlightModel.MaxOrbitalRenderRadius} units.");
+        Assert.IsTrue(r >= 100f + OrbitalFlightModel.MinVisualAltitude,
+            $"Render radius {r:F2} fell below minimum visual altitude threshold.");
+    }
+
+    [TestMethod]
+    public void WorldObject_DrawPos_Patch_DeepSpaceCeiling_CappedAt145()
+    {
+        lock (typeof(WorldObject_DrawPos_Patch))
+        {
+            try
+            {
+                WorldObject_DrawPos_Patch.IsSpaceObjectOverride = _ => true;
+
+                WorldObject woDistant = new()
+                {
+                    ID = 999,
+                    def = new WorldObjectDef { defName = "Odyssey_DeepSpaceAsteroid" }
+                };
+
+                // Distant base position that would blow off-screen if unconstrained
+                Vector3 basePos = new Vector3(160f, 0f, 0f);
+                Vector3 resultPos = basePos;
+
+                WorldObject_DrawPos_Patch.Postfix(woDistant, ref resultPos);
+
+                Assert.IsTrue(resultPos.magnitude <= 145.001f,
+                    $"Deep space position magnitude {resultPos.magnitude:F2} exceeded hard ceiling limit of 145 units.");
+            }
+            finally
+            {
+                WorldObject_DrawPos_Patch.IsSpaceObjectOverride = null;
+            }
+        }
+    }
+
+    [TestMethod]
+    public void WorldObject_OrbitalStation_DefaultOrbit_IsAsynchronousMEO()
+    {
+        WorldObject_OrbitalStation station = new();
+        station.InitializeStation("Logistics Hub 1");
+
+        Assert.IsNotNull(station.Orbit, "Station orbital parameters must be initialized.");
+        Assert.IsTrue(station.Orbit.PeriodTicks > 60000,
+            $"Station period {station.Orbit.PeriodTicks} must be > 60,000 ticks so the planetary surface moves underneath.");
+        Assert.IsTrue(station.Orbit.AltitudeKm >= 5000f && station.Orbit.AltitudeKm <= 15000f,
+            $"Station altitude {station.Orbit.AltitudeKm:F1} km must be within Medium Earth Orbit (MEO) band [5000, 15000] km.");
+    }
+
+    [TestMethod]
+    public void OrbitalFlightModel_CreateOverheadOrbitParameters_ProducesOverheadCoordinates()
+    {
+        float targetLat = 35.0f;
+        float targetLon = -110.0f;
+        int currentTick = 12000;
+
+        OrbitalParameters orbit = OrbitalFlightModel.CreateOverheadOrbitParameters(
+            targetLat, targetLon, currentTick, altitudeKm: 8500f, periodTicks: 78000, extraInclinationDeg: 5f);
+
+        OrbitalFlightModel.CalculateSubSatelliteCoordinates(orbit, currentTick, out float satLat, out float satLon);
+
+        Assert.AreEqual(targetLat, satLat, 0.05f, "Calculated overhead orbit latitude must match target latitude.");
+        float lonDiff = Mathf.Abs(Mathf.DeltaAngle(targetLon, satLon));
+        Assert.IsTrue(lonDiff < 0.05f, $"Calculated overhead orbit longitude must match target longitude (diff: {lonDiff:F3}°).");
+    }
+
+    [TestMethod]
+    public void OrbitalFlightModel_AltitudeKmToVisualAltitude_DistinguishesLowSatelliteFromStation()
+    {
+        // Low Trade satellite (775 km) vs High Logistics Hub (7643 km)
+        float vSat = OrbitalFlightModel.AltitudeKmToVisualAltitude(775f);
+        float vStation = OrbitalFlightModel.AltitudeKmToVisualAltitude(7643f);
+
+        // Low satellite must sit close to the atmosphere (6 - 8 units above planet radius)
+        Assert.IsTrue(vSat >= 6f && vSat <= 8f, $"Low satellite visual altitude was {vSat:F2}, expected [6, 8]");
+
+        // Logistics Hub station must sit in middle orbit (15 - 18 units above planet radius)
+        Assert.IsTrue(vStation >= 15f && vStation <= 18f, $"Station visual altitude was {vStation:F2}, expected [15, 18]");
+
+        // Station must have at least 2x the visual elevation of the low satellite
+        Assert.IsTrue(vStation / vSat >= 2.0f,
+            $"Station elevation ({vStation:F2}) must be at least double low satellite elevation ({vSat:F2})");
+    }
+
+    [TestMethod]
+    public void OrbitalFlightModel_VisualAltitudeToAltitudeKm_InvertsAccurately()
+    {
+        float[] altitudesToTest = [ 200f, 775f, 1500f, 5000f, 7643f, 15000f, 25000f, 35786f ];
+        foreach (float km in altitudesToTest)
+        {
+            float visual = OrbitalFlightModel.AltitudeKmToVisualAltitude(km);
+            float invertedKm = OrbitalFlightModel.VisualAltitudeToAltitudeKm(visual);
+            Assert.AreEqual(km, invertedKm, 1.0f, $"Inverse altitude mapping failed for {km} km (got {invertedKm:F1} km)");
+        }
+    }
+
+    [TestMethod]
+    public void SpaceObject_InspectString_Patch_SpaceObjects_AppendsTelemetry()
+    {
+        lock (typeof(SpaceObject_InspectString_Patch))
+        {
+            try
+            {
+                SpaceObject_InspectString_Patch.IsSpaceObjectOverride = _ => true;
+
+                WorldObject woStation = new()
+                {
+                    ID = 88,
+                    def = new WorldObjectDef { defName = "Odyssey_SpaceStation" }
+                };
+
+                string result = "Faction: Cosmic Guild\nNeutral (0)";
+                SpaceObject_InspectString_Patch.Postfix(woStation, ref result);
+
+                StringAssert.Contains(result, "Orbital Altitude:");
+                StringAssert.Contains(result, "Classification: Orbital Habitat / Station");
+
+                WorldObject woAsteroid = new()
+                {
+                    ID = 89,
+                    def = new WorldObjectDef { defName = "Odyssey_Asteroid" }
+                };
+                string resultAst = "";
+                SpaceObject_InspectString_Patch.Postfix(woAsteroid, ref resultAst);
+                StringAssert.Contains(resultAst, "Classification: Deep Space Asteroid");
+            }
+            finally
+            {
+                SpaceObject_InspectString_Patch.IsSpaceObjectOverride = null;
+            }
+        }
+    }
 }

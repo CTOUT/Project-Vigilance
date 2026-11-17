@@ -10,7 +10,7 @@
     <texture>World/WorldObjects/Sites/Outpost</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/Outpost</expandingIconTexture>
+    <expandingIconTexture>ProjectVigilance/Geoscape/World/Outposts/Outpost_Radar</expandingIconTexture>
     <expandingIconPriority>85</expandingIconPriority>
     <saved>true</saved>
   </WorldObjectDef>
@@ -24,7 +24,7 @@
     <texture>World/WorldObjects/Camp</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Camp</expandingIconTexture>
+    <expandingIconTexture>ProjectVigilance/Geoscape/World/Outposts/Outpost_Beacon</expandingIconTexture>
     <expandingIconPriority>85</expandingIconPriority>
     <saved>true</saved>
   </WorldObjectDef>
@@ -38,7 +38,7 @@
     <texture>World/WorldObjects/Sites/Outpost</texture>
     <useDynamicDrawer>true</useDynamicDrawer>
     <expandingIcon>true</expandingIcon>
-    <expandingIconTexture>World/WorldObjects/Expanding/Sites/Outpost</expandingIconTexture>
+    <expandingIconTexture>ProjectVigilance/Geoscape/World/Outposts/Outpost_Sonar</expandingIconTexture>
     <expandingIconPriority>85</expandingIconPriority>
     <saved>true</saved>
   </WorldObjectDef>

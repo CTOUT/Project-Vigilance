@@ -15,16 +15,16 @@ namespace ProjectVigilance.Geoscape.Orbital;
 public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
 {
     private OrbitalParameters orbit = new(
-        altitudeKm: 35786f,
-        periodTicks: 60000,
-        inclinationDeg: 12f,
+        altitudeKm: 8500f,
+        periodTicks: 78000,
+        inclinationDeg: 28f,
         ascendingNodeDeg: 45f,
-        precessionRateDegPerDay: -0.2f,
+        precessionRateDegPerDay: -1.5f,
         meanAnomalyEpochDeg: 90f,
-        orbitalDriftDegPerDay: 0.05f,
+        orbitalDriftDegPerDay: 2.0f,
         epochTick: 0);
 
-    private string stationCallsign = "Orbital Hub";
+    private string stationCallsign = "Logistics Hub";
     private float serviceAreaAngularRadiusDeg = 35f;
     private List<int> childSatelliteIds = new(8);
     private int replenishmentCountdownTicks = -1;
@@ -36,6 +36,16 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
     public IReadOnlyList<int> ChildSatelliteIds => childSatelliteIds;
     public bool InServiceArea => true;
     public int ParentStationId => ID;
+
+    public void InitializeStation(string callsign, OrbitalParameters? customOrbit = null, float serviceAreaRadius = 35f)
+    {
+        stationCallsign = callsign;
+        if (customOrbit != null)
+        {
+            orbit = customOrbit;
+        }
+        serviceAreaAngularRadiusDeg = serviceAreaRadius;
+    }
 
     private Material? cachedFactionMat;
     private Faction? cachedFaction;
@@ -62,9 +72,9 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
     public override void SpawnSetup()
     {
         base.SpawnSetup();
-        if (string.IsNullOrEmpty(stationCallsign) || stationCallsign == "Orbital Hub")
+        if (string.IsNullOrEmpty(stationCallsign) || stationCallsign == "Orbital Hub" || stationCallsign == "Logistics Hub")
         {
-            stationCallsign = LabelCap.NullOrEmpty() ? "Station-" + ID : LabelCap;
+            stationCallsign = LabelCap.NullOrEmpty() ? "Hub-" + ID : LabelCap;
         }
 
         // Align tile to current sub-station coordinates
@@ -271,7 +281,7 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
     {
         base.ExposeData();
         Scribe_Deep.Look(ref orbit, "orbit");
-        Scribe_Values.Look(ref stationCallsign, "stationCallsign", "Orbital Hub");
+        Scribe_Values.Look(ref stationCallsign, "stationCallsign", "Logistics Hub");
         Scribe_Values.Look(ref serviceAreaAngularRadiusDeg, "serviceAreaAngularRadiusDeg", 35f);
         Scribe_Collections.Look(ref childSatelliteIds, "childSatelliteIds", LookMode.Value);
         Scribe_Values.Look(ref replenishmentCountdownTicks, "replenishmentCountdownTicks", -1);

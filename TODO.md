@@ -8,20 +8,24 @@
   - **Game Assembly Stubs (`refasmer`):** Generated stripped public API reference assemblies for RimWorld 1.7 Waylith core assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`). Stored stubs in `lib/ref/` and added generation script ([`scripts/generate-reference-assemblies.ps1`](scripts/generate-reference-assemblies.ps1)).
   - **Automated Pull Request CI (`dotnet-ci.yml`):** Configured GitHub Actions workflow ([`.github/workflows/dotnet-ci.yml`](.github/workflows/dotnet-ci.yml)) running `dotnet restore` and `dotnet build` with fallback to `lib/ref/` reference assemblies.
   - **Zero-Warning Enforcement:** Integrated `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in project files and patched obsolete `Harmony.PatchAll()` call.
-- [ ] **Stream 2: Custom Visual Asset Pipeline & Faction Livery Tinting:**
-  - **Orbital Infrastructure (`Textures/World/Orbital/`):**
-    - Replace placeholder vanilla quest icons (`Sites/DownedRefugee` "Running Man" and `Sites/Outpost` "Watchtower") with dedicated orbital sprites.
-    - Persistent Orbital Station Hub (`WorldObject_OrbitalStation`): Spoke-and-hub modular space station and orbital dock.
-    - Specialized Satellite Chassis (`WorldObject_Satellite`): Unique sprites for Reconnaissance (telescope/SAR aperture), Trade (cargo container / docking bay), Navigation (GPS array), Communication (twin high-gain dishes), and Military (tactical sensor / fire-control).
-  - **Lightweight Geoscape Outposts (`Textures/World/Outposts/`):**
-    - Dedicated world map markers for Automated Listening Posts (sensor mast / solar radome), Automated Sonar Stations (coastal shelter with offshore hydrophone buoy line), and Signal Beacons (raised brazier with wood/stone materials).
-    - Encounter Aftermath: Smouldering battlefield wreckage and debris site replacing `Sites/GenericSite`.
-  - **Battlescape Sensory Buildings (`Textures/Things/Building/Sensory/`):**
-    - Lookout Watchtower: Dedicated 2×3 footprint timber/stone observation tower with staircase and covered viewing platform, replacing `SteleLarge`.
-    - Colony Sensory Infrastructure: Custom graphics for Early-Warning Radar Dome (3×3), Spacer Phased Array (4×4), SIGINT Decryption Console (3×2), and Coastal Hydrophone Station (3×3).
-  - **Dynamic Faction Colour Shifting Specification:**
+- [x] **Stream 2: Custom Visual Asset Pipeline & Faction Livery Tinting (Functional Placeholders):**
+  - [x] **Orbital Infrastructure (`Textures/ProjectVigilance/Geoscape/World/Orbital/`):**
+    - Authored custom 128×128 `RGBA32` functional placeholder sprites with neutral white/grayscale palette masks for clean `Faction.Color` tinting via [`scripts/generate-orbital-icons.ps1`](scripts/generate-orbital-icons.ps1).
+    - Persistent Orbital Logistics Hub (`WorldObject_OrbitalStation`): Spoke-and-hub modular space station and orbital dock with 4 radial truss spokes, outlying pods, and solar wings ([`OrbitalHub.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/OrbitalHub.png)).
+    - Populated Coverage Anchoring: Restrict station and satellite spawning to active world coverage and populated hexes (`FindPopulatedCoverageAnchorTile`).
+    - Altitude Stratification & Hard Orbit Ceiling: Banded visual altitude mapping (`LEO` 4–10, `MEO` 10–24, `GEO` 24–34) and hard render limits (`MaxOrbitalRenderRadius = 135f` in `OrbitalFlightModel` and `145f` in `WorldObject_DrawPos_Patch`).
+    - Specialized Satellite Chassis (`WorldObject_Satellite`): Functional placeholder sprites for Reconnaissance ([`Satellite_Recon.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Recon.png)), Trade ([`Satellite_Trade.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Trade.png)), Navigation ([`Satellite_Nav.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Nav.png)), Communication ([`Satellite_Comms.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Comms.png)), and Military ([`Satellite_Military.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Military.png)).
+  - [x] **Lightweight Geoscape Outposts (`Textures/ProjectVigilance/Geoscape/World/Outposts/`):**
+    - Authored custom 128×128 `RGBA32` functional placeholder icons with neutral white/grayscale palette masks via [`scripts/generate-outpost-icons.ps1`](scripts/generate-outpost-icons.ps1).
+    - Dedicated world map markers for Automated Listening Posts ([`Outpost_Radar.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Radar.png)), Signal Beacons ([`Outpost_Beacon.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Beacon.png)), and Automated Sonar Stations ([`Outpost_Sonar.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Sonar.png)).
+    - Encounter Aftermath ([`EncounterAftermath.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/EncounterAftermath.png)): Smouldering battlefield wreckage and crater debris site replacing `Sites/ItemStash`.
+  - [x] **Battlescape Sensory Buildings (`Textures/ProjectVigilance/Geoscape/Buildings/Sensory/`):**
+    - Lookout Watchtower: Dedicated 2×3 footprint timber/stone observation tower with staircase and covered viewing platform, replacing `SteleLarge` ([`LookoutTower.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/LookoutTower.png)).
+    - Colony Sensory Infrastructure: Functional placeholder orthographic graphics for Early-Warning Radar Dome (3×3) ([`RadarDomeSmall.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/RadarDomeSmall.png)), Spacer Phased Array (4×4 with 4-way rotation) ([`PhasedArrayLarge_south.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/PhasedArrayLarge_south.png)), SIGINT Decryption Console (3×2 with 4-way rotation) ([`SigintConsole_south.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/SigintConsole_south.png)), and Coastal Hydrophone Station (3×3) ([`SonarStation.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/SonarStation.png)).
+  - [x] **Dynamic Faction Colour Shifting Specification:**
     - All world entity icons and satellite sprites must be authored as neutral grayscale / white silhouette masks with transparent backgrounds (`RGBA32`).
     - Clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions (Outlanders, Pirates, Empire, Tribals, and modded factions).
+    - Note: Assets serve as verified functional placeholders; dedicated high-fidelity art overhaul scheduled for visual polish milestone.
 - [ ] **Stream 3: Material Thermal Integrity & Realistic Combustion:**
   - **Non-Flammable Structural Metals:** Eliminate basic oxygen flammability on structural metals (Steel, Plasteel, Uranium: `flammability = 0f`), stopping metal walls, doors, and furniture from catching fire from normal sparks and campfires.
   - **Extreme Concussion & Alien Plasma:** Reserve thermal destruction for structural explosives, superheated furnace conditions, incendiary fuels, and alien plasma.

@@ -279,7 +279,9 @@ public static class GeoscapeTestHarness
 
         TileHighlightVisibilityUtility.IsPlayingOverride = null;
         WorldObject_DrawPos_Patch.IsSpaceObjectOverride = null;
+        SpaceObject_InspectString_Patch.IsSpaceObjectOverride = null;
         WorldRoutePlanner_Start_Patch.OnWaypointAddedForTesting = null;
+        ProjectVigilance.Geoscape.Debug.DebugActionsVigilance.TargetTileOverride = null;
 
         GeoscapeCampaignRules.ResetStaticDataForTesting();
         UnsafeRuleOverride.ResetForTesting();

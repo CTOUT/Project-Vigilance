@@ -58,24 +58,19 @@ public static class DebugActionsVigilance
         return PlanetTile.Invalid;
     }
 
-    private static PlanetTile ResolveTargetTile()
+    internal static Func<PlanetTile>? TargetTileOverride;
+
+    internal static PlanetTile ResolveTargetTile()
     {
-        // 1. If currently on a colony map view, target the map's tile
-        if (!WorldRendererUtility.WorldRendered && Find.CurrentMap != null && Find.CurrentMap.Tile.Valid)
+        if (TargetTileOverride != null)
         {
-            return Find.CurrentMap.Tile;
+            return TargetTileOverride();
         }
 
-        // 2. If in World view
+        // 1. If in World view, prioritize the user's interactive cursor click (ToolWorld)
         if (WorldRendererUtility.WorldRendered)
         {
-            // A. If a single world object is selected, prioritize its tile
-            if (Find.WorldSelector?.SingleSelectedObject != null && Find.WorldSelector.SingleSelectedObject.Tile.Valid)
-            {
-                return Find.WorldSelector.SingleSelectedObject.Tile;
-            }
-
-            // B. If mouse is hovering over a valid globe tile without window obstruction
+            // A. If mouse is hovering over a valid globe tile without window obstruction, use the clicked tile
             bool isMouseObscured = Find.WindowStack != null && Find.WindowStack.MouseObscuredNow;
             if (!isMouseObscured)
             {
@@ -83,11 +78,23 @@ public static class DebugActionsVigilance
                 if (mouseTile.Valid) return mouseTile;
             }
 
-            // C. If player has an explicitly selected tile on the world selector
+            // B. If player has an explicitly selected tile on the world selector (fallback)
             if (Find.WorldSelector != null && Find.WorldSelector.SelectedTile.Valid)
             {
                 return Find.WorldSelector.SelectedTile;
             }
+
+            // C. If a single world object is selected, use its tile (fallback when clicked off-globe)
+            if (Find.WorldSelector?.SingleSelectedObject != null && Find.WorldSelector.SingleSelectedObject.Tile.Valid)
+            {
+                return Find.WorldSelector.SingleSelectedObject.Tile;
+            }
+        }
+
+        // 2. If currently on a colony map view, target the map's tile
+        if (!WorldRendererUtility.WorldRendered && Find.CurrentMap != null && Find.CurrentMap.Tile.Valid)
+        {
+            return Find.CurrentMap.Tile;
         }
 
         // 3. Fallback to active player colony map
@@ -110,43 +117,14 @@ public static class DebugActionsVigilance
         int periodTicks,
         float extraInclinationDeg,
         float precessionRateDegPerDay,
-        float orbitalDriftDegPerDay)
-    {
-        float lon = Find.WorldGrid?.LongLatOf(targetTile).x ?? 0f;
-        float lat = Find.WorldGrid?.LongLatOf(targetTile).y ?? 0f;
-        int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
-
-        // Ensure inclination is strictly greater than latitude so ground track passes directly overhead
-        float inclination = Mathf.Clamp(Mathf.Abs(lat) + extraInclinationDeg, 10f, 89.9f);
-
-        // Solve for argument of latitude u at epoch such that latitudeDeg == lat at epochTick
-        float incRad = inclination * Mathf.Deg2Rad;
-        float latRad = lat * Mathf.Deg2Rad;
-        float sinU = Mathf.Sin(latRad) / Mathf.Sin(incRad);
-        sinU = Mathf.Clamp(sinU, -1f, 1f);
-        float uRad = Mathf.Asin(sinU);
-        float uDeg = uRad * Mathf.Rad2Deg;
-        if (uDeg < 0f) uDeg += 360f;
-        uRad = uDeg * Mathf.Deg2Rad;
-
-        // Angular displacement from ascending node along equator
-        float yNode = Mathf.Sin(uRad) * Mathf.Cos(incRad);
-        float xNode = Mathf.Cos(uRad);
-        float alphaNodeDeg = Mathf.Atan2(yNode, xNode) * Mathf.Rad2Deg;
-
-        // Solve for Ascending Node RAAN such that longitudeDeg == lon at epochTick
-        float raanDeg = ((lon - alphaNodeDeg + 180f) % 360f + 360f) % 360f - 180f;
-
-        return new OrbitalParameters(
-            altitudeKm: altitudeKm,
-            periodTicks: periodTicks,
-            inclinationDeg: inclination,
-            ascendingNodeDeg: raanDeg,
-            precessionRateDegPerDay: precessionRateDegPerDay,
-            meanAnomalyEpochDeg: uDeg,
-            orbitalDriftDegPerDay: orbitalDriftDegPerDay,
-            epochTick: currentTick);
-    }
+        float orbitalDriftDegPerDay) =>
+        OrbitalFlightModel.CreateOverheadOrbitParameters(
+            targetTile,
+            altitudeKm,
+            periodTicks,
+            extraInclinationDeg,
+            precessionRateDegPerDay,
+            orbitalDriftDegPerDay);
 
     #region Incursion & Skirmish Actions
 

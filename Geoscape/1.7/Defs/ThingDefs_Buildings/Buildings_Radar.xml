@@ -7,8 +7,8 @@
     <label>lookout watchtower</label>
     <description>An elevated observation watchtower constructed from timber or dressed stone. Provides passive optical scanning of the surrounding horizon for early detection of approaching world-map incursions. Elevated topography grants significant vantage range bonuses.</description>
     <graphicData>
-      <texPath>Things/Building/Furniture/SteleLarge</texPath>
-      <graphicClass>Graphic_Random</graphicClass>
+      <texPath>ProjectVigilance/Geoscape/Buildings/Sensory/LookoutTower</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
       <drawSize>(2, 3)</drawSize>
       <shadowData>
         <volume>(1.8, 2.6, 1.8)</volume>
@@ -16,7 +16,7 @@
     </graphicData>
     <uiIconScale>0.85</uiIconScale>
     <size>(2, 3)</size>
-    <rotatable>true</rotatable>
+    <rotatable>false</rotatable>
     <altitudeLayer>Building</altitudeLayer>
     <passability>PassThroughOnly</passability>
     <castEdgeShadows>true</castEdgeShadows>
@@ -61,7 +61,7 @@
     <label>early-warning radar dome</label>
     <description>A rotating microwave parabolic transceiver housed inside a weatherproof fiberglass radome. Sweeps overland travel corridors out to 14 planetary traversal rings, detecting raids, caravans, and visitors as amber contact blips with heading telemetry.</description>
     <graphicData>
-      <texPath>Things/Building/Misc/GroundPenetratingScanner</texPath>
+      <texPath>ProjectVigilance/Geoscape/Buildings/Sensory/RadarDomeSmall</texPath>
       <graphicClass>Graphic_Single</graphicClass>
       <drawSize>(3, 3)</drawSize>
       <shadowData>
@@ -124,7 +124,7 @@
     <label>phased radar array</label>
     <description>A massive steerable active electronically scanned array (AESA) station. Tracks approaching incursions across 24 planetary traversal rings. Operating multiple dishes on the same grid creates synthetic aperture interferometry, expanding the inner identification horizon (10 -> 17 -> 22 rings) at a locked 250-tick sweep cadence.</description>
     <graphicData>
-      <texPath>Things/Building/Misc/LongRangeMineralScanner</texPath>
+      <texPath>ProjectVigilance/Geoscape/Buildings/Sensory/PhasedArrayLarge</texPath>
       <graphicClass>Graphic_Multi</graphicClass>
       <drawSize>(4, 4)</drawSize>
       <shadowData>
@@ -194,7 +194,7 @@
     <label>SIGINT decryption console</label>
     <description>An advanced signals intelligence mainframe that links directly to an adjacent phased radar array. Intercepts and deciphers enemy tactical radio traffic, upgrading detection intelligence to Tier 4 (Analysed) with exact unit headcounts and equipment manifests, while penetrating mountain terrain masking.</description>
     <graphicData>
-      <texPath>Things/Building/Misc/CommsConsole</texPath>
+      <texPath>ProjectVigilance/Geoscape/Buildings/Sensory/SigintConsole</texPath>
       <graphicClass>Graphic_Multi</graphicClass>
       <drawSize>(3, 2)</drawSize>
     </graphicData>
@@ -227,7 +227,7 @@
       <li Class="CompProperties_Power">
         <compClass>CompPowerTrader</compClass>
         <basePowerConsumption>700</basePowerConsumption>
-        <shortCircuitInRain>true</shortCircuitInRain>
+        <shortCircuitInRain>false</shortCircuitInRain>
       </li>
       <li Class="CompProperties_Flickable"/>
       <li Class="CompProperties_Breakdownable"/>
@@ -251,7 +251,7 @@
     <label>coastal sonar station</label>
     <description>A shoreline passive and active acoustic hydrophone station. Sweeps maritime and coastal sectors up to 18 traversal rings, providing early detection of waterborne raiders, naval incursions, and aquatic hazards. Operates strictly over water-covered tiles.</description>
     <graphicData>
-      <texPath>Things/Building/Misc/MoisturePump</texPath>
+      <texPath>ProjectVigilance/Geoscape/Buildings/Sensory/SonarStation</texPath>
       <graphicClass>Graphic_Single</graphicClass>
       <drawSize>(3, 3)</drawSize>
       <shadowData>

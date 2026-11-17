@@ -34,7 +34,7 @@ public static class WorldObject_DrawPos_Patch
         {
             isSpace = IsSpaceObjectOverride(__instance);
         }
-        else if (Find.World != null)
+        else if (Find.World != null && __instance.Tile.Valid)
         {
             try
             {
@@ -46,6 +46,10 @@ public static class WorldObject_DrawPos_Patch
                 isSpace = false;
             }
         }
+        else if (__instance.def?.defName?.Contains("Odyssey") == true || __instance.def?.defName?.Contains("Asteroid") == true)
+        {
+            isSpace = true;
+        }
 
         if (isSpace)
         {
@@ -53,9 +57,12 @@ public static class WorldObject_DrawPos_Patch
             if (baseMag > 1f)
             {
                 // Deterministic pseudo-random offset between -5f and +7f
-                int hash = (__instance.ID * 9973) ^ (__instance.def.shortHash * 101);
+                int hash = (__instance.ID * 9973) ^ ((__instance.def?.shortHash ?? 0) * 101);
                 float radialOffset = (((hash & 0x7FFFFFFF) % 1201) / 100f) - 5f; // -5.0f to +7.0f
-                __result = __result.normalized * (baseMag + radialOffset);
+
+                // Hard ceiling limit clamps deep orbit bodies so celestial assets never regress off-screen
+                float finalRadius = Mathf.Min(baseMag + radialOffset, 145f);
+                __result = __result.normalized * finalRadius;
             }
         }
     }

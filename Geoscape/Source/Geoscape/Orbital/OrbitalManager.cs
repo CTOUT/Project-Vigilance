@@ -249,6 +249,65 @@ public class OrbitalManager : WorldComponent
         return null;
     }
 
+    /// <summary>
+    /// Identifies a valid, populated ground tile within active world generation coverage to anchor
+    /// an orbital station's initial orbit ground track, prioritizing faction settlements, player home,
+    /// or populated world hexes.
+    /// </summary>
+    public static PlanetTile FindPopulatedCoverageAnchorTile(Faction? faction)
+    {
+        if (Find.World?.grid == null)
+        {
+            return PlanetTile.Invalid;
+        }
+
+        // 1. Faction's own settlement
+        if (faction != null && Find.WorldObjects != null)
+        {
+            var settlements = Find.WorldObjects.Settlements;
+            for (int i = 0; i < settlements.Count; i++)
+            {
+                if (settlements[i].Faction == faction && settlements[i].Tile.Valid)
+                {
+                    return settlements[i].Tile;
+                }
+            }
+        }
+
+        // 2. Player colony map
+        if (Find.AnyPlayerHomeMap != null)
+        {
+            int playerTile = Find.AnyPlayerHomeMap.Tile;
+            if (playerTile >= 0)
+            {
+                return new PlanetTile(playerTile, Find.World.grid.Surface);
+            }
+        }
+
+        // 3. Any populated settlement on the globe
+        if (Find.WorldObjects != null && Find.WorldObjects.Settlements.Count > 0)
+        {
+            var anySettlement = Find.WorldObjects.Settlements.RandomElement();
+            if (anySettlement != null && anySettlement.Tile.Valid)
+            {
+                return anySettlement.Tile;
+            }
+        }
+
+        // 4. Sample generated surface tiles with valid non-ocean biomes (coverage aware)
+        for (int attempt = 0; attempt < 100; attempt++)
+        {
+            int candidate = Rand.Range(0, Find.World.grid.TilesCount);
+            var tileObj = Find.World.grid[candidate];
+            if (tileObj != null && !tileObj.WaterCovered && tileObj.PrimaryBiome != null && !tileObj.PrimaryBiome.impassable)
+            {
+                return new PlanetTile(candidate, Find.World.grid.Surface);
+            }
+        }
+
+        return new PlanetTile(0, Find.World.grid.Surface);
+    }
+
     public WorldObject? EnsureStationForFaction(Faction faction)
     {
         WorldObject? existing = FindExistingOrbitalStationForFaction(faction);
@@ -268,12 +327,24 @@ public class OrbitalManager : WorldComponent
         var station = (WorldObject_OrbitalStation)WorldObjectMaker.MakeWorldObject(stationDef);
         station.SetFaction(faction);
 
-        // Place on valid tile
-        PlanetTile initialTile = PlanetTile.Invalid;
-        if (Find.World?.grid != null)
+        // Place on a valid populated anchor tile within world generation coverage
+        PlanetTile initialTile = FindPopulatedCoverageAnchorTile(faction);
+        if (initialTile.Valid && Find.WorldGrid != null)
         {
-            int tileId = Rand.Range(0, Find.World.grid.TilesCount);
-            initialTile = new PlanetTile(tileId, Find.World.grid.Surface);
+            float stationAltitude = Rand.Range(7000f, 9500f);
+            int stationPeriod = Rand.Range(74000, 84000);
+            float extraInc = Rand.Range(10f, 20f);
+            float driftRate = Rand.Range(1.2f, 2.2f);
+
+            OrbitalParameters stationOrbit = OrbitalFlightModel.CreateOverheadOrbitParameters(
+                initialTile,
+                altitudeKm: stationAltitude,
+                periodTicks: stationPeriod,
+                extraInclinationDeg: extraInc,
+                precessionRateDegPerDay: -1.5f,
+                orbitalDriftDegPerDay: driftRate);
+
+            station.InitializeStation($"{faction.Name} Logistics Hub", stationOrbit);
         }
 
         station.Tile = initialTile;
@@ -322,7 +393,8 @@ public class OrbitalManager : WorldComponent
         var sat = (WorldObject_Satellite)WorldObjectMaker.MakeWorldObject(def);
         sat.SetFaction(station.Faction);
 
-        OrbitalParameters orbitParams = CreateOrbitalParametersForRole(role);
+        PlanetTile anchorTile = station.Tile.Valid ? station.Tile : FindPopulatedCoverageAnchorTile(station.Faction);
+        OrbitalParameters orbitParams = CreateOrbitalParametersForRole(role, anchorTile);
         string callsign = $"{station.Faction.Name} {role} Relay";
         float footprint = role switch
         {
@@ -358,63 +430,73 @@ public class OrbitalManager : WorldComponent
         _ => 60000
     };
 
-    public static OrbitalParameters CreateOrbitalParametersForRole(SatelliteRole role)
+    public static OrbitalParameters CreateOrbitalParametersForRole(SatelliteRole role, PlanetTile? anchorTile = null)
     {
         int now = Current.Game?.tickManager?.TicksGame ?? 0;
-        return role switch
+        float altitudeKm = role switch
         {
-            SatelliteRole.Trade => new OrbitalParameters(
-                altitudeKm: 600f,
-                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Trade),
-                inclinationDeg: Rand.Range(35f, 48f),
-                ascendingNodeDeg: Rand.Range(0f, 360f),
-                precessionRateDegPerDay: -3.5f,
-                meanAnomalyEpochDeg: Rand.Range(0f, 360f),
-                orbitalDriftDegPerDay: 0.8f,
-                epochTick: now),
-
-            SatelliteRole.Reconnaissance => new OrbitalParameters(
-                altitudeKm: 450f,
-                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Reconnaissance),
-                inclinationDeg: Rand.Range(85f, 98f), // Polar / Sun-synchronous
-                ascendingNodeDeg: Rand.Range(0f, 360f),
-                precessionRateDegPerDay: -2.8f,
-                meanAnomalyEpochDeg: Rand.Range(0f, 360f),
-                orbitalDriftDegPerDay: 0.6f,
-                epochTick: now),
-
-            SatelliteRole.Military => new OrbitalParameters(
-                altitudeKm: 800f,
-                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Military),
-                inclinationDeg: Rand.Range(55f, 65f),
-                ascendingNodeDeg: Rand.Range(0f, 360f),
-                precessionRateDegPerDay: -3.1f,
-                meanAnomalyEpochDeg: Rand.Range(0f, 360f),
-                orbitalDriftDegPerDay: 0.5f,
-                epochTick: now),
-
-            SatelliteRole.Navigation => new OrbitalParameters(
-                altitudeKm: 12000f,
-                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Navigation),
-                inclinationDeg: Rand.Range(50f, 60f),
-                ascendingNodeDeg: Rand.Range(0f, 360f),
-                precessionRateDegPerDay: -1.2f,
-                meanAnomalyEpochDeg: Rand.Range(0f, 360f),
-                orbitalDriftDegPerDay: 0.4f,
-                epochTick: now),
-
-            SatelliteRole.Communication => new OrbitalParameters(
-                altitudeKm: 35786f,
-                periodTicks: GetDefaultPeriodForRole(SatelliteRole.Communication),
-                inclinationDeg: Rand.Range(20f, 35f),
-                ascendingNodeDeg: Rand.Range(0f, 360f),
-                precessionRateDegPerDay: -0.4f,
-                meanAnomalyEpochDeg: Rand.Range(0f, 360f),
-                orbitalDriftDegPerDay: 0.2f,
-                epochTick: now),
-
-            _ => new OrbitalParameters()
+            SatelliteRole.Trade => Rand.Range(650f, 950f),
+            SatelliteRole.Reconnaissance => Rand.Range(400f, 550f),
+            SatelliteRole.Military => Rand.Range(1200f, 1800f),
+            SatelliteRole.Navigation => Rand.Range(10500f, 13500f),
+            SatelliteRole.Communication => Rand.Range(32000f, 35786f),
+            _ => 600f
         };
+        int periodTicks = GetDefaultPeriodForRole(role);
+        float inclinationDeg = role switch
+        {
+            SatelliteRole.Trade => Rand.Range(35f, 48f),
+            SatelliteRole.Reconnaissance => Rand.Range(85f, 98f), // Polar / Sun-synchronous
+            SatelliteRole.Military => Rand.Range(55f, 65f),
+            SatelliteRole.Navigation => Rand.Range(50f, 60f),
+            SatelliteRole.Communication => Rand.Range(20f, 35f),
+            _ => 45f
+        };
+        float precessionRate = role switch
+        {
+            SatelliteRole.Trade => -3.5f,
+            SatelliteRole.Reconnaissance => -2.8f,
+            SatelliteRole.Military => -3.1f,
+            SatelliteRole.Navigation => -1.2f,
+            SatelliteRole.Communication => -0.4f,
+            _ => -1.5f
+        };
+        float driftRate = role switch
+        {
+            SatelliteRole.Trade => 0.8f,
+            SatelliteRole.Reconnaissance => 0.6f,
+            SatelliteRole.Military => 0.5f,
+            SatelliteRole.Navigation => 0.4f,
+            SatelliteRole.Communication => 0.2f,
+            _ => 0.5f
+        };
+
+        if (anchorTile.HasValue && anchorTile.Value.Valid && Find.WorldGrid != null)
+        {
+            float targetLat = Find.WorldGrid.LongLatOf(anchorTile.Value).y;
+            float targetLon = Find.WorldGrid.LongLatOf(anchorTile.Value).x;
+            float extraInc = Mathf.Max(5f, inclinationDeg - Mathf.Abs(targetLat));
+
+            return OrbitalFlightModel.CreateOverheadOrbitParameters(
+                targetLat,
+                targetLon,
+                now,
+                altitudeKm,
+                periodTicks,
+                extraInclinationDeg: extraInc,
+                precessionRateDegPerDay: precessionRate,
+                orbitalDriftDegPerDay: driftRate);
+        }
+
+        return new OrbitalParameters(
+            altitudeKm: altitudeKm,
+            periodTicks: periodTicks,
+            inclinationDeg: inclinationDeg,
+            ascendingNodeDeg: Rand.Range(0f, 360f),
+            precessionRateDegPerDay: precessionRate,
+            meanAnomalyEpochDeg: Rand.Range(0f, 360f),
+            orbitalDriftDegPerDay: driftRate,
+            epochTick: now);
     }
 
     public bool HasNavigationCoverage(PlanetTile tile)
