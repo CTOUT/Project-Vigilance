@@ -173,3 +173,49 @@ Each official RimWorld expansion is supported as an optional, high-synergy layer
 - **Odyssey (1.6):** Skyranger / Avenger gravships, orbital radar layer, and deep space mothership assaults.
 
 For the full expansion breakdown and fallback matrices, see **[docs/architecture/dlc-integrations.md](dlc-integrations.md)**.
+
+---
+
+## 7. Unified Options Architecture (`ISettingsTabProvider`)
+
+To prevent cluttering RimWorld's native Mod Options list with disconnected sub-entries for every installed component, Project Vigilance enforces a **unified container model**:
+
+```
+RimWorld Mod Options
+ └── "Project Vigilance" (Unified Container)
+       ├── [Tab: Core / General] -> Master colour themes, diagnostics, telemetry
+       ├── [Tab: Sensory & Radar] -> Detection horizons, mountain masking, overlay styles
+       ├── [Tab: Incursions] -> Overland transit, nocturnal rest, flanking ingress
+       ├── [Tab: Aquatics] (Dynamic) -> Coastal sonar, bathymetry, naval traversal
+       └── [Tab: Battlescape] (Dynamic) -> Tactical Fog of War, sight cones, pod AI
+```
+
+### Dynamic Tab Registration
+
+1. **Host Container:** `ProjectVigilance.Core` renders the tabbed interface window.
+2. **Interface Contract:** Sub-modules implement `ISettingsTabProvider`:
+   ```csharp
+   public interface ISettingsTabProvider
+   {
+       string TabLabelKey { get; }
+       string FallbackTabLabel { get; }
+       int SortOrder { get; }
+       void DoTabContents(Listing_Standard listing, Rect inRect);
+   }
+   ```
+3. **Dynamic Discovery:** At startup, sub-modules register with `VigilanceSettingsRegistry.RegisterTab(provider)`.
+4. **Sub-Mod Redirection:** If a sub-module publishes a standalone Workshop item with a Mod Options entry, clicking that entry redirects directly to the unified container with its tab pre-selected.
+5. **Independent Persistence:** Each sub-module serialises its settings independently via its own typed `ModSettings` subclass.
+
+---
+
+## 8. Packaging, Distribution & LoadFolders Strategy
+
+The Project Vigilance monorepo supports multi-tier Steam Workshop and GitHub distribution:
+
+- **Monorepo Build:** Shared CI/CD verifies cross-assembly contracts in headless .NET 10 test runners.
+- **Assembly Separation:**
+  - `ProjectVigilance.Core.dll` (Spatial bitmasks, 3D planetary mesh layers, orbital mathematics, contracts)
+  - `ProjectVigilance.Geoscape.dll` (Overland incursions, early-warning radar, outposts, campaigns)
+  - `ProjectVigilance.Aquatics.dll` (Coastal sonar, bathymetry, submersibles)
+- **`LoadFolders.xml` Compatibility:** Allows users to run standalone modules or the full suite from a single local directory while maintaining clean package separation for Steam Workshop uploads.
