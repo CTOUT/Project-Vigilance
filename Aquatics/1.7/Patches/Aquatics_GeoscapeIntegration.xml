@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Patch>
+  <!-- Bind Geoscape's CompProperties_Radar and WorldObject_ListeningPost when Geoscape is active -->
+  <Operation Class="PatchOperationFindMod">
+    <mods>
+      <li>Project Vigilance - Geoscape &amp; Early Warning</li>
+    </mods>
+    <match Class="PatchOperationSequence">
+      <operations>
+        <li Class="PatchOperationAdd">
+          <xpath>Defs/ThingDef[defName="Geoscape_SonarArray"]/comps</xpath>
+          <value>
+            <li Class="ProjectVigilance.Geoscape.Sensory.CompProperties_Radar">
+              <detectionRadius>18</detectionRadius>
+              <identificationRadiusDish1>8</identificationRadiusDish1>
+              <identificationRadiusDish2>8</identificationRadiusDish2>
+              <identificationRadiusDish3>8</identificationRadiusDish3>
+              <standbyPowerDraw>500</standbyPowerDraw>
+              <activePowerDraw>1200</activePowerDraw>
+              <receivesVantageBonus>false</receivesVantageBonus>
+              <penetratesTerrainMasking>false</penetratesTerrainMasking>
+              <isOceanicSonar>true</isOceanicSonar>
+              <maxIntelligenceTier>Contact</maxIntelligenceTier>
+              <radarLabel>Coastal Sonar Station</radarLabel>
+            </li>
+          </value>
+        </li>
+        <li Class="PatchOperationReplace">
+          <xpath>Defs/WorldObjectDef[defName="Vigilance_ListeningPost_Sonar"]/worldObjectClass</xpath>
+          <value>
+            <worldObjectClass>ProjectVigilance.Geoscape.Sensory.WorldObject_ListeningPost</worldObjectClass>
+          </value>
+        </li>
+      </operations>
+    </match>
+  </Operation>
+</Patch>

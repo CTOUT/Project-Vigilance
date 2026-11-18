@@ -886,10 +886,13 @@ public class GeoscapeSettings : ModSettings
             ref optimisticCaravanDetours,
             "PV_Settings_OptimisticDetours_Desc".CanTranslate() ? "PV_Settings_OptimisticDetours_Desc".Translate().ToString() : "Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered.");
 
-        listing.CheckboxLabeled(
-            "PV_Settings_ThermalIntegrityAudit".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit".Translate().ToString() : "Thermal Integrity Def Audit",
-            ref enableThermalIntegrityAudit,
-            "PV_Settings_ThermalIntegrityAudit_Desc".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit_Desc".Translate().ToString() : "Automatically enforces non-combustible properties on metals, stone, and structural components at startup.");
+        if (!ProjectVigilance.Core.Modules.VigilanceModuleManager.IsThermalActive)
+        {
+            listing.CheckboxLabeled(
+                "PV_Settings_ThermalIntegrityAudit".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit".Translate().ToString() : "Thermal Integrity Def Audit",
+                ref enableThermalIntegrityAudit,
+                "PV_Settings_ThermalIntegrityAudit_Desc".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit_Desc".Translate().ToString() : "Automatically enforces non-combustible properties on metals, stone, and structural components at startup.");
+        }
 
         listing.Gap(4f);
         DrawToggleableIntSlider(

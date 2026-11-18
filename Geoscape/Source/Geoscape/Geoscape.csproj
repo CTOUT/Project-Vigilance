@@ -53,6 +53,9 @@
       <HintPath>$(RimWorldResolvedPath)/CommunityToolkit.HighPerformance.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <ProjectReference Include="..\..\..\Core\Source\ProjectVigilance.Core\ProjectVigilance.Core.csproj">
+      <Private>false</Private>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <!-- Modular Suite Savegame Migration & Advisory Dialog -->
+  <PV_Migration_Title>Project Vigilance — Modular Suite Migration</PV_Migration_Title>
+  <PV_Migration_Intro>Project Vigilance has been separated into independent modular packages so you can tailor your campaign. This save references modules or entities that are not currently active:</PV_Migration_Intro>
+  <PV_Migration_ModuleActive>INSTALLED</PV_Migration_ModuleActive>
+  <PV_Migration_ModuleMissing>NOT INSTALLED</PV_Migration_ModuleMissing>
+  <PV_Migration_DetectedEntities>Detected in save: {0}</PV_Migration_DetectedEntities>
+  <PV_Migration_BtnWorkshop>Steam Workshop</PV_Migration_BtnWorkshop>
+  <PV_Migration_BtnExitToMenu>Exit to Main Menu</PV_Migration_BtnExitToMenu>
+  <PV_Migration_BtnRetireAndContinue>Cleanly Retire Missing Objects &amp; Continue</PV_Migration_BtnRetireAndContinue>
+  <PV_Migration_RetiredMessage>Project Vigilance: Cleanly retired {0} missing-module world object(s) and updated campaign module registry.</PV_Migration_RetiredMessage>
+</LanguageData>

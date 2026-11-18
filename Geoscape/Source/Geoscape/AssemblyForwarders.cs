@@ -1,0 +1,26 @@
+using System.Runtime.CompilerServices;
+
+// Preserve binary/save/Scribe compatibility for downstream sub-mods or external mods
+// referencing legacy shared types that moved from Geoscape.dll into ProjectVigilance.Core.dll.
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Settings.ISettingsTabProvider))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Settings.VigilanceSettingsRegistry))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.SensorDomainFlags))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.ISensorProvider))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.IDetectableTarget))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.IntelligenceTier))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.VisibilityMode))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.SensoryTheme))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.SensoryThemeUtility))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.RadarOutlineStyle))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.RadarTerrainShadowStyle))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.DefModExtension_Sensor))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.DefModExtension_Detectable))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.SonarTraversalUtility))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.SonarGatingUtility))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.SensoryDisruptionUtility))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Sensory.SensorDetectionUtility))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Orbital.IOrbitalEntity))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Orbital.OrbitalParameters))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Orbital.OrbitalFlightModel))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.Orbital.SatelliteRole))]
+[assembly: TypeForwardedTo(typeof(ProjectVigilance.Geoscape.World.WorldObjectAccessUtility))]

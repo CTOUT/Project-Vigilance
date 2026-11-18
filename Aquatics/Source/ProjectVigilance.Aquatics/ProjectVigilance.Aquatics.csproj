@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>ProjectVigilance.Aquatics</AssemblyName>
+    <RootNamespace>ProjectVigilance.Geoscape.Sensory</RootNamespace>
+    <OutputPath>..\..\1.7\Assemblies\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <Version>0.4.0</Version>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <FileVersion>0.4.0.0</FileVersion>
+    <!-- Default Steam paths by platform -->
+    <RimWorldPath Condition="'$(RimWorldPath)' == '' and '$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))'">D:\Games\Steam\steamapps\common\RimWorld</RimWorldPath>
+    <RimWorldPath Condition="'$(RimWorldPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;)) and Exists('$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/RimWorld')">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/RimWorld</RimWorldPath>
+    <RimWorldPath Condition="'$(RimWorldPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))">$(HOME)/.local/share/Steam/steamapps/common/RimWorld</RimWorldPath>
+    <HarmonyPath Condition="'$(HarmonyPath)' == '' and '$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))'">D:\Games\Steam\steamapps\workshop\content\294100\2009463077\1.7\Assemblies\0Harmony.dll</HarmonyPath>
+    <HarmonyPath Condition="'$(HarmonyPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;)) and Exists('$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll')">$(HOME)/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyPath>
+    <HarmonyPath Condition="'$(HarmonyPath)' == '' and !$([MSBuild]::IsOSPlatform(&quot;Windows&quot;))">$(HOME)/.local/share/Steam/steamapps/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll</HarmonyPath>
+    <!-- Fallback to repository reference assemblies -->
+    <RimWorldResolvedPath Condition="Exists('$(RimWorldPath)/Assembly-CSharp.dll')">$(RimWorldPath)</RimWorldResolvedPath>
+    <RimWorldResolvedPath Condition="'$(RimWorldResolvedPath)' == '' and Exists('$(MSBuildThisFileDirectory)../../../lib/ref/Assembly-CSharp.dll')">$(MSBuildThisFileDirectory)../../../lib/ref</RimWorldResolvedPath>
+    <RimWorldResolvedPath Condition="'$(RimWorldResolvedPath)' == ''">$(RimWorldPath)</RimWorldResolvedPath>
+    <HarmonyResolvedPath Condition="Exists('$(HarmonyPath)')">$(HarmonyPath)</HarmonyResolvedPath>
+    <HarmonyResolvedPath Condition="'$(HarmonyResolvedPath)' == '' and Exists('$(MSBuildThisFileDirectory)../../../lib/ref/0Harmony.dll')">$(MSBuildThisFileDirectory)../../../lib/ref/0Harmony.dll</HarmonyResolvedPath>
+    <HarmonyResolvedPath Condition="'$(HarmonyResolvedPath)' == ''">$(HarmonyPath)</HarmonyResolvedPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Core\Source\ProjectVigilance.Core\ProjectVigilance.Core.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="0Harmony">
+      <HintPath>$(HarmonyResolvedPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(RimWorldResolvedPath)/Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RimWorld">
+      <HintPath>$(RimWorldResolvedPath)/RimWorld.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityStubs">
+      <HintPath>$(RimWorldResolvedPath)/UnityStubs.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Waylith.UnityCompat">
+      <HintPath>$(RimWorldResolvedPath)/Waylith.UnityCompat.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="CommunityToolkit.HighPerformance">
+      <HintPath>$(RimWorldResolvedPath)/CommunityToolkit.HighPerformance.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Geoscape.Tests" />
+  </ItemGroup>
+
+  <Target Name="RotateLockedAssembly" BeforeTargets="BeforeBuild">
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+          Command="cmd /c if exist &quot;$(OutputPath)ProjectVigilance.Aquatics.dll&quot; (del /f /q &quot;$(OutputPath)ProjectVigilance.Aquatics.dll.old&quot; 2&gt;nul &amp; move /y &quot;$(OutputPath)ProjectVigilance.Aquatics.dll&quot; &quot;$(OutputPath)ProjectVigilance.Aquatics.dll.old&quot; 2&gt;nul &amp; exit 0)" />
+    <Exec Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
+          Command="if [ -f &quot;$(OutputPath)ProjectVigilance.Aquatics.dll&quot; ]; then rm -f &quot;$(OutputPath)ProjectVigilance.Aquatics.dll.old&quot; 2>/dev/null; mv &quot;$(OutputPath)ProjectVigilance.Aquatics.dll&quot; &quot;$(OutputPath)ProjectVigilance.Aquatics.dll.old&quot; 2>/dev/null || true; fi" />
+  </Target>
+
+</Project>

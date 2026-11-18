@@ -2,6 +2,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Core.Modules;
 using ProjectVigilance.Geoscape.Sensory;
 
 namespace ProjectVigilance.Geoscape.Orbital;
@@ -73,7 +74,7 @@ public static class OrbitalVisibilityUtility
         if (wo == null) return false;
 
         // 1. Omniscient / Full Visibility modes bypass fog
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (VigilanceModuleManager.GetEffectiveVisibilityMode() != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }
@@ -129,30 +130,11 @@ public static class OrbitalVisibilityUtility
                     }
                 }
 
-                // 2. Operational Technological Radar (CompRadar):
+                // 2. Operational Technological Radar (CompRadar via Geoscape soft hook):
                 // Early-Warning Radar Domes, Phased Radar Arrays, SIGINT Consoles
-                var buildings = map.listerBuildings.allBuildingsColonist;
-                if (buildings != null)
+                if (VigilanceModuleManager.HasGroundRadarCoveringTile(map, targetTile))
                 {
-                    for (int b = 0; b < buildings.Count; b++)
-                    {
-                        Building building = buildings[b];
-                        if (building == null || !building.Spawned || building.Destroyed) continue;
-
-                        CompRadar? radar = building.GetComp<CompRadar>();
-                        if (radar != null && radar.IsSensorActive && radar.IsTechnological && !radar.IsOceanicSonar)
-                        {
-                            float maxRange = radar.DetectionRadiusInTiles;
-                            if (Find.WorldGrid != null)
-                            {
-                                float dist = Find.WorldGrid.ApproxDistanceInTiles(map.Tile, targetTile);
-                                if (dist <= maxRange)
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
+                    return true;
                 }
             }
         }

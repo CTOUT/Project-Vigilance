@@ -3,6 +3,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Core.Modules;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
 
@@ -166,7 +167,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
         if (IsSensorActive && (Faction?.IsPlayer == true || (Faction == null && Find.World == null)))
         {
-            SensoryManager.Instance?.RegisterSensor(this);
+            VigilanceModuleManager.RegisterDynamicSensor(this);
         }
     }
 
@@ -181,7 +182,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
         if (IsSensorActive)
         {
-            SensoryManager.Instance?.DeregisterSensor(this);
+            VigilanceModuleManager.DeregisterDynamicSensor(this);
         }
     }
 
@@ -264,7 +265,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
             // When reconnaissance satellite traverses onto a new sector, sweep sensors
             if (role == SatelliteRole.Reconnaissance && Faction?.IsPlayer == true)
             {
-                SensoryManager.Instance?.PerformSensorySweep();
+                VigilanceModuleManager.PerformSensorySweep();
             }
         }
     }

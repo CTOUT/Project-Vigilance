@@ -35,7 +35,10 @@ public enum RuleChangeKind
     DevOverrideDisabled,
 
     /// <summary>External unrecorded save-file modification detected on load.</summary>
-    ExternalModification
+    ExternalModification,
+
+    /// <summary>Orphaned modular world objects retired during suite module migration.</summary>
+    ModuleMigration
 }
 
 /// <summary>

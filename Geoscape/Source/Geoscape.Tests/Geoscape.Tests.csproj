@@ -30,7 +30,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Core\Source\ProjectVigilance.Core\ProjectVigilance.Core.csproj" />
     <ProjectReference Include="..\Geoscape\Geoscape.csproj" />
+    <ProjectReference Include="..\..\..\Orbital\Source\ProjectVigilance.Orbital\ProjectVigilance.Orbital.csproj" />
+    <ProjectReference Include="..\..\..\Aquatics\Source\ProjectVigilance.Aquatics\ProjectVigilance.Aquatics.csproj" />
+    <ProjectReference Include="..\..\..\Thermal\Source\ProjectVigilance.Thermal\ProjectVigilance.Thermal.csproj" />
   </ItemGroup>
 
   <ItemGroup>

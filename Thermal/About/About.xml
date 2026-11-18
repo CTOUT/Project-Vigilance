@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Project Vigilance - Thermal Integrity &amp; Materials</name>
+  <author>Chris</author>
+  <packageId>ProjectVigilance.Thermal</packageId>
+  <supportedVersions>
+    <li>1.7</li>
+  </supportedVersions>
+  <description>Standalone programmatic post-def material audit enforcing realistic non-combustible flammability across structural metals (Steel, Plasteel, Uranium, Gold, Silver), stone, Odyssey heavy bridges, all-metal machinery, and gravship hull calibration across core, DLC, and modded Defs.</description>
+  <modDependencies>
+    <li>
+      <packageId>ProjectVigilance.Core</packageId>
+      <displayName>Project Vigilance - Core Framework</displayName>
+      <downloadUrl>https://github.com/CTOUT/Project-Vigilance/releases</downloadUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>ProjectVigilance.Core</li>
+    <li>ProjectVigilance.Geoscape</li>
+  </loadAfter>
+</ModMetaData>

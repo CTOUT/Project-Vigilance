@@ -9,14 +9,13 @@
   <description>Overhauls planetary strategy with physical overland incursion transit, early-warning radar networks, multi-dish interferometry, caravan-deployable listening posts, and configurable haze of war. Eliminates instant map-edge raids in favor of realistic planetary movement, tiered contact intelligence, and global sensor networks. Fully era-agnostic with zero tech prerequisites.</description>
   <modDependencies>
     <li>
-      <packageId>brrainz.harmony</packageId>
-      <displayName>Harmony</displayName>
-      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
-      <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+      <packageId>ProjectVigilance.Core</packageId>
+      <displayName>Project Vigilance - Core Framework</displayName>
+      <downloadUrl>https://github.com/CTOUT/Project-Vigilance/releases</downloadUrl>
     </li>
   </modDependencies>
   <loadAfter>
-    <li>brrainz.harmony</li>
+    <li>ProjectVigilance.Core</li>
     <li>Ludeon.RimWorld</li>
   </loadAfter>
 </ModMetaData>

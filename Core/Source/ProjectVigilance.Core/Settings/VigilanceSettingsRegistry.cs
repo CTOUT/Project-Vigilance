@@ -14,6 +14,12 @@ public static class VigilanceSettingsRegistry
     private static string? pendingTabSelection;
 
     public static event Action<string>? OnTabSelectionRequested;
+    public static event Action? OnWriteAllSettings;
+
+    public static void NotifyWriteAllSettings()
+    {
+        OnWriteAllSettings?.Invoke();
+    }
 
     public static IReadOnlyList<ISettingsTabProvider> RegisteredTabs
     {

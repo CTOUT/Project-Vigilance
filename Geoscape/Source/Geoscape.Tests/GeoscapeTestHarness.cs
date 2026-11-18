@@ -3,10 +3,15 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
+using ProjectVigilance.Core;
+using ProjectVigilance.Core.Migration;
+using ProjectVigilance.Core.Modules;
 using ProjectVigilance.Geoscape;
+using ProjectVigilance.Geoscape.Orbital;
 using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
+using ProjectVigilance.Geoscape.Thermal;
 using ProjectVigilance.Geoscape.World;
 using RimWorld;
 using RimWorld.Planet;
@@ -94,6 +99,17 @@ public static class GeoscapeTestHarness
 
             LanguageDatabase.activeLanguage = lang;
         }
+
+        RegisterAllSuiteModulesForTesting();
+    }
+
+    public static void RegisterAllSuiteModulesForTesting()
+    {
+        VigilanceCoreMod.RegisterBackCompatibilityConverter();
+        GeoscapeMod.RegisterModuleHooks();
+        OrbitalMod.RegisterModuleHooks();
+        AquaticsMod.RegisterModuleHooks();
+        ThermalMod.RegisterModuleHooks();
     }
 
     public static void InitMockWorld(out PlanetLayer surfaceLayer)
@@ -286,6 +302,11 @@ public static class GeoscapeTestHarness
         GeoscapeCampaignRules.ResetStaticDataForTesting();
         UnsafeRuleOverride.ResetForTesting();
         NewCampaignRuleDraft.Clear();
+
+        VigilanceModuleManager.ResetForTesting();
+        VigilanceMigrationTracker.ClearPendingInterceptions();
+        ThermalMod.Settings.enableThermalIntegrityAudit = true;
+        RegisterAllSuiteModulesForTesting();
 
         GeoscapeMod.Settings.ResetToDefaults();
         ClearMockWorld();

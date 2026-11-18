@@ -6,7 +6,6 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
-using ProjectVigilance.Geoscape.Orbital;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
 
@@ -14,7 +13,7 @@ namespace ProjectVigilance.Geoscape.Debug;
 
 /// <summary>
 /// Centralized Developer Mode debug actions for Project Vigilance.
-/// Grouped logically by operational domain: Incursions, Outposts, Orbital, and Recon/Sensory.
+/// Grouped logically by operational domain: Incursions, Outposts, and Recon/Sensory.
 /// </summary>
 public static class DebugActionsVigilance
 {
@@ -110,21 +109,6 @@ public static class DebugActionsVigilance
 
         return PlanetTile.Invalid;
     }
-
-    private static OrbitalParameters CreateOverheadOrbitParameters(
-        PlanetTile targetTile,
-        float altitudeKm,
-        int periodTicks,
-        float extraInclinationDeg,
-        float precessionRateDegPerDay,
-        float orbitalDriftDegPerDay) =>
-        OrbitalFlightModel.CreateOverheadOrbitParameters(
-            targetTile,
-            altitudeKm,
-            periodTicks,
-            extraInclinationDeg,
-            precessionRateDegPerDay,
-            orbitalDriftDegPerDay);
 
     #region Incursion & Skirmish Actions
 
@@ -257,35 +241,6 @@ public static class DebugActionsVigilance
         Messages.Message($"Deployed operational Listening Post at tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
     }
 
-    [DebugAction("Project Vigilance", "Outpost: Deploy Sonar Station", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
-    private static void DeploySonarStation()
-    {
-        PlanetTile targetTile = ResolveTargetTile();
-        if (!targetTile.Valid)
-        {
-            Messages.Message("Select a valid globe tile or enter game world.", MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        if (!SonarTraversalUtility.HasCoastalAccess(targetTile))
-        {
-            Messages.Message($"Note: Tile {targetTile} lacks coastal access (no adjacent water tiles). Sonar array will have zero acoustic propagation until water is adjacent.", MessageTypeDefOf.CautionInput, false);
-        }
-
-        var def = DefDatabase<WorldObjectDef>.GetNamedSilentFail("Vigilance_ListeningPost_Sonar")
-            ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_ListeningPost_Automated");
-
-        var post = (WorldObject_ListeningPost)WorldObjectMaker.MakeWorldObject(def);
-        post.Tile = targetTile;
-        post.SetFaction(Faction.OfPlayer);
-        post.Kind = ListeningPostKind.AutomatedSonar;
-        Find.WorldObjects.Add(post);
-        SensoryManager.Instance?.PerformSensorySweep();
-        WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
-
-        Messages.Message($"Deployed operational Sonar Station at tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
-    }
-
     [DebugAction("Project Vigilance", "Outpost: Deploy Signal Beacon", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
     private static void DeploySignalBeacon()
     {
@@ -309,217 +264,6 @@ public static class DebugActionsVigilance
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
 
         Messages.Message($"Deployed operational Signal Beacon at tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
-    }
-
-    #endregion
-
-    #region Orbital Logistics Actions
-
-    [DebugAction("Project Vigilance", "Orbital: Spawn Trade Satellite Over Colony", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
-    private static void SpawnTradeSatelliteOverColony()
-    {
-        PlanetTile colonyTile = ResolveColonyTile();
-        if (!colonyTile.Valid)
-        {
-            Messages.Message("No active player colony found to spawn satellite over.", MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        SpawnTradeSatelliteInternal(colonyTile);
-    }
-
-    [DebugAction("Project Vigilance", "Orbital: Spawn Trade Satellite Overhead", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
-    private static void SpawnTradeSatelliteOverhead()
-    {
-        PlanetTile targetTile = ResolveTargetTile();
-        if (!targetTile.Valid)
-        {
-            Messages.Message("Select a valid globe tile or enter game world.", MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        SpawnTradeSatelliteInternal(targetTile);
-    }
-
-    private static void SpawnTradeSatelliteInternal(PlanetTile targetTile)
-    {
-        OrbitalParameters orbitParams = CreateOverheadOrbitParameters(
-            targetTile,
-            altitudeKm: 600f,
-            periodTicks: 62500,
-            extraInclinationDeg: 5f,
-            precessionRateDegPerDay: -3.5f,
-            orbitalDriftDegPerDay: 0.8f);
-
-        Faction fac = Find.FactionManager?.AllFactionsListForReading.FirstOrDefault(f => !f.IsPlayer && !f.HostileTo(Faction.OfPlayer))
-            ?? Faction.OfPlayer;
-
-        var def = OrbitalDefOf.Vigilance_Satellite_Trade ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_Satellite_Trade");
-        var sat = (Satellite_Trade)WorldObjectMaker.MakeWorldObject(def);
-        sat.SetFaction(fac);
-        int uniqueId = Find.TickManager != null ? (Find.TickManager.TicksGame % 10000) : Rand.Range(100, 999);
-        sat.InitializeSatellite(SatelliteRole.Trade, orbitParams, stationId: -1, callsign: $"Merchant-{uniqueId}", footprintRadius: 16f);
-        Find.WorldObjects.Add(sat);
-        sat.CheckColonyOverpass();
-
-        if (WorldRendererUtility.WorldRendered)
-        {
-            Find.WorldSelector?.ClearSelection();
-            Find.WorldSelector?.Select(sat);
-            Find.WorldCameraDriver?.JumpTo(sat.DrawPos);
-        }
-
-        Messages.Message($"Spawned Trade Satellite '{sat.OrbitalCallsign}' ({fac.Name}) overhead tile {targetTile}. Comms available at Comms Console.", MessageTypeDefOf.PositiveEvent, false);
-    }
-
-    [DebugAction("Project Vigilance", "Orbital: Spawn Recon Satellite Over Colony", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
-    private static void SpawnReconSatelliteOverColony()
-    {
-        PlanetTile colonyTile = ResolveColonyTile();
-        if (!colonyTile.Valid)
-        {
-            Messages.Message("No active player colony found to spawn satellite over.", MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        SpawnReconSatelliteInternal(colonyTile);
-    }
-
-    [DebugAction("Project Vigilance", "Orbital: Spawn Recon Satellite Overhead", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
-    private static void SpawnReconSatelliteOverhead()
-    {
-        PlanetTile targetTile = ResolveTargetTile();
-        if (!targetTile.Valid)
-        {
-            Messages.Message("Select a valid globe tile or enter game world.", MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        SpawnReconSatelliteInternal(targetTile);
-    }
-
-    private static void SpawnReconSatelliteInternal(PlanetTile targetTile)
-    {
-        OrbitalParameters orbitParams = CreateOverheadOrbitParameters(
-            targetTile,
-            altitudeKm: 450f,
-            periodTicks: 45000,
-            extraInclinationDeg: 10f,
-            precessionRateDegPerDay: -4.5f,
-            orbitalDriftDegPerDay: 1.2f);
-
-        var def = OrbitalDefOf.Vigilance_Satellite_Recon ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_Satellite_Recon");
-        var sat = (WorldObject_Satellite)WorldObjectMaker.MakeWorldObject(def);
-        sat.SetFaction(Faction.OfPlayer);
-        int uniqueId = Find.TickManager != null ? (Find.TickManager.TicksGame % 10000) : Rand.Range(100, 999);
-        sat.InitializeSatellite(SatelliteRole.Reconnaissance, orbitParams, stationId: -1, callsign: $"Recon-{uniqueId}", footprintRadius: 12f);
-        Find.WorldObjects.Add(sat);
-        SensoryManager.Instance?.PerformSensorySweep();
-
-        if (WorldRendererUtility.WorldRendered)
-        {
-            Find.WorldSelector?.ClearSelection();
-            Find.WorldSelector?.Select(sat);
-            Find.WorldCameraDriver?.JumpTo(sat.DrawPos);
-        }
-
-        Messages.Message($"Spawned Recon Satellite '{sat.OrbitalCallsign}' overhead tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
-    }
-
-    [DebugAction("Project Vigilance", "Orbital: Spawn Nav Satellite Over Colony", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
-    private static void SpawnNavSatelliteOverColony()
-    {
-        PlanetTile colonyTile = ResolveColonyTile();
-        if (!colonyTile.Valid)
-        {
-            Messages.Message("No active player colony found to spawn satellite over.", MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        SpawnNavSatelliteInternal(colonyTile);
-    }
-
-    [DebugAction("Project Vigilance", "Orbital: Spawn Nav Satellite Overhead", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
-    private static void SpawnNavSatelliteOverhead()
-    {
-        PlanetTile targetTile = ResolveTargetTile();
-        if (!targetTile.Valid)
-        {
-            Messages.Message("Select a valid globe tile or enter game world.", MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        SpawnNavSatelliteInternal(targetTile);
-    }
-
-    private static void SpawnNavSatelliteInternal(PlanetTile targetTile)
-    {
-        OrbitalParameters orbitParams = CreateOverheadOrbitParameters(
-            targetTile,
-            altitudeKm: 12000f,
-            periodTicks: 120000,
-            extraInclinationDeg: 12f,
-            precessionRateDegPerDay: -1.2f,
-            orbitalDriftDegPerDay: 0.4f);
-
-        var def = OrbitalDefOf.Vigilance_Satellite_Nav ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_Satellite_Nav");
-        var sat = (WorldObject_Satellite)WorldObjectMaker.MakeWorldObject(def);
-        sat.SetFaction(Faction.OfPlayer);
-        int uniqueId = Find.TickManager != null ? (Find.TickManager.TicksGame % 10000) : Rand.Range(100, 999);
-        sat.InitializeSatellite(SatelliteRole.Navigation, orbitParams, stationId: -1, callsign: $"Nav-{uniqueId}", footprintRadius: 24f);
-        Find.WorldObjects.Add(sat);
-
-        if (WorldRendererUtility.WorldRendered)
-        {
-            Find.WorldSelector?.ClearSelection();
-            Find.WorldSelector?.Select(sat);
-            Find.WorldCameraDriver?.JumpTo(sat.DrawPos);
-        }
-
-        Messages.Message($"Spawned Navigation Satellite '{sat.OrbitalCallsign}' overhead tile {targetTile} (Footprint: 24 tiles).", MessageTypeDefOf.PositiveEvent, false);
-    }
-
-    [DebugAction("Project Vigilance", "Orbital: Despawn Overhead Satellites", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
-    private static void DespawnOverheadSatellites()
-    {
-        PlanetTile colonyTile = ResolveColonyTile();
-        if (!colonyTile.Valid)
-        {
-            Messages.Message("No active player colony found.", MessageTypeDefOf.RejectInput, false);
-            return;
-        }
-
-        var activeSats = OrbitalManager.Instance?.GetActiveTradeSatellitesOverTile(colonyTile);
-        if (activeSats == null || activeSats.Count == 0)
-        {
-            Messages.Message("No trade satellites currently overhead colony.", MessageTypeDefOf.NeutralEvent, false);
-            return;
-        }
-
-        int count = 0;
-        var toRemove = activeSats.ToList();
-        for (int i = 0; i < toRemove.Count; i++)
-        {
-            WorldObject_Satellite sat = toRemove[i];
-            Find.WorldObjects?.Remove(sat);
-            OrbitalManager.Instance?.DeregisterSatellite(sat);
-            count++;
-        }
-
-        Messages.Message($"Despawned {count} overhead trade satellites.", MessageTypeDefOf.PositiveEvent, false);
-    }
-
-    [DebugAction("Project Vigilance", "Orbital: Clear All Satellites", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
-    private static void ClearAllSatellites()
-    {
-        if (Find.WorldObjects == null) return;
-        var allSats = Find.WorldObjects.AllWorldObjects.OfType<WorldObject_Satellite>().ToList();
-        for (int i = 0; i < allSats.Count; i++)
-        {
-            Find.WorldObjects.Remove(allSats[i]);
-            OrbitalManager.Instance?.DeregisterSatellite(allSats[i]);
-        }
-        Messages.Message($"Cleared {allSats.Count} satellites from orbit.", MessageTypeDefOf.PositiveEvent, false);
     }
 
     #endregion

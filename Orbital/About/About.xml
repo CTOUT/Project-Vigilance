@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Project Vigilance - Orbital Logistics &amp; Satellites</name>
+  <author>Chris</author>
+  <packageId>ProjectVigilance.Orbital</packageId>
+  <supportedVersions>
+    <li>1.7</li>
+  </supportedVersions>
+  <description>Adds persistent Keplerian Orbital Logistics Hubs and drifting Trade, Reconnaissance, Navigation, Communication, and Military satellites around the globe, including Comms Console orbital trade windows and GPS caravan speed uplinks.</description>
+  <modDependencies>
+    <li>
+      <packageId>ProjectVigilance.Core</packageId>
+      <displayName>Project Vigilance - Core Framework</displayName>
+      <downloadUrl>https://github.com/CTOUT/Project-Vigilance/releases</downloadUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>ProjectVigilance.Core</li>
+    <li>ProjectVigilance.Geoscape</li>
+  </loadAfter>
+</ModMetaData>

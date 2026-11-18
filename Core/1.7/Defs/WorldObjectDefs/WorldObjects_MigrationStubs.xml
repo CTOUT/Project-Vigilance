@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+  <!-- Safe fallback WorldObjectDef absorbing entities whose owning module was split or uninstalled -->
+  <WorldObjectDef>
+    <defName>Vigilance_MissingModuleWorldObject</defName>
+    <label>retired module object</label>
+    <description>Placeholder preserving savegame integrity for an entity belonging to an inactive Project Vigilance module until retired by the player.</description>
+    <worldObjectClass>ProjectVigilance.Core.Migration.MissingModuleWorldObjectStub</worldObjectClass>
+    <texture>World/WorldObjects/Expanding/Sites/Outpost</texture>
+    <useDynamicDrawer>true</useDynamicDrawer>
+    <expandingIcon>false</expandingIcon>
+    <selectable>false</selectable>
+    <saved>true</saved>
+  </WorldObjectDef>
+</Defs>

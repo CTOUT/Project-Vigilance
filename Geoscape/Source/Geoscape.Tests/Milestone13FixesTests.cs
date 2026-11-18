@@ -34,8 +34,16 @@ public sealed class Milestone13FixesTests
     [TestMethod]
     public void DebugActionsVigilance_AllActionsAreAllowedInGameState()
     {
-        var methods = typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance).GetMethods(
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        var methods = System.Linq.Enumerable.ToArray(
+            System.Linq.Enumerable.SelectMany(
+                new[]
+                {
+                    typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance),
+                    typeof(ProjectVigilance.Geoscape.Orbital.DebugActionsOrbital),
+                    typeof(ProjectVigilance.Geoscape.Sensory.DebugActionsAquatics)
+                },
+                t => t.GetMethods(
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)));
 
         int actionCount = 0;
         foreach (var m in methods)
@@ -545,8 +553,16 @@ public sealed class Milestone13FixesTests
             "Orbital: Spawn Recon Satellite Overhead"
         };
 
-        var methods = typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance).GetMethods(
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        var methods = System.Linq.Enumerable.ToArray(
+            System.Linq.Enumerable.SelectMany(
+                new[]
+                {
+                    typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance),
+                    typeof(ProjectVigilance.Geoscape.Orbital.DebugActionsOrbital),
+                    typeof(ProjectVigilance.Geoscape.Sensory.DebugActionsAquatics)
+                },
+                t => t.GetMethods(
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)));
 
         foreach (var actionName in targetActionNames)
         {
@@ -786,7 +802,12 @@ public sealed class Milestone13FixesTests
         Assert.IsNotNull(sigint);
         Assert.AreEqual("0", sigint!.InnerText.Trim(), "Geoscape_SigintConsole flammability must be 0");
 
-        System.Xml.XmlNode? sonar = doc.SelectSingleNode("//ThingDef[defName='Geoscape_SonarArray']/statBases/Flammability");
+        string aquaticsBuildingsPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+            System.AppDomain.CurrentDomain.BaseDirectory,
+            "..", "..", "..", "..", "..", "..", "Aquatics", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Aquatics.xml"));
+        var aquaticsDoc = new System.Xml.XmlDocument();
+        aquaticsDoc.Load(aquaticsBuildingsPath);
+        System.Xml.XmlNode? sonar = aquaticsDoc.SelectSingleNode("//ThingDef[defName='Geoscape_SonarArray']/statBases/Flammability");
         Assert.IsNotNull(sonar);
         Assert.AreEqual("0", sonar!.InnerText.Trim(), "Geoscape_SonarArray flammability must be 0");
 

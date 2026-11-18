@@ -44,7 +44,7 @@ public static class Caravan_GetInspectString_Patch
             }
         }
 
-        if (ProjectVigilance.Geoscape.Orbital.OrbitalManager.Instance?.HasNavigationCoverage(__instance.Tile) == true)
+        if (ProjectVigilance.Core.Modules.VigilanceModuleManager.HasNavigationCoverage(__instance.Tile))
         {
             string navLine = "Telemetry: Navigation satellite link active (+15% speed)";
             __result = string.IsNullOrEmpty(__result) ? navLine : $"{__result}\n{navLine}";

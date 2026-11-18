@@ -471,7 +471,7 @@ public sealed class OrbitalLogisticsTests
     [TestMethod]
     public void DebugActions_HasDirectColonySpawnActions()
     {
-        var methods = typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance).GetMethods(
+        var methods = typeof(ProjectVigilance.Geoscape.Orbital.DebugActionsOrbital).GetMethods(
             System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
 
         var tradeAction = methods.FirstOrDefault(m =>

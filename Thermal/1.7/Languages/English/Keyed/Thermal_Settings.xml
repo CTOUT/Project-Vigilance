@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <PV_Settings_Tab_Thermal>Thermal</PV_Settings_Tab_Thermal>
+  <PV_Settings_Thermal_Header>Thermal Integrity &amp; Non-Combustible Materials</PV_Settings_Thermal_Header>
+  <PV_Settings_Thermal_Toggle>Enable Thermal Integrity Post-Def Audit</PV_Settings_Thermal_Toggle>
+  <PV_Settings_Thermal_Toggle_Desc>Automatically sets 0% flammability on structural metals, stonework, Odyssey heavy bridges, all-metal machinery, and radar dishes on startup (restart required to re-audit Defs).</PV_Settings_Thermal_Toggle_Desc>
+</LanguageData>

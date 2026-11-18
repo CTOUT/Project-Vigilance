@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <!-- ==================== Coastal Sonar Station (Industrial) ==================== -->
+  <ThingDef ParentName="BuildingBase">
+    <defName>Geoscape_SonarArray</defName>
+    <label>coastal sonar station</label>
+    <description>A shoreline passive and active acoustic hydrophone station. Sweeps maritime and coastal sectors up to 18 traversal rings, providing early detection of waterborne raiders, naval incursions, and aquatic hazards. Operates strictly over water-covered tiles.</description>
+    <graphicData>
+      <texPath>ProjectVigilance/Geoscape/Buildings/Sensory/SonarStation</texPath>
+      <graphicClass>Graphic_Single</graphicClass>
+      <drawSize>(3, 3)</drawSize>
+      <shadowData>
+        <volume>(2.4, 1.0, 2.4)</volume>
+      </shadowData>
+    </graphicData>
+    <uiIconScale>0.85</uiIconScale>
+    <size>(3, 3)</size>
+    <rotatable>false</rotatable>
+    <altitudeLayer>Building</altitudeLayer>
+    <passability>Impassable</passability>
+    <castEdgeShadows>true</castEdgeShadows>
+    <fillPercent>1.0</fillPercent>
+    <!-- Disabled from survival Architect menu until future naval/sonar polish (debug spawn only) -->
+    <!-- <designationCategory>Security</designationCategory> -->
+    <terrainAffordanceNeeded>Heavy</terrainAffordanceNeeded>
+    <techLevel>Industrial</techLevel>
+    <researchPrerequisites>
+      <li>MicroelectronicsBasics</li>
+    </researchPrerequisites>
+    <placeWorkers>
+      <li>ProjectVigilance.Geoscape.Sensory.PlaceWorker_CoastalSonar</li>
+    </placeWorkers>
+    <statBases>
+      <MaxHitPoints>350</MaxHitPoints>
+      <WorkToBuild>2800</WorkToBuild>
+      <Flammability>0</Flammability>
+      <Mass>140</Mass>
+    </statBases>
+    <costList>
+      <Steel>200</Steel>
+      <ComponentIndustrial>5</ComponentIndustrial>
+    </costList>
+    <comps>
+      <li Class="CompProperties_Power">
+        <compClass>CompPowerTrader</compClass>
+        <basePowerConsumption>500</basePowerConsumption>
+        <shortCircuitInRain>false</shortCircuitInRain>
+      </li>
+      <li Class="CompProperties_Flickable"/>
+      <li Class="CompProperties_Breakdownable"/>
+    </comps>
+    <modExtensions>
+      <li Class="ProjectVigilance.Geoscape.Sensory.DefModExtension_Sensor">
+        <detectionRadius>18</detectionRadius>
+        <identificationRadius>8</identificationRadius>
+        <isTechnological>true</isTechnological>
+        <penetratesTerrainMasking>false</penetratesTerrainMasking>
+        <sensorDomain>Sonar</sensorDomain>
+        <maxIntelligenceTier>Contact</maxIntelligenceTier>
+      </li>
+    </modExtensions>
+    <building>
+      <destroySound>BuildingDestroyed_Metal_Big</destroySound>
+    </building>
+  </ThingDef>
+
+</Defs>

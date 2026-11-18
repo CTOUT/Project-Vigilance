@@ -57,7 +57,11 @@ public class SensoryManager : WorldComponent
     /// <summary>
     /// Optional override for world distance calculation in test / benchmark scenarios where WorldGrid is uninitialized.
     /// </summary>
-    public static Func<PlanetTile, PlanetTile, int, int>? DistanceCalculationOverride { get; set; }
+    public static Func<PlanetTile, PlanetTile, int, int>? DistanceCalculationOverride
+    {
+        get => ProjectVigilance.Core.Modules.VigilanceModuleManager.DistanceCalculationOverrideHook;
+        set => ProjectVigilance.Core.Modules.VigilanceModuleManager.DistanceCalculationOverrideHook = value;
+    }
 
     [ThreadStatic]
     private static Func<PlanetTile, bool>? isExploredOverride;

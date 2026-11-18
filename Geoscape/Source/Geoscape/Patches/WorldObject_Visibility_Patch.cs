@@ -7,9 +7,10 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Core.Modules;
+using ProjectVigilance.Geoscape.Orbital;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
-using ProjectVigilance.Geoscape.Orbital;
 
 namespace ProjectVigilance.Geoscape.Patches;
 
@@ -104,9 +105,9 @@ public static class WorldObject_Visibility_Patch
             return false;
         }
 
-        if (wo is IOrbitalEntity || wo is WorldObject_Satellite || wo is WorldObject_OrbitalStation)
+        if (wo is IOrbitalEntity)
         {
-            return !OrbitalVisibilityUtility.IsOrbitalEntityDetected(wo);
+            return !VigilanceModuleManager.IsOrbitalEntityDetected(wo);
         }
 
         return SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(wo.Tile);
@@ -116,7 +117,7 @@ public static class WorldObject_Visibility_Patch
     {
         if (wo == null) return false;
         if (wo is WorldObject_ListeningPost || wo is WorldObject_Incursion) return true;
-        if (wo is IOrbitalEntity || wo is WorldObject_Satellite || wo is WorldObject_OrbitalStation) return true;
+        if (wo is IOrbitalEntity) return true;
         if (SensoryManager.ShouldMaskWorldObjectAsUnknown(wo)) return true;
         if (wo.def != null && wo.def.expandingIcon && wo.def.texture == wo.def.expandingIconTexture) return true;
         return false;
@@ -228,7 +229,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject wo, ref bool __result)
         {
-            if (wo is IOrbitalEntity || wo is WorldObject_Satellite || wo is WorldObject_OrbitalStation)
+            if (wo is IOrbitalEntity)
             {
                 if (ShouldHideWorldObject(wo))
                 {
@@ -271,7 +272,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject wo, ref float __result)
         {
-            if (wo is IOrbitalEntity || wo is WorldObject_Satellite || wo is WorldObject_OrbitalStation)
+            if (wo is IOrbitalEntity)
             {
                 if (ShouldHideWorldObject(wo))
                 {
@@ -307,7 +308,7 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
-            if (o is IOrbitalEntity || o is WorldObject_Satellite || o is WorldObject_OrbitalStation)
+            if (o is IOrbitalEntity)
             {
                 if (!ShouldHideWorldObject(o) && IsValidOrbitalLayerActive())
                 {
@@ -357,7 +358,7 @@ public static class WorldObject_Visibility_Patch
 
         public static void Postfix(WorldObject worldObject, ref bool __result)
         {
-            if (worldObject is IOrbitalEntity || worldObject is WorldObject_Satellite || worldObject is WorldObject_OrbitalStation)
+            if (worldObject is IOrbitalEntity)
             {
                 if (ShouldHideWorldObject(worldObject))
                 {
@@ -671,7 +672,7 @@ public static class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldObject o, ref bool __result)
         {
-            if (o is IOrbitalEntity || o is WorldObject_Satellite || o is WorldObject_OrbitalStation)
+            if (o is IOrbitalEntity)
             {
                 if (ShouldHideWorldObject(o))
                 {

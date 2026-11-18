@@ -1,4 +1,8 @@
 <Solution>
+  <Project Path="../../Core/Source/ProjectVigilance.Core/ProjectVigilance.Core.csproj" />
   <Project Path="Geoscape/Geoscape.csproj" />
+  <Project Path="../../Orbital/Source/ProjectVigilance.Orbital/ProjectVigilance.Orbital.csproj" />
+  <Project Path="../../Aquatics/Source/ProjectVigilance.Aquatics/ProjectVigilance.Aquatics.csproj" />
+  <Project Path="../../Thermal/Source/ProjectVigilance.Thermal/ProjectVigilance.Thermal.csproj" />
   <Project Path="Geoscape.Tests/Geoscape.Tests.csproj" />
 </Solution>

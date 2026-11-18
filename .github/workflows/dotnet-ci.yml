@@ -5,14 +5,22 @@ on:
     branches:
       - main
     paths:
+      - "Core/**"
       - "Geoscape/**"
+      - "Orbital/**"
+      - "Aquatics/**"
+      - "Thermal/**"
       - "lib/ref/**"
       - ".github/workflows/dotnet-ci.yml"
   pull_request:
     branches:
       - main
     paths:
+      - "Core/**"
       - "Geoscape/**"
+      - "Orbital/**"
+      - "Aquatics/**"
+      - "Thermal/**"
       - "lib/ref/**"
       - ".github/workflows/dotnet-ci.yml"
   workflow_dispatch:

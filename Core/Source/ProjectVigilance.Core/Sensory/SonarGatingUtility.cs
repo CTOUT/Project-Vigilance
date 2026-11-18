@@ -1,3 +1,4 @@
+using ProjectVigilance.Core.Modules;
 using RimWorld.Planet;
 using Verse;
 
@@ -5,7 +6,7 @@ namespace ProjectVigilance.Geoscape.Sensory;
 
 /// <summary>
 /// Centralized gating condition for offering coastal sonar deployment actions.
-/// Restricts sonar deployment to Developer Mode in Milestone 1.3, requiring active coastal water adjacency.
+/// Restricts sonar deployment to Developer Mode in Milestone 1.3–1.5, requiring both Aquatics module activation and coastal water adjacency.
 /// </summary>
 public static class SonarGatingUtility
 {
@@ -15,6 +16,7 @@ public static class SonarGatingUtility
     public static bool ShouldOfferSonarDeployment(PlanetTile tile)
     {
         return Prefs.DevMode
+            && (VigilanceModuleManager.IsAquaticsActive || VigilanceModuleManager.AllowSonarInTests)
             && SonarTraversalUtility.CanEvaluateWorldGrid()
             && SonarTraversalUtility.HasCoastalAccess(tile);
     }

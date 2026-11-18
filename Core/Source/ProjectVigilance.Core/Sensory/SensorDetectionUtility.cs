@@ -1,4 +1,5 @@
 using System;
+using ProjectVigilance.Core.Modules;
 using UnityEngine;
 using Verse;
 
@@ -42,8 +43,8 @@ public static class SensorDetectionUtility
         }
 
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
-        int d = SensoryManager.DistanceCalculationOverride != null
-            ? SensoryManager.DistanceCalculationOverride(sensor.SensorTile, target.CurrentTile, maxSteps)
+        int d = VigilanceModuleManager.DistanceCalculationOverrideHook != null
+            ? VigilanceModuleManager.DistanceCalculationOverrideHook(sensor.SensorTile, target.CurrentTile, maxSteps)
             : (Find.World?.grid != null
                 ? Find.World.grid.TraversalDistanceBetween(sensor.SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
                 : Math.Abs(sensor.SensorTile.tileId - target.CurrentTile.tileId));

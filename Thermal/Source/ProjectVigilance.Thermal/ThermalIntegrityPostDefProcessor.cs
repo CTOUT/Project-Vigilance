@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ProjectVigilance.Core.Modules;
 using RimWorld;
 using Verse;
 
@@ -74,7 +75,7 @@ public static class ThermalIntegrityPostDefProcessor
     /// </summary>
     public static void ApplyThermalIntegrityAudit()
     {
-        if (GeoscapeMod.Settings != null && !GeoscapeMod.Settings.enableThermalIntegrityAudit)
+        if (!VigilanceModuleManager.IsThermalAuditEnabled())
         {
             return;
         }
