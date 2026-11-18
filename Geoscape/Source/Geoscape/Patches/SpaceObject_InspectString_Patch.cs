@@ -29,7 +29,7 @@ public static class SpaceObject_InspectString_Patch
 
     public static void Postfix(WorldObject __instance, ref string __result)
     {
-        if (__instance == null || __instance is IOrbitalEntity || __instance is WorldObject_ListeningPost || __instance is MapParent || __instance is Caravan || __instance is Site)
+        if (__instance == null || __instance is IOrbitalEntity || __instance is WorldObject_ListeningPost || __instance is Caravan)
         {
             return;
         }
@@ -44,6 +44,10 @@ public static class SpaceObject_InspectString_Patch
             try
             {
                 var layer = __instance.Tile.Layer;
+                if (Find.WorldGrid?.Surface != null && layer == Find.WorldGrid.Surface)
+                {
+                    return;
+                }
                 isSpace = layer?.Def?.isSpace == true || layer?.Def?.defName == "Orbit";
             }
             catch

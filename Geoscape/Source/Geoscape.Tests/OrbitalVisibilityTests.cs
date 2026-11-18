@@ -377,4 +377,26 @@ public sealed class OrbitalVisibilityTests
         // Assert: Player settlement must remain visible
         Assert.IsFalse(isHidden, "Player settlements must never be hidden by rules when viewing orbital layers.");
     }
+
+    [TestMethod]
+    public void IsSurfaceAnchorVisibleFromOrbit_AllowsColoniesAndExcludesCaravansAndOutposts()
+    {
+        Faction playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+        Faction npcFaction = GeoscapeTestHarness.CreateNpcFaction();
+
+        Settlement playerSettlement = GeoscapeTestHarness.CreateSettlement(GeoscapeTestHarness.MakeTile(10), playerFaction);
+        Settlement npcSettlement = GeoscapeTestHarness.CreateSettlement(GeoscapeTestHarness.MakeTile(11), npcFaction);
+        Caravan playerCaravan = GeoscapeTestHarness.CreateCaravan(GeoscapeTestHarness.MakeTile(12), playerFaction);
+        var playerPost = new WorldObject_ListeningPost { Kind = ListeningPostKind.AutomatedRelay };
+        SetFactionRaw(playerPost, playerFaction);
+
+        Assert.IsTrue(WorldObject_Visibility_Patch.IsSurfaceAnchorVisibleFromOrbit(playerSettlement),
+            "Player MapParent colonies should remain visible as Orbit layer uplink anchors.");
+        Assert.IsFalse(WorldObject_Visibility_Patch.IsSurfaceAnchorVisibleFromOrbit(npcSettlement),
+            "Non-player settlements should not bypass Orbit layer culling.");
+        Assert.IsFalse(WorldObject_Visibility_Patch.IsSurfaceAnchorVisibleFromOrbit(playerCaravan),
+            "Foot/animal ground caravans should remain restricted to the Surface layer.");
+        Assert.IsFalse(WorldObject_Visibility_Patch.IsSurfaceAnchorVisibleFromOrbit(playerPost),
+            "Unmanned listening posts should remain restricted to the Surface layer.");
+    }
 }

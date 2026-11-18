@@ -542,7 +542,8 @@ public sealed class Milestone13FixesTests
             "Outpost: Deploy Sonar Station",
             "Outpost: Deploy Signal Beacon",
             "Orbital: Spawn Trade Satellite Overhead",
-            "Orbital: Spawn Recon Satellite Overhead"
+            "Orbital: Spawn Recon Satellite Overhead",
+            "Orbital: Spawn Orbital Logistics Hub Overhead"
         };
 
         var methods = typeof(ProjectVigilance.Geoscape.Debug.DebugActionsVigilance).GetMethods(

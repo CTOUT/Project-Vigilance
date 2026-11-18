@@ -417,6 +417,18 @@ public sealed class OrbitalLogisticsTests
                 Vector3 repeatPos = basePos;
                 WorldObject_DrawPos_Patch.Postfix(woSpace, ref repeatPos);
                 Assert.AreEqual(resultPos.x, repeatPos.x, 0.001f);
+
+                // Odyssey stations and asteroids are MapParent/Site subclasses and must still stratify
+                Site orbitalSite = new()
+                {
+                    ID = 43,
+                    def = new WorldObjectDef { defName = "Odyssey_OrbitalPlatform" }
+                };
+                Vector3 sitePos = basePos;
+                WorldObject_DrawPos_Patch.Postfix(orbitalSite, ref sitePos);
+                float siteDelta = sitePos.magnitude - basePos.magnitude;
+                Assert.IsTrue(siteDelta >= -5.01f && siteDelta <= 7.01f && Math.Abs(siteDelta) > 0.001f,
+                    "Odyssey Site/MapParent space objects must still receive altitude stratification.");
             }
             finally
             {
@@ -706,11 +718,52 @@ public sealed class OrbitalLogisticsTests
                 string resultAst = "";
                 SpaceObject_InspectString_Patch.Postfix(woAsteroid, ref resultAst);
                 StringAssert.Contains(resultAst, "Classification: Deep Space Asteroid");
+
+                // Odyssey stations & asteroids inherit from MapParent / Site in-game
+                Site orbitalSite = new()
+                {
+                    ID = 90,
+                    def = new WorldObjectDef { defName = "Odyssey_SpacePlatform_Station" }
+                };
+                string siteResult = "";
+                SpaceObject_InspectString_Patch.Postfix(orbitalSite, ref siteResult);
+                StringAssert.Contains(siteResult, "Orbital Altitude:");
+                StringAssert.Contains(siteResult, "Classification: Orbital Habitat / Station");
             }
             finally
             {
                 SpaceObject_InspectString_Patch.IsSpaceObjectOverride = null;
             }
         }
+    }
+
+    [TestMethod]
+    public void TryProjectRayToPlanetDirection_ResolvesSurfaceOrbitalRingAndMisses()
+    {
+        // 1. Direct planet sphere hit (front hemisphere facing camera at z = -300)
+        Vector3 origin = new(0f, 0f, -300f);
+        Vector3 hitRayDir = (new Vector3(60f, 0f, 0f) - origin).normalized;
+        Assert.IsTrue(OrbitalFlightModel.TryProjectRayToPlanetDirection(origin, hitRayDir, out Vector3 surfaceDir));
+        // Closest approach d ≈ 60 along x; sphere hit z = -sqrt(100^2 - 60^2) = -80 -> dir ≈ (0.6, 0, -0.8)
+        Assert.IsTrue(surfaceDir.z < -0.7f, $"Expected front hemisphere surface hit (z < -0.7), got {surfaceDir}");
+        Assert.AreEqual(1f, surfaceDir.magnitude, 0.001f);
+
+        // 2. Orbital shell ring click outside planet limb (100 < r <= 145)
+        Assert.IsTrue(OrbitalFlightModel.TryProjectRayToPlanetDirection(new Vector3(130f, 0f, -300f), Vector3.forward, out Vector3 ringDir));
+        Assert.AreEqual(1f, ringDir.x, 0.001f, "Parallel limb ray through x=130 must project to limb direction (1, 0, 0).");
+        Assert.AreEqual(1f, ringDir.magnitude, 0.001f);
+
+        Vector3 perspRingDir = new Vector3(130f, 0f, 300f).normalized;
+        Assert.IsTrue(OrbitalFlightModel.TryProjectRayToPlanetDirection(origin, perspRingDir, out Vector3 perspDir));
+        Assert.IsTrue(perspDir.x > 0.9f && perspDir.z < 0f, $"Expected front-limb projection for perspective ray, got {perspDir}");
+
+        // 3. Deep space miss beyond maxOrbitalPickRadius (145f)
+        Vector3 missRayDir = new Vector3(180f, 0f, 300f).normalized;
+        Assert.IsFalse(OrbitalFlightModel.TryProjectRayToPlanetDirection(origin, missRayDir, out _),
+            "Clicks beyond the orbital pick shell must return false.");
+
+        // 4. Ray pointing away from planet returns false
+        Assert.IsFalse(OrbitalFlightModel.TryProjectRayToPlanetDirection(origin, new Vector3(0f, 0f, -1f), out _),
+            "Ray pointing away from the planet centre must return false.");
     }
 }

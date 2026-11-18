@@ -847,7 +847,7 @@ public class GeoscapeSettings : ModSettings
 
         string modulesStatus = $"• Module 1: Geoscape & Radar Grid (Active — {GeoscapeMod.FormatBuildDetails()})\n" +
                                "   Planetary fog of war, early-warning radar domes, sensor grids, incursion tracking.\n" +
-                               "• Module 2: Tactical Ground Interception & Forward Ambush (Active — v0.4.0)\n" +
+                               $"• Module 2: Tactical Ground Interception & Forward Ambush (Active — v{BuildInfo.Version})\n" +
                                "   Dynamic overland pursuit, unaware column ambushes, field scouting recon, hostage rescue.\n" +
                                "• Module 3: Containment & Biology (Planned)\n" +
                                "   Stasis holding pods, surgical autopsies, and alien/entity reverse-engineering.";

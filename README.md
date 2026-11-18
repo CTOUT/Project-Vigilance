@@ -13,13 +13,13 @@ Rather than simply adding alien races and high-tier weapons, this project introd
 
 ---
 
-## 🚀 Active Playtest: Project Vigilance - Overland Incursions (v0.3.0)
+## 🚀 Active Playtest: Project Vigilance - Overland Incursions (v0.4.1)
 
 [![Steam Workshop](https://img.shields.io/badge/Subscribe_on-Steam_Workshop-1b2838?style=for-the-badge&logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)
 [![Steam Collection](https://img.shields.io/badge/View_Official-Collection-1b2838?style=for-the-badge&logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)
-[![GitHub Release](https://img.shields.io/badge/Direct_Download-GitHub_Release-238636?style=for-the-badge&logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.3.0)
+[![GitHub Release](https://img.shields.io/badge/Direct_Download-GitHub_Release-238636?style=for-the-badge&logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.4.1)
 
-The first standalone module of the suite—**Overland Incursions**—is implemented and ready for community playtesting! Subscribe directly on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226), view the full [Steam Collection](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427), or grab the [v0.3.0 Release](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.3.0).
+The first standalone module of the suite—**Overland Incursions**—is implemented and ready for community playtesting! Subscribe directly on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226), view the full [Steam Collection](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427), or grab the [v0.4.1 Release](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.4.1).
 
 ### What Does It Do?
 
@@ -37,6 +37,8 @@ In vanilla RimWorld, raids, trade caravans, and roadside encounters instantaneou
   - Holographic 3D radar perimeter/honeycomb globe overlays and anomalous landmark/site masking.
 - **Interactive Inspection:** Click on approaching world incursions to view real-time telemetry: originating faction, remaining distance, estimated time of arrival (ETA), and combat threat points.
 - **Zero Tech Prerequisites:** Completely era-agnostic and standalone. Can be dropped into any tribal, medieval, or industrial playthrough with zero alien content.
+- **Custom Visual Assets & Faction Livery Tinting:** Dedicated orthographic sprites for colony sensory buildings (`LookoutTower`, `RadarDomeSmall`, 4-way `PhasedArrayLarge` & `SigintConsole`, `SonarStation`) and neutral `128×128 RGBA32` grayscale world markers that cleanly inherit runtime faction colours.
+- **Programmatic Thermal Integrity (`ThermalIntegrityPostDefProcessor`):** Eliminates burning steel/gold/silver/plasteel/uranium, sensory radar dishes, all-metal machinery, archotech parts, and Odyssey heavy bridges/substructures at startup while preserving intentional chemical hazards (batteries, wood bridges, Bioferrite gravship hulls).
 - **Configurable Settings:** 5-tab Mod Settings UI with a live tactical CRT radar scope preview, storyteller threat cooldown synchronisation, and transit speed multipliers.
 
 ### How to Install for Testing

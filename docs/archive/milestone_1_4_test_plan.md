@@ -6,8 +6,9 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ## Current Status & Next Tests
 
-- **Passed (Automated Test Suite):** `TC-07` verified passing via `dotnet test` (`439/439` tests, `0` warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`).
-- **Pending In-Game Verification:** `TC-01`, `TC-02`, `TC-03`, `TC-04` (Immediate Priority 1 visual/UI checks) and `TC-05`, `TC-06` (Colony Playtest thermal integrity checks).
+- **Passed (In-Game):** `TC-01` (`Diagnostics` build provenance `v0.4.1+931f3cf`, Module 2 aligned to `v{BuildInfo.Version}`), `TC-02` (all 5 battlescape sensory sprites & 4-way rotation; `<shadowData>` tuning noted for visual art polish milestone), `TC-03` (outpost & aftermath grayscale masks + `Faction.Color` tinting; ground `Caravan`s & `WorldObject_ListeningPost` outposts now culled from deep `Orbit` view), `TC-04` (orbital hub & satellite liveries, populated coverage anchoring, stratified bands, and restored Odyssey `MapParent`/`Site` altitude/classification telemetry; added `Orbital: Spawn Orbital Logistics Hub Overhead` / `Clear All Orbital Hubs` debug tools + deep-orbit raycast targeting), `TC-05` (`Steel`, `Silver`, `Gold` stacks, metal structures, and sensory buildings remain completely non-flammable amidst surrounding grass/wood fires), `TC-06` (Odyssey `HeavyBridge`/`Substructure`, thrusters, and non-Bioferrite grav walls stay non-flammable while wooden `Bridge` and `Bioferrite` hull structures burn).
+- **Passed (Automated Test Suite):** `TC-07` verified passing via `dotnet test` (`441/441` tests, `0` warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`).
+- **Pending In-Game Verification:** `0`. Milestone 1.4 verification complete!
 
 ---
 
@@ -21,17 +22,17 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ### Recommended Testing Sequence
 
-1. **Step 1: Startup Build Telemetry & Diagnostics Tab** (`🔴 TC-01`)  
+1. **Step 1: Startup Build Telemetry & Diagnostics Tab** (`🟢 TC-01 Passed`)  
    Launch RimWorld 1.7 with `Project Vigilance: Geoscape`, inspect `Player.log` / dev console for the `v0.4.1` initialisation banner, and open Mod Settings $\rightarrow$ `Project Vigilance: Geoscape` $\rightarrow$ `Diagnostics`.
-2. **Step 2: Battlescape Sensory Sprites & 4-Way Rotation** (`🔴 TC-02`)  
+2. **Step 2: Battlescape Sensory Sprites & 4-Way Rotation** (`🟢 TC-02 Passed`)  
    Enter a colony map in DevMode (`God Mode` or blueprint placement) and inspect `Geoscape_LookoutTower`, `Geoscape_RadarSmall`, `Geoscape_RadarLarge`, `Geoscape_SigintConsole`, and DevMode `Geoscape_SonarArray`.
-3. **Step 3: World Outpost & Aftermath Markers + Faction Livery** (`🔴 TC-03`)  
+3. **Step 3: World Outpost & Aftermath Markers + Faction Livery** (`🟢 TC-03 Passed`)  
    Deploy listening post, signal beacon, sonar station, and skirmish aftermath objects via DevMode debug actions on the World Map; inspect zoomed-out 2D icons, zoomed-in 3D quads, and `Faction.Color` tinting.
-4. **Step 4: Orbital Station / Satellite Sprites, Coverage Anchoring & Altitude Stratification** (`🔴 TC-04`)  
+4. **Step 4: Orbital Station / Satellite Sprites, Coverage Anchoring & Altitude Stratification** (`🟢 TC-04 Passed`)  
    Trigger orbital spawn debug actions, verify `OrbitalHub.png` and specialized satellite chassis masks across factions, confirm stations anchor over populated coverage tiles (`FindPopulatedCoverageAnchorTile`), and verify Odyssey space-layer inspect strings (`SpaceObject_InspectString_Patch`).
-5. **Step 5: Thermal Integrity — Metals & Sensory Structures** (`🟡 TC-05`)  
+5. **Step 5: Thermal Integrity — Metals & Sensory Structures** (`🟢 TC-05 Passed`)  
    Inspect info cards (`Flammability`) and test fire exposure on raw metal stockpiles, steel walls/doors, and colony radar structures.
-6. **Step 6: Thermal Integrity — Machinery, Bridges & Gravship Hulls** (`🟡 TC-06`)  
+6. **Step 6: Thermal Integrity — Machinery, Bridges & Gravship Hulls** (`🟢 TC-06 Passed`)  
    Verify fixed-recipe metal machinery, battery exemption, vanilla vs Odyssey bridge flammability, explicit non-combustible spacer items, archotech parts, and Stuff-governed `GravshipHull` flammability.
 
 ---
@@ -40,13 +41,13 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 | Test Case | Feature Under Test                                     | Expected Behaviour                                                                                                                                               | Status              | Primary Screen / Tool                 |
 | :-------- | :----------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------ | :------------------------------------ |
-| **TC-01** | Build Provenance Stamp & Diagnostics Telemetry         | Log and Mod Settings `Diagnostics` tab display `v0.4.1` build metadata (`FormatBuildDetails()`) cleanly without truncation.                                      | `🔴 Pending`        | Startup Console / Mod Settings        |
-| **TC-02** | Battlescape Sensory Sprites & 4-Way Rotation           | Custom sprites render at intended footprints with clean 4-way orientation (`PhasedArrayLarge_*`, `SigintConsole_*`) and no vanilla placeholder silhouettes.      | `🔴 Pending`        | Colony Map (God Mode / Build Menu)    |
-| **TC-03** | Outpost & Aftermath Markers + Faction Livery Tinting   | `Outpost_Radar`, `Outpost_Beacon`, `Outpost_Sonar`, and `EncounterAftermath` grayscale masks multiply cleanly with `Faction.Color` in 2D and 3D views.           | `🔴 Pending`        | World Map / Debug Actions Menu        |
-| **TC-04** | Orbital Sprites, Anchoring & Stratified Visual Bands   | `OrbitalHub` and 5 satellite chassis render per-faction liveries, anchor over populated tiles, and stratify across `LEO` / `MEO` / `GEO` within `135f` radius.   | `🔴 Pending`        | World Map / Orbit View / Inspector    |
-| **TC-05** | Thermal Integrity — Metals, Stone & Sensory Arrays     | Structural/precious metals (`Steel`, `Plasteel`, `Gold`, `Silver`, `Uranium`) and all 4 sensory buildings report `0%` Flammability (`Flammability = 0`).         | `🟡 Pending`        | Info Cards / Incendiary Test on Map   |
-| **TC-06** | Thermal Integrity — Machinery, Bridges & Gravship Hull | All-metal machines, spacer chips, archotech hardware, and `HeavyBridge`/`Substructure` report `0%`; `Battery` & wood structures burn; `GravshipHull` uses Stuff. | `🟡 Pending`        | Info Cards / RimWorld DLC Content     |
-| **TC-07** | Headless Reference Assemblies, Keplerian Solver & CI   | `lib/ref/` CI builds with `0` warnings under `/p:TreatWarningsAsErrors=true`; `439/439` unit tests pass.                                                         | `🟢 Automated Pass` | GitHub Actions / `dotnet test` (`CI`) |
+| **TC-01** | Build Provenance Stamp & Diagnostics Telemetry         | Log and Mod Settings `Diagnostics` tab display `v0.4.1` build metadata (`FormatBuildDetails()`) cleanly without truncation.                                      | `🟢 In-Game Pass`   | Startup Console / Mod Settings        |
+| **TC-02** | Battlescape Sensory Sprites & 4-Way Rotation           | Custom sprites render at intended footprints with clean 4-way orientation (`PhasedArrayLarge_*`, `SigintConsole_*`) and no vanilla placeholder silhouettes.      | `🟢 In-Game Pass`   | Colony Map (God Mode / Build Menu)    |
+| **TC-03** | Outpost & Aftermath Markers + Faction Livery Tinting   | `Outpost_Radar`, `Outpost_Beacon`, `Outpost_Sonar`, and `EncounterAftermath` grayscale masks multiply cleanly with `Faction.Color` in 2D and 3D views.           | `🟢 In-Game Pass`   | World Map / Debug Actions Menu        |
+| **TC-04** | Orbital Sprites, Anchoring & Stratified Visual Bands   | `OrbitalHub` and 5 satellite chassis render per-faction liveries, anchor over populated tiles, and stratify across `LEO` / `MEO` / `GEO` within `135f` radius.   | `🟢 In-Game Pass`   | World Map / Orbit View / Inspector    |
+| **TC-05** | Thermal Integrity — Metals, Stone & Sensory Arrays     | Structural/precious metals (`Steel`, `Plasteel`, `Gold`, `Silver`, `Uranium`) and all 4 sensory buildings report `0%` Flammability (`Flammability = 0`).         | `🟢 In-Game Pass`   | Info Cards / Incendiary Test on Map   |
+| **TC-06** | Thermal Integrity — Machinery, Bridges & Gravship Hull | All-metal machines, spacer chips, archotech hardware, and `HeavyBridge`/`Substructure` report `0%`; `Battery` & wood structures burn; `GravshipHull` uses Stuff. | `🟢 In-Game Pass`   | Info Cards / RimWorld DLC Content     |
+| **TC-07** | Headless Reference Assemblies, Keplerian Solver & CI   | `lib/ref/` CI builds with `0` warnings under `/p:TreatWarningsAsErrors=true`; `441/441` unit tests pass.                                                         | `🟢 Automated Pass` | GitHub Actions / `dotnet test` (`CI`) |
 
 ---
 
@@ -54,7 +55,7 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ### TC-01: Build Provenance Stamp & Diagnostics Telemetry (`v0.4.1`)
 
-- **Priority:** `🔴 Focus 1: Immediate`
+- **Priority:** `🔴 Focus 1: Immediate` (`🟢 In-Game Pass`)
 - **Automated Status:** `BuildInfoTests` validates non-empty constants and `v0.4.1` string formatting.
 
 **Preconditions:** Build Release (`dotnet build Geoscape/Source/Geoscape.slnx -c Release`) and deploy to RimWorld `Mods/` via `scripts/deploy-geoscape.ps1`.
@@ -74,7 +75,7 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ### TC-02: Battlescape Sensory Infrastructure Orthographic Sprites & 4-Way Rotation
 
-- **Priority:** `🔴 Focus 1: Immediate`
+- **Priority:** `🔴 Focus 1: Immediate` (`🟢 In-Game Pass` — rectangular `<shadowData>` tuning deferred to high-fidelity visual art overhaul)
 - **Automated Status:** Not automated (visual texture inspection required in engine).
 
 **Preconditions:** Active colony map with DevMode `God Mode` enabled.
@@ -98,8 +99,8 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ### TC-03: Geoscape Outpost & Encounter Aftermath World Markers with Faction Livery Tinting
 
-- **Priority:** `🔴 Focus 1: Immediate`
-- **Automated Status:** Not automated (world shader multiplication inspection required in engine).
+- **Priority:** `🔴 Focus 1: Immediate` (`🟢 In-Game Pass` — `WorldObject_Visibility_Patch.IsSurfaceAnchorVisibleFromOrbit` updated to cull ground `Caravan`s and `WorldObject_ListeningPost` outposts from the deep `Orbit` view so only strategic `MapParent` colonies remain visible over the globe)
+- **Automated Status:** `OrbitalVisibilityTests.IsSurfaceAnchorVisibleFromOrbit_AllowsColoniesAndExcludesCaravansAndOutposts` verifies Orbit-layer anchor scoping; world shader multiplication verified in-game.
 
 **Preconditions:** Active campaign on World Map (`F8`) with DevMode enabled.
 
@@ -122,8 +123,8 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ### TC-04: Orbital Station & Satellite Chassis Sprites, Populated Coverage Anchoring & Altitude Stratification
 
-- **Priority:** `🔴 Focus 1: Immediate`
-- **Automated Status:** `OrbitalLogisticsTests` validates visual altitude clamping (`[4, 34]`) and `MaxOrbitalRenderRadius = 135f`; sprite visual rendering requires in-game inspection.
+- **Priority:** `🔴 Focus 1: Immediate` (`🟢 In-Game Pass` — verified Odyssey `MapParent`/`Site` altitude telemetry, faction livery tinting, and satellite coverage rings; added `Orbital: Spawn Orbital Logistics Hub Overhead` & `Orbital: Clear All Orbital Hubs` debug actions)
+- **Automated Status:** `OrbitalLogisticsTests` validates visual altitude clamping (`[4, 34]`), `MaxOrbitalRenderRadius = 135f`, and Odyssey `Site`/`MapParent` inspect/stratification hooks.
 
 **Preconditions:** Active campaign with World Coverage `< 100%` (e.g., default `30%`) and multiple factions present (e.g., `TradersGuild` / Outlander / Pirate). Also verify under Odyssey Orbit layer if Odyssey DLC is active.
 
@@ -149,7 +150,7 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ### TC-05: Thermal Integrity — Structural Metals, Stone & Sensory Weatherproofing
 
-- **Priority:** `🟡 Focus 2: Playtest`
+- **Priority:** `🟡 Focus 2: Playtest` (`🟢 In-Game Pass` — verified `0%` Flammability info cards and fire immunity across `Steel`, `Silver`, `Gold` stacks, metal structures, and colony radar/SIGINT buildings even when underlying grass burns)
 - **Automated Status:** `Milestone13FixesTests.ThermalIntegrityPostDefProcessor_StructuralAndPreciousMetals` & `SensoryBuildings_Flammability_AlignedWithThermalIntegrity` pass in `dotnet test`; live DefDatabase integration verified in RimWorld.
 
 **Preconditions:** Colony map loaded with active colonists or DevMode `Spawn thing` / `Place direct thing` tools.
@@ -171,7 +172,7 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ### TC-06: Thermal Integrity — All-Metal Machinery, Bridges & Gravship Hulls
 
-- **Priority:** `🟡 Focus 2: Playtest`
+- **Priority:** `🟡 Focus 2: Playtest` (`🟢 In-Game Pass` — verified `HeavyBridge`/`Substructure`, thrusters, and standard gravship walls stay unburnt while wooden `Bridge` and `Bioferrite` hull components catch fire)
 - **Automated Status:** `Milestone13FixesTests` unit tests verify `IsAllMetalOrStoneBuilding`, `AuditTerrainBridges`, `GravshipHull`, `Battery` exemption, and `ExplicitNonCombustibleItems`.
 
 **Preconditions:** Colony map with Industrial/Spacer equipment (plus Odyssey DLC active for bridges/gravships and Biotech for boss chips where installed).
@@ -209,10 +210,10 @@ It covers automated build provenance telemetry (`BuildInfo` and `Diagnostics` ta
 
 ## Sign-Off Checklist
 
-- [ ] `TC-01` — Build Provenance Stamp & Diagnostics Telemetry (`v0.4.1`)
-- [ ] `TC-02` — Battlescape Sensory Sprites & 4-Way Rotation
-- [ ] `TC-03` — Outpost & Aftermath Markers + Faction Livery Tinting
-- [ ] `TC-04` — Orbital Station / Satellite Sprites, Coverage Anchoring & Stratified Bands
-- [ ] `TC-05` — Thermal Integrity: Metals, Stone & Sensory Weatherproofing
-- [ ] `TC-06` — Thermal Integrity: Machinery, Bridges & Gravship Hulls
+- [x] `TC-01` — Build Provenance Stamp & Diagnostics Telemetry (`v0.4.1`)
+- [x] `TC-02` — Battlescape Sensory Sprites & 4-Way Rotation
+- [x] `TC-03` — Outpost & Aftermath Markers + Faction Livery Tinting
+- [x] `TC-04` — Orbital Station / Satellite Sprites, Coverage Anchoring & Stratified Bands
+- [x] `TC-05` — Thermal Integrity: Metals, Stone & Sensory Weatherproofing
+- [x] `TC-06` — Thermal Integrity: Machinery, Bridges & Gravship Hulls
 - [x] `TC-07` — Headless Reference Assembly CI, Keplerian Solver Optimization & Automated Test Suite

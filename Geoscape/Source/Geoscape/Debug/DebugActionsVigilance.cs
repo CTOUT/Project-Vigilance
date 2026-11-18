@@ -74,8 +74,52 @@ public static class DebugActionsVigilance
             bool isMouseObscured = Find.WindowStack != null && Find.WindowStack.MouseObscuredNow;
             if (!isMouseObscured)
             {
+                PlanetLayer? surfaceLayer = Find.WorldGrid?.Surface;
                 PlanetTile mouseTile = GenWorld.MouseTile();
-                if (mouseTile.Valid) return mouseTile;
+                if (mouseTile.Valid && (surfaceLayer == null || mouseTile.Layer == surfaceLayer))
+                {
+                    return mouseTile;
+                }
+
+                // When Odyssey's Orbit layer is active (deep orbit view), GenWorld.MouseTile raycasts against the
+                // Orbit layer instead of Surface and returns Invalid (or an Orbit-layer tile) for clicks over the
+                // globe or orbital shell. Project the WorldCamera ray to the Surface tile directly beneath the cursor.
+                Camera? worldCam = null;
+                try
+                {
+                    worldCam = Find.WorldCamera;
+                }
+                catch
+                {
+                    worldCam = null;
+                }
+
+                if (worldCam != null)
+                {
+                    Ray ray = worldCam.ScreenPointToRay(UI.MousePositionOnUIInverted * Prefs.UIScale);
+                    if (OrbitalFlightModel.TryProjectRayToPlanetDirection(ray.origin, ray.direction, out Vector3 dir))
+                    {
+                        PlanetTile surfaceTile = OrbitalFlightModel.FindClosestSurfaceTile(dir, surfaceLayer);
+                        if (surfaceTile.Valid)
+                        {
+                            return surfaceTile;
+                        }
+                    }
+                }
+
+                if (mouseTile.Valid)
+                {
+                    if (Find.WorldGrid != null)
+                    {
+                        Vector3 orbitTileDir = Find.WorldGrid.GetTileCenter(mouseTile);
+                        PlanetTile surfaceTile = OrbitalFlightModel.FindClosestSurfaceTile(orbitTileDir, surfaceLayer);
+                        if (surfaceTile.Valid)
+                        {
+                            return surfaceTile;
+                        }
+                    }
+                    return mouseTile;
+                }
             }
 
             // B. If player has an explicitly selected tile on the world selector (fallback)
@@ -509,6 +553,45 @@ public static class DebugActionsVigilance
         Messages.Message($"Despawned {count} overhead trade satellites.", MessageTypeDefOf.PositiveEvent, false);
     }
 
+    [DebugAction("Project Vigilance", "Orbital: Spawn Orbital Logistics Hub Overhead", actionType = DebugActionType.ToolWorld, allowedGameStates = AllowedGameStates.PlayingOnWorld)]
+    private static void SpawnOrbitalLogisticsHubOverhead()
+    {
+        PlanetTile targetTile = ResolveTargetTile();
+        if (!targetTile.Valid)
+        {
+            Messages.Message("Select a valid globe tile or enter game world.", MessageTypeDefOf.RejectInput, false);
+            return;
+        }
+
+        OrbitalParameters orbitParams = CreateOverheadOrbitParameters(
+            targetTile,
+            altitudeKm: 8500f,
+            periodTicks: 78000,
+            extraInclinationDeg: 15f,
+            precessionRateDegPerDay: -1.5f,
+            orbitalDriftDegPerDay: 1.8f);
+
+        Faction fac = Find.FactionManager?.AllFactionsListForReading.FirstOrDefault(f => !f.IsPlayer && !f.HostileTo(Faction.OfPlayer))
+            ?? Faction.OfPlayer;
+
+        var def = OrbitalDefOf.Vigilance_OrbitalStation ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_OrbitalStation");
+        var station = (WorldObject_OrbitalStation)WorldObjectMaker.MakeWorldObject(def);
+        station.SetFaction(fac);
+        int uniqueId = Find.TickManager != null ? (Find.TickManager.TicksGame % 10000) : Rand.Range(100, 999);
+        station.InitializeStation($"Hub-{uniqueId}", orbitParams);
+        station.Tile = targetTile;
+        Find.WorldObjects.Add(station);
+
+        if (WorldRendererUtility.WorldRendered)
+        {
+            Find.WorldSelector?.ClearSelection();
+            Find.WorldSelector?.Select(station);
+            Find.WorldCameraDriver?.JumpTo(station.DrawPos);
+        }
+
+        Messages.Message($"Spawned Orbital Logistics Hub '{station.OrbitalCallsign}' ({fac.Name}) overhead tile {targetTile}.", MessageTypeDefOf.PositiveEvent, false);
+    }
+
     [DebugAction("Project Vigilance", "Orbital: Clear All Satellites", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
     private static void ClearAllSatellites()
     {
@@ -520,6 +603,19 @@ public static class DebugActionsVigilance
             OrbitalManager.Instance?.DeregisterSatellite(allSats[i]);
         }
         Messages.Message($"Cleared {allSats.Count} satellites from orbit.", MessageTypeDefOf.PositiveEvent, false);
+    }
+
+    [DebugAction("Project Vigilance", "Orbital: Clear All Orbital Hubs", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
+    private static void ClearAllOrbitalHubs()
+    {
+        if (Find.WorldObjects == null) return;
+        var allHubs = Find.WorldObjects.AllWorldObjects.OfType<WorldObject_OrbitalStation>().ToList();
+        for (int i = 0; i < allHubs.Count; i++)
+        {
+            Find.WorldObjects.Remove(allHubs[i]);
+            OrbitalManager.Instance?.DeregisterStation(allHubs[i]);
+        }
+        Messages.Message($"Cleared {allHubs.Count} orbital hubs from orbit.", MessageTypeDefOf.PositiveEvent, false);
     }
 
     #endregion

@@ -69,16 +69,20 @@ if (Test-Path $previewPng) {
     Write-Warning "Preview.png not found in Geoscape/About/! Steam Workshop requires a preview thumbnail."
 }
 
-$publishedFileId = Join-Path $geoscapeDir 'About\PublishedFileId.txt'
-if (Test-Path $publishedFileId) {
-    Copy-Item $publishedFileId -Destination (Join-Path $stagingAbout 'PublishedFileId.txt') -Force
+foreach ($iconName in @('Icon.png', 'ModIcon.png', 'PublishedFileId.txt')) {
+    $assetPath = Join-Path $geoscapeDir "About\$iconName"
+    if (Test-Path $assetPath) {
+        Copy-Item $assetPath -Destination (Join-Path $stagingAbout $iconName) -Force
+    }
 }
 
-# 6. Copy 1.7 distribution files (Assemblies and Defs)
+# 6. Copy 1.7 distribution files (Assemblies, Defs, Patches, Textures, Languages)
 $staging17 = Join-Path $stagingPath '1.7'
 $stagingAssemblies = Join-Path $staging17 'Assemblies'
 $stagingDefs = Join-Path $staging17 'Defs'
 $stagingPatches = Join-Path $staging17 'Patches'
+$stagingTextures = Join-Path $staging17 'Textures'
+$stagingLanguages = Join-Path $staging17 'Languages'
 New-Item -ItemType Directory -Path $stagingAssemblies -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingDefs -Force | Out-Null
 New-Item -ItemType Directory -Path $stagingPatches -Force | Out-Null
@@ -97,6 +101,18 @@ if (Test-Path $sourceDefs) {
 $sourcePatches = Join-Path $geoscapeDir '1.7\Patches'
 if (Test-Path $sourcePatches) {
     Copy-Item -Path "$sourcePatches\*" -Destination $stagingPatches -Recurse -Force
+}
+
+$sourceTextures = Join-Path $geoscapeDir '1.7\Textures'
+if (Test-Path $sourceTextures) {
+    New-Item -ItemType Directory -Path $stagingTextures -Force | Out-Null
+    Copy-Item -Path "$sourceTextures\*" -Destination $stagingTextures -Recurse -Force
+}
+
+$sourceLanguages = Join-Path $geoscapeDir '1.7\Languages'
+if (Test-Path $sourceLanguages) {
+    New-Item -ItemType Directory -Path $stagingLanguages -Force | Out-Null
+    Copy-Item -Path "$sourceLanguages\*" -Destination $stagingLanguages -Recurse -Force
 }
 
 # 7. Copy License and Mod README
