@@ -766,9 +766,14 @@ public sealed class Milestone13FixesTests
     [TestMethod]
     public void SensoryBuildings_Flammability_AlignedWithThermalIntegrity()
     {
-        string buildingsPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+        string geoscapeRelativePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
             System.AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..", "..", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Radar.xml"));
+            "..", "..", "..", "..", "..", "Geoscape", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Radar.xml"));
+        string buildingsPath = System.IO.File.Exists(geoscapeRelativePath)
+            ? geoscapeRelativePath
+            : System.IO.Path.GetFullPath(System.IO.Path.Combine(
+                System.AppDomain.CurrentDomain.BaseDirectory,
+                "..", "..", "..", "..", "..", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Radar.xml"));
 
         Assert.IsTrue(System.IO.File.Exists(buildingsPath), $"Buildings XML file must exist at {buildingsPath}");
 

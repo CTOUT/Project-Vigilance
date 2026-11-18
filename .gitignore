@@ -1,6 +1,7 @@
 # Build and output directories
 bin/
 obj/
+build/
 dist/
 Build/
 Output/

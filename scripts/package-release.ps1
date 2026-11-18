@@ -14,12 +14,17 @@
 .PARAMETER OutputDir
     The output directory where staging and zip packages will be generated.
     Defaults to 'dist' in repository root.
+
+.PARAMETER StageWorkshopJunction
+    When set, switches the local RimWorld Mods/ junction to point at the clean
+    dist/ staging folder (without Source/ or build caches) ready for Steam Workshop upload.
 #>
 
 [CmdletBinding()]
 param(
     [string]$Version = '0.4.1',
-    [string]$OutputDir = 'dist'
+    [string]$OutputDir = 'dist',
+    [switch]$StageWorkshopJunction
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,14 +34,14 @@ Write-Host "==> [Project Vigilance] Starting release packaging pipeline for v$Ve
 # 1. Resolve paths
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $geoscapeDir = Join-Path $repoRoot 'Geoscape'
-$solutionFile = Join-Path $geoscapeDir 'Source\Geoscape.slnx'
+$projectFile = Join-Path $geoscapeDir 'Source\Geoscape\Geoscape.csproj'
 $distPath = Join-Path $repoRoot $OutputDir
 $modPackageName = "ProjectVigilance-OverlandIncursions"
 $stagingPath = Join-Path $distPath $modPackageName
 $zipFile = Join-Path $distPath "$modPackageName-v$Version.zip"
 
-if (-not (Test-Path $solutionFile)) {
-    throw "Solution file not found at: $solutionFile"
+if (-not (Test-Path $projectFile)) {
+    throw "Project file not found at: $projectFile"
 }
 
 # 2. Handle active DLL locks if RimWorld is open
@@ -44,12 +49,20 @@ if (-not (Test-Path $solutionFile)) {
 $targetDll = Join-Path $geoscapeDir '1.7\Assemblies\Geoscape.dll'
 Invoke-AssemblyLockRotation -AssemblyPath $targetDll
 
-# 3. Build Release configuration
+# 3. Build Release configuration (mod assembly only; excludes Geoscape.Tests)
 Write-Host "--> Building Geoscape (Release configuration)..." -ForegroundColor Yellow
-& dotnet build $solutionFile --configuration Release --nologo -v quiet
+& dotnet build $projectFile --configuration Release --nologo -v quiet
 if ($LASTEXITCODE -ne 0) {
     throw "Build failed with exit code $LASTEXITCODE."
 }
+
+# Clean any stale in-source bin/obj directories and rotated .old assembly backups
+$sourceRoot = Join-Path $geoscapeDir 'Source'
+Get-ChildItem -Path $sourceRoot -Directory -Recurse -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -in @('bin', 'obj') } |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem -Path (Join-Path $geoscapeDir '1.7\Assemblies') -Filter '*.old' -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force -ErrorAction SilentlyContinue
 
 # 4. Clean and prepare staging directory
 Write-Host "--> Preparing clean staging directory at: $stagingPath" -ForegroundColor Yellow
@@ -133,3 +146,9 @@ $zipSizeKb = [math]::Round($zipItem.Length / 1KB, 1)
 Write-Host "==> [Project Vigilance] Packaging complete!" -ForegroundColor Green
 Write-Host "    Staging Directory: $stagingPath" -ForegroundColor Gray
 Write-Host "    Distribution ZIP:  $zipFile ($zipSizeKb KB)" -ForegroundColor Gray
+
+if ($StageWorkshopJunction) {
+    Write-Host "--> Switching RimWorld Mods/ junction to clean Workshop staging..." -ForegroundColor Yellow
+    $switchJunctionScript = Join-Path $PSScriptRoot 'switch-mod-junction.ps1'
+    & $switchJunctionScript -Mode Workshop
+}
