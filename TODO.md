@@ -41,34 +41,33 @@
 
 ---
 
-### Milestone 1.5: Foundation Framework, Modular Architecture & Player Configuration [ACTIVE ROADMAP]
+### Milestone 1.5: Foundation Framework, Modular Architecture & Player Configuration [COMPLETED & VERIFIED]
 
-- [ ] **Stream 1: Modular Architecture & Collection Packaging Review:**
-  - **Modular Separation of Concerns:** Define formal boundaries between `ProjectVigilance.Core` (foundation bitmasks, 3D world draw layers, Keplerian orbit solver, shared contracts) and pluggable domain modules (`ProjectVigilance.Geoscape`, `ProjectVigilance.Aquatics`, `ProjectVigilance.Battlescape`).
-  - **Dynamic Unified Mod Options Interface (`ISettingsTabProvider`):** Single `"Project Vigilance"` entry in RimWorld's native Mod Options list with dynamically auto-detecting tabs based on loaded sub-modules, clean redirection from sub-mod entries, and per-module typed XML settings persistence.
-  - **Packaging & Multi-Assembly Strategy:** Monorepo multi-assembly compilation (`ProjectVigilance.Core.dll`, `ProjectVigilance.Geoscape.dll`, etc.) paired with `LoadFolders.xml` for flexible Steam Workshop collection distribution.
-- [ ] **Stream 2: RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**
-  - **User-Facing Phraseology Extraction:** Extract all user-facing English string literals across C# classes (notification letters, dialogue trees, float menus, inspect strings, and settings) into standard translation lookups (`"PV_Key".Translate(...)`). Keep internal diagnostics and developer debug exceptions in English.
-  - **Structured Reference Dictionaries:** Create clean, documented reference XML files in `Geoscape/1.7/Languages/English/Keyed/`:
+- [x] **Stream 1: Modular Architecture & Collection Packaging Review:**
+  - **Modular Separation of Concerns:** Defined formal boundaries between `ProjectVigilance.Core` (foundation bitmasks, 3D world draw layers, Keplerian orbit solver, shared contracts) and pluggable domain modules (`ProjectVigilance.Geoscape`, `ProjectVigilance.Aquatics`, `ProjectVigilance.Battlescape`) in `docs/architecture/modular-system.md`.
+  - **Dynamic Unified Mod Options Interface (`ISettingsTabProvider`):** Implemented `ISettingsTabProvider` and thread-safe `VigilanceSettingsRegistry` displaying a single unified `"Project Vigilance"` entry in RimWorld's native Mod Options list with dynamically registered sub-module tabs, redirection support, and isolated persistence.
+  - **Packaging & Multi-Assembly Strategy:** Monorepo multi-assembly compilation paired with `LoadFolders.xml` for flexible Steam Workshop collection distribution.
+- [x] **Stream 2: RimWorld Keyed Localisation Support (`Languages/English/Keyed/*.xml`):**
+  - **Structured Reference Dictionaries:** Created clean, documented reference XML files in `Geoscape/1.7/Languages/English/Keyed/`:
     - `Geoscape_Letters.xml`: Early warning alerts, threat escalation, encounter aftermath, quest breadcrumbs.
     - `Geoscape_Dialog.xml`: Campaign rules wizard, first-time mod adoption modal, contact telemetry.
     - `Geoscape_Inspect.xml`: Satellite inspect panes, incursion telemetry, terrain masking alerts, listening post status.
     - `Geoscape_FloatMenus.xml`: World right-click menus, outpost deployment, repair/salvage actions, caravan interception choices.
     - `Geoscape_Settings.xml`: Mod settings tab labels, toggle labels, slider headers, CRT scope preview legends.
-  - **Parameter Tokens & Formatting:** Enforce proper replacement tokens (`{0}`, `{1}`) and RimWorld grammar helpers (`CapitalizeFirst`, gender, and pluralisation rules).
-- [ ] **Stream 3: Mod Settings & Sensory Cosmetic Customisation Review:**
+  - **Parameter Tokens & Formatting:** Enforced proper replacement tokens (`{0}`, `{1}`) and RimWorld grammar helpers (`CapitalizeFirst`, gender, and pluralisation rules).
+- [x] **Stream 3: Mod Settings & Sensory Cosmetic Customisation Review:**
   - **Curated Theme Dropdown with Custom Override:**
     - Curated palette presets: _Tactical Cyan_ (Default), _Amber CRT_ (1980s Retro), _Emerald Phosphor_ (Military Surplus), _Crimson Alert_ (High Urgency), _Ghost White_ (Minimalist Monochromatic).
     - Accessibility presets: _Protanopia / Deuteranopia_ (Red-Green Safe), _Tritanopia_ (Blue-Yellow Safe), and _High-Contrast Tactical_.
     - Optional `"Use Custom Palette Overrides"` toggle revealing granular RGB/HSV sliders for Radar, Identification Horizon, Optical Scout Horizon, and Coastal Sonar.
-  - **Feature Toggles & Modular Gating:** Audit and expose granular toggles for core mechanics (`enableThermalIntegrityAudit`, `incursionsRestAtNight`, `enableTacticalIngressFlanking`, `startingSiteSelection`, `optimisticCaravanDetours`, `enableInterFactionCollisions`).
-  - **Live CRT Scope Preview Integration:** Update the `180x180 px` `RadarScopePreview` widget to simultaneously display simulated Radar, Sonar, and Optical horizons with real-time palette updates.
-- [ ] **Stream 4: Modder Extensibility Hooks & Foundation Library Architecture:**
-  - **XML `DefModExtension` Integration:** Enable external mod developers to configure custom structures or vehicles as sensors (`DefModExtension_Sensor`) or trackable targets (`DefModExtension_Detectable`) without hard compile-time code dependencies.
-  - **Public Sensor & Target Provider API:** Expose and document formal registration interfaces (`ISensorProvider`, `IDetectableTarget`) with dynamic registration on `SensoryManager` (`RegisterDynamicSensor`, `UnregisterDynamicSensor`, `RegisterDynamicTarget`, `UnregisterDynamicTarget`).
-  - **Incursion & Tactical Event Lifecycle Hooks:** Expose public C# event delegates (`OnIncursionSpawned`, `OnIncursionDeparted`, `OnContactDetected`, `OnContactClassified`, `OnContactLost`, `OnIncursionIntercepted`, `OnAmbushSprung`, `OnCaptiveIncarcerated`).
-- [ ] **Stream 5: Agent Skill & Engineering Rule Enshrinement:**
-  - Update `GEMINI.md` and `.agents/rules/rimworld-development.md` with durable post-retrofit compliance rules:
+  - **Feature Toggles & Modular Gating:** Audited and exposed granular toggles for core mechanics (`enableThermalIntegrityAudit`, `incursionsRestAtNight`, `enableTacticalIngressFlanking`, `startingSiteSelection`, `optimisticCaravanDetours`, `enableInterFactionCollisions`).
+  - **Live CRT Scope Preview Integration:** Updated the `180x180 px` `RadarScopePreview` widget to display simulated Radar, Sonar, and Optical horizons with real-time palette updates.
+- [x] **Stream 4: Modder Extensibility Hooks & Foundation Library Architecture:**
+  - **XML `DefModExtension` Integration:** Enabled external mod developers to configure custom structures or vehicles as sensors (`DefModExtension_Sensor`) or trackable targets (`DefModExtension_Detectable`) without hard compile-time code dependencies.
+  - **Public Sensor & Target Provider API:** Exposed and documented formal registration interfaces (`ISensorProvider`, `IDetectableTarget`) with dynamic registration on `SensoryManager` (`RegisterDynamicSensor`, `UnregisterDynamicSensor`, `RegisterDynamicTarget`, `UnregisterDynamicTarget`).
+  - **Incursion & Tactical Event Lifecycle Hooks:** Exposed public static C# event delegates (`OnIncursionSpawned`, `OnIncursionDeparted`, `OnContactDetected`, `OnContactClassified`, `OnContactLost`, `OnIncursionIntercepted`, `OnAmbushSprung`, `OnCaptiveIncarcerated`).
+- [x] **Stream 5: Agent Skill & Engineering Rule Enshrinement:**
+  - Updated `GEMINI.md` and `.agents/rules/rimworld-development.md` with durable post-retrofit compliance rules:
     - _Rule 8:_ Keyed Localisation Mandatory (`"PV_*".Translate()`, zero hardcoded English literals in UI).
     - _Rule 9:_ Mod Settings & Feature Gating Required (all new mechanics expose toggles/settings).
     - _Rule 10:_ Extensibility & Modder Hooks Mandatory (`DefModExtension` and public lifecycle events).

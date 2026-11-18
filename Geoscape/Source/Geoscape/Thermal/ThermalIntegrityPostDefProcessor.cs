@@ -74,6 +74,11 @@ public static class ThermalIntegrityPostDefProcessor
     /// </summary>
     public static void ApplyThermalIntegrityAudit()
     {
+        if (GeoscapeMod.Settings != null && !GeoscapeMod.Settings.enableThermalIntegrityAudit)
+        {
+            return;
+        }
+
         AuditTerrainBridges();
         AuditThingDefs();
     }

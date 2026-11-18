@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
+using ProjectVigilance.Geoscape.Settings;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -32,12 +34,16 @@ public class GeoscapeSettings : ModSettings
     public VisibilityMode visibilityMode = VisibilityMode.ClassicHazeOfWar;
     public RadarOutlineStyle radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
     public bool usePlayerFactionColor = true;
+    public SensoryTheme sensoryTheme = SensoryTheme.TacticalCyan;
+    public bool useCustomPaletteOverrides = false;
     public Color radarCustomColor = new(0f, 0.90f, 1.0f);
     public float radarOutlineOpacity = 0.50f;
     public float identificationRingOpacity = 0.65f;
     public float honeycombGridOpacity = 0.40f;
     public bool useCustomIdentificationColor = false;
     public Color radarIdentificationColor = new(1.0f, 0.82f, 0.15f);
+    public Color scoutCustomColor = new(1.0f, 0.75f, 0.20f);
+    public Color sonarCustomColor = new(0.12f, 0.45f, 0.85f);
     public float surveillanceDimming = 0.25f;
     public float colonyScoutRadius = 3.0f;
     public float colonyIdentificationRadius = 1.0f;
@@ -54,13 +60,53 @@ public class GeoscapeSettings : ModSettings
     public int maxContextualCaravansShown = 3;
     public int maxContextualColoniesShown = 2;
 
+    public bool enableThermalIntegrityAudit = true;
+    public bool optimisticCaravanDetours = true;
+    public bool enableInterFactionCollisions = true;
+
     // =========================================================================
     // Transient UI State (Tabs, Scrolling & Dynamic Sizing)
     // =========================================================================
 
-    private static GeoscapeSettingsTab currentTab = GeoscapeSettingsTab.Sensory;
-    private static readonly Vector2[] scrollPositions = new Vector2[5];
-    private static readonly float[] tabHeights = { 960f, 520f, 320f, 480f, 420f };
+    private sealed class BuiltinTabProvider : ISettingsTabProvider
+    {
+        public string TabKey { get; }
+        public string TabLabelKey { get; }
+        public string FallbackTabLabel { get; }
+        public int SortOrder { get; }
+        private readonly Action<Listing_Standard, Rect> drawAction;
+
+        public BuiltinTabProvider(string tabKey, string tabLabelKey, string fallbackLabel, int sortOrder, Action<Listing_Standard, Rect> drawAction)
+        {
+            TabKey = tabKey;
+            TabLabelKey = tabLabelKey;
+            FallbackTabLabel = fallbackLabel;
+            SortOrder = sortOrder;
+            this.drawAction = drawAction;
+        }
+
+        public void DoTabContents(Listing_Standard listing, Rect inRect) => drawAction(listing, inRect);
+    }
+
+    private static string currentTabKey = "Sensory";
+    private static readonly Dictionary<string, Vector2> dynamicScrollPositions = new();
+    private static readonly Dictionary<string, float> dynamicTabHeights = new();
+    private static bool builtinTabsRegistered;
+
+    public static GeoscapeSettingsTab CurrentTab
+    {
+        get => currentTabKey switch
+        {
+            "Sensory" => GeoscapeSettingsTab.Sensory,
+            "Radar" => GeoscapeSettingsTab.Radar,
+            "Incursions" => GeoscapeSettingsTab.Incursions,
+            "Geoscape" => GeoscapeSettingsTab.Geoscape,
+            "Diagnostics" => GeoscapeSettingsTab.Diagnostics,
+            _ => GeoscapeSettingsTab.Sensory
+        };
+        set => currentTabKey = value.ToString();
+    }
+
     private static float radarColumnsHeight = 180f;
     private static float shadowGridHeight = 56f;
 
@@ -100,6 +146,21 @@ public class GeoscapeSettings : ModSettings
         }
     }
 
+    public Color EffectiveScoutColor => scoutCustomColor;
+    public Color EffectiveSonarColor => sonarCustomColor;
+
+    public void ApplySensoryTheme(SensoryTheme theme)
+    {
+        sensoryTheme = theme;
+        var colors = SensoryThemeUtility.GetThemeColors(theme);
+        radarCustomColor = colors.radar;
+        radarIdentificationColor = colors.identification;
+        scoutCustomColor = colors.scout;
+        sonarCustomColor = colors.sonar;
+        useCustomIdentificationColor = true;
+        NotifyRadarVisualsChanged();
+    }
+
     public override void ExposeData()
     {
         base.ExposeData();
@@ -111,12 +172,16 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref visibilityMode, "visibilityMode", VisibilityMode.ClassicHazeOfWar);
         Scribe_Values.Look(ref radarOutlineStyle, "radarOutlineStyle", RadarOutlineStyle.BoundaryAndGrid);
         Scribe_Values.Look(ref usePlayerFactionColor, "usePlayerFactionColor", true);
+        Scribe_Values.Look(ref sensoryTheme, "sensoryTheme", SensoryTheme.TacticalCyan);
+        Scribe_Values.Look(ref useCustomPaletteOverrides, "useCustomPaletteOverrides", false);
         Scribe_Values.Look(ref radarCustomColor, "radarCustomColor", new Color(0f, 0.90f, 1.0f));
         Scribe_Values.Look(ref radarOutlineOpacity, "radarOutlineOpacity", 0.50f);
         Scribe_Values.Look(ref identificationRingOpacity, "identificationRingOpacity", 0.65f);
         Scribe_Values.Look(ref honeycombGridOpacity, "honeycombGridOpacity", 0.40f);
         Scribe_Values.Look(ref useCustomIdentificationColor, "useCustomIdentificationColor", false);
         Scribe_Values.Look(ref radarIdentificationColor, "radarIdentificationColor", new Color(1.0f, 0.82f, 0.15f));
+        Scribe_Values.Look(ref scoutCustomColor, "scoutCustomColor", new Color(1.0f, 0.75f, 0.20f));
+        Scribe_Values.Look(ref sonarCustomColor, "sonarCustomColor", new Color(0.12f, 0.45f, 0.85f));
         Scribe_Values.Look(ref showIdentificationHorizon, "showIdentificationHorizon", true);
         Scribe_Values.Look(ref radarTerrainShadowStyle, "radarTerrainShadowStyle", RadarTerrainShadowStyle.Both);
         Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.25f);
@@ -136,33 +201,66 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref enableIntelligentRightClick, "enableIntelligentRightClick", true);
         Scribe_Values.Look(ref maxContextualCaravansShown, "maxContextualCaravansShown", 3);
         Scribe_Values.Look(ref maxContextualColoniesShown, "maxContextualColoniesShown", 2);
+
+        Scribe_Values.Look(ref enableThermalIntegrityAudit, "enableThermalIntegrityAudit", true);
+        Scribe_Values.Look(ref optimisticCaravanDetours, "optimisticCaravanDetours", true);
+        Scribe_Values.Look(ref enableInterFactionCollisions, "enableInterFactionCollisions", true);
     }
 
     // =========================================================================
     // Tabbed Modular Settings Window
     // =========================================================================
 
+    public void EnsureBuiltinTabsRegistered()
+    {
+        if (builtinTabsRegistered) return;
+        builtinTabsRegistered = true;
+
+        VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Sensory", "PV_Settings_Tab_Sensory", "Sensory", 10, (l, r) => DrawSensoryTab(l)));
+        VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Radar", "PV_Settings_Tab_Radar", "Radar", 20, (l, r) => DrawRadarTab(l)));
+        VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Incursions", "PV_Settings_Tab_Incursions", "Incursions", 30, (l, r) => DrawIncursionsTab(l)));
+        VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Geoscape", "PV_Settings_Tab_Geoscape", "Geoscape", 40, (l, r) => DrawGeoscapeTab(l)));
+        VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Diagnostics", "PV_Settings_Tab_Diagnostics", "Diagnostics", 50, (l, r) => DrawAboutDiagnosticsTab(l)));
+    }
+
     public void DoWindowContents(Rect inRect)
     {
+        EnsureBuiltinTabsRegistered();
+
+        if (VigilanceSettingsRegistry.PendingTabSelection != null)
+        {
+            currentTabKey = VigilanceSettingsRegistry.PendingTabSelection;
+            VigilanceSettingsRegistry.ClearPendingSelection();
+        }
+
+        var tabs = VigilanceSettingsRegistry.RegisteredTabs;
+        if (tabs.Count == 0) return;
+
+        if (!tabs.Any(t => t.TabKey == currentTabKey))
+        {
+            currentTabKey = tabs[0].TabKey;
+        }
+
         // 1. Draw Tab Bar Header
         Rect tabRowRect = new Rect(inRect.x, inRect.y, inRect.width, 34f);
-        string[] tabLabels = { "Sensory", "Radar", "Incursions", "Geoscape", "Diagnostics" };
-        int tabCount = tabLabels.Length;
+        int tabCount = tabs.Count;
         float spacing = 6f;
         float tabWidth = (tabRowRect.width - (tabCount - 1) * spacing) / tabCount;
 
         for (int i = 0; i < tabCount; i++)
         {
+            var tab = tabs[i];
             Rect tabBtnRect = new Rect(tabRowRect.x + i * (tabWidth + spacing), tabRowRect.y, tabWidth, 30f);
-            bool isSelected = currentTab == (GeoscapeSettingsTab)i;
+            bool isSelected = currentTabKey == tab.TabKey;
+            string label = tab.TabLabelKey.CanTranslate() ? tab.TabLabelKey.Translate().ToString() : tab.FallbackTabLabel;
 
             if (isSelected)
             {
-                DrawLatchedTab(tabBtnRect, tabLabels[i]);
+                DrawLatchedTab(tabBtnRect, label);
             }
-            else if (Widgets.ButtonText(tabBtnRect, tabLabels[i]))
+            else if (Widgets.ButtonText(tabBtnRect, label))
             {
-                currentTab = (GeoscapeSettingsTab)i;
+                currentTabKey = tab.TabKey;
                 SoundDefOf.Click?.PlayOneShotOnCamera();
             }
         }
@@ -174,35 +272,30 @@ public class GeoscapeSettings : ModSettings
         float contentHeight = inRect.height - 40f;
         Rect contentRect = new Rect(inRect.x, contentTop, inRect.width, contentHeight);
 
-        int tabIndex = (int)currentTab;
-        float requiredHeight = Mathf.Max(tabHeights[tabIndex], contentHeight);
+        if (!dynamicScrollPositions.ContainsKey(currentTabKey))
+        {
+            dynamicScrollPositions[currentTabKey] = Vector2.zero;
+        }
+        if (!dynamicTabHeights.ContainsKey(currentTabKey))
+        {
+            dynamicTabHeights[currentTabKey] = 600f;
+        }
+
+        float requiredHeight = Mathf.Max(dynamicTabHeights[currentTabKey], contentHeight);
         bool needsScrollbar = requiredHeight > contentHeight;
         Rect viewRect = new Rect(0f, 0f, contentRect.width - (needsScrollbar ? 16f : 0f), requiredHeight);
 
-        Widgets.BeginScrollView(contentRect, ref scrollPositions[tabIndex], viewRect);
+        Vector2 scroll = dynamicScrollPositions[currentTabKey];
+        Widgets.BeginScrollView(contentRect, ref scroll, viewRect);
+        dynamicScrollPositions[currentTabKey] = scroll;
+
         Listing_Standard listing = new() { maxOneColumn = true };
         listing.Begin(viewRect);
 
-        switch (currentTab)
-        {
-            case GeoscapeSettingsTab.Sensory:
-                DrawSensoryTab(listing);
-                break;
-            case GeoscapeSettingsTab.Radar:
-                DrawRadarTab(listing);
-                break;
-            case GeoscapeSettingsTab.Incursions:
-                DrawIncursionsTab(listing);
-                break;
-            case GeoscapeSettingsTab.Geoscape:
-                DrawGeoscapeTab(listing);
-                break;
-            case GeoscapeSettingsTab.Diagnostics:
-                DrawAboutDiagnosticsTab(listing);
-                break;
-        }
+        var activeTab = tabs.FirstOrDefault(t => t.TabKey == currentTabKey) ?? tabs[0];
+        activeTab.DoTabContents(listing, viewRect);
 
-        tabHeights[tabIndex] = Mathf.Max(listing.CurHeight + 20f, contentHeight);
+        dynamicTabHeights[currentTabKey] = Mathf.Max(listing.CurHeight + 20f, contentHeight);
         listing.End();
         Widgets.EndScrollView();
     }
@@ -385,12 +478,49 @@ public class GeoscapeSettings : ModSettings
 
         listing.GapLine();
 
-        // 2. Two-Column Layout for Detection vs Identification (all controls remain in fixed positions; non-applicable items grey out)
         bool outlinesEnabled = radarOutlineStyle != RadarOutlineStyle.None;
         bool gridEnabled = radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid;
         bool idControlsEnabled = outlinesEnabled && showIdentificationHorizon;
         bool shadowsEnabled = outlinesEnabled && showIdentificationHorizon;
+        bool customColorsEnabled = outlinesEnabled && useCustomPaletteOverrides;
+        bool customIdColorsEnabled = idControlsEnabled && useCustomPaletteOverrides;
 
+        // 2. Curated Sensory Theme & Custom Overrides Toggle
+        Text.Font = GameFont.Tiny;
+        GUI.color = outlinesEnabled ? SectionHeaderColor : DisabledHeaderColor;
+        listing.Label("SENSORY PALETTE THEME & ACCESSIBILITY (WCAG AA)");
+        GUI.color = Color.white;
+        Text.Font = GameFont.Small;
+
+        Rect themeRect = listing.GetRect(28f);
+        Rect themeBtn = new Rect(themeRect.x, themeRect.y, 360f, 28f);
+        string themeKey = $"PV_Settings_Theme_{sensoryTheme}";
+        string themeLabel = themeKey.CanTranslate() ? themeKey.Translate().ToString() : sensoryTheme.ToString();
+        if (Widgets.ButtonText(themeBtn, $"Theme: {themeLabel}"))
+        {
+            List<FloatMenuOption> themeOptions = new();
+            foreach (SensoryTheme st in Enum.GetValues(typeof(SensoryTheme)))
+            {
+                string key = $"PV_Settings_Theme_{st}";
+                string lbl = key.CanTranslate() ? key.Translate().ToString() : st.ToString();
+                themeOptions.Add(new FloatMenuOption(lbl, () =>
+                {
+                    ApplySensoryTheme(st);
+                }));
+            }
+            Find.WindowStack.Add(new FloatMenu(themeOptions));
+        }
+
+        DrawToggleableCheckbox(
+            listing,
+            "PV_Settings_UseCustomPaletteOverrides".CanTranslate() ? "PV_Settings_UseCustomPaletteOverrides".Translate().ToString() : "Use Custom Palette Overrides",
+            ref useCustomPaletteOverrides,
+            "PV_Settings_UseCustomPaletteOverrides_Desc".CanTranslate() ? "PV_Settings_UseCustomPaletteOverrides_Desc".Translate().ToString() : "Enable granular colour overrides for Radar, Identification, and Scout perimeters. When disabled, curated theme presets apply.",
+            outlinesEnabled);
+
+        listing.Gap(4f);
+
+        // 3. Two-Column Layout for Detection vs Identification (all controls remain in fixed positions; non-applicable items grey out)
         float totalWidth = listing.ColumnWidth;
         float colWidth = (totalWidth - 16f) / 2f;
 
@@ -432,7 +562,7 @@ public class GeoscapeSettings : ModSettings
                 ref radarCustomColor,
                 RadarPerimeterPresets,
                 () => usePlayerFactionColor = false,
-                outlinesEnabled);
+                customColorsEnabled);
 
             leftListing.Gap(4f);
             DrawToggleableSlider(
@@ -489,7 +619,7 @@ public class GeoscapeSettings : ModSettings
                 ref radarIdentificationColor,
                 IdentificationRingPresets,
                 () => useCustomIdentificationColor = true,
-                idControlsEnabled);
+                customIdColorsEnabled);
 
             if (rightListing.CurHeight < bottomSliderY)
             {
@@ -714,6 +844,11 @@ public class GeoscapeSettings : ModSettings
             ref showFactionEmblems,
             "Render the attacking faction's emblem icon on planetary incursions once classified, instead of generic markers.");
 
+        listing.CheckboxLabeled(
+            "PV_Settings_InterFactionCollisions".CanTranslate() ? "PV_Settings_InterFactionCollisions".Translate().ToString() : "Inter-Faction Overland Collisions",
+            ref enableInterFactionCollisions,
+            "PV_Settings_InterFactionCollisions_Desc".CanTranslate() ? "PV_Settings_InterFactionCollisions_Desc".Translate().ToString() : "Simulates background encounters and skirmishes when rival NPC incursions cross paths on the globe.");
+
         if (!inCampaign)
         {
             rules.WriteToDefaults(this);
@@ -745,6 +880,16 @@ public class GeoscapeSettings : ModSettings
             "Intelligent Geoscape Right-Click Dispatch",
             ref enableIntelligentRightClick,
             "Allow right-clicking anywhere on the Geoscape without selecting a source first, intelligently suggesting actions from the nearest colonies and caravans.");
+
+        listing.CheckboxLabeled(
+            "PV_Settings_OptimisticDetours".CanTranslate() ? "PV_Settings_OptimisticDetours".Translate().ToString() : "Optimistic Caravan Detours",
+            ref optimisticCaravanDetours,
+            "PV_Settings_OptimisticDetours_Desc".CanTranslate() ? "PV_Settings_OptimisticDetours_Desc".Translate().ToString() : "Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered.");
+
+        listing.CheckboxLabeled(
+            "PV_Settings_ThermalIntegrityAudit".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit".Translate().ToString() : "Thermal Integrity Def Audit",
+            ref enableThermalIntegrityAudit,
+            "PV_Settings_ThermalIntegrityAudit_Desc".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit_Desc".Translate().ToString() : "Automatically enforces non-combustible properties on metals, stone, and structural components at startup.");
 
         listing.Gap(4f);
         DrawToggleableIntSlider(

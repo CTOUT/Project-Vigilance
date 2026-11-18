@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <!-- Incursions & Contacts -->
+  <PV_Inspect_Incursion_Status>Status: {0}</PV_Inspect_Incursion_Status>
+  <PV_Inspect_Incursion_ETA>Projected Arrival: {0}</PV_Inspect_Incursion_ETA>
+  <PV_Inspect_Incursion_TerrainMasked>Terrain Masked (Mountain Valley)</PV_Inspect_Incursion_TerrainMasked>
+  <PV_Inspect_Incursion_RestingNight>Resting (Night Camp)</PV_Inspect_Incursion_RestingNight>
+  <PV_Contact_Unidentified>Unidentified Contact</PV_Contact_Unidentified>
+  <PV_Contact_UnidentifiedSite>Unidentified Site</PV_Contact_UnidentifiedSite>
+  <PV_Contact_UnidentifiedIncursion>Unidentified Track (?)</PV_Contact_UnidentifiedIncursion>
+
+  <!-- Orbital Assets -->
+  <PV_Inspect_Satellite_Altitude>Orbital Altitude: {0} km</PV_Inspect_Satellite_Altitude>
+  <PV_Inspect_Satellite_Footprint>Sensory Footprint: {0} hexes</PV_Inspect_Satellite_Footprint>
+  <PV_Inspect_Satellite_ServiceCorridor>Service Corridor: {0}</PV_Inspect_Satellite_ServiceCorridor>
+  <PV_Inspect_Station_SatellitesInService>Satellites In Service: {0}</PV_Inspect_Station_SatellitesInService>
+  <PV_Inspect_Station_OrbitPhase>Orbital Phase: {0:F1}°</PV_Inspect_Station_OrbitPhase>
+
+  <!-- Outposts & Aftermath -->
+  <PV_Inspect_Outpost_AssemblyProgress>Assembly Progress: {0:P0}</PV_Inspect_Outpost_AssemblyProgress>
+  <PV_Inspect_Outpost_Operational>Status: Operational</PV_Inspect_Outpost_Operational>
+  <PV_Inspect_Outpost_Sabotaged>Status: Sabotaged (Repairs Required)</PV_Inspect_Outpost_Sabotaged>
+  <PV_Inspect_Aftermath_ScavengeTime>Scavenge Window Remaining: {0}</PV_Inspect_Aftermath_ScavengeTime>
+</LanguageData>

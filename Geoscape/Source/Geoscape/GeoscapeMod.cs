@@ -49,6 +49,6 @@ public class GeoscapeMod : Mod
         Settings.DoWindowContents(inRect);
     }
 
-    public override string SettingsCategory() => "Project Vigilance: Geoscape";
+    public override string SettingsCategory() => "Project Vigilance";
 }
 

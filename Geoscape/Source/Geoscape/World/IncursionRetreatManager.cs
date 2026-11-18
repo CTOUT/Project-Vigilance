@@ -60,6 +60,11 @@ public class IncursionRetreatManager : WorldComponent
     private List<RetreatBatch> activeBatches = new();
     private List<IncarcerationRecord> incarceratedColonists = new();
 
+    /// <summary>
+    /// Invoked whenever a captured colonist is incarcerated within an enemy settlement.
+    /// </summary>
+    public static event Action<Pawn, Settlement?>? OnCaptiveIncarcerated;
+
     public static void RecordSettlementIncarceration(Pawn captive, PlanetTile settlementTile, Faction? faction)
     {
         if (Instance == null || captive == null) return;
@@ -70,6 +75,8 @@ public class IncursionRetreatManager : WorldComponent
             faction = faction,
             captureGameTick = Find.TickManager.TicksGame
         });
+        Settlement? destinationSettlement = Find.WorldObjects?.SettlementAt(settlementTile);
+        OnCaptiveIncarcerated?.Invoke(captive, destinationSettlement);
         Log.Message($"[Project Vigilance] Colonist {captive.LabelShort} registered as incarcerated at settlement tile {settlementTile}.");
     }
 

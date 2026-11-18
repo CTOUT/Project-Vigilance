@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <!-- Campaign Rule Profiles -->
+  <PV_Profile_ClassicHaze_Title>Classic Haze of War</PV_Profile_ClassicHaze_Title>
+  <PV_Profile_ClassicHaze_Desc>Authentic 3-tier Fog of War. The globe begins shrouded in the black unknown; explored terrain becomes Slate Haze; active radar/scout coverage reveals dynamic hostiles.</PV_Profile_ClassicHaze_Desc>
+
+  <PV_Profile_TacticalSurveillance_Title>Tactical Site Surveillance</PV_Profile_TacticalSurveillance_Title>
+  <PV_Profile_TacticalSurveillance_Desc>Planetary geography is known, but dynamic hostiles and unvisited sites remain masked until within sensory envelopes.</PV_Profile_TacticalSurveillance_Desc>
+
+  <PV_Profile_Omniscient_Title>Omniscient (Vanilla)</PV_Profile_Omniscient_Title>
+  <PV_Profile_Omniscient_Desc>Vanilla spectator mode. Entire planetary surface and all incursion vectors are completely visible at all times.</PV_Profile_Omniscient_Desc>
+
+  <!-- Landfall & Adoption Dialogs -->
+  <PV_Touchdown_UnviableSector>Touchdown in unviable sector. Landfall must take place in an explored or accessible region.</PV_Touchdown_UnviableSector>
+  <PV_Dialog_Adopt_Title>Project Vigilance Campaign Rules</PV_Dialog_Adopt_Title>
+  <PV_Dialog_Adopt_Desc>Select the sensory and fog-of-war rules for this world:</PV_Dialog_Adopt_Desc>
+  <PV_Dialog_Confirm>Confirm</PV_Dialog_Confirm>
+  <PV_Dialog_Cancel>Cancel</PV_Dialog_Cancel>
+</LanguageData>

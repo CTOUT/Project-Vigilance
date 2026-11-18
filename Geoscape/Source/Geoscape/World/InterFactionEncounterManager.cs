@@ -74,6 +74,11 @@ public class InterFactionEncounterManager : WorldComponent
     {
         base.WorldComponentTick();
 
+        if (GeoscapeMod.Settings != null && !GeoscapeMod.Settings.enableInterFactionCollisions)
+        {
+            return;
+        }
+
         if (Current.Game?.tickManager is { } tm && tm.TicksGame % CheckIntervalTicks == 0)
         {
             DeepProfiler.Start("ProjectVigilance.InterFactionEncounters");

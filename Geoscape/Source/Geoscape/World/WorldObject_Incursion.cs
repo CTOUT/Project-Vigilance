@@ -1192,12 +1192,14 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
         SensoryManager.Instance?.RegisterTarget(this);
         ContactRegistry.Instance?.RegisterContact(this);
+        IncursionManager.Notify_IncursionSpawned(this);
     }
 
     public override void PostRemove()
     {
         SensoryManager.Instance?.DeregisterTarget(this);
         ContactRegistry.Instance?.Notify_ContactRemoved(this);
+        IncursionManager.Notify_IncursionDeparted(this);
         base.PostRemove();
     }
 

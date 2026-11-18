@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <!-- Settings Tab Headers -->
+  <PV_Settings_Tab_Sensory>Sensory &amp; Visibility</PV_Settings_Tab_Sensory>
+  <PV_Settings_Tab_Radar>Radar &amp; Visuals</PV_Settings_Tab_Radar>
+  <PV_Settings_Tab_Incursions>Incursions</PV_Settings_Tab_Incursions>
+  <PV_Settings_Tab_Geoscape>Geoscape Rules</PV_Settings_Tab_Geoscape>
+  <PV_Settings_Tab_Diagnostics>Diagnostics</PV_Settings_Tab_Diagnostics>
+
+  <!-- Curated Themes -->
+  <PV_Settings_Theme_TacticalCyan>Tactical Cyan (Default)</PV_Settings_Theme_TacticalCyan>
+  <PV_Settings_Theme_AmberCRT>Amber CRT (1980s Retro)</PV_Settings_Theme_AmberCRT>
+  <PV_Settings_Theme_EmeraldPhosphor>Emerald Phosphor (Surplus)</PV_Settings_Theme_EmeraldPhosphor>
+  <PV_Settings_Theme_CrimsonAlert>Crimson Alert (High Urgency)</PV_Settings_Theme_CrimsonAlert>
+  <PV_Settings_Theme_GhostWhite>Ghost White (Monochrome)</PV_Settings_Theme_GhostWhite>
+  <PV_Settings_Theme_HighContrast>High-Contrast Tactical</PV_Settings_Theme_HighContrast>
+  <PV_Settings_Theme_ProtanopiaDeuteranopia>Red-Green Safe (Protanopia/Deuteranopia)</PV_Settings_Theme_ProtanopiaDeuteranopia>
+  <PV_Settings_Theme_Tritanopia>Blue-Yellow Safe (Tritanopia)</PV_Settings_Theme_Tritanopia>
+
+  <!-- Palette Overrides & Feature Toggles -->
+  <PV_Settings_UseCustomPaletteOverrides>Use Custom Palette Overrides</PV_Settings_UseCustomPaletteOverrides>
+  <PV_Settings_UseCustomPaletteOverrides_Desc>Enable granular RGB/HSV sliders for Radar, Identification, and Scout perimeters. When disabled, curated theme presets apply.</PV_Settings_UseCustomPaletteOverrides_Desc>
+  <PV_Settings_ThermalIntegrityAudit>Thermal Integrity Def Audit</PV_Settings_ThermalIntegrityAudit>
+  <PV_Settings_ThermalIntegrityAudit_Desc>Automatically enforces non-combustible properties on metals, stone, and structural components at startup.</PV_Settings_ThermalIntegrityAudit_Desc>
+  <PV_Settings_OptimisticDetours>Optimistic Caravan Detours</PV_Settings_OptimisticDetours>
+  <PV_Settings_OptimisticDetours_Desc>Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered.</PV_Settings_OptimisticDetours_Desc>
+  <PV_Settings_InterFactionCollisions>Inter-Faction Overland Collisions</PV_Settings_InterFactionCollisions>
+  <PV_Settings_InterFactionCollisions_Desc>Simulates background encounters and skirmishes when rival NPC incursions cross paths on the globe.</PV_Settings_InterFactionCollisions_Desc>
+</LanguageData>

@@ -845,6 +845,11 @@ public class MapComponent_OverlandAmbush : MapComponent
         ambushSprung = true;
         isActive = false;
 
+        if (sourceIncursion != null)
+        {
+            IncursionInterceptionUtility.Notify_AmbushSprung(sourceIncursion, null);
+        }
+
         Log.Message($"[Project Vigilance] Ambush sprung on map {map.uniqueID}. Reason: {reason}");
 
         // Keep world incursion marked as engaged in tactical map

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <!-- Early Warning & Detection Letters -->
+  <PV_Letter_ContactDetected_Label>Contact Detected: {0}</PV_Letter_ContactDetected_Label>
+  <PV_Letter_ContactDetected_Desc>Long-range surveillance has detected an unknown vector: {0}.\n\n• Originating sector: {1}\n• Bearing/Heading: {2}\n• Current speed: {3}\n\nEstablish visual or radar tracking to classify the target's origin and intention.</PV_Letter_ContactDetected_Desc>
+
+  <PV_Letter_ThreatIdentified_Label>Threat Identified: {0}</PV_Letter_ThreatIdentified_Label>
+  <PV_Letter_ThreatIdentified_Desc>Tactical tracking has classified contact {0}.\n\n• Faction: {1}\n• Force Composition: {2}\n• Projected Destination: {3}\n• Estimated Time of Arrival: {4}\n\nPrepare planetary defences or deploy an intercepting expedition.</PV_Letter_ThreatIdentified_Desc>
+
+  <!-- Encounter & Ambush Letters -->
+  <PV_Letter_EncounterAftermath_Label>Encounter Aftermath: {0}</PV_Letter_EncounterAftermath_Label>
+  <PV_Letter_EncounterAftermath_Desc>A battlefield aftermath site has been established at {0}. Wreckage, equipment, and survivors remain in the sector.</PV_Letter_EncounterAftermath_Desc>
+
+  <PV_Letter_AmbushPosition_Label>Ambush Position: {0}</PV_Letter_AmbushPosition_Label>
+  <PV_Letter_RescueAmbush_Label>Rescue Ambush: {0}</PV_Letter_RescueAmbush_Label>
+  <PV_Letter_TacticalAmbush_Label>Tactical Ambush: {0}</PV_Letter_TacticalAmbush_Label>
+  <PV_Letter_AmbushBriefing_Desc>Your forces have established an ambush perimeter against {0}.\n\n• The ambush will be sprung if an enemy gets clear line of sight to a colonist within 18 cells, or if your forces open fire or inflict damage.\n• Drafted colonists hold fire and remain concealed in brush and cover.</PV_Letter_AmbushBriefing_Desc>
+
+  <!-- Rumours & Reconnaissance -->
+  <PV_Rumour_Sighting_Desc>Travellers report sighting unfamiliar tracks near {0}.</PV_Rumour_Sighting_Desc>
+  <PV_SiteConcealed_Notice>Target location is concealed by the shroud of war. Explore nearby sectors to reveal exact coordinates.</PV_SiteConcealed_Notice>
+</LanguageData>

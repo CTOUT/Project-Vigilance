@@ -17,6 +17,41 @@ public class SensoryManager : WorldComponent
 {
     public const int SweepIntervalTicks = 250; // ~4.16 seconds (realistic radar rotation / visual sweep rate)
 
+    /// <summary>
+    /// Invoked whenever a previously undetected contact enters sensor coverage.
+    /// </summary>
+    public static event Action<ISensorProvider, IDetectableTarget, IntelligenceTier>? OnContactDetected;
+
+    /// <summary>
+    /// Invoked whenever an existing contact's intelligence tier is classified or upgraded.
+    /// </summary>
+    public static event Action<IDetectableTarget, IntelligenceTier>? OnContactClassified;
+
+    /// <summary>
+    /// Invoked whenever a tracked contact moves outside all sensor envelopes and becomes undetected.
+    /// </summary>
+    public static event Action<IDetectableTarget>? OnContactLost;
+
+    /// <summary>
+    /// Registers a third-party or dynamic sensor provider into the planetary sensory grid.
+    /// </summary>
+    public static void RegisterDynamicSensor(ISensorProvider sensor) => Instance?.RegisterSensor(sensor);
+
+    /// <summary>
+    /// Unregisters a third-party or dynamic sensor provider from the planetary sensory grid.
+    /// </summary>
+    public static void UnregisterDynamicSensor(ISensorProvider sensor) => Instance?.DeregisterSensor(sensor);
+
+    /// <summary>
+    /// Registers a third-party or dynamic detectable target for planetary tracking sweeps.
+    /// </summary>
+    public static void RegisterDynamicTarget(IDetectableTarget target) => Instance?.RegisterTarget(target);
+
+    /// <summary>
+    /// Unregisters a third-party or dynamic detectable target from planetary tracking sweeps.
+    /// </summary>
+    public static void UnregisterDynamicTarget(IDetectableTarget target) => Instance?.DeregisterTarget(target);
+
     private static readonly Predicate<IDetectableTarget> StaleTargetPredicate = static t => t is WorldObject wo && (wo.Destroyed || (Find.World != null && !wo.Spawned));
 
     /// <summary>
@@ -599,14 +634,25 @@ public class SensoryManager : WorldComponent
 
                     if (bestTier > target.CurrentIntelligenceTier)
                     {
+                        IntelligenceTier prevTier = target.CurrentIntelligenceTier;
                         target.OnDetected(bestSensor!, bestTier);
                         anyTargetTierChanged = true;
+
+                        if (prevTier == IntelligenceTier.Undetected && bestTier >= IntelligenceTier.Contact)
+                        {
+                            OnContactDetected?.Invoke(bestSensor!, target, bestTier);
+                        }
+                        if (bestTier >= IntelligenceTier.Classified && prevTier < IntelligenceTier.Classified)
+                        {
+                            OnContactClassified?.Invoke(target, bestTier);
+                        }
                     }
                     else if (bestTier == IntelligenceTier.Undetected && target.CurrentIntelligenceTier != IntelligenceTier.Undetected)
                     {
                         // Target has moved into a blind spot / unmonitored sector
                         target.CurrentIntelligenceTier = IntelligenceTier.Undetected;
                         anyTargetTierChanged = true;
+                        OnContactLost?.Invoke(target);
                     }
 
                     // Discrete radar/sonar jump update on every pulse sweep for detected contacts

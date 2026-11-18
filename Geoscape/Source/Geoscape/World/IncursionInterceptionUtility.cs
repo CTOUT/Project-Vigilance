@@ -15,6 +15,24 @@ public static class IncursionInterceptionUtility
     private static readonly HashSet<int> notifiedContactLostCaravans = new();
     private static readonly Dictionary<int, int> contactLostDebounceTicks = new();
 
+    /// <summary>
+    /// Invoked whenever an incursion is intercepted overland by a player caravan.
+    /// </summary>
+    public static event Action<WorldObject_Incursion, Caravan>? OnIncursionIntercepted;
+
+    /// <summary>
+    /// Invoked whenever a concealed tactical ambush is sprung against an incursion.
+    /// </summary>
+    public static event Action<WorldObject_Incursion, Caravan?>? OnAmbushSprung;
+
+    internal static void Notify_AmbushSprung(WorldObject_Incursion incursion, Caravan? caravan)
+    {
+        if (incursion != null)
+        {
+            OnAmbushSprung?.Invoke(incursion, caravan);
+        }
+    }
+
     public static void ConsumeInterceptOrder(Caravan caravan, WorldObject_Incursion incursion)
     {
         if (caravan?.pather?.ArrivalAction is CaravanArrivalAction_InterceptIncursion intercept && intercept.TargetIncursion == incursion)
@@ -31,6 +49,7 @@ public static class IncursionInterceptionUtility
         }
 
         ConsumeInterceptOrder(caravan, incursion);
+        OnIncursionIntercepted?.Invoke(incursion, caravan);
 
         bool isHostile = incursion.Faction?.HostileTo(Faction.OfPlayer) ?? true;
 

@@ -191,7 +191,8 @@ public static class OptimisticPathingUtility
     public static bool ShouldUseOptimisticPathing()
     {
         return (Active || ForceActive) &&
-               GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar;
+               GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar &&
+               (GeoscapeMod.Settings == null || GeoscapeMod.Settings.optimisticCaravanDetours);
     }
 
     public static bool IsTileUnexplored(PlanetTile tile)
@@ -299,7 +300,7 @@ public static class OptimisticPathingUtility
             return;
         }
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar || (GeoscapeMod.Settings != null && !GeoscapeMod.Settings.optimisticCaravanDetours))
         {
             return;
         }
