@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Deploys the Geoscape mod to the local RimWorld Mods directory using an NTFS junction or symlink.
 
