@@ -16,15 +16,20 @@
     Defaults to 'dist' in repository root.
 
 .PARAMETER StageWorkshopJunction
-    When set, switches the local RimWorld Mods/ junction to point at the clean
-    dist/ staging folder (without Source/ or build caches) ready for Steam Workshop upload.
+    Optional backward-compatibility switch (Workshop junction staging is now automatic
+    on Windows when RimWorld's Mods directory exists unless -SkipJunctionUpdate is set).
+
+.PARAMETER SkipJunctionUpdate
+    Skips automatically switching the local RimWorld Mods/ junction to clean Workshop
+    staging after packaging.
 #>
 
 [CmdletBinding()]
 param(
     [string]$Version = '0.4.1',
     [string]$OutputDir = 'dist',
-    [switch]$StageWorkshopJunction
+    [switch]$StageWorkshopJunction,
+    [switch]$SkipJunctionUpdate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -147,7 +152,8 @@ Write-Host "==> [Project Vigilance] Packaging complete!" -ForegroundColor Green
 Write-Host "    Staging Directory: $stagingPath" -ForegroundColor Gray
 Write-Host "    Distribution ZIP:  $zipFile ($zipSizeKb KB)" -ForegroundColor Gray
 
-if ($StageWorkshopJunction) {
+$defaultModsDir = 'D:\Games\Steam\steamapps\common\RimWorld\Mods'
+if ($StageWorkshopJunction -or (-not $SkipJunctionUpdate -and (Test-Path -LiteralPath $defaultModsDir))) {
     Write-Host "--> Switching RimWorld Mods/ junction to clean Workshop staging..." -ForegroundColor Yellow
     $switchJunctionScript = Join-Path $PSScriptRoot 'switch-mod-junction.ps1'
     & $switchJunctionScript -Mode Workshop

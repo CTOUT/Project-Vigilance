@@ -66,18 +66,21 @@ RIMWORLD_MODS_PATH="$DEFAULT_MODS_PATH"
 SKIP_BUILD=false
 REBUILD=false
 COPY_MODE=false
+DEV_MODE=false
 
 show_help() {
 	cat <<EOF
 Usage: $(basename "$0") [options] [mods_directory]
 
 Deploys Project Vigilance: Overland Incursions (Geoscape) to the local Linux
-RimWorld Mods directory using a symbolic link (or copy).
+RimWorld Mods directory using a symbolic link (or copy) to clean staging
+(dist/ProjectVigilance-OverlandIncursions, ~2.3 MB, excluding Source/).
 
 Options:
   -p, --path <path>    Specify custom RimWorld Mods directory
                        (Default: $DEFAULT_MODS_PATH)
-  -b, --skip-build     Skip compiling the .NET 10 solution
+  -b, --skip-build     Skip compiling the .NET 10 project
+  -d, --dev            Link/copy raw Geoscape/ directory instead of clean dist/ staging
   -c, --copy           Copy mod directory instead of creating a symlink
   -r, --rebuild        Force clean rebuild (dotnet build --no-incremental)
   -h, --help           Show this help message and exit
@@ -86,6 +89,7 @@ Detected Environment: $OS_NAME
 
 Examples:
   $(basename "$0")
+  $(basename "$0") --dev
   $(basename "$0") --skip-build
   $(basename "$0") -p ~/.local/share/Steam/steamapps/common/RimWorld/Mods
 EOF
@@ -104,6 +108,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	-b | --skip-build)
 		SKIP_BUILD=true
+		shift
+		;;
+	-d | --dev)
+		DEV_MODE=true
 		shift
 		;;
 	-c | --copy)
@@ -136,14 +144,15 @@ echo -e "${CYAN}==> [Project Vigilance] Starting Geoscape deployment pipeline ($
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 GEOSCAPE_DIR="$REPO_ROOT/Geoscape"
-SOLUTION_FILE="$GEOSCAPE_DIR/Source/Geoscape.slnx"
+STAGING_DIR="$REPO_ROOT/dist/ProjectVigilance-OverlandIncursions"
+PROJECT_FILE="$GEOSCAPE_DIR/Source/Geoscape/Geoscape.csproj"
 TARGET_DLL="$GEOSCAPE_DIR/1.7/Assemblies/Geoscape.dll"
 
 # Expand tilde if present in user-provided path
 RIMWORLD_MODS_PATH="${RIMWORLD_MODS_PATH/#\~/$HOME}"
 
-if [[ ! -f $SOLUTION_FILE ]]; then
-	echo -e "${RED}Error: Solution file not found at: $SOLUTION_FILE${NC}" >&2
+if [[ ! -f $PROJECT_FILE ]]; then
+	echo -e "${RED}Error: Project file not found at: $PROJECT_FILE${NC}" >&2
 	exit 1
 fi
 
@@ -153,35 +162,30 @@ if [[ -z ${XDG_RUNTIME_DIR:-} || ! -d ${XDG_RUNTIME_DIR:-} ]]; then
 fi
 
 # 2. Handle active assembly locks if RimWorld is running
-if [[ -f $TARGET_DLL ]]; then
-	rm -f "${TARGET_DLL}.old" 2>/dev/null || true
-	if command -v fuser >/dev/null 2>&1 && fuser "$TARGET_DLL" >/dev/null 2>&1; then
-		echo -e "${YELLOW}--> Active file lock detected on Geoscape.dll (RimWorld running). Rotating assembly...${NC}"
-		mv -f "$TARGET_DLL" "${TARGET_DLL}.old"
-	elif command -v lsof >/dev/null 2>&1 && lsof "$TARGET_DLL" >/dev/null 2>&1; then
-		echo -e "${YELLOW}--> Active file lock detected on Geoscape.dll (RimWorld running). Rotating assembly...${NC}"
-		mv -f "$TARGET_DLL" "${TARGET_DLL}.old"
+rotate_if_locked() {
+	local dll_path="$1"
+	if [[ -f $dll_path ]]; then
+		rm -f "${dll_path}.old" 2>/dev/null || true
+		if command -v fuser >/dev/null 2>&1 && fuser "$dll_path" >/dev/null 2>&1; then
+			echo -e "${YELLOW}--> Active file lock detected on $(basename "$dll_path") (RimWorld running). Rotating assembly...${NC}"
+			mv -f "$dll_path" "${dll_path}.old"
+		elif command -v lsof >/dev/null 2>&1 && lsof "$dll_path" >/dev/null 2>&1; then
+			echo -e "${YELLOW}--> Active file lock detected on $(basename "$dll_path") (RimWorld running). Rotating assembly...${NC}"
+			mv -f "$dll_path" "${dll_path}.old"
+		fi
 	fi
-fi
+}
 
-# 3. Compile .NET 10 binary
+rotate_if_locked "$TARGET_DLL"
+rotate_if_locked "$STAGING_DIR/1.7/Assemblies/Geoscape.dll"
+
+# 3. Compile .NET 10 binary (MSBuild StageCleanDistribution stages dist/ automatically)
 if [[ $SKIP_BUILD == false ]]; then
 	if command -v dotnet >/dev/null 2>&1; then
-		echo -e "${YELLOW}--> Compiling Geoscape.slnx targeting .NET 10 (Release)...${NC}"
-		BUILD_ARGS=("$SOLUTION_FILE" "--configuration" "Release")
+		echo -e "${YELLOW}--> Compiling Geoscape.csproj targeting .NET 10 (Release)...${NC}"
+		BUILD_ARGS=("$PROJECT_FILE" "--configuration" "Release")
 		if [[ $REBUILD == true ]]; then
 			BUILD_ARGS+=("--no-incremental")
-		fi
-
-		# If RimWorld directory is identified from mods path, pass RimWorldPath and HarmonyPath
-		RIMWORLD_ROOT="${RIMWORLD_MODS_PATH%/Mods}"
-		if [[ -d $RIMWORLD_ROOT ]]; then
-			BUILD_ARGS+=("-p:RimWorldPath=$RIMWORLD_ROOT")
-			STEAMAPPS_DIR="${RIMWORLD_ROOT%/common/RimWorld}"
-			HARMONY_CANDIDATE="$STEAMAPPS_DIR/workshop/content/294100/2009463077/1.7/Assemblies/0Harmony.dll"
-			if [[ -f $HARMONY_CANDIDATE ]]; then
-				BUILD_ARGS+=("-p:HarmonyPath=$HARMONY_CANDIDATE")
-			fi
 		fi
 
 		# If RimWorld directory is identified from mods path, pass RimWorldPath and HarmonyPath
@@ -221,6 +225,50 @@ else
 	echo -e "${YELLOW}--> Skipping compilation as requested (--skip-build).${NC}"
 fi
 
+# Clean any stray in-source bin/obj directories and unlocked .old backups
+find "$GEOSCAPE_DIR/Source" -type d \( -name bin -o -name obj \) -exec rm -rf {} + 2>/dev/null || true
+rm -f "$GEOSCAPE_DIR/1.7/Assemblies/"*.old "$STAGING_DIR/1.7/Assemblies/"*.old 2>/dev/null || true
+
+stage_clean_distribution() {
+	if [[ -f "$STAGING_DIR/About/PublishedFileId.txt" ]]; then
+		cp -f "$STAGING_DIR/About/PublishedFileId.txt" "$GEOSCAPE_DIR/About/PublishedFileId.txt"
+	fi
+
+	mkdir -p "$STAGING_DIR/About" "$STAGING_DIR/1.7/Assemblies"
+	rm -rf "$STAGING_DIR/Source" "$STAGING_DIR/1.7/Defs" "$STAGING_DIR/1.7/Patches" "$STAGING_DIR/1.7/Textures" "$STAGING_DIR/1.7/Languages"
+	rm -f "$STAGING_DIR/1.7/Assets.zip" "$STAGING_DIR/1.7/Assets.zip."* "$STAGING_DIR/1.7/Assemblies/"*.old 2>/dev/null || true
+
+	for about_file in About.xml Preview.png Icon.png ModIcon.png PublishedFileId.txt; do
+		if [[ -f "$GEOSCAPE_DIR/About/$about_file" ]]; then
+			cp -f "$GEOSCAPE_DIR/About/$about_file" "$STAGING_DIR/About/$about_file"
+		fi
+	done
+
+	if [[ -f "$GEOSCAPE_DIR/1.7/Assemblies/Geoscape.dll" ]]; then
+		cp -f "$GEOSCAPE_DIR/1.7/Assemblies/Geoscape.dll" "$STAGING_DIR/1.7/Assemblies/Geoscape.dll"
+	fi
+	if [[ -f "$GEOSCAPE_DIR/1.7/Assemblies/Geoscape.pdb" ]]; then
+		cp -f "$GEOSCAPE_DIR/1.7/Assemblies/Geoscape.pdb" "$STAGING_DIR/1.7/Assemblies/Geoscape.pdb"
+	fi
+
+	for subdir in Defs Patches Textures Languages; do
+		if [[ -d "$GEOSCAPE_DIR/1.7/$subdir" ]]; then
+			mkdir -p "$STAGING_DIR/1.7/$subdir"
+			cp -a "$GEOSCAPE_DIR/1.7/$subdir"/. "$STAGING_DIR/1.7/$subdir"/
+		fi
+	done
+
+	[[ -f "$REPO_ROOT/LICENSE" ]] && cp -f "$REPO_ROOT/LICENSE" "$STAGING_DIR/LICENSE"
+	[[ -f "$GEOSCAPE_DIR/README.md" ]] && cp -f "$GEOSCAPE_DIR/README.md" "$STAGING_DIR/README.md"
+}
+
+if [[ $DEV_MODE == true ]]; then
+	DEPLOY_SOURCE_DIR="$GEOSCAPE_DIR"
+else
+	stage_clean_distribution
+	DEPLOY_SOURCE_DIR="$STAGING_DIR"
+fi
+
 # 4. Validate or create target Mods directory
 if [[ ! -d $RIMWORLD_MODS_PATH ]]; then
 	echo -e "${YELLOW}--> RimWorld Mods directory does not exist. Creating:${NC} $RIMWORLD_MODS_PATH"
@@ -233,7 +281,7 @@ TARGET_DESTINATION="$RIMWORLD_MODS_PATH/ProjectVigilance-Geoscape"
 # Handle Flatpak sandbox permissions when using symlink mode
 if [[ $COPY_MODE == false && "$RIMWORLD_MODS_PATH" == *"/com.valvesoftware.Steam/"* ]]; then
 	if command -v flatpak >/dev/null 2>&1; then
-		if ! flatpak run --command=test com.valvesoftware.Steam -d "$GEOSCAPE_DIR" 2>/dev/null; then
+		if ! flatpak run --command=test com.valvesoftware.Steam -d "$DEPLOY_SOURCE_DIR" 2>/dev/null; then
 			echo -e "${YELLOW}--> Flatpak Steam sandbox detected without access to project directory.${NC}"
 			echo -e "${YELLOW}    Granting Flatpak filesystem permission to read $REPO_ROOT...${NC}"
 			flatpak override --user com.valvesoftware.Steam --filesystem="$REPO_ROOT:ro"
@@ -245,26 +293,26 @@ if [[ $COPY_MODE == true ]]; then
 	echo -e "${YELLOW}--> Copy mode enabled. Syncing mod files to: $TARGET_DESTINATION${NC}"
 	rm -rf "$TARGET_DESTINATION"
 	mkdir -p "$TARGET_DESTINATION"
-	cp -a "$GEOSCAPE_DIR"/. "$TARGET_DESTINATION"/
+	cp -a "$DEPLOY_SOURCE_DIR"/. "$TARGET_DESTINATION"/
 	echo -e "${GREEN}--> Copied mod successfully: $TARGET_DESTINATION${NC}"
 else
 	if [[ -L $TARGET_DESTINATION ]]; then
 		CURRENT_TARGET="$(readlink -f "$TARGET_DESTINATION" || true)"
-		if [[ $CURRENT_TARGET == "$GEOSCAPE_DIR" ]]; then
-			echo -e "${GREEN}--> Symlink already exists and is healthy: $TARGET_DESTINATION -> $GEOSCAPE_DIR${NC}"
+		if [[ $CURRENT_TARGET == "$DEPLOY_SOURCE_DIR" ]]; then
+			echo -e "${GREEN}--> Symlink already exists and is healthy: $TARGET_DESTINATION -> $DEPLOY_SOURCE_DIR${NC}"
 		else
-			echo -e "${YELLOW}--> Symlink points to $CURRENT_TARGET. Updating to $GEOSCAPE_DIR...${NC}"
-			ln -sfn "$GEOSCAPE_DIR" "$TARGET_DESTINATION"
-			echo -e "${GREEN}--> Updated symlink: $TARGET_DESTINATION -> $GEOSCAPE_DIR${NC}"
+			echo -e "${YELLOW}--> Symlink points to $CURRENT_TARGET. Updating to $DEPLOY_SOURCE_DIR...${NC}"
+			ln -sfn "$DEPLOY_SOURCE_DIR" "$TARGET_DESTINATION"
+			echo -e "${GREEN}--> Updated symlink: $TARGET_DESTINATION -> $DEPLOY_SOURCE_DIR${NC}"
 		fi
 	elif [[ -e $TARGET_DESTINATION ]]; then
-		echo -e "${YELLOW}--> Target exists and is not a symlink. Replacing with symlink: $TARGET_DESTINATION -> $GEOSCAPE_DIR${NC}"
+		echo -e "${YELLOW}--> Target exists and is not a symlink. Replacing with symlink: $TARGET_DESTINATION -> $DEPLOY_SOURCE_DIR${NC}"
 		rm -rf "$TARGET_DESTINATION"
-		ln -sfn "$GEOSCAPE_DIR" "$TARGET_DESTINATION"
-		echo -e "${GREEN}--> Created symlink: $TARGET_DESTINATION -> $GEOSCAPE_DIR${NC}"
+		ln -sfn "$DEPLOY_SOURCE_DIR" "$TARGET_DESTINATION"
+		echo -e "${GREEN}--> Created symlink: $TARGET_DESTINATION -> $DEPLOY_SOURCE_DIR${NC}"
 	else
-		ln -sfn "$GEOSCAPE_DIR" "$TARGET_DESTINATION"
-		echo -e "${GREEN}--> Created symlink: $TARGET_DESTINATION -> $GEOSCAPE_DIR${NC}"
+		ln -sfn "$DEPLOY_SOURCE_DIR" "$TARGET_DESTINATION"
+		echo -e "${GREEN}--> Created symlink: $TARGET_DESTINATION -> $DEPLOY_SOURCE_DIR${NC}"
 	fi
 fi
 
@@ -290,4 +338,9 @@ if [[ "$RIMWORLD_MODS_PATH" == *"/com.valvesoftware.Steam/"* ]] && command -v fl
 	fi
 fi
 
-echo -e "${CYAN}==> [Project Vigilance] Deployment complete. Mod is active in: $TARGET_DESTINATION${NC}"
+DEPLOY_SIZE="$(du -sh "$DEPLOY_SOURCE_DIR" 2>/dev/null | cut -f1 || echo 'unknown')"
+MODE_LABEL="Clean staging (Workshop-ready)"
+if [[ $DEV_MODE == true ]]; then
+	MODE_LABEL="Dev (raw Geoscape)"
+fi
+echo -e "${CYAN}==> [Project Vigilance] Deployment complete [$MODE_LABEL]: $TARGET_DESTINATION -> $DEPLOY_SOURCE_DIR ($DEPLOY_SIZE)${NC}"

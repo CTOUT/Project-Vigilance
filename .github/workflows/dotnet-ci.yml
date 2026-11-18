@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - "Directory.Build.props"
       - "Geoscape/**"
       - "lib/ref/**"
       - ".github/workflows/dotnet-ci.yml"
@@ -12,6 +13,7 @@ on:
     branches:
       - main
     paths:
+      - "Directory.Build.props"
       - "Geoscape/**"
       - "lib/ref/**"
       - ".github/workflows/dotnet-ci.yml"
