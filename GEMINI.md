@@ -21,10 +21,11 @@
 - Keep release milestones strictly focused on verified core features.
 - Incomplete, experimental, or unpolished mechanics (e.g., non-standard satellite roles, coastal sonar) must remain gated behind `Prefs.DevMode` or debug-only menus until their dedicated milestone.
 
-## 5. Headless Test Safe Lifecycle
+## 5. Headless Test Safe Lifecycle & Parallel Isolation
 
 - When overriding WorldObject or Thing lifecycle methods, never assume `Find.World` implies `Find.WorldObjects` or `Find.FactionManager` are initialised.
 - Guard against null sub-managers to allow headless test runners to execute without mocking entire engine singletons.
+- Because `MSTestSettings.cs` enables method-level parallelisation, every `[TestClass]` that calls `GeoscapeTestHarness.ResetAllStaticState()`, sets `VigilanceModuleManager` test overrides, or mutates static singletons (`SensoryManager.Instance`, global hooks) MUST be annotated with `[DoNotParallelize]`.
 
 ## 6. Project Documentation & Repository Colocation
 
@@ -65,6 +66,14 @@
 
 ## 12. Modular Separation & Unified Options Architecture
 
-- Optional domain mechanics (e.g. coastal sonar, bathymetry, tactical battlescape) must not introduce hard assembly compile-time dependencies into `ProjectVigilance.Core`.
-- Use interface contracts and soft mod checks (`ModLister.HasActiveModWithIdentifier`) for inter-module integration.
-- Sub-modules must register their options tabs dynamically into Core's unified `ISettingsTabProvider` registry rather than creating separate cluttered entries in RimWorld's Mod Options list.
+- Optional domain mechanics (e.g. orbital logistics, coastal sonar, thermal integrity, tactical battlescape) must not introduce hard compile-time assembly references between domain modules or into `ProjectVigilance.Core`.
+- Declare `brrainz.harmony` ONLY in `Core/About/About.xml`; domain sub-modules declare only `ProjectVigilance.Core` in `<modDependencies>` and reference `ProjectVigilance.Core.csproj` with `<Private>false</Private>`.
+- Use Core interfaces, `VigilanceModuleManager` soft hooks registered via `[StaticConstructorOnStartup]` (never `[ModuleInitializer]`, which violates `CA2255`), and XML `PatchOperationFindMod` for conditional cross-module integration.
+- Only `VigilanceCoreMod` returns `"Project Vigilance"` from `SettingsCategory()`; domain sub-modules return `string.Empty`, register tabs into `VigilanceSettingsRegistry` via `ISettingsTabProvider`, and subscribe to `VigilanceSettingsRegistry.OnWriteAllSettings`.
+
+## 13. Modular Savegame Migration & Workshop Continuity
+
+- Never delete or overwrite `Geoscape/About/PublishedFileId.txt` (`3822378226`); existing subscribers receive modular updates through the anchor package.
+- Whenever public types move into `ProjectVigilance.Core`, preserve their CLR namespaces where appropriate and emit `[assembly: TypeForwardedTo(...)]` entries in `Geoscape/Source/Geoscape/AssemblyForwarders.cs`.
+- Whenever Defs or WorldComponents extract out of an existing package into an optional module, add safe Scribe redirection mappings in `BackCompatibilityConverter_VigilanceModular` (`MissingModuleWorldObjectStub` / `DeprecatedWorldComponentStub`) so pre-split or partial-module saves load with zero red console errors.
+- Wire extracted modules into `VigilanceMigrationTracker` and `Dialog_VigilanceModuleMigration` so players receive clear missing-module advisories, Workshop links, and one-click stub retirement (`RuleChangeKind.ModuleMigration`).
