@@ -31,6 +31,6 @@ Active plans, specs, and operations guides reside in the parent `docs/` folder.
 
 ---
 
-## Milestone 1.4 (v0.5.0-dev)
+## Milestone 1.4 (v0.4.1)
 
 - **Completed Streams:** Headless CI reference assembly stubs (`refasmer`), custom visual asset pipeline with neutral grayscale livery masks, programmatic post-def thermal integrity engine (`ThermalIntegrityPostDefProcessor`), zero-allocation Keplerian solver optimization, and WCAG AA accessibility audit. Active specifications live in `docs/architecture/`, `docs/modules/`, and parent `docs/`.

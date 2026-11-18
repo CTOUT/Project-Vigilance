@@ -9,7 +9,7 @@
     or manual RimWorld mod installation.
 
 .PARAMETER Version
-    The release version tag (defaults to '0.3.0').
+    The release version tag (defaults to '0.4.1').
 
 .PARAMETER OutputDir
     The output directory where staging and zip packages will be generated.
@@ -18,7 +18,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Version = '0.3.0',
+    [string]$Version = '0.4.1',
     [string]$OutputDir = 'dist'
 )
 
