@@ -31,9 +31,7 @@ public static class SpaceObject_InspectString_Patch
     {
         if (__instance == null ||
             __instance is IOrbitalEntity ||
-            __instance is MapParent ||
             __instance is Caravan ||
-            __instance is Site ||
             __instance.def?.defName?.StartsWith("Vigilance_ListeningPost", System.StringComparison.Ordinal) == true)
         {
             return;
@@ -49,6 +47,10 @@ public static class SpaceObject_InspectString_Patch
             try
             {
                 var layer = __instance.Tile.Layer;
+                if (Find.WorldGrid?.Surface != null && layer == Find.WorldGrid.Surface)
+                {
+                    return;
+                }
                 isSpace = layer?.Def?.isSpace == true || layer?.Def?.defName == "Orbit";
             }
             catch

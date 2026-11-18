@@ -1,8 +1,10 @@
 using System.Linq;
 using LudeonTK;
 using ProjectVigilance.Core.Modules;
+using ProjectVigilance.Geoscape.Orbital;
 using RimWorld;
 using RimWorld.Planet;
+using UnityEngine;
 using Verse;
 
 namespace ProjectVigilance.Geoscape.Sensory;
@@ -19,8 +21,49 @@ public static class DebugActionsAquatics
             bool isMouseObscured = Find.WindowStack != null && Find.WindowStack.MouseObscuredNow;
             if (!isMouseObscured)
             {
+                PlanetLayer? surfaceLayer = Find.WorldGrid?.Surface;
                 PlanetTile mouseTile = GenWorld.MouseTile();
-                if (mouseTile.Valid) return mouseTile;
+                if (mouseTile.Valid && (surfaceLayer == null || mouseTile.Layer == surfaceLayer))
+                {
+                    return mouseTile;
+                }
+
+                Camera? worldCam = null;
+                try
+                {
+                    worldCam = Find.WorldCamera;
+                }
+                catch
+                {
+                    worldCam = null;
+                }
+
+                if (worldCam != null)
+                {
+                    Ray ray = worldCam.ScreenPointToRay(UI.MousePositionOnUIInverted * Prefs.UIScale);
+                    if (OrbitalFlightModel.TryProjectRayToPlanetDirection(ray.origin, ray.direction, out Vector3 dir))
+                    {
+                        PlanetTile surfaceTile = OrbitalFlightModel.FindClosestSurfaceTile(dir, surfaceLayer);
+                        if (surfaceTile.Valid)
+                        {
+                            return surfaceTile;
+                        }
+                    }
+                }
+
+                if (mouseTile.Valid)
+                {
+                    if (Find.WorldGrid != null)
+                    {
+                        Vector3 orbitTileDir = Find.WorldGrid.GetTileCenter(mouseTile);
+                        PlanetTile surfaceTile = OrbitalFlightModel.FindClosestSurfaceTile(orbitTileDir, surfaceLayer);
+                        if (surfaceTile.Valid)
+                        {
+                            return surfaceTile;
+                        }
+                    }
+                    return mouseTile;
+                }
             }
 
             if (Find.WorldSelector != null && Find.WorldSelector.SelectedTile.Valid)

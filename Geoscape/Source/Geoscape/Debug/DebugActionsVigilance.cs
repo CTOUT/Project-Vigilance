@@ -6,6 +6,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Geoscape.Orbital;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
 
@@ -73,8 +74,52 @@ public static class DebugActionsVigilance
             bool isMouseObscured = Find.WindowStack != null && Find.WindowStack.MouseObscuredNow;
             if (!isMouseObscured)
             {
+                PlanetLayer? surfaceLayer = Find.WorldGrid?.Surface;
                 PlanetTile mouseTile = GenWorld.MouseTile();
-                if (mouseTile.Valid) return mouseTile;
+                if (mouseTile.Valid && (surfaceLayer == null || mouseTile.Layer == surfaceLayer))
+                {
+                    return mouseTile;
+                }
+
+                // When Odyssey's Orbit layer is active (deep orbit view), GenWorld.MouseTile raycasts against the
+                // Orbit layer instead of Surface and returns Invalid (or an Orbit-layer tile) for clicks over the
+                // globe or orbital shell. Project the WorldCamera ray to the Surface tile directly beneath the cursor.
+                Camera? worldCam = null;
+                try
+                {
+                    worldCam = Find.WorldCamera;
+                }
+                catch
+                {
+                    worldCam = null;
+                }
+
+                if (worldCam != null)
+                {
+                    Ray ray = worldCam.ScreenPointToRay(UI.MousePositionOnUIInverted * Prefs.UIScale);
+                    if (OrbitalFlightModel.TryProjectRayToPlanetDirection(ray.origin, ray.direction, out Vector3 dir))
+                    {
+                        PlanetTile surfaceTile = OrbitalFlightModel.FindClosestSurfaceTile(dir, surfaceLayer);
+                        if (surfaceTile.Valid)
+                        {
+                            return surfaceTile;
+                        }
+                    }
+                }
+
+                if (mouseTile.Valid)
+                {
+                    if (Find.WorldGrid != null)
+                    {
+                        Vector3 orbitTileDir = Find.WorldGrid.GetTileCenter(mouseTile);
+                        PlanetTile surfaceTile = OrbitalFlightModel.FindClosestSurfaceTile(orbitTileDir, surfaceLayer);
+                        if (surfaceTile.Valid)
+                        {
+                            return surfaceTile;
+                        }
+                    }
+                    return mouseTile;
+                }
             }
 
             // B. If player has an explicitly selected tile on the world selector (fallback)

@@ -738,9 +738,14 @@ public sealed class CaravanExpeditionTests : GeoscapeTestBase
     [TestMethod]
     public void WorldObjects_ListeningPost_Xml_TexturePaths_And_Priorities()
     {
-        string xmlPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+        string geoscapeRelativePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
             System.AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..", "..", "1.7", "Defs", "WorldObjectDefs", "WorldObjects_ListeningPost.xml"));
+            "..", "..", "..", "..", "..", "Geoscape", "1.7", "Defs", "WorldObjectDefs", "WorldObjects_ListeningPost.xml"));
+        string xmlPath = System.IO.File.Exists(geoscapeRelativePath)
+            ? geoscapeRelativePath
+            : System.IO.Path.GetFullPath(System.IO.Path.Combine(
+                System.AppDomain.CurrentDomain.BaseDirectory,
+                "..", "..", "..", "..", "..", "1.7", "Defs", "WorldObjectDefs", "WorldObjects_ListeningPost.xml"));
 
         Assert.IsTrue(System.IO.File.Exists(xmlPath), $"XML file must exist at {xmlPath}");
         string xmlContent = System.IO.File.ReadAllText(xmlPath);

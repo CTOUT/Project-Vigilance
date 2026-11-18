@@ -4,13 +4,13 @@ This directory hosts the C# source code, XML Defs, and compiled mod package for 
 
 [![Steam Workshop](https://img.shields.io/badge/Steam_Workshop-3822378226-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)
 [![Steam Collection](https://img.shields.io/badge/Steam_Collection-Project_Vigilance-1b2838?logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)
-[![GitHub Release](https://img.shields.io/badge/Release-v0.3.0-238636?logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.3.0)
+[![GitHub Release](https://img.shields.io/badge/Release-v0.4.1-238636?logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.4.1)
 
 This is a **standalone, zero-dependency framework mod** designed for RimWorld 1.7 (Waylith) and `.NET 10`. It replaces instantaneous map-edge teleportation with physical overland transit across the global planetary grid.
 
 ---
 
-## Current Features (v0.3.0 Live & v0.4.0 Milestone 1.3)
+## Current Features (v0.4.1 — Milestone 1.4)
 
 - **Physical Incursion Engine:** Intercepts walk-in raids (`IncidentWorker_RaidEnemy`) and trade caravans (`IncidentWorker_TraderCaravanArrival`), spawning physical world entities that march across the planet.
 - **Grounded Storyteller Caravan Meetings, Extortion Demands & Ambushes:** Converts caravan meetings (`IncidentWorker_CaravanMeeting`), extortion demands (`IncidentWorker_CaravanDemand`), and enemy faction ambushes (`IncidentWorker_Ambush_EnemyFaction`) into persistent `WorldObject_Incursion` entities with shroud staging, non-blocking sighting alerts, and post-retreat hostile pursuit on the Geoscape when $\ge 50\%$ of surviving hostiles remain fit.
@@ -32,6 +32,8 @@ This is a **standalone, zero-dependency framework mod** designed for RimWorld 1.
 - **Interactive Telemetry:** Click approaching incursions to inspect their originating faction, remaining distance, estimated arrival time, and threat points.
 - **Save/Load Resilient:** Fully serialised via `IExposable` (`Scribe_Values`, `Scribe_References`, `Scribe_Deep`) so ongoing incursions persist across saves.
 - **Configurable Mod Settings:** In-game options menu to toggle storyteller cooldown resets upon incursion arrival and adjust overland speed multipliers.
+- **Custom Visual Assets & Faction Livery Masks:** Dedicated orthographic sprites for battlescape sensory structures and neutral grayscale world markers multiplying cleanly with runtime `Faction.Color`.
+- **Programmatic Thermal Integrity Engine:** Enforces non-combustible properties (`Flammability = 0`) across structural metals, sensory infrastructure, all-metal machinery, archotech gear, and Odyssey heavy bridges/substructures while preserving chemical batteries, wood bridges, and Bioferrite hulls.
 
 ---
 
@@ -42,7 +44,8 @@ Geoscape/
 ├── 1.7/
 │   ├── Assemblies/           # Compiled .NET 10 (net10.0) C# binaries (Geoscape.dll)
 │   ├── Defs/                 # XML Defs (Buildings, Research, WorldObjects, Letters)
-│   └── Patches/              # XML Patches (PlanetLayerPatch)
+│   ├── Patches/              # XML Patches (PlanetLayerPatch)
+│   └── Textures/             # Custom sensory buildings, outposts, and orbital masks
 ├── About/
 │   ├── About.xml             # RimWorld 1.7 mod metadata
 │   └── Preview.png           # Workshop & mod-manager preview graphic
@@ -55,9 +58,10 @@ Geoscape/
     │   ├── Patches/          # Harmony runtime patches
     │   ├── Rules/            # Campaign rules, mutability framework, wizard & dialogs
     │   ├── Sensory/          # Radar coverage, listening posts, optimistic pathing & Haze
+    │   ├── Thermal/          # Programmatic ThermalIntegrityPostDefProcessor audit engine
     │   ├── UI/               # Live tactical HUD radar scope preview & geometry helpers
     │   └── World/            # Incursion simulation, collision detection & skirmishes
-    └── Geoscape.Tests/       # Automated MSTest test suite (424 tests)
+    └── Geoscape.Tests/       # Automated MSTest test suite (441 tests)
 ```
 
 ---

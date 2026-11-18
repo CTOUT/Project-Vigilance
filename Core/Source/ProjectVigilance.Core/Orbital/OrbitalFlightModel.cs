@@ -265,6 +265,80 @@ public static class OrbitalFlightModel
     }
 
     /// <summary>
+    /// Projects a camera screen ray onto the planetary sphere or surrounding orbital shell ring
+    /// (radius [<paramref name="planetRadius"/>, <paramref name="maxOrbitalPickRadius"/>]) and outputs
+    /// the unit direction from the planet centre directly beneath that screen position.
+    /// Used when deep orbit view (<c>Orbit</c> layer) prevents <see cref="GenWorld.MouseTile"/> from hitting the Surface grid.
+    /// </summary>
+    public static bool TryProjectRayToPlanetDirection(
+        Vector3 rayOrigin,
+        Vector3 rayDirection,
+        out Vector3 planetDirection,
+        float planetRadius = 100f,
+        float maxOrbitalPickRadius = 145f)
+    {
+        planetDirection = Vector3.zero;
+        if (rayDirection.sqrMagnitude < 1e-6f)
+        {
+            return false;
+        }
+
+        Vector3 dir = rayDirection.normalized;
+        float tClosest = -Vector3.Dot(rayOrigin, dir);
+        if (tClosest <= 0f)
+        {
+            return false;
+        }
+
+        Vector3 closestPoint = rayOrigin + dir * tClosest;
+        float distFromCenterSq = closestPoint.sqrMagnitude;
+        float planetRadiusSq = planetRadius * planetRadius;
+
+        if (distFromCenterSq <= planetRadiusSq)
+        {
+            float halfChord = Mathf.Sqrt(Mathf.Max(0f, planetRadiusSq - distFromCenterSq));
+            float tHit = tClosest - halfChord;
+            Vector3 surfaceHit = rayOrigin + dir * (tHit > 0f ? tHit : tClosest);
+            if (surfaceHit.sqrMagnitude < 1e-6f)
+            {
+                return false;
+            }
+            planetDirection = surfaceHit.normalized;
+            return true;
+        }
+
+        if (distFromCenterSq <= maxOrbitalPickRadius * maxOrbitalPickRadius)
+        {
+            planetDirection = closestPoint.normalized;
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Resolves the closest valid tile on the planetary Surface layer (or specified <paramref name="surfaceLayer"/>)
+    /// for a given unit world direction vector.
+    /// </summary>
+    public static PlanetTile FindClosestSurfaceTile(Vector3 worldDirection, PlanetLayer? surfaceLayer = null)
+    {
+        if (worldDirection.sqrMagnitude < 1e-6f)
+        {
+            return PlanetTile.Invalid;
+        }
+
+        PlanetLayer? layer = surfaceLayer ?? Find.World?.grid?.Surface;
+        if (layer == null || layer.TilesCount == 0)
+        {
+            return PlanetTile.Invalid;
+        }
+
+        Vector3 normalizedDir = worldDirection.normalized;
+        PlanetTile seedTile = CoarseFindClosestTile(layer, normalizedDir);
+        return HillClimbClosestTile(layer, seedTile, normalizedDir);
+    }
+
+    /// <summary>
     /// Evaluates whether a target tile lies within the satellite's ground footprint.
     /// Uses RimWorld's WorldGrid spherical tile distance conversion when WorldGrid is available,
     /// ensuring exact parity with GenDraw.DrawWorldRadiusRing visual overlays.

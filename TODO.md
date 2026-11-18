@@ -2,45 +2,6 @@
 
 ## Active Roadmap: Phase 2 — Geoscape & Radar Grid (Standalone Framework)
 
-### Milestone 1.4: Tooling, Visual Assets & Structural Materials [COMPLETED & SYNCED]
-
-- [x] **Stream 1: Tooling & CI/CD — Mock Reference Assemblies & Headless Tests:**
-  - **Game Assembly Stubs (`refasmer`):** Generated stripped public API reference assemblies for RimWorld 1.7 Waylith core assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`). Stored stubs in `lib/ref/` and added generation script ([`scripts/generate-reference-assemblies.ps1`](scripts/generate-reference-assemblies.ps1)).
-  - **Automated Pull Request CI (`dotnet-ci.yml`):** Configured GitHub Actions workflow ([`.github/workflows/dotnet-ci.yml`](.github/workflows/dotnet-ci.yml)) running `dotnet restore` and `dotnet build` with fallback to `lib/ref/` reference assemblies.
-  - **Zero-Warning Enforcement:** Integrated `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in project files and patched obsolete `Harmony.PatchAll()` call.
-- [x] **Stream 2: Custom Visual Asset Pipeline & Faction Livery Tinting (Functional Placeholders):**
-  - [x] **Orbital Infrastructure (`Textures/ProjectVigilance/Geoscape/World/Orbital/`):**
-    - Authored custom 128×128 `RGBA32` functional placeholder sprites with neutral white/grayscale palette masks for clean `Faction.Color` tinting via [`scripts/generate-orbital-icons.ps1`](scripts/generate-orbital-icons.ps1).
-    - Persistent Orbital Logistics Hub (`WorldObject_OrbitalStation`): Spoke-and-hub modular space station and orbital dock with 4 radial truss spokes, outlying pods, and solar wings ([`OrbitalHub.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/OrbitalHub.png)).
-    - Populated Coverage Anchoring: Restrict station and satellite spawning to active world coverage and populated hexes (`FindPopulatedCoverageAnchorTile`).
-    - Altitude Stratification & Hard Orbit Ceiling: Banded visual altitude mapping (`LEO` 4–10, `MEO` 10–24, `GEO` 24–34) and hard render limits (`MaxOrbitalRenderRadius = 135f` in `OrbitalFlightModel` and `145f` in `WorldObject_DrawPos_Patch`).
-    - Specialized Satellite Chassis (`WorldObject_Satellite`): Functional placeholder sprites for Reconnaissance ([`Satellite_Recon.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Recon.png)), Trade ([`Satellite_Trade.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Trade.png)), Navigation ([`Satellite_Nav.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Nav.png)), Communication ([`Satellite_Comms.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Comms.png)), and Military ([`Satellite_Military.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Military.png)).
-  - [x] **Lightweight Geoscape Outposts (`Textures/ProjectVigilance/Geoscape/World/Outposts/`):**
-    - Authored custom 128×128 `RGBA32` functional placeholder icons with neutral white/grayscale palette masks via [`scripts/generate-outpost-icons.ps1`](scripts/generate-outpost-icons.ps1).
-    - Dedicated world map markers for Automated Listening Posts ([`Outpost_Radar.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Radar.png)), Signal Beacons ([`Outpost_Beacon.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Beacon.png)), and Automated Sonar Stations ([`Outpost_Sonar.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Sonar.png)).
-    - Encounter Aftermath ([`EncounterAftermath.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/EncounterAftermath.png)): Smouldering battlefield wreckage and crater debris site replacing `Sites/ItemStash`.
-  - [x] **Battlescape Sensory Buildings (`Textures/ProjectVigilance/Geoscape/Buildings/Sensory/`):**
-    - Lookout Watchtower: Dedicated 2×3 footprint timber/stone observation tower with staircase and covered viewing platform, replacing `SteleLarge` ([`LookoutTower.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/LookoutTower.png)).
-    - Colony Sensory Infrastructure: Functional placeholder orthographic graphics for Early-Warning Radar Dome (3×3) ([`RadarDomeSmall.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/RadarDomeSmall.png)), Spacer Phased Array (4×4 with 4-way rotation) ([`PhasedArrayLarge_south.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/PhasedArrayLarge_south.png)), SIGINT Decryption Console (3×2 with 4-way rotation) ([`SigintConsole_south.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/SigintConsole_south.png)), and Coastal Hydrophone Station (3×3) ([`SonarStation.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/SonarStation.png)).
-  - [x] **Dynamic Faction Colour Shifting Specification:**
-    - All world entity icons and satellite sprites must be authored as neutral grayscale / white silhouette masks with transparent backgrounds (`RGBA32`).
-    - Clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions (Outlanders, Pirates, Empire, Tribals, and modded factions).
-    - Note: Assets serve as verified functional placeholders; dedicated high-fidelity art overhaul scheduled for visual polish milestone.
-- [x] **Stream 3: Programmatic Thermal Integrity Post-Def Audit Engine:**
-  - **Programmatic Post-Def Processing:** Implemented `ThermalIntegrityPostDefProcessor` executing at startup (`[StaticConstructorOnStartup]`) to programmatically enforce non-combustible properties across core, DLC, and mod defs without fragile manual XML patches.
-  - **Structural & Precious Metals:** Set raw item and Stuff factor `Flammability = 0` on `Steel`, `Plasteel`, `Gold`, `Silver`, and `Uranium`, preventing metal walls, doors, barricades, and resource stacks from burning.
-  - **Infrastructure & Sensory Weatherproofing:** Set `Flammability = 0` on `Geoscape_RadarSmall`, `Geoscape_RadarLarge`, `Geoscape_SigintConsole`, and `Geoscape_SonarArray`.
-  - **Bridge Flammability Alignment:** Ensured Core wooden `Bridge` has 100% flammability (`1.0`) while Odyssey steel `HeavyBridge`, `AncientHeavyBridge`, and `Substructure` are set to `0`.
-  - **Gravship Hull Dynamic Stuff Calibration:** Set `GravshipHull` base flammability to `1.0` so material Stuff properties govern (Bioferrite hulls burn at 75% flammability factor, metal hulls remain 0% immune).
-  - **Automated All-Metal & Stone Machine Audit:** Automated classification setting fixed-recipe metal/stone structures (`ElectricSmelter`, `ElectricSmithy`, `TableMachining`, `FabricationBench`, `PowerSwitch`, `AutocannonTurret`, `Hopper`, `SignalJammer`) to `0` flammability while preserving `Battery` flammability (thermal runaway).
-  - **Explicit Non-Combustibles & Archotech:** Set `0` flammability for `ReinforcedBarrel`, mechanoid boss chips (`SignalChip`, `PowerfocusChip`, `NanostructuringChip`), gravtech components (`Gravcore`, `GravlitePanel`, `ShuttleEngine`), archotech artifacts/bionics, and pure metal bionics.
-- [x] **Stream 4: Standalone Verification:**
-  - Validated custom textures, materials, and headless CI build on clean RimWorld 1.7 installation.
-  - Verified 439/439 unit tests passing with zero warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
-  - Confirmed clean formatting (`prettier`) and British English spell checking (`cspell`).
-
----
-
 ### Milestone 1.5: Foundation Framework, Modular Architecture & Player Configuration [COMPLETED & VERIFIED]
 
 - [x] **Stream 1: Modular Architecture & Collection Packaging Review:**
@@ -76,7 +37,7 @@
 
 ---
 
-### Milestone 1.6: Planetary Expedition & World Integrity
+### Milestone 1.6: Planetary Expedition & World Integrity [ACTIVE ROADMAP]
 
 - [ ] **Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
   - **Pre-Settlement Survey Phase:** Implement pre-settlement expedition phase for uncharted rim worlds, allowing players to traverse and survey regional geography, waterways, and mountain passes before committing to a permanent settlement hex.
@@ -205,6 +166,7 @@
 - [ ] Implement crash site generation (`SiteDef` with wreckage, debris, and survivor spawns).
 - [ ] Create tactical deployment and extraction drop-zone mechanics.
 - [ ] Build amphibious transport capabilities (Triton analogue for aquatic sites).
+- [ ] **Orbit-Layer Craft Visibility Policy (4-Tier Domain Rule):** Expose Phase 4 Air & Sub-Orbital craft (interceptors, Skyranger dropships, atmospheric UFOs) alongside Space/Orbital entities (`IOrbitalEntity`) and strategic colonies (`MapParent`) on the `Orbit` camera layer, keeping tactical ground foot/animal caravans and unmanned outposts culled to the `Surface` layer.
 - [ ] **Standalone Test:** Validate interception combat and dropship deployment against standard pirate shuttles without Module 1.
 
 ---
@@ -248,6 +210,48 @@
 ---
 
 ## Completed Milestones
+
+<details>
+<summary><b>v0.4.1 — Tooling, Visual Assets &amp; Structural Materials (Shipped 2026-11-18)</b></summary>
+
+### Milestone 1.4: Tooling, Visual Assets & Structural Materials
+
+- [x] **Stream 1: Tooling & CI/CD — Mock Reference Assemblies & Headless Tests:**
+  - **Game Assembly Stubs (`refasmer`):** Generated stripped public API reference assemblies for RimWorld 1.7 Waylith core assemblies (`Assembly-CSharp.dll`, `RimWorld.dll`, `UnityStubs.dll`, `Waylith.UnityCompat.dll`). Stored stubs in `lib/ref/` and added generation script ([`scripts/generate-reference-assemblies.ps1`](scripts/generate-reference-assemblies.ps1)).
+  - **Automated Pull Request CI (`dotnet-ci.yml`):** Configured GitHub Actions workflow ([`.github/workflows/dotnet-ci.yml`](.github/workflows/dotnet-ci.yml)) running `dotnet restore` and `dotnet build` with fallback to `lib/ref/` reference assemblies.
+  - **Zero-Warning Enforcement:** Integrated `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` in project files and patched obsolete `Harmony.PatchAll()` call.
+- [x] **Stream 2: Custom Visual Asset Pipeline & Faction Livery Tinting (Functional Placeholders):**
+  - [x] **Orbital Infrastructure (`Textures/ProjectVigilance/Geoscape/World/Orbital/`):**
+    - Authored custom 128×128 `RGBA32` functional placeholder sprites with neutral white/grayscale palette masks for clean `Faction.Color` tinting via [`scripts/generate-orbital-icons.ps1`](scripts/generate-orbital-icons.ps1).
+    - Persistent Orbital Logistics Hub (`WorldObject_OrbitalStation`): Spoke-and-hub modular space station and orbital dock with 4 radial truss spokes, outlying pods, and solar wings ([`OrbitalHub.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/OrbitalHub.png)).
+    - Populated Coverage Anchoring: Restrict station and satellite spawning to active world coverage and populated hexes (`FindPopulatedCoverageAnchorTile`).
+    - Altitude Stratification & Hard Orbit Ceiling: Banded visual altitude mapping (`LEO` 4–10, `MEO` 10–24, `GEO` 24–34) and hard render limits (`MaxOrbitalRenderRadius = 135f` in `OrbitalFlightModel` and `145f` in `WorldObject_DrawPos_Patch`), with restored `MapParent`/`Site` Odyssey altitude telemetry, Orbit-layer surface clutter culling (`IsSurfaceAnchorVisibleFromOrbit`), and deep-orbit raycast click projection (`TryProjectRayToPlanetDirection`).
+    - Specialized Satellite Chassis (`WorldObject_Satellite`): Functional placeholder sprites for Reconnaissance ([`Satellite_Recon.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Recon.png)), Trade ([`Satellite_Trade.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Trade.png)), Navigation ([`Satellite_Nav.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Nav.png)), Communication ([`Satellite_Comms.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Comms.png)), and Military ([`Satellite_Military.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Orbital/Satellite_Military.png)).
+  - [x] **Lightweight Geoscape Outposts (`Textures/ProjectVigilance/Geoscape/World/Outposts/`):**
+    - Authored custom 128×128 `RGBA32` functional placeholder icons with neutral white/grayscale palette masks via [`scripts/generate-outpost-icons.ps1`](scripts/generate-outpost-icons.ps1).
+    - Dedicated world map markers for Automated Listening Posts ([`Outpost_Radar.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Radar.png)), Signal Beacons ([`Outpost_Beacon.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Beacon.png)), and Automated Sonar Stations ([`Outpost_Sonar.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/Outpost_Sonar.png)).
+    - Encounter Aftermath ([`EncounterAftermath.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/World/Outposts/EncounterAftermath.png)): Smouldering battlefield wreckage and crater debris site replacing `Sites/ItemStash`.
+  - [x] **Battlescape Sensory Buildings (`Textures/ProjectVigilance/Geoscape/Buildings/Sensory/`):**
+    - Lookout Watchtower: Dedicated 2×3 footprint timber/stone observation tower with staircase and covered viewing platform, replacing `SteleLarge` ([`LookoutTower.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/LookoutTower.png)).
+    - Colony Sensory Infrastructure: Functional placeholder orthographic graphics for Early-Warning Radar Dome (3×3) ([`RadarDomeSmall.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/RadarDomeSmall.png)), Spacer Phased Array (4×4 with 4-way rotation) ([`PhasedArrayLarge_south.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/PhasedArrayLarge_south.png)), SIGINT Decryption Console (3×2 with 4-way rotation) ([`SigintConsole_south.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/SigintConsole_south.png)), and Coastal Hydrophone Station (3×3) ([`SonarStation.png`](Geoscape/1.7/Textures/ProjectVigilance/Geoscape/Buildings/Sensory/SonarStation.png)).
+  - [x] **Dynamic Faction Colour Shifting Specification:**
+    - All world entity icons and satellite sprites authored as neutral grayscale / white silhouette masks with transparent backgrounds (`RGBA32`).
+    - Clean runtime multiplication with `Faction.Color` via `MaterialPool.MatFrom(..., ShaderDatabase.WorldOverlayTransparentLit, Faction.Color)` and `ExpandingIconColor` without hue clash, muddy saturation, or artifacting across all planetary factions.
+    - Note: Assets serve as verified functional placeholders; dedicated high-fidelity art overhaul and custom `<shadowData>` tuning scheduled for visual polish milestone.
+- [x] **Stream 3: Programmatic Thermal Integrity Post-Def Audit Engine:**
+  - **Programmatic Post-Def Processing:** Implemented `ThermalIntegrityPostDefProcessor` executing at startup (`[StaticConstructorOnStartup]`) to programmatically enforce non-combustible properties across core, DLC, and mod defs without fragile manual XML patches.
+  - **Structural & Precious Metals:** Set raw item and Stuff factor `Flammability = 0` on `Steel`, `Plasteel`, `Gold`, `Silver`, and `Uranium`, preventing metal walls, doors, barricades, and resource stacks from burning.
+  - **Infrastructure & Sensory Weatherproofing:** Set `Flammability = 0` on `Geoscape_RadarSmall`, `Geoscape_RadarLarge`, `Geoscape_SigintConsole`, and `Geoscape_SonarArray`.
+  - **Bridge Flammability Alignment:** Ensured Core wooden `Bridge` has 100% flammability (`1.0`) while Odyssey steel `HeavyBridge`, `AncientHeavyBridge`, and `Substructure` are set to `0`.
+  - **Gravship Hull Dynamic Stuff Calibration:** Set `GravshipHull` base flammability to `1.0` so material Stuff properties govern (Bioferrite hulls burn at 75% flammability factor, metal hulls remain 0% immune).
+  - **Automated All-Metal & Stone Machine Audit:** Automated classification setting fixed-recipe metal/stone structures (`ElectricSmelter`, `ElectricSmithy`, `TableMachining`, `FabricationBench`, `PowerSwitch`, `AutocannonTurret`, `Hopper`, `SignalJammer`) to `0` flammability while preserving `Battery` flammability (thermal runaway).
+  - **Explicit Non-Combustibles & Archotech:** Set `0` flammability for `ReinforcedBarrel`, mechanoid boss chips (`SignalChip`, `PowerfocusChip`, `NanostructuringChip`), gravtech components (`Gravcore`, `GravlitePanel`, `ShuttleEngine`), archotech artifacts/bionics, and pure metal bionics.
+- [x] **Stream 4: Standalone Verification:**
+  - Validated all 7 Milestone 1.4 test cases (`TC-01`–`TC-07` in [`docs/archive/milestone_1_4_test_plan.md`](docs/archive/milestone_1_4_test_plan.md)) on clean RimWorld 1.7 installation.
+  - Verified 441/441 unit tests passing with zero warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
+  - Confirmed clean formatting (`prettier`) and British English spell checking (`cspell`).
+
+</details>
 
 <details>
 <summary><b>v0.4.0 — Radar Infrastructure, Advanced Early Warning & Inter-Faction Encounters (Shipped 2026-11-16)</b></summary>

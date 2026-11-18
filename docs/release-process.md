@@ -76,11 +76,13 @@ $ErrorActionPreference = 'Stop'
 
 This pipeline will:
 
-1. Rebuild the release DLL (`Geoscape.dll`).
-2. Run `npm run spellcheck`.
-3. Create a clean distribution staging directory and ZIP archive: `dist/ProjectVigilance-OverlandIncursions-vX.Y.Z.zip`.
-4. Validate asset sizes (e.g. `Preview.png` < 1 MB).
-5. Extract release notes from `CHANGELOG.md` to `dist/release-notes-vX.Y.Z.md`.
+1. Rebuild the release DLL (`Geoscape.dll`), redirecting `bin/` and `obj/` build caches to root `build/` via [`Directory.Build.props`](../Directory.Build.props).
+2. Automatically run the MSBuild `StageCleanDistribution` target and copy clean runtime files (`About/`, `1.7/Assemblies/`, `1.7/Defs/`, `1.7/Patches/`, `1.7/Textures/`, `1.7/Languages/`, `LICENSE`, `README.md` — excluding `Source/`, `bin/`, `obj/`, `*.old`, and `Assets.zip*`) into `dist/ProjectVigilance-OverlandIncursions/`.
+3. Run `npm run spellcheck`.
+4. Generate the distribution ZIP archive: `dist/ProjectVigilance-OverlandIncursions-vX.Y.Z.zip`.
+5. Validate asset sizes (e.g. `Preview.png` < 1 MB).
+6. Extract release notes from `CHANGELOG.md` to `dist/release-notes-vX.Y.Z.md`.
+7. Automatically switch the local RimWorld `Mods/ProjectVigilance-Geoscape` junction on Windows to `dist/ProjectVigilance-OverlandIncursions/` (~2.3 MB) unless `-SkipJunctionUpdate` is passed (`deploy-geoscape.ps1` and `deploy-geoscape.sh` also target clean `dist/` staging by default; pass `-Dev` / `--dev` to target raw `Geoscape/`).
 
 ---
 
@@ -113,10 +115,12 @@ This pipeline will:
 ## 7. Steam Workshop Update
 
 1. **Upload Mod Files via RimWorld:**
+   - Ensure the local `Mods/ProjectVigilance-Geoscape` link points to clean `dist/ProjectVigilance-OverlandIncursions/` (~2.3 MB, no `Source/` or build caches — set automatically by `package-release.ps1`, `deploy-geoscape.ps1`, `deploy-geoscape.sh`, or `./scripts/switch-mod-junction.ps1 -Mode Workshop`).
    - Launch RimWorld 1.7.
    - Navigate to **Mods** -> Select **Project Vigilance - Overland Incursions**.
    - Click **Upload to Steam Workshop**.
    - Ensure the upload completes with exit code success.
+   - _(Optional)_ After uploading, switch back to live repo development if needed via `./scripts/switch-mod-junction.ps1 -Mode Dev` (or `deploy-geoscape.ps1 -Dev` / `deploy-geoscape.sh --dev`).
 2. **Update Workshop Metadata via Steam:**
    - Visit the [Workshop Item Page](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226).
    - Click **Edit title & description** -> Paste contents of [`docs/workshop_description.bbcode`](workshop_description.bbcode).

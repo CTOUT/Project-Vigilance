@@ -550,7 +550,8 @@ public sealed class Milestone13FixesTests
             "Outpost: Deploy Sonar Station",
             "Outpost: Deploy Signal Beacon",
             "Orbital: Spawn Trade Satellite Overhead",
-            "Orbital: Spawn Recon Satellite Overhead"
+            "Orbital: Spawn Recon Satellite Overhead",
+            "Orbital: Spawn Orbital Logistics Hub Overhead"
         };
 
         var methods = System.Linq.Enumerable.ToArray(
@@ -781,9 +782,14 @@ public sealed class Milestone13FixesTests
     [TestMethod]
     public void SensoryBuildings_Flammability_AlignedWithThermalIntegrity()
     {
-        string buildingsPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+        string geoscapeRelativePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
             System.AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..", "..", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Radar.xml"));
+            "..", "..", "..", "..", "..", "Geoscape", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Radar.xml"));
+        string buildingsPath = System.IO.File.Exists(geoscapeRelativePath)
+            ? geoscapeRelativePath
+            : System.IO.Path.GetFullPath(System.IO.Path.Combine(
+                System.AppDomain.CurrentDomain.BaseDirectory,
+                "..", "..", "..", "..", "..", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Radar.xml"));
 
         Assert.IsTrue(System.IO.File.Exists(buildingsPath), $"Buildings XML file must exist at {buildingsPath}");
 
@@ -802,9 +808,14 @@ public sealed class Milestone13FixesTests
         Assert.IsNotNull(sigint);
         Assert.AreEqual("0", sigint!.InnerText.Trim(), "Geoscape_SigintConsole flammability must be 0");
 
-        string aquaticsBuildingsPath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+        string aquaticsRelativePath = System.IO.Path.GetFullPath(System.IO.Path.Combine(
             System.AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..", "..", "..", "Aquatics", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Aquatics.xml"));
+            "..", "..", "..", "..", "..", "Aquatics", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Aquatics.xml"));
+        string aquaticsBuildingsPath = System.IO.File.Exists(aquaticsRelativePath)
+            ? aquaticsRelativePath
+            : System.IO.Path.GetFullPath(System.IO.Path.Combine(
+                System.AppDomain.CurrentDomain.BaseDirectory,
+                "..", "..", "..", "..", "..", "..", "Aquatics", "1.7", "Defs", "ThingDefs_Buildings", "Buildings_Aquatics.xml"));
         var aquaticsDoc = new System.Xml.XmlDocument();
         aquaticsDoc.Load(aquaticsBuildingsPath);
         System.Xml.XmlNode? sonar = aquaticsDoc.SelectSingleNode("//ThingDef[defName='Geoscape_SonarArray']/statBases/Flammability");

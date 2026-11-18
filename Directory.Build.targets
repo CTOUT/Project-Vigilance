@@ -1,0 +1,63 @@
+<Project>
+  <Target Name="StageCleanDistribution" AfterTargets="Build" Condition="'$(MSBuildProjectName)' != 'Geoscape.Tests'">
+    <PropertyGroup>
+      <ModRootDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)/../..'))</ModRootDir>
+      <ModFolderName>$([System.IO.Path]::GetFileName($([System.IO.Path]::TrimEndingDirectorySeparator('$(ModRootDir)'))))</ModFolderName>
+      <CleanStagingDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)dist/ProjectVigilance-$(ModFolderName)'))</CleanStagingDir>
+    </PropertyGroup>
+
+    <!-- Clean unlocked .old assembly backups and rotate locked staged DLL if RimWorld is running -->
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low"
+          Command="del /f /q &quot;$(OutputPath)$(TargetName).dll.old&quot; 2&gt;nul &amp; del /f /q &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll.old&quot; 2&gt;nul &amp; if exist &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll&quot; move /y &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll&quot; &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll.old&quot; 2&gt;nul" />
+    <Exec Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low"
+          Command="rm -f &quot;$(OutputPath)$(TargetName).dll.old&quot; &quot;$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll.old&quot; &quot;$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll&quot; 2&gt;/dev/null || true" />
+
+    <!-- Preserve Workshop ID generated/updated in clean staging back into the module source tree -->
+    <Copy SourceFiles="$(CleanStagingDir)About/PublishedFileId.txt"
+          DestinationFiles="$(ModRootDir)About/PublishedFileId.txt"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(CleanStagingDir)About/PublishedFileId.txt')" />
+
+    <ItemGroup>
+      <_StagingAbout Include="$(ModRootDir)About/About.xml" Condition="Exists('$(ModRootDir)About/About.xml')" />
+      <_StagingAbout Include="$(ModRootDir)About/Preview.png" Condition="Exists('$(ModRootDir)About/Preview.png')" />
+      <_StagingAbout Include="$(ModRootDir)About/Icon.png" Condition="Exists('$(ModRootDir)About/Icon.png')" />
+      <_StagingAbout Include="$(ModRootDir)About/ModIcon.png" Condition="Exists('$(ModRootDir)About/ModIcon.png')" />
+      <_StagingAbout Include="$(ModRootDir)About/PublishedFileId.txt" Condition="Exists('$(ModRootDir)About/PublishedFileId.txt')" />
+
+      <_StagingAssemblies Include="$(OutputPath)$(TargetName).dll" Condition="Exists('$(OutputPath)$(TargetName).dll')" />
+      <_StagingAssemblies Include="$(OutputPath)$(TargetName).pdb" Condition="Exists('$(OutputPath)$(TargetName).pdb')" />
+
+      <_StagingDefs Include="$(ModRootDir)1.7/Defs/**/*" Condition="Exists('$(ModRootDir)1.7/Defs')" />
+      <_StagingPatches Include="$(ModRootDir)1.7/Patches/**/*" Condition="Exists('$(ModRootDir)1.7/Patches')" />
+      <_StagingTextures Include="$(ModRootDir)1.7/Textures/**/*" Condition="Exists('$(ModRootDir)1.7/Textures')" />
+      <_StagingLanguages Include="$(ModRootDir)1.7/Languages/**/*" Condition="Exists('$(ModRootDir)1.7/Languages')" />
+      <_StagingSounds Include="$(ModRootDir)1.7/Sounds/**/*" Condition="Exists('$(ModRootDir)1.7/Sounds')" />
+
+      <_StagingDocs Include="$(MSBuildThisFileDirectory)LICENSE" Condition="Exists('$(MSBuildThisFileDirectory)LICENSE')" />
+      <_StagingDocs Include="$(ModRootDir)README.md" Condition="Exists('$(ModRootDir)README.md')" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_StagingAbout)" DestinationFolder="$(CleanStagingDir)About" SkipUnchangedFiles="true" Condition="'@(_StagingAbout)' != ''" />
+    <Copy SourceFiles="@(_StagingAssemblies)" DestinationFolder="$(CleanStagingDir)1.7/Assemblies" SkipUnchangedFiles="true" Condition="'@(_StagingAssemblies)' != ''" />
+    <Copy SourceFiles="@(_StagingDefs)" DestinationFiles="@(_StagingDefs->'$(CleanStagingDir)1.7/Defs/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingDefs)' != ''" />
+    <Copy SourceFiles="@(_StagingPatches)" DestinationFiles="@(_StagingPatches->'$(CleanStagingDir)1.7/Patches/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingPatches)' != ''" />
+    <Copy SourceFiles="@(_StagingTextures)" DestinationFiles="@(_StagingTextures->'$(CleanStagingDir)1.7/Textures/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingTextures)' != ''" />
+    <Copy SourceFiles="@(_StagingLanguages)" DestinationFiles="@(_StagingLanguages->'$(CleanStagingDir)1.7/Languages/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingLanguages)' != ''" />
+    <Copy SourceFiles="@(_StagingSounds)" DestinationFiles="@(_StagingSounds->'$(CleanStagingDir)1.7/Sounds/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingSounds)' != ''" />
+    <Copy SourceFiles="@(_StagingDocs)" DestinationFolder="$(CleanStagingDir)" SkipUnchangedFiles="true" Condition="'@(_StagingDocs)' != ''" />
+
+    <!-- Remove rotated staged .old backup immediately if RimWorld is not holding a lock on it -->
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low"
+          Command="del /f /q &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll.old&quot; 2&gt;nul" />
+  </Target>
+</Project>

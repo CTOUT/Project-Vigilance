@@ -221,6 +221,14 @@ public static class WorldObject_Visibility_Patch
         return sel == Find.WorldGrid?.Surface || sel.Def?.isSpace == true || sel.Def?.defName == "Orbit";
     }
 
+    /// <summary>
+    /// Identifies ground entities that remain visible as strategic uplink anchors when viewing the Orbit layer.
+    /// Player colonies (MapParent) stay visible; tactical ground foot/animal caravans and unmanned outposts
+    /// remain restricted to the Surface layer so they do not clutter colony icons from space.
+    /// </summary>
+    public static bool IsSurfaceAnchorVisibleFromOrbit(WorldObject? wo) =>
+        wo?.Faction?.IsPlayer == true && wo is MapParent;
+
     // ---------------------------------------------------------
     // 1. 2D Expanding Icons (Zoomed Out / Mid Distance)
     // ---------------------------------------------------------
@@ -245,8 +253,8 @@ public static class WorldObject_Visibility_Patch
                 }
             }
 
-            // Maintain visibility of player settlements, outposts, and caravans when viewing the orbital planet layer
-            if (wo.Faction?.IsPlayer == true && (wo is MapParent || wo is Caravan || wo is WorldObject_ListeningPost))
+            // Maintain visibility of player strategic colonies (MapParent) when viewing the orbital planet layer
+            if (IsSurfaceAnchorVisibleFromOrbit(wo))
             {
                 if (IsValidOrbitalLayerActive())
                 {
@@ -286,9 +294,9 @@ public static class WorldObject_Visibility_Patch
                     __result = 1f;
                 }
             }
-            else if (wo.Faction?.IsPlayer == true && (wo is MapParent || wo is Caravan || wo is WorldObject_ListeningPost))
+            else if (IsSurfaceAnchorVisibleFromOrbit(wo))
             {
-                // When viewing the orbital planet layer, ensure player surface colonies, outposts, and caravans remain fully expanded
+                // When viewing the orbital planet layer, ensure player strategic colonies remain fully expanded
                 PlanetLayer? sel = Find.WorldSelector?.SelectedLayer;
                 if (sel?.Def?.isSpace == true || sel?.Def?.defName == "Orbit")
                 {
@@ -325,12 +333,12 @@ public static class WorldObject_Visibility_Patch
                 }
             }
 
-            // Maintain visibility of player settlements, outposts, and caravans when viewing the orbital planet layer
-            if (o.Faction?.IsPlayer == true && (o is MapParent || o is Caravan || o is WorldObject_ListeningPost))
+            // Maintain visibility of player strategic colonies (MapParent) when viewing the orbital planet layer
+            if (IsSurfaceAnchorVisibleFromOrbit(o))
             {
                 if (IsValidOrbitalLayerActive())
                 {
-                    // Player surface colonies, outposts, and caravans remain visible on the globe in orbit view
+                    // Player surface colonies remain visible on the globe in orbit view
                     // unless physically occluded behind planetary terrain on the far side of the planet
                     if (Current.ProgramState == ProgramState.Playing && Current.Game != null && Find.WorldCameraDriver != null)
                     {

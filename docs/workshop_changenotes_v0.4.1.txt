@@ -1,0 +1,27 @@
+[h2]v0.4.1 — Milestone 1.4: Visual Assets, Thermal Integrity & Orbital Polish[/h2]
+[list]
+[*] [b]Custom Visual Assets & Faction Livery Tinting:[/b]
+    [list]
+    [*] Replaced vanilla placeholder graphics across colonies and orbital entities with custom 128x128 RGBA32 functional sprites and neutral grayscale livery masks that tint cleanly to runtime faction colours.
+    [*] Added battlescape orthographic sprites for Lookout Towers, Early-Warning Radar Domes, 4-way rotating Spacer Phased Arrays, 4-way rotating SIGINT Consoles, and DevMode Coastal Sonar Stations.
+    [*] Added custom world markers for Orbital Logistics Hubs, all 5 specialised satellite chassis (Trade, Recon, Nav, Comms, Military), Listening Posts, Signal Beacons, Sonar Stations, and Encounter Aftermath wreckage sites.
+    [/list]
+[*] [b]Programmatic Thermal Integrity Engine:[/b]
+    [list]
+    [*] Startup post-def audit eliminates oxygen combustion on structural/precious metals (Steel, Plasteel, Gold, Silver, Uranium) and sensory infrastructure (radar domes, phased arrays, SIGINT consoles, sonar arrays).
+    [*] Fixed-recipe all-metal/stone machinery, spacer boss chips, gravtech components, and archotech prosthetics are now non-flammable, while chemical batteries remain flammable (thermal runaway).
+    [*] Aligned bridges and gravship hulls: vanilla wooden bridges retain 100% flammability while Odyssey steel Heavy Bridges, Ancient Heavy Bridges, and Substructures are 0% flammable; metal Gravship Hulls stay fireproof while Bioferrite hulls scale by material flammability.
+    [/list]
+[*] [b]Orbital Telemetry, Clutter Control & Deep-Orbit Fixes:[/b]
+    [list]
+    [*] Fixed Odyssey orbital stations and asteroids missing orbital altitude and classification telemetry when inspected.
+    [*] Hidden tactical ground caravans and unmanned listening posts from deep Orbit view so only strategic player colonies appear as ground anchors without overlapping colony icons.
+    [*] Added deep-orbit camera ray projection so DevMode world placement clicks spawn directly under your cursor even from Orbit view, alongside new Orbital Hub spawn/clear DevMode actions.
+    [*] Restricted orbital station spawning to populated world coverage tiles and stratified orbital shells across LEO, MEO, and GEO bands.
+    [/list]
+[*] [b]Build Telemetry & Performance:[/b]
+    [list]
+    [*] Added zero-warning headless CI reference assembly support and synced Diagnostics tab build stamps (`v0.4.1`).
+    [*] Hoisted Keplerian normal calculations in overpass lookahead loops and reduced per-frame overhead on ground entities.
+    [/list]
+[/list]

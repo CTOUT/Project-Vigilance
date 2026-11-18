@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-18
+
 ### Milestone 1.4: Tooling, Visual Assets & Structural Materials
 
 #### Added
@@ -24,15 +26,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automated all-metal machinery audit setting fixed-recipe metal/stone structures (`ElectricSmelter`, `ElectricSmithy`, `TableMachining`, `FabricationBench`, `PowerSwitch`, `AutocannonTurret`, `Hopper`, `SignalJammer`, sensory radar buildings) to `0` flammability while preserving chemical battery flammability (thermal runaway).
   - Aligned bridge flammability: Core wooden `Bridge` to 100% flammability (`1.0`), heavy steel and ancient bridges (`HeavyBridge`, `AncientHeavyBridge`, `Substructure`) to `0`.
   - Calibrated Odyssey Gravship Hull base flammability to `1.0` so material Stuff properties govern (Bioferrite hulls burn at 75%, metal hulls remain 0% immune).
+- **Orbital Debug Tooling & Deep-Orbit Targeting (`DebugActionsVigilance`, `OrbitalFlightModel`):**
+  - Added `Orbital: Spawn Orbital Logistics Hub Overhead` (`ToolWorld`) and `Orbital: Clear All Orbital Hubs` DevMode debug actions.
+  - Added `OrbitalFlightModel.TryProjectRayToPlanetDirection` and `FindClosestSurfaceTile` so DevMode world placement clicks in deep `Orbit` view project cleanly onto the planetary Surface tile beneath the cursor instead of falling back to selection.
 
 #### Changed
 
-- **Keplerian Orbital Flight Optimization:**
+- **Keplerian Orbital Flight Optimization & Orbit-Layer Decluttering:**
   - Hoisted invariant target tile normal in `PredictNextPassTick`, saving 1,200 repeated spherical normalizations per overpass calculation.
   - Replaced BFS traversal distance checks with $O(1)$ native `Find.WorldGrid.ApproxDistanceInTiles` in `OrbitalVisibilityUtility`.
-  - Added $O(1)$ ground object fast-bail in `WorldObject.get_DrawPos` postfix and pooled string allocations in inspect panes.
-- **Documentation Standardization:**
-  - Consolidated pre-milestone 1.4 architectural blueprints and mockups into `docs/archive/`.
+  - Added `WorldObject_Visibility_Patch.IsSurfaceAnchorVisibleFromOrbit` so only strategic `MapParent` colonies stay visible in `Orbit` view while tactical ground foot/animal `Caravan`s and `WorldObject_ListeningPost` outposts remain restricted to the `Surface` layer.
+  - Added $O(1)$ fast-bail paths in `WorldObject_DrawPos_Patch` and pooled `StringBuilder` allocations in `SpaceObject_InspectString_Patch`.
+- **Diagnostics & Documentation Standardization:**
+  - Synchronised the Module 2 version indicator in `GeoscapeSettings` (`Diagnostics` tab) dynamically with `BuildInfo.Version`.
+  - Consolidated pre-Milestone 1.4 architectural blueprints and mockups into `docs/archive/`.
+
+#### Fixed
+
+- Restored orbital altitude and classification telemetry on Odyssey space stations and asteroids in `SpaceObject_InspectString_Patch` and radial shell stratification in `WorldObject_DrawPos_Patch` (previously excluded when `MapParent`/`Site` subclasses were skipped early).
 
 ## [0.4.0] - 2026-11-16
 
@@ -344,7 +355,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **In-Game Settings Dialogue:** Added `GeoscapeMod` and `GeoscapeSettings` allowing players to configure threat cooldown resets and transit speed multipliers.
 - **Architectural Specifications & Master Vision:** Comprehensive technical documentation for Geoscape & Radar, Interception, Containment & Biology, Invasion Campaign, Aquatic Operations (TftD), and DLC integrations.
 
-[Unreleased]: https://github.com/CTOUT/Project-Vigilance/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/CTOUT/Project-Vigilance/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/CTOUT/Project-Vigilance/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/CTOUT/Project-Vigilance/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.1.0

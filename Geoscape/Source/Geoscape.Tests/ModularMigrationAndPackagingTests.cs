@@ -22,8 +22,19 @@ namespace Geoscape.Tests;
 [DoNotParallelize]
 public class ModularMigrationAndPackagingTests
 {
-    private static string RepoRoot =>
-        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", ".."));
+    private static string RepoRoot
+    {
+        get
+        {
+            string fiveUp = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ".."));
+            if (Directory.Exists(Path.Combine(fiveUp, "Core", "About")))
+            {
+                return fiveUp;
+            }
+
+            return Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", ".."));
+        }
+    }
 
     [TestInitialize]
     public void Setup()

@@ -1,6 +1,7 @@
 # Build and output directories
 bin/
 obj/
+build/
 dist/
 Build/
 Output/
@@ -23,6 +24,8 @@ references/
 **/Assemblies/*.dll
 **/Assemblies/*.pdb
 **/Assemblies/*.deps.json
+**/Assets.zip
+**/Assets.zip.*
 
 # OS artefacts
 .DS_Store
