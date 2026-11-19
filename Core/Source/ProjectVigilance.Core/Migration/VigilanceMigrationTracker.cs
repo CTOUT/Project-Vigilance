@@ -116,7 +116,8 @@ public class VigilanceMigrationTracker : WorldComponent
         base.FinalizeInit(fromLoad);
         EvaluateMigrationState(fromLoad);
 
-        if (RequiresMigrationAdvisory && Current.ProgramState == ProgramState.Playing && Find.WindowStack != null)
+        if (RequiresMigrationAdvisory &&
+            (Current.ProgramState == ProgramState.Playing || Current.ProgramState == ProgramState.MapInitializing))
         {
             LongEventHandler.ExecuteWhenFinished(() =>
             {
@@ -271,6 +272,12 @@ public class VigilanceMigrationTracker : WorldComponent
                     removedCount++;
                 }
             }
+        }
+
+        if (worldObjectsOverride == null)
+        {
+            Find.World?.components?.RemoveAll(c => c is DeprecatedWorldComponentStub);
+            Current.Game?.components?.RemoveAll(c => c is DeprecatedGameComponentStub);
         }
 
         interceptedEntitiesByModule.Clear();

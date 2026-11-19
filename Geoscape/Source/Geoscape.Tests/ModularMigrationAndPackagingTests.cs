@@ -127,6 +127,9 @@ public class ModularMigrationAndPackagingTests
         Type? managerType = converter.GetBackCompatibleType(typeof(WorldComponent), "ProjectVigilance.Geoscape.Orbital.OrbitalManager", null!);
         Assert.AreEqual(typeof(DeprecatedWorldComponentStub), managerType);
 
+        Type? gameCompType = converter.GetBackCompatibleType(typeof(GameComponent), "ProjectVigilance.Geoscape.Orbital.GameComponent_OrbitalLifecycle", null!);
+        Assert.AreEqual(typeof(DeprecatedGameComponentStub), gameCompType);
+
         var xml = new XmlDocument();
         xml.LoadXml("<worldObject><def>Vigilance_Satellite_Trade</def></worldObject>");
         Type? satType = converter.GetBackCompatibleType(typeof(WorldObject), "ProjectVigilance.Geoscape.Orbital.Satellite_Trade", xml.DocumentElement!);
@@ -137,6 +140,7 @@ public class ModularMigrationAndPackagingTests
         Assert.IsTrue(pending[VigilanceModuleId.Orbital].Contains("Vigilance_OrbitalStation"));
         Assert.IsTrue(pending[VigilanceModuleId.Orbital].Contains("Vigilance_Satellite_Trade"));
         Assert.IsTrue(pending[VigilanceModuleId.Orbital].Contains("OrbitalManager"));
+        Assert.IsTrue(pending[VigilanceModuleId.Orbital].Contains("GameComponent_OrbitalLifecycle"));
     }
 
     [TestMethod]

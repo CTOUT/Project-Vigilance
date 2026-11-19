@@ -73,6 +73,12 @@ public class BackCompatibilityConverter_VigilanceModular : BackCompatibilityConv
                 return typeof(DeprecatedWorldComponentStub);
             }
 
+            if (providedClassName == "ProjectVigilance.Geoscape.Orbital.GameComponent_OrbitalLifecycle")
+            {
+                VigilanceMigrationTracker.RecordInterceptedEntity(VigilanceModuleId.Orbital, "GameComponent_OrbitalLifecycle");
+                return typeof(DeprecatedGameComponentStub);
+            }
+
             if (providedClassName == "ProjectVigilance.Geoscape.Orbital.WorldObject_OrbitalStation" ||
                 providedClassName == "ProjectVigilance.Geoscape.Orbital.WorldObject_Satellite" ||
                 providedClassName == "ProjectVigilance.Geoscape.Orbital.Satellite_Trade")
