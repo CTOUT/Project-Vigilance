@@ -82,8 +82,12 @@
   </Target>
 
   <Target Name="RotateLockedAssembly" BeforeTargets="BeforeBuild">
-    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-          Command="cmd /c if exist &quot;$(OutputPath)Geoscape.dll&quot; (del /f /q &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; move /y &quot;$(OutputPath)Geoscape.dll&quot; &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; exit 0)" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('$(OutputPath)Geoscape.dll') and Exists('$(OutputPath)Geoscape.dll.old')"
+          Command="del /f /q &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul"
+          IgnoreExitCode="true" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('$(OutputPath)Geoscape.dll')"
+          Command="move /y &quot;$(OutputPath)Geoscape.dll&quot; &quot;$(OutputPath)Geoscape.dll.old&quot; &gt;nul 2&gt;&amp;1"
+          IgnoreExitCode="true" />
     <Exec Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
           Command="if [ -f &quot;$(OutputPath)Geoscape.dll&quot; ]; then rm -f &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;/dev/null; mv &quot;$(OutputPath)Geoscape.dll&quot; &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;/dev/null || true; fi" />
   </Target>
@@ -96,8 +100,15 @@
     </PropertyGroup>
 
     <!-- Clean unlocked .old assembly backups and rotate locked staged DLL if RimWorld is running -->
-    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-          Command="cmd /c (del /f /q &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul &amp; if exist &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll&quot; (del /f /q &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll.old&quot; 2&gt;nul &amp; move /y &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll&quot; &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll.old&quot; 2&gt;nul) &amp; exit 0)" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('$(OutputPath)Geoscape.dll.old')"
+          Command="del /f /q &quot;$(OutputPath)Geoscape.dll.old&quot; 2&gt;nul"
+          IgnoreExitCode="true" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('$(CleanStagingDir)1.7\Assemblies\Geoscape.dll') and Exists('$(CleanStagingDir)1.7\Assemblies\Geoscape.dll.old')"
+          Command="del /f /q &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll.old&quot; 2&gt;nul"
+          IgnoreExitCode="true" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('$(CleanStagingDir)1.7\Assemblies\Geoscape.dll')"
+          Command="move /y &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll&quot; &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll.old&quot; &gt;nul 2&gt;&amp;1"
+          IgnoreExitCode="true" />
     <Exec Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
           Command="rm -f &quot;$(OutputPath)Geoscape.dll.old&quot; &quot;$(CleanStagingDir)1.7/Assemblies/Geoscape.dll.old&quot; &quot;$(CleanStagingDir)1.7/Assemblies/Geoscape.dll&quot; 2&gt;/dev/null || true" />
 
@@ -135,8 +146,9 @@
     <Copy SourceFiles="@(_StagingDocs)" DestinationFolder="$(CleanStagingDir)" SkipUnchangedFiles="true" Condition="'@(_StagingDocs)' != ''" />
 
     <!-- Remove rotated staged .old backup immediately if RimWorld is not holding a lock on it -->
-    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-          Command="cmd /c del /f /q &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll.old&quot; 2&gt;nul &amp; exit 0" />
+    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('$(CleanStagingDir)1.7\Assemblies\Geoscape.dll.old')"
+          Command="del /f /q &quot;$(CleanStagingDir)1.7\Assemblies\Geoscape.dll.old&quot; 2&gt;nul"
+          IgnoreExitCode="true" />
   </Target>
 
 </Project>
