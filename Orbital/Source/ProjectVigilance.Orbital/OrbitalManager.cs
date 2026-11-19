@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -13,6 +14,32 @@ namespace ProjectVigilance.Geoscape.Orbital;
 /// </summary>
 public class OrbitalManager : WorldComponent
 {
+    public const int MaxAutoSpawnedNpcStations = 6;
+    private const int InfrastructureAuditIntervalTicks = 15000;
+
+    internal static Action<WorldObject>? RemoveWorldObjectOverride { get; set; }
+
+    private readonly struct FactionRoleKey : IEquatable<FactionRoleKey>
+    {
+        public readonly Faction Faction;
+        public readonly SatelliteRole Role;
+
+        public FactionRoleKey(Faction faction, SatelliteRole role)
+        {
+            Faction = faction;
+            Role = role;
+        }
+
+        public bool Equals(FactionRoleKey other) =>
+            ReferenceEquals(Faction, other.Faction) && Role == other.Role;
+
+        public override bool Equals(object? obj) =>
+            obj is FactionRoleKey other && Equals(other);
+
+        public override int GetHashCode() =>
+            HashCode.Combine(RuntimeHelpers.GetHashCode(Faction), (int)Role);
+    }
+
     private readonly List<WorldObject_OrbitalStation> stations = new(16);
     private readonly List<WorldObject_Satellite> satellites = new(32);
     private readonly List<Satellite_Trade> tmpTradeSatellites = new(8);
@@ -48,6 +75,7 @@ public class OrbitalManager : WorldComponent
     {
         base.FinalizeInit(fromLoad);
         RescanWorldObjects();
+        PruneDuplicateNpcOrbitalEntities(fromLoad ? "SaveLoad" : "WorldInit");
         EnsureOrbitalFactionInfrastructure();
     }
 
@@ -56,7 +84,7 @@ public class OrbitalManager : WorldComponent
         base.WorldComponentTick();
 
         int ticks = Current.Game?.tickManager?.TicksGame ?? 0;
-        if (ticks % 1000 == 0)
+        if (ticks > 0 && ticks % InfrastructureAuditIntervalTicks == 0)
         {
             EnsureOrbitalFactionInfrastructure();
         }
@@ -179,25 +207,56 @@ public class OrbitalManager : WorldComponent
             }
         }
 
-        if (tradeSatCount < 2)
+        if (tradeSatCount < 2 && CountNonPlayerOrbitalStations() < MaxAutoSpawnedNpcStations)
         {
             Faction? playerFaction = (Find.World != null) ? Faction.OfPlayerSilentFail : null;
             foreach (Faction f in factionManager.AllFactionsVisible)
             {
                 bool isHostile = playerFaction != null ? f.HostileTo(playerFaction) : (f.def?.permanentEnemy ?? false);
-                if (!f.IsPlayer && !f.defeated && !f.Hidden && !isHostile)
+                if (!f.IsPlayer && !f.defeated && !f.Hidden && !f.temporary && !isHostile)
                 {
-                    EnsureStationForFaction(f);
-                    tradeSatCount++;
-                    if (tradeSatCount >= 2) break;
+                    if (EnsureStationForFaction(f) != null)
+                    {
+                        tradeSatCount++;
+                    }
+                    if (tradeSatCount >= 2 || CountNonPlayerOrbitalStations() >= MaxAutoSpawnedNpcStations) break;
                 }
             }
         }
     }
 
+    private int CountNonPlayerOrbitalStations()
+    {
+        int count = 0;
+        for (int i = 0; i < stations.Count; i++)
+        {
+            WorldObject_OrbitalStation? st = stations[i];
+            if (st != null && st.Faction?.IsPlayer != true)
+            {
+                count++;
+            }
+        }
+
+        if (count > 0 || Find.World?.worldObjects == null)
+        {
+            return count;
+        }
+
+        var all = Find.World.worldObjects.AllWorldObjects;
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (all[i] is WorldObject_OrbitalStation st && st.Faction?.IsPlayer != true)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     public static bool IsOrbitalFaction(Faction? faction, HashSet<Faction>? factionsWithSettlements = null)
     {
-        if (faction == null) return false;
+        if (faction == null || faction.defeated || faction.temporary) return false;
 
         // TradersGuild or factions with def name indicating orbital/space nature
         string defName = faction.def?.defName ?? string.Empty;
@@ -208,8 +267,10 @@ public class OrbitalManager : WorldComponent
             return true;
         }
 
-        // Factions with 0 surface settlements that are non-hidden and non-defeated
-        if (!faction.IsPlayer && !faction.defeated && !faction.Hidden)
+        // Factions with 0 surface settlements that are non-hidden, non-defeated, non-temporary, and at least industrial tech
+        if (!faction.IsPlayer &&
+            !faction.Hidden &&
+            (faction.def == null || faction.def.techLevel >= TechLevel.Industrial))
         {
             if (factionsWithSettlements != null)
             {
@@ -258,12 +319,23 @@ public class OrbitalManager : WorldComponent
             }
         }
 
-        // 2. Look for existing custom WorldObject_OrbitalStation instances
+        // 2. Look for existing custom WorldObject_OrbitalStation instances in cache
         for (int i = 0; i < stations.Count; i++)
         {
-            if (stations[i].Faction == faction)
+            if (stations[i] != null && stations[i].Faction == faction)
             {
                 return stations[i];
+            }
+        }
+
+        // 3. Fallback scan of AllWorldObjects in case a loaded/unregistered station exists
+        var all = Find.World.worldObjects.AllWorldObjects;
+        for (int i = 0; i < all.Count; i++)
+        {
+            if (all[i] is WorldObject_OrbitalStation st && st.Faction == faction)
+            {
+                RegisterStation(st);
+                return st;
             }
         }
 
@@ -338,6 +410,11 @@ public class OrbitalManager : WorldComponent
             return existing;
         }
 
+        if (CountNonPlayerOrbitalStations() >= MaxAutoSpawnedNpcStations)
+        {
+            return null;
+        }
+
         // If no station exists from world generation (e.g. base game without Odyssey),
         // spawn a persistent fallback WorldObject_OrbitalStation for this faction.
         WorldObjectDef? stationDef = OrbitalDefOf.Vigilance_OrbitalStation ??
@@ -379,15 +456,34 @@ public class OrbitalManager : WorldComponent
     {
         if (station == null || station.Faction == null) return;
 
-        // Count active satellites linked to this parent station
+        // Count active trade satellites linked to this parent station or owning faction
         bool hasTrade = false;
 
         for (int i = 0; i < satellites.Count; i++)
         {
             var sat = satellites[i];
-            if (sat.ParentStationId == station.ID)
+            if (sat != null &&
+                sat.Role == SatelliteRole.Trade &&
+                (sat.ParentStationId == station.ID || sat.Faction == station.Faction))
             {
-                if (sat.Role == SatelliteRole.Trade) hasTrade = true;
+                hasTrade = true;
+                break;
+            }
+        }
+
+        if (!hasTrade && Find.World?.worldObjects != null)
+        {
+            var all = Find.World.worldObjects.AllWorldObjects;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (all[i] is WorldObject_Satellite sat &&
+                    sat.Role == SatelliteRole.Trade &&
+                    (sat.ParentStationId == station.ID || sat.Faction == station.Faction))
+                {
+                    RegisterSatellite(sat);
+                    hasTrade = true;
+                    break;
+                }
             }
         }
 
@@ -395,6 +491,205 @@ public class OrbitalManager : WorldComponent
         {
             SpawnSatelliteForStation(station, SatelliteRole.Trade);
         }
+    }
+
+    /// <summary>
+    /// Deduplicates NPC orbital stations by faction and NPC satellites by (faction, role),
+    /// removing orphaned or excess duplicates caused by legacy save inflation while preserving
+    /// all player assets and Odyssey world-gen SpaceSettlements. Logs a warning whenever objects
+    /// are pruned so repeated occurrences can be diagnosed immediately.
+    /// </summary>
+    public (int prunedStations, int prunedSatellites) PruneDuplicateNpcOrbitalEntities(
+        string triggerReason = "SaveLoad",
+        bool logWarningOnPrune = true)
+    {
+        var all = Find.World?.worldObjects?.AllWorldObjects;
+        if (all == null || all.Count == 0)
+        {
+            return (0, 0);
+        }
+
+        var odysseyFactions = new HashSet<Faction>(ReferenceEqualityComparer.Instance);
+        var npcStations = new List<WorldObject_OrbitalStation>(16);
+        var npcSatellites = new List<WorldObject_Satellite>(32);
+
+        for (int i = 0; i < all.Count; i++)
+        {
+            WorldObject wo = all[i];
+            if (wo == null)
+            {
+                continue;
+            }
+
+            if (wo is WorldObject_OrbitalStation st)
+            {
+                if (st.Faction?.IsPlayer != true)
+                {
+                    npcStations.Add(st);
+                }
+                continue;
+            }
+
+            if (wo is WorldObject_Satellite sat)
+            {
+                if (sat.Faction?.IsPlayer != true)
+                {
+                    npcSatellites.Add(sat);
+                }
+                continue;
+            }
+
+            if (wo.Faction != null &&
+                !wo.Faction.IsPlayer &&
+                (wo.def?.defName == "SpaceSettlement" || wo.Tile.Layer?.Def?.defName == "Orbit"))
+            {
+                odysseyFactions.Add(wo.Faction);
+            }
+        }
+
+        if (npcStations.Count == 0 && npcSatellites.Count == 0)
+        {
+            return (0, 0);
+        }
+
+        var survivingStationsByFaction = new Dictionary<Faction, WorldObject_OrbitalStation>(ReferenceEqualityComparer.Instance);
+        var stationsToRemove = new List<WorldObject_OrbitalStation>();
+
+        for (int i = 0; i < npcStations.Count; i++)
+        {
+            WorldObject_OrbitalStation st = npcStations[i];
+            Faction? faction = st.Faction;
+            if (faction == null || faction.defeated || faction.temporary || odysseyFactions.Contains(faction))
+            {
+                stationsToRemove.Add(st);
+                continue;
+            }
+
+            if (!survivingStationsByFaction.TryGetValue(faction, out WorldObject_OrbitalStation? existing))
+            {
+                survivingStationsByFaction[faction] = st;
+            }
+            else if (st.ID < existing.ID)
+            {
+                stationsToRemove.Add(existing);
+                survivingStationsByFaction[faction] = st;
+            }
+            else
+            {
+                stationsToRemove.Add(st);
+            }
+        }
+
+        var survivingSatsByKey = new Dictionary<FactionRoleKey, WorldObject_Satellite>();
+        var satellitesToRemove = new List<WorldObject_Satellite>();
+
+        for (int i = 0; i < npcSatellites.Count; i++)
+        {
+            WorldObject_Satellite sat = npcSatellites[i];
+            Faction? faction = sat.Faction;
+            if (faction == null || faction.defeated || faction.temporary)
+            {
+                satellitesToRemove.Add(sat);
+                continue;
+            }
+
+            var key = new FactionRoleKey(faction, sat.Role);
+            if (!survivingSatsByKey.TryGetValue(key, out WorldObject_Satellite? existing))
+            {
+                survivingSatsByKey[key] = sat;
+                continue;
+            }
+
+            survivingStationsByFaction.TryGetValue(faction, out WorldObject_OrbitalStation? factionHub);
+            bool satPreferred = factionHub != null && sat.ParentStationId == factionHub.ID;
+            bool existingPreferred = factionHub != null && existing.ParentStationId == factionHub.ID;
+
+            if ((satPreferred && !existingPreferred) ||
+                (satPreferred == existingPreferred && sat.ID < existing.ID))
+            {
+                satellitesToRemove.Add(existing);
+                survivingSatsByKey[key] = sat;
+            }
+            else
+            {
+                satellitesToRemove.Add(sat);
+            }
+        }
+
+        var validSatIds = new HashSet<int>();
+        var tradeSatByFaction = new Dictionary<Faction, int>(ReferenceEqualityComparer.Instance);
+        foreach (WorldObject_Satellite survivorSat in survivingSatsByKey.Values)
+        {
+            validSatIds.Add(survivorSat.ID);
+            Faction? satFaction = survivorSat.Faction;
+            if (satFaction == null)
+            {
+                continue;
+            }
+
+            if (survivingStationsByFaction.TryGetValue(satFaction, out WorldObject_OrbitalStation? hub) &&
+                survivorSat.ParentStationId != hub.ID)
+            {
+                survivorSat.ReassignParentStation(hub.ID);
+            }
+
+            if (survivorSat.Role == SatelliteRole.Trade)
+            {
+                tradeSatByFaction[satFaction] = survivorSat.ID;
+            }
+        }
+
+        foreach (WorldObject_OrbitalStation hub in survivingStationsByFaction.Values)
+        {
+            int? attachedTradeId = hub.Faction != null && tradeSatByFaction.TryGetValue(hub.Faction, out int satId)
+                ? satId
+                : null;
+            hub.ReconcileChildSatellites(validSatIds, attachedTradeId);
+        }
+
+        if (stationsToRemove.Count == 0 && satellitesToRemove.Count == 0)
+        {
+            return (0, 0);
+        }
+
+        for (int i = 0; i < stationsToRemove.Count; i++)
+        {
+            WorldObject_OrbitalStation st = stationsToRemove[i];
+            DeregisterStation(st);
+            RemoveOrbitalWorldObject(st);
+        }
+
+        for (int i = 0; i < satellitesToRemove.Count; i++)
+        {
+            WorldObject_Satellite sat = satellitesToRemove[i];
+            DeregisterSatellite(sat);
+            RemoveOrbitalWorldObject(sat);
+        }
+
+        RescanWorldObjects();
+        OrbitalVisibilityUtility.ClearDetectionCaches();
+
+        if (logWarningOnPrune)
+        {
+            Log.Warning(
+                $"[Project Vigilance] Orbital deduplication ({triggerReason}) pruned {stationsToRemove.Count} duplicate/orphaned NPC station(s) " +
+                $"and {satellitesToRemove.Count} duplicate/orphaned NPC satellite(s); remaining active NPC hubs={survivingStationsByFaction.Count}, " +
+                $"remaining NPC satellites={survivingSatsByKey.Count}. This cleanup should only appear once when migrating an affected legacy save — " +
+                "please report a bug if this warning repeats on subsequent loads.");
+        }
+
+        return (stationsToRemove.Count, satellitesToRemove.Count);
+    }
+
+    private static void RemoveOrbitalWorldObject(WorldObject obj)
+    {
+        if (RemoveWorldObjectOverride != null)
+        {
+            RemoveWorldObjectOverride(obj);
+            return;
+        }
+
+        Find.World?.worldObjects?.Remove(obj);
     }
 
     public WorldObject_Satellite? SpawnSatelliteForStation(WorldObject station, SatelliteRole role)

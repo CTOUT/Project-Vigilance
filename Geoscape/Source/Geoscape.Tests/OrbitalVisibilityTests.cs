@@ -1,4 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using HarmonyLib;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape;
 using ProjectVigilance.Geoscape.Orbital;
@@ -6,6 +10,7 @@ using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.Sensory;
 using RimWorld;
 using RimWorld.Planet;
+using UnityEngine;
 using Verse;
 
 namespace Geoscape.Tests;
@@ -19,6 +24,8 @@ public sealed class OrbitalVisibilityTests
     [TestInitialize]
     public void Init()
     {
+        GeoscapeTestHarness.ResetAllStaticState();
+        GeoscapeTestHarness.EnsureEnvironmentInitialised();
         originalMode = GeoscapeMod.Settings.visibilityMode;
         GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
     }
@@ -26,8 +33,8 @@ public sealed class OrbitalVisibilityTests
     [TestCleanup]
     public void Cleanup()
     {
+        GeoscapeTestHarness.ResetAllStaticState();
         GeoscapeMod.Settings.visibilityMode = originalMode;
-        SensoryManager.Instance = null;
     }
 
     private static void SetFactionRaw(WorldObject wo, Faction f)
@@ -398,5 +405,297 @@ public sealed class OrbitalVisibilityTests
             "Foot/animal ground caravans should remain restricted to the Surface layer.");
         Assert.IsFalse(WorldObject_Visibility_Patch.IsSurfaceAnchorVisibleFromOrbit(playerPost),
             "Unmanned listening posts should remain restricted to the Surface layer.");
+    }
+
+    private static PlanetLayer CreateSurfaceForOrbitalTests(int tileCount)
+    {
+        GeoscapeTestHarness.InitMockWorld(out PlanetLayer surfaceLayer);
+        var tiles = new List<Tile>(tileCount);
+        var vOffsets = new Unity.Collections.NativeArray<int>(tileCount, Unity.Collections.Allocator.Temp);
+        var verts = new Unity.Collections.NativeArray<Vector3>(tileCount * 3, Unity.Collections.Allocator.Temp);
+
+        for (int i = 0; i < tileCount; i++)
+        {
+            tiles.Add(new SurfaceTile(new PlanetTile(i, surfaceLayer)));
+            float angle = (i * 0.8f) * Mathf.Deg2Rad;
+            Vector3 dir = new Vector3(Mathf.Sin(angle), 0f, -Mathf.Cos(angle)) * 100f;
+            vOffsets[i] = i * 3;
+            verts[i * 3] = dir;
+            verts[i * 3 + 1] = dir + Vector3.up * 0.2f;
+            verts[i * 3 + 2] = dir + Vector3.right * 0.2f;
+        }
+
+        AccessTools.Field(typeof(PlanetLayer), "tiles")!.SetValue(surfaceLayer, tiles);
+        AccessTools.Field(typeof(PlanetLayer), "radius")!.SetValue(surfaceLayer, 100f);
+        AccessTools.Field(typeof(PlanetLayer), "averageTileSize")!.SetValue(surfaceLayer, 1.3f);
+        AccessTools.Field(typeof(PlanetLayer), "<WorldDrawLayers>k__BackingField")!.SetValue(surfaceLayer, new List<WorldDrawLayer>());
+        AccessTools.Field(typeof(PlanetLayer), "tileIDToNeighbors_offsets")!.SetValue(surfaceLayer, new Unity.Collections.NativeArray<int>(tileCount, Unity.Collections.Allocator.Temp));
+        AccessTools.Field(typeof(PlanetLayer), "tileIDToVerts_offsets")!.SetValue(surfaceLayer, vOffsets);
+        AccessTools.Field(typeof(PlanetLayer), "verts")!.SetValue(surfaceLayer, verts);
+        return surfaceLayer;
+    }
+
+    [TestMethod]
+    public void OrbitalVisibility_SetFactionSafe_FallbackUsesFactionInt()
+    {
+        GeoscapeTestHarness.ClearMockWorld();
+        Faction npcFaction = GeoscapeTestHarness.CreateNpcFaction("Pirates", "pirates", "Sky Corsairs");
+        WorldObject_Satellite sat = new();
+
+        sat.SetFaction(npcFaction);
+
+        Assert.AreSame(npcFaction, sat.Faction, "SetFaction fallback must assign WorldObject.factionInt when World is uninitialized.");
+    }
+
+    [TestMethod]
+    public void OrbitalVisibility_DetectionCache_ZeroSteadyStateAllocationAndInvalidatesOnSweepRevision()
+    {
+        PlanetLayer surfaceLayer = CreateSurfaceForOrbitalTests(256);
+        var holder = (WorldObjectsHolder)RuntimeHelpers.GetUninitializedObject(typeof(WorldObjectsHolder));
+        var worldObjects = new List<WorldObject>(256);
+        AccessTools.Field(typeof(WorldObjectsHolder), "worldObjects")!.SetValue(holder, worldObjects);
+        Find.World!.worldObjects = holder;
+
+        var game = (Game)RuntimeHelpers.GetUninitializedObject(typeof(Game));
+        var tickManager = (TickManager)RuntimeHelpers.GetUninitializedObject(typeof(TickManager));
+        AccessTools.Field(typeof(TickManager), "ticksGameInt")!.SetValue(tickManager, 100);
+        AccessTools.Field(typeof(Game), "tickManager")!.SetValue(game, tickManager);
+        AccessTools.Field(typeof(Game), "worldInt")!.SetValue(game, Find.World);
+        AccessTools.Field(typeof(Game), "maps")!.SetValue(game, new List<Map>());
+        AccessTools.Field(typeof(Current), "gameInt")!.SetValue(null, game);
+
+        var sensory = new SensoryManager(Find.World!);
+        SensoryManager.Instance = sensory;
+        SensoryManager.TileNeighborsOverride = static (_, list) => list.Clear();
+
+        var orbitalManager = new OrbitalManager(Find.World!);
+        OrbitalManager.Instance = orbitalManager;
+
+        // Place 1 player recon satellite at tile 10 covering tile 10 (distant from tile 200).
+        Faction playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+        var playerRecon = new WorldObject_Satellite { ID = 5000 };
+        SetFactionRaw(playerRecon, playerFaction);
+        playerRecon.InitializeSatellite(
+            SatelliteRole.Reconnaissance,
+            new OrbitalParameters(450f, 45000, 1f, 0f, 0f, 0f, 0f, 0),
+            stationId: -1,
+            callsign: "Player-Recon",
+            footprintRadius: 12f);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(playerRecon, new PlanetTile(10, surfaceLayer));
+        orbitalManager.RegisterSatellite(playerRecon);
+
+        // Spawn 245 NPC satellites (first 5 near tile 1 -> detected, remaining 240 at tile 150 -> hidden).
+        Faction npcFaction = GeoscapeTestHarness.CreateNpcFaction();
+        var npcSatellites = new WorldObject_Satellite[245];
+        for (int i = 0; i < npcSatellites.Length; i++)
+        {
+            var sat = new WorldObject_Satellite { ID = 6000 + i };
+            SetFactionRaw(sat, npcFaction);
+            int tileIdx = i < 5 ? 1 : 150;
+            sat.InitializeSatellite(
+                SatelliteRole.Trade,
+                new OrbitalParameters(600f, 62500, 40f, 0f, -3.5f, 0f, 0.8f, 0),
+                stationId: -1,
+                callsign: $"NPC-Trade-{i}",
+                footprintRadius: 16f);
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(sat, new PlanetTile(tileIdx, surfaceLayer));
+            npcSatellites[i] = sat;
+        }
+
+        // Warm up caches on initial frame.
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        for (int i = 0; i < npcSatellites.Length; i++)
+        {
+            bool detected = OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[i]);
+            Assert.AreEqual(i < 5, detected);
+        }
+
+        // Measure 4 lookups per entity * 245 entities = 980 calls in steady state: must allocate 0 bytes.
+        bool mismatch = false;
+        long bytesBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (int pass = 0; pass < 4; pass++)
+        {
+            for (int i = 0; i < npcSatellites.Length; i++)
+            {
+                bool expected = i < 5;
+                if (OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[i]) != expected)
+                {
+                    mismatch = true;
+                }
+            }
+        }
+        long bytesAfter = GC.GetAllocatedBytesForCurrentThread();
+
+        Assert.IsFalse(mismatch, "Cached orbital detection returned inconsistent values.");
+        Assert.AreEqual(0L, bytesAfter - bytesBefore, "Steady-state orbital detection across 245 satellites must allocate 0 bytes.");
+
+        // Mode switch invalidates cache immediately even inside the same tick bucket.
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.Omniscient;
+        Assert.IsTrue(OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[240]));
+
+        // Switching back + advancing tick bucket and SweepRevision recomputes cleanly.
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        Assert.IsFalse(OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[240]));
+        sensory.MarkTileExplored(new PlanetTile(1, surfaceLayer)); // Bumps SweepRevision++
+        AccessTools.Field(typeof(TickManager), "ticksGameInt")!.SetValue(tickManager, 130); // Next 30-tick bucket
+        Assert.IsTrue(OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[0]));
+        Assert.IsFalse(OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[240]));
+    }
+
+    [TestMethod]
+    public void OrbitalManager_PruneDuplicateNpcOrbitalEntities_DedupesByFactionAndRolePreservesPlayerAndLogsWarning()
+    {
+        PlanetLayer surfaceLayer = CreateSurfaceForOrbitalTests(32);
+        var holder = (WorldObjectsHolder)RuntimeHelpers.GetUninitializedObject(typeof(WorldObjectsHolder));
+        var worldObjects = new List<WorldObject>(256);
+        var settlements = new List<Settlement>(4);
+        AccessTools.Field(typeof(WorldObjectsHolder), "worldObjects")!.SetValue(holder, worldObjects);
+        AccessTools.Field(typeof(WorldObjectsHolder), "settlements")!.SetValue(holder, settlements);
+        Find.World!.worldObjects = holder;
+
+        OrbitalManager.RemoveWorldObjectOverride = wo => worldObjects.Remove(wo);
+        var orbitalManager = new OrbitalManager(Find.World!);
+        OrbitalManager.Instance = orbitalManager;
+
+        Faction playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+        Faction odysseyFaction = GeoscapeTestHarness.CreateNpcFaction("TradersGuild", "traders guild", "Traders Guild");
+        Faction industrialNpcFaction = new() { def = new FactionDef { defName = "OuterCombine", techLevel = TechLevel.Industrial } };
+
+        // 1. Player station + 2 player satellites (must never be pruned).
+        var playerStation = new WorldObject_OrbitalStation { ID = 10 };
+        SetFactionRaw(playerStation, playerFaction);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(playerStation, new PlanetTile(1, surfaceLayer));
+        worldObjects.Add(playerStation);
+
+        var playerTradeSat = new Satellite_Trade { ID = 11 };
+        SetFactionRaw(playerTradeSat, playerFaction);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(playerTradeSat, new PlanetTile(1, surfaceLayer));
+        worldObjects.Add(playerTradeSat);
+
+        var playerReconSat = new WorldObject_Satellite { ID = 12, Role = SatelliteRole.Reconnaissance };
+        SetFactionRaw(playerReconSat, playerFaction);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(playerReconSat, new PlanetTile(2, surfaceLayer));
+        worldObjects.Add(playerReconSat);
+
+        // 2. Orphaned (null-faction) hubs & satellites (must all be pruned).
+        for (int i = 0; i < 3; i++)
+        {
+            var orphanHub = new WorldObject_OrbitalStation { ID = 100 + i };
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(orphanHub, new PlanetTile(3, surfaceLayer));
+            worldObjects.Add(orphanHub);
+        }
+        for (int i = 0; i < 2; i++)
+        {
+            var orphanSat = new WorldObject_Satellite { ID = 110 + i };
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(orphanSat, new PlanetTile(4, surfaceLayer));
+            worldObjects.Add(orphanSat);
+        }
+
+        // 3. Odyssey faction: has vanilla/Odyssey SpaceSettlement + 2 redundant fallback stations + 60 Trade + 5 Recon sats.
+        var spaceSettlement = GeoscapeTestHarness.CreateSettlement(
+            new PlanetTile(5, surfaceLayer),
+            odysseyFaction,
+            id: 200,
+            def: new WorldObjectDef { defName = "SpaceSettlement" });
+        worldObjects.Add(spaceSettlement);
+        settlements.Add(spaceSettlement);
+
+        for (int i = 0; i < 2; i++)
+        {
+            var redundantHub = new WorldObject_OrbitalStation { ID = 210 + i };
+            SetFactionRaw(redundantHub, odysseyFaction);
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(redundantHub, new PlanetTile(5, surfaceLayer));
+            worldObjects.Add(redundantHub);
+        }
+        for (int i = 0; i < 60; i++)
+        {
+            var dupTrade = new Satellite_Trade { ID = 300 + i };
+            SetFactionRaw(dupTrade, odysseyFaction);
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(dupTrade, new PlanetTile(6, surfaceLayer));
+            worldObjects.Add(dupTrade);
+        }
+        for (int i = 0; i < 5; i++)
+        {
+            var dupRecon = new WorldObject_Satellite { ID = 400 + i, Role = SatelliteRole.Reconnaissance };
+            SetFactionRaw(dupRecon, odysseyFaction);
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(dupRecon, new PlanetTile(7, surfaceLayer));
+            worldObjects.Add(dupRecon);
+        }
+
+        // 4. Industrial NPC faction: 120 duplicate stations + 60 duplicate trade sats + stale child IDs.
+        WorldObject_OrbitalStation? lowestCombineHub = null;
+        for (int i = 0; i < 120; i++)
+        {
+            var hub = new WorldObject_OrbitalStation { ID = 500 + i };
+            SetFactionRaw(hub, industrialNpcFaction);
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(hub, new PlanetTile(8, surfaceLayer));
+            if (i == 0)
+            {
+                lowestCombineHub = hub;
+                AccessTools.Field(typeof(WorldObject_OrbitalStation), "childSatelliteIds")!
+                    .SetValue(hub, new List<int> { 99991, 99992 });
+            }
+            worldObjects.Add(hub);
+        }
+        for (int i = 0; i < 60; i++)
+        {
+            var sat = new Satellite_Trade { ID = 700 + i };
+            SetFactionRaw(sat, industrialNpcFaction);
+            sat.ReassignParentStation(555); // Stale non-lowest parent hub ID
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(sat, new PlanetTile(9, surfaceLayer));
+            worldObjects.Add(sat);
+        }
+
+        // Act 1: First prune strips duplicates and orphans while preserving player assets, Odyssey hub, and 1 per (faction, role).
+        (int prunedStations, int prunedSatellites) = orbitalManager.PruneDuplicateNpcOrbitalEntities("TestLoad");
+
+        Assert.AreEqual(3 + 2 + 119, prunedStations, "Must prune 3 orphans + 2 Odyssey fallback hubs + 119 duplicate Combine hubs.");
+        Assert.AreEqual(2 + 59 + 4 + 59, prunedSatellites, "Must prune 2 orphans + 59 Odyssey trade + 4 Odyssey recon + 59 Combine trade.");
+
+        Assert.IsTrue(worldObjects.Contains(playerStation));
+        Assert.IsTrue(worldObjects.Contains(playerTradeSat));
+        Assert.IsTrue(worldObjects.Contains(playerReconSat));
+        Assert.IsTrue(worldObjects.Contains(spaceSettlement));
+
+        Assert.IsNotNull(lowestCombineHub);
+        Assert.IsTrue(worldObjects.Contains(lowestCombineHub));
+        Assert.IsFalse(lowestCombineHub.ChildSatelliteIds.Contains(99991), "Stale child IDs must be reconciled.");
+        Assert.IsTrue(lowestCombineHub.ChildSatelliteIds.Contains(700), "Surviving trade satellite 700 must be attached to surviving hub.");
+
+        var survivingCombineSat = worldObjects.Find(wo => wo.ID == 700) as WorldObject_Satellite;
+        Assert.IsNotNull(survivingCombineSat);
+        Assert.AreEqual(500, survivingCombineSat.ParentStationId, "Surviving satellite must re-link to surviving hub 500.");
+
+        // Act 2: Second pass is strictly idempotent and prunes 0 items (no repeat warning noise).
+        (int secondStations, int secondSats) = orbitalManager.PruneDuplicateNpcOrbitalEntities("TestLoad");
+        Assert.AreEqual(0, secondStations);
+        Assert.AreEqual(0, secondSats);
+    }
+
+    [TestMethod]
+    public void OrbitalManager_IsOrbitalFaction_ExcludesTemporaryAndLowTechZeroSettlementFactions()
+    {
+        FactionDef guildDef = new() { defName = "TradersGuild", techLevel = TechLevel.Spacer };
+        Faction guildFaction = new() { def = guildDef };
+
+        FactionDef tempDef = new() { defName = "QuestFaction", techLevel = TechLevel.Industrial };
+        Faction tempFaction = new() { def = tempDef, temporary = true };
+
+        FactionDef tribalDef = new() { defName = "TribalRefugees", techLevel = TechLevel.Neolithic };
+        Faction tribalFaction = new() { def = tribalDef };
+
+        FactionDef defeatedDef = new() { defName = "FallenSyndicate", techLevel = TechLevel.Spacer };
+        Faction defeatedFaction = new() { def = defeatedDef, defeated = true };
+
+        FactionDef industrialDef = new() { defName = "OrbitalSyndicate", techLevel = TechLevel.Industrial };
+        Faction industrialFaction = new() { def = industrialDef };
+
+        var emptySettlementSet = new HashSet<Faction>();
+
+        Assert.IsTrue(OrbitalManager.IsOrbitalFaction(guildFaction, emptySettlementSet));
+        Assert.IsFalse(OrbitalManager.IsOrbitalFaction(tempFaction, emptySettlementSet));
+        Assert.IsFalse(OrbitalManager.IsOrbitalFaction(tribalFaction, emptySettlementSet));
+        Assert.IsFalse(OrbitalManager.IsOrbitalFaction(defeatedFaction, emptySettlementSet));
+        Assert.IsTrue(OrbitalManager.IsOrbitalFaction(industrialFaction, emptySettlementSet));
     }
 }

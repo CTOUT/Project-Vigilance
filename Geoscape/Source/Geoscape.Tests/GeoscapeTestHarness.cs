@@ -70,6 +70,9 @@ public static class GeoscapeTestHarness
     private static readonly FieldInfo? CreatingWorldField =
         typeof(Current).GetField("creatingWorldInt", BindingFlags.Static | BindingFlags.NonPublic);
 
+    private static readonly FieldInfo? CurrentGameField =
+        typeof(Current).GetField("gameInt", BindingFlags.Static | BindingFlags.NonPublic);
+
     public static readonly PlanetLayer DefaultLayer =
         (PlanetLayer)RuntimeHelpers.GetUninitializedObject(typeof(PlanetLayer));
 
@@ -311,7 +314,11 @@ public static class GeoscapeTestHarness
         GeoscapeMod.Settings.ResetToDefaults();
         SensoryManager.ClearStaticCaches();
         WorldObject_Visibility_Patch.ClearVisibilityCaches();
+        OrbitalVisibilityUtility.ClearDetectionCaches();
+        OrbitalManager.Instance = null;
+        OrbitalManager.RemoveWorldObjectOverride = null;
         ProjectVigilance.Geoscape.Debug.DebugActionsShroudSpikes.ClearSpikeStateForTesting();
+        CurrentGameField?.SetValue(null, null);
         ClearMockWorld();
     }
 }

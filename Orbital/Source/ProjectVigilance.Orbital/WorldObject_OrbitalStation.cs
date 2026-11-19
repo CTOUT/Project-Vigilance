@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using RimWorld;
@@ -72,6 +73,8 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
     public override void SpawnSetup()
     {
         base.SpawnSetup();
+        OrbitalManager.Instance?.RegisterStation(this);
+
         if (string.IsNullOrEmpty(stationCallsign) || stationCallsign == "Orbital Hub" || stationCallsign == "Logistics Hub")
         {
             stationCallsign = LabelCap.NullOrEmpty() ? "Hub-" + ID : LabelCap;
@@ -79,7 +82,6 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
 
         // Align tile to current sub-station coordinates
         SetTileSafe(CurrentSubSatelliteTile);
-        OrbitalManager.Instance?.RegisterStation(this);
     }
 
     public override void PostRemove()
@@ -127,12 +129,35 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
                 return;
             }
         }
-        catch (NullReferenceException)
+        catch (Exception)
         {
             // Fallback for layers or world states lacking ground tile definitions (e.g. FastTileFinder NRE)
         }
 
         WorldObjectAccessUtility.SetTileRaw(this, newTile);
+    }
+
+    internal void ReconcileChildSatellites(HashSet<int> validSatelliteIds, int? attachedTradeSatId = null)
+    {
+        for (int i = childSatelliteIds.Count - 1; i >= 0; i--)
+        {
+            if (!validSatelliteIds.Contains(childSatelliteIds[i]))
+            {
+                childSatelliteIds.RemoveAt(i);
+            }
+        }
+
+        if (attachedTradeSatId.HasValue &&
+            validSatelliteIds.Contains(attachedTradeSatId.Value) &&
+            !childSatelliteIds.Contains(attachedTradeSatId.Value))
+        {
+            childSatelliteIds.Add(attachedTradeSatId.Value);
+        }
+
+        if (childSatelliteIds.Count > 0)
+        {
+            replenishmentCountdownTicks = -1;
+        }
     }
 
     public void RegisterChildSatellite(WorldObject_Satellite satellite)

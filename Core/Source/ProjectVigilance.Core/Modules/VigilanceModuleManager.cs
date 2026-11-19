@@ -101,6 +101,8 @@ public static class VigilanceModuleManager
     public static Func<PlanetTile, bool>? HasNavigationCoverageHook { get; set; }
     public static Func<VisibilityMode>? GetVisibilityModeHook { get; set; }
     public static Func<Map, PlanetTile, bool>? HasGroundRadarCoveringTileHook { get; set; }
+    public static Func<int>? GetSensorySweepRevisionHook { get; set; }
+    public static Func<Map, float>? GetMaxGroundRadarRangeHook { get; set; }
     public static Action<ISensorProvider>? RegisterDynamicSensorHook { get; set; }
     public static Action<ISensorProvider>? DeregisterDynamicSensorHook { get; set; }
     public static Action? PerformSensorySweepHook { get; set; }
@@ -154,6 +156,8 @@ public static class VigilanceModuleManager
         }
         AllowSonarInTests = false;
         DistanceCalculationOverrideHook = null;
+        GetSensorySweepRevisionHook = null;
+        GetMaxGroundRadarRangeHook = null;
     }
 
     public static bool IsModuleActive(VigilanceModuleId id)
@@ -246,6 +250,12 @@ public static class VigilanceModuleManager
 
     public static bool HasGroundRadarCoveringTile(Map map, PlanetTile targetTile) =>
         HasGroundRadarCoveringTileHook != null && HasGroundRadarCoveringTileHook(map, targetTile);
+
+    public static int GetSensorySweepRevision() =>
+        GetSensorySweepRevisionHook?.Invoke() ?? 0;
+
+    public static float GetMaxGroundRadarRange(Map map) =>
+        GetMaxGroundRadarRangeHook?.Invoke(map) ?? 0f;
 
     public static void RegisterDynamicSensor(ISensorProvider sensor) =>
         RegisterDynamicSensorHook?.Invoke(sensor);

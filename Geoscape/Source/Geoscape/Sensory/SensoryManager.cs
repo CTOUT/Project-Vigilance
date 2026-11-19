@@ -389,6 +389,35 @@ public class SensoryManager : WorldComponent
         }
     }
 
+    internal float GetMaxGroundRadarRangeForMap(Map map)
+    {
+        if (map == null)
+        {
+            return 0f;
+        }
+
+        float maxRange = 0f;
+        for (int i = 0; i < customSensors.Count; i++)
+        {
+            if (customSensors[i] is CompRadar radar &&
+                radar.parent != null &&
+                !radar.parent.Destroyed &&
+                radar.parent.Map == map &&
+                radar.IsSensorActive &&
+                radar.IsTechnological &&
+                !radar.IsOceanicSonar)
+            {
+                float range = radar.DetectionRadiusInTiles;
+                if (range > maxRange)
+                {
+                    maxRange = range;
+                }
+            }
+        }
+
+        return maxRange;
+    }
+
     public IReadOnlyList<ISensorProvider> GetActiveSensors()
     {
         activeSensorsCache.Clear();

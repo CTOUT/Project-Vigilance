@@ -62,6 +62,8 @@ public class GeoscapeMod : Mod
         VigilanceModuleManager.DoUnifiedSettingsWindowContentsHook = static rect => Settings.DoWindowContents(rect);
         VigilanceModuleManager.GetVisibilityModeHook = static () => GeoscapeRules.VisibilityMode;
         VigilanceModuleManager.HasGroundRadarCoveringTileHook = HasGroundRadarCoveringTile;
+        VigilanceModuleManager.GetSensorySweepRevisionHook = static () => SensoryManager.Instance?.SweepRevision ?? 0;
+        VigilanceModuleManager.GetMaxGroundRadarRangeHook = GetMaxGroundRadarRange;
         VigilanceModuleManager.RegisterDynamicSensorHook = SensoryManager.RegisterDynamicSensor;
         VigilanceModuleManager.DeregisterDynamicSensorHook = SensoryManager.UnregisterDynamicSensor;
         VigilanceModuleManager.PerformSensorySweepHook = static () => SensoryManager.Instance?.PerformSensorySweep();
@@ -75,18 +77,25 @@ public class GeoscapeMod : Mod
             GeoscapeCampaignRules.Active?.Record(RuleChangeKind.ModuleMigration, note: note);
     }
 
-    private static bool HasGroundRadarCoveringTile(Map map, PlanetTile targetTile)
+    private static float GetMaxGroundRadarRange(Map map)
     {
-        if (map?.listerBuildings?.allBuildingsColonist == null || !map.Tile.Valid || !targetTile.Valid)
+        if (map == null || !map.Tile.Valid)
         {
-            return false;
+            return 0f;
         }
 
-        if (Find.World?.grid != null && map.Tile.Layer != targetTile.Layer)
+        SensoryManager? sensory = SensoryManager.Instance;
+        if (sensory != null)
         {
-            return false;
+            return sensory.GetMaxGroundRadarRangeForMap(map);
         }
 
+        if (map.listerBuildings?.allBuildingsColonist == null)
+        {
+            return 0f;
+        }
+
+        float maxRange = 0f;
         var buildings = map.listerBuildings.allBuildingsColonist;
         for (int i = 0; i < buildings.Count; i++)
         {
@@ -97,25 +106,49 @@ public class GeoscapeMod : Mod
             }
 
             CompRadar? radar = b.GetComp<CompRadar>();
-            if (radar is not { IsSensorActive: true, IsTechnological: true, IsOceanicSonar: false })
+            if (radar is { IsSensorActive: true, IsTechnological: true, IsOceanicSonar: false })
             {
-                continue;
-            }
-
-            int maxSteps = Mathf.Max(1, Mathf.RoundToInt(radar.DetectionRadiusInTiles));
-            int dist = VigilanceModuleManager.DistanceCalculationOverrideHook != null
-                ? VigilanceModuleManager.DistanceCalculationOverrideHook(map.Tile, targetTile, maxSteps)
-                : (Find.World?.grid != null
-                    ? Find.World.grid.TraversalDistanceBetween(map.Tile, targetTile, passImpassable: true, maxDist: maxSteps)
-                    : Math.Abs(map.Tile.tileId - targetTile.tileId));
-
-            if (dist <= maxSteps)
-            {
-                return true;
+                float range = radar.DetectionRadiusInTiles;
+                if (range > maxRange)
+                {
+                    maxRange = range;
+                }
             }
         }
 
-        return false;
+        return maxRange;
+    }
+
+    private static bool HasGroundRadarCoveringTile(Map map, PlanetTile targetTile)
+    {
+        if (map == null || !map.Tile.Valid || !targetTile.Valid)
+        {
+            return false;
+        }
+
+        if (Find.World?.grid != null && map.Tile.Layer != targetTile.Layer)
+        {
+            return false;
+        }
+
+        float maxRange = GetMaxGroundRadarRange(map);
+        if (maxRange <= 0f)
+        {
+            return false;
+        }
+
+        int maxSteps = Mathf.Max(1, Mathf.RoundToInt(maxRange));
+        if (VigilanceModuleManager.DistanceCalculationOverrideHook != null)
+        {
+            return VigilanceModuleManager.DistanceCalculationOverrideHook(map.Tile, targetTile, maxSteps) <= maxSteps;
+        }
+
+        if (Find.World?.grid != null)
+        {
+            return Find.World.grid.ApproxDistanceInTiles(map.Tile, targetTile) <= maxRange;
+        }
+
+        return Math.Abs(map.Tile.tileId - targetTile.tileId) <= maxSteps;
     }
 
     private static void DeploySonarOutpost(PlanetTile targetTile)
