@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using RimWorld;
 using RimWorld.Planet;
@@ -145,7 +146,7 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
                 return;
             }
         }
-        catch (NullReferenceException)
+        catch (Exception)
         {
             // Fallback for layers or world states lacking ground tile definitions (e.g. FastTileFinder NRE)
         }
@@ -153,16 +154,19 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
         WorldObjectAccessUtility.SetTileRaw(this, newTile);
     }
 
+    internal void ReassignParentStation(int newParentStationId) => parentStationId = newParentStationId;
+
     public override void SpawnSetup()
     {
         base.SpawnSetup();
+        OrbitalManager.Instance?.RegisterSatellite(this);
+
         if (string.IsNullOrEmpty(satelliteCallsign) || satelliteCallsign == "SAT-1")
         {
             satelliteCallsign = LabelCap.NullOrEmpty() ? $"{role}-{ID}" : LabelCap;
         }
 
         SetTileSafe(CurrentSubSatelliteTile);
-        OrbitalManager.Instance?.RegisterSatellite(this);
 
         if (IsSensorActive && (Faction?.IsPlayer == true || (Faction == null && Find.World == null)))
         {

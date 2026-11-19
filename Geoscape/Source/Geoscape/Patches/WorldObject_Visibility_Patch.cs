@@ -22,9 +22,23 @@ namespace ProjectVigilance.Geoscape.Patches;
 [StaticConstructorOnStartup]
 public static class WorldObject_Visibility_Patch
 {
+    private const int MaxVisibilityCacheEntries = 4096;
     public static readonly Color UnknownSiteIconColor = new(1f, 0.78f, 0.15f, 0.95f);
     private static Texture2D? cachedUnknownExpandingTex;
     private static Material? cachedUnknownWorldMat;
+    private static readonly Dictionary<int, bool> shouldHideTileCache = new(256);
+    private static int shouldHideCacheRevision = -1;
+    private static VisibilityMode shouldHideCacheMode = (VisibilityMode)(-1);
+    private static SensoryManager? shouldHideCacheSensory;
+
+    public static void ClearVisibilityCaches()
+    {
+        shouldHideTileCache.Clear();
+        shouldHideCacheRevision = -1;
+        shouldHideCacheMode = (VisibilityMode)(-1);
+        shouldHideCacheSensory = null;
+        LandmarksToShow_Patch.ClearCache();
+    }
 
     public static Texture2D GetUnknownSiteExpandingTexture()
     {
@@ -94,7 +108,8 @@ public static class WorldObject_Visibility_Patch
     {
         if (wo == null) return false;
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        VisibilityMode mode = GeoscapeRules.VisibilityMode;
+        if (mode != VisibilityMode.ClassicHazeOfWar)
         {
             return false;
         }
@@ -109,7 +124,47 @@ public static class WorldObject_Visibility_Patch
             return !OrbitalVisibilityUtility.IsOrbitalEntityDetected(wo);
         }
 
-        return SensoryManager.Instance != null && !SensoryManager.Instance.IsExplored(wo.Tile);
+        SensoryManager? sensory = SensoryManager.Instance;
+        if (sensory == null)
+        {
+            return false;
+        }
+
+        if (SensoryManager.IsExploredOverride != null)
+        {
+            return !sensory.IsExplored(wo.Tile);
+        }
+
+        PlanetTile tile = wo.Tile;
+        if (!tile.Valid)
+        {
+            return false;
+        }
+
+        int revision = sensory.SweepRevision;
+        if (shouldHideCacheRevision != revision ||
+            shouldHideCacheMode != mode ||
+            !ReferenceEquals(shouldHideCacheSensory, sensory))
+        {
+            shouldHideTileCache.Clear();
+            shouldHideCacheRevision = revision;
+            shouldHideCacheMode = mode;
+            shouldHideCacheSensory = sensory;
+        }
+
+        int tileId = tile.tileId;
+        if (shouldHideTileCache.TryGetValue(tileId, out bool cachedHidden))
+        {
+            return cachedHidden;
+        }
+
+        bool hidden = !sensory.IsExplored(tile);
+        if (shouldHideTileCache.Count < MaxVisibilityCacheEntries)
+        {
+            shouldHideTileCache[tileId] = hidden;
+        }
+
+        return hidden;
     }
 
     public static bool ShouldDrawUpright(WorldObject? wo)
@@ -480,9 +535,29 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch(typeof(ExpandableLandmarksUtility), "get_LandmarksToShow")]
     public static class LandmarksToShow_Patch
     {
+        private static readonly List<PlanetTile> cachedFilteredLandmarks = new(64);
+        private static readonly List<PlanetTile> scratchFilteredLandmarks = new(64);
+        private static List<PlanetTile>? cachedSourceList;
+        private static int cachedSourceCount = -1;
+        private static int cachedSweepRevision = -1;
+        private static VisibilityMode cachedVisibilityMode = (VisibilityMode)(-1);
+        private static SensoryManager? cachedSensoryManager;
+
+        public static void ClearCache()
+        {
+            cachedFilteredLandmarks.Clear();
+            scratchFilteredLandmarks.Clear();
+            cachedSourceList = null;
+            cachedSourceCount = -1;
+            cachedSweepRevision = -1;
+            cachedVisibilityMode = (VisibilityMode)(-1);
+            cachedSensoryManager = null;
+        }
+
         public static void Postfix(ref List<PlanetTile> __result)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar || __result == null || __result.Count == 0)
+            VisibilityMode mode = GeoscapeRules.VisibilityMode;
+            if (mode != VisibilityMode.ClassicHazeOfWar || __result == null || __result.Count == 0)
             {
                 return;
             }
@@ -493,8 +568,62 @@ public static class WorldObject_Visibility_Patch
                 return;
             }
 
+            int revision = sensory.SweepRevision;
+            if (SensoryManager.IsExploredOverride == null &&
+                cachedSweepRevision == revision &&
+                cachedVisibilityMode == mode &&
+                ReferenceEquals(cachedSensoryManager, sensory) &&
+                (ReferenceEquals(__result, cachedFilteredLandmarks) ||
+                 (ReferenceEquals(cachedSourceList, __result) && cachedSourceCount == __result.Count)))
+            {
+                __result = cachedFilteredLandmarks;
+                return;
+            }
+
+            if (ReferenceEquals(__result, cachedFilteredLandmarks))
+            {
+                scratchFilteredLandmarks.Clear();
+                for (int i = 0; i < __result.Count; i++)
+                {
+                    PlanetTile tile = __result[i];
+                    if (sensory.IsExplored(tile))
+                    {
+                        scratchFilteredLandmarks.Add(tile);
+                    }
+                }
+
+                cachedFilteredLandmarks.Clear();
+                cachedFilteredLandmarks.AddRange(scratchFilteredLandmarks);
+            }
+            else
+            {
+                cachedFilteredLandmarks.Clear();
+                for (int i = 0; i < __result.Count; i++)
+                {
+                    PlanetTile tile = __result[i];
+                    if (sensory.IsExplored(tile))
+                    {
+                        cachedFilteredLandmarks.Add(tile);
+                    }
+                }
+
+                cachedSourceList = __result;
+                cachedSourceCount = __result.Count;
+            }
+
+            if (SensoryManager.IsExploredOverride == null)
+            {
+                cachedSweepRevision = revision;
+                cachedVisibilityMode = mode;
+                cachedSensoryManager = sensory;
+            }
+            else
+            {
+                cachedSweepRevision = -1;
+            }
+
             // Keep explored man-made landmarks in LandmarksToShow so zoomed-out GUI can render cyan '!' markers until identified.
-            __result = __result.Where(t => sensory.IsExplored(t)).ToList();
+            __result = cachedFilteredLandmarks;
         }
     }
 

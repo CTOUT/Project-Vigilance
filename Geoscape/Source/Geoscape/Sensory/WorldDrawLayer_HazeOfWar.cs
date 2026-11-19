@@ -327,14 +327,16 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
         int renderQueue,
         System.Func<Material?>? materialOverride,
         System.Func<int, Material?>? queueMaterialOverride,
-        ref int subMeshIndex)
+        ref int subMeshIndex,
+        System.Predicate<LayerSubMesh>? skipSubMesh = null)
     {
         Material? targetMaterial = ResolveVertexColorMaterial(renderQueue, materialOverride, queueMaterialOverride);
 
         if (subMeshIndex < subMeshes.Count)
         {
             LayerSubMesh current = subMeshes[subMeshIndex];
-            if (ReferenceEquals(current.material, targetMaterial) &&
+            if ((skipSubMesh == null || !skipSubMesh(current)) &&
+                ReferenceEquals(current.material, targetMaterial) &&
                 current.verts.Count + neededVerts <= maxVertsPerMesh)
             {
                 return current;
@@ -344,7 +346,8 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
         for (int i = 0; i < subMeshes.Count; i++)
         {
             LayerSubMesh existing = subMeshes[i];
-            if (ReferenceEquals(existing.material, targetMaterial) &&
+            if ((skipSubMesh == null || !skipSubMesh(existing)) &&
+                ReferenceEquals(existing.material, targetMaterial) &&
                 existing.verts.Count + neededVerts <= maxVertsPerMesh)
             {
                 subMeshIndex = i;

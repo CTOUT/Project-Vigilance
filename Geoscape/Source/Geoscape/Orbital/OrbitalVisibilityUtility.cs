@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -14,8 +16,64 @@ namespace ProjectVigilance.Geoscape.Orbital;
 /// </summary>
 public static class OrbitalVisibilityUtility
 {
+    private const int DetectionCacheIntervalTicks = 30;
+    private const int MaxDetectionCacheEntries = 4096;
+
+    private readonly struct GroundOrbitalSensorEntry
+    {
+        public readonly PlanetTile MapTile;
+        public readonly Vector3 MapUnitDir;
+        public readonly bool HasPoweredComms;
+        public readonly float MaxRadarRangeTiles;
+
+        public GroundOrbitalSensorEntry(PlanetTile mapTile, Vector3 mapUnitDir, bool hasPoweredComms, float maxRadarRangeTiles)
+        {
+            MapTile = mapTile;
+            MapUnitDir = mapUnitDir;
+            HasPoweredComms = hasPoweredComms;
+            MaxRadarRangeTiles = maxRadarRangeTiles;
+        }
+    }
+
+    private readonly struct CachedOrbitalDetectionEntry
+    {
+        public readonly int TileId;
+        public readonly bool Detected;
+
+        public CachedOrbitalDetectionEntry(int tileId, bool detected)
+        {
+            TileId = tileId;
+            Detected = detected;
+        }
+    }
+
     private static readonly System.Reflection.FieldInfo? WorldObjectFactionField =
-        HarmonyLib.AccessTools.Field(typeof(WorldObject), "faction");
+        HarmonyLib.AccessTools.Field(typeof(WorldObject), "factionInt");
+
+    private static readonly List<GroundOrbitalSensorEntry> cachedGroundSensors = new(4);
+    private static readonly List<WorldObject_Satellite> cachedPlayerSensorSatellites = new(8);
+    private static readonly Dictionary<WorldObject, CachedOrbitalDetectionEntry> detectionCache = new(ReferenceEqualityComparer.Instance);
+    private static int cachedTickBucket = -1;
+    private static VisibilityMode cachedVisibilityMode = (VisibilityMode)(-1);
+    private static int cachedSweepRevision = -1;
+    private static RimWorld.Planet.World? cachedWorld;
+    private static OrbitalManager? cachedOrbitalManager;
+    private static int cachedMapCount = -1;
+    private static bool snapshotBuiltForBucket;
+
+    public static void ClearDetectionCaches()
+    {
+        cachedGroundSensors.Clear();
+        cachedPlayerSensorSatellites.Clear();
+        detectionCache.Clear();
+        cachedTickBucket = -1;
+        cachedVisibilityMode = (VisibilityMode)(-1);
+        cachedSweepRevision = -1;
+        cachedWorld = null;
+        cachedOrbitalManager = null;
+        cachedMapCount = -1;
+        snapshotBuiltForBucket = false;
+    }
 
     public static Material? ResolveOrbitalMaterial(
         WorldObject wo,
@@ -73,7 +131,8 @@ public static class OrbitalVisibilityUtility
         if (wo == null) return false;
 
         // 1. Omniscient / Full Visibility modes bypass fog
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        VisibilityMode mode = GeoscapeRules.VisibilityMode;
+        if (mode != VisibilityMode.ClassicHazeOfWar)
         {
             return true;
         }
@@ -84,11 +143,197 @@ public static class OrbitalVisibilityUtility
             return true;
         }
 
-        // 3. To detect a non-player orbital entity, the player MUST have operational technological infrastructure:
-        //    A) Operational technological radar (Early-Warning Radome, Phased Radar Array, SIGINT) within range
-        //    B) Powered Comms Console on a colony within footprint / comms range
-        //    C) Operational player-owned satellite with orbital space sensors
-        return HasActiveSensorCoveringOrbitalEntity(wo);
+        RimWorld.Planet.World? currentWorld = Find.World;
+        if (currentWorld == null)
+        {
+            return false;
+        }
+
+        PlanetTile targetTile = wo.Tile;
+        if (!targetTile.Valid)
+        {
+            return false;
+        }
+
+        // Bypass caching when test distance overrides are active.
+        if (SensoryManager.DistanceCalculationOverride != null)
+        {
+            return EvaluateDirectCoverage(wo, targetTile);
+        }
+
+        int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
+        int tickBucket = currentTick / DetectionCacheIntervalTicks;
+        int sweepRevision = SensoryManager.Instance?.SweepRevision ?? 0;
+        OrbitalManager? orbitalManager = OrbitalManager.Instance;
+        int mapCount = Find.Maps?.Count ?? 0;
+
+        if (cachedTickBucket != tickBucket ||
+            cachedVisibilityMode != mode ||
+            cachedSweepRevision != sweepRevision ||
+            !ReferenceEquals(cachedWorld, currentWorld) ||
+            !ReferenceEquals(cachedOrbitalManager, orbitalManager) ||
+            cachedMapCount != mapCount)
+        {
+            detectionCache.Clear();
+            cachedGroundSensors.Clear();
+            cachedPlayerSensorSatellites.Clear();
+            cachedTickBucket = tickBucket;
+            cachedVisibilityMode = mode;
+            cachedSweepRevision = sweepRevision;
+            cachedWorld = currentWorld;
+            cachedOrbitalManager = orbitalManager;
+            cachedMapCount = mapCount;
+            snapshotBuiltForBucket = false;
+        }
+
+        int tileId = targetTile.tileId;
+        if (detectionCache.TryGetValue(wo, out CachedOrbitalDetectionEntry entry) && entry.TileId == tileId)
+        {
+            return entry.Detected;
+        }
+
+        EnsureSensorSnapshot(orbitalManager);
+        bool detected = EvaluateWithSnapshot(wo, targetTile, currentTick);
+        if (detectionCache.Count < MaxDetectionCacheEntries)
+        {
+            detectionCache[wo] = new CachedOrbitalDetectionEntry(tileId, detected);
+        }
+
+        return detected;
+    }
+
+    private static float ResolveMaxGroundRadarRange(Map map)
+    {
+        if (map == null || !map.Tile.Valid)
+        {
+            return 0f;
+        }
+
+        SensoryManager? sensory = SensoryManager.Instance;
+        if (sensory != null)
+        {
+            return sensory.GetMaxGroundRadarRangeForMap(map);
+        }
+
+        if (map.listerBuildings?.allBuildingsColonist == null)
+        {
+            return 0f;
+        }
+
+        float maxRange = 0f;
+        var buildings = map.listerBuildings.allBuildingsColonist;
+        for (int i = 0; i < buildings.Count; i++)
+        {
+            Building b = buildings[i];
+            if (b == null || !b.Spawned || b.Destroyed)
+            {
+                continue;
+            }
+
+            CompRadar? radar = b.GetComp<CompRadar>();
+            if (radar is { IsSensorActive: true, IsTechnological: true, IsOceanicSonar: false })
+            {
+                float range = radar.DetectionRadiusInTiles;
+                if (range > maxRange)
+                {
+                    maxRange = range;
+                }
+            }
+        }
+
+        return maxRange;
+    }
+
+    private static void EnsureSensorSnapshot(OrbitalManager? orbitalManager)
+    {
+        if (snapshotBuiltForBucket)
+        {
+            return;
+        }
+
+        snapshotBuiltForBucket = true;
+        cachedGroundSensors.Clear();
+        cachedPlayerSensorSatellites.Clear();
+
+        if (Find.Maps != null)
+        {
+            WorldGrid? grid = Find.WorldGrid;
+            var maps = Find.Maps;
+            for (int i = 0; i < maps.Count; i++)
+            {
+                Map map = maps[i];
+                if (map == null || !map.IsPlayerHome || !map.Tile.Valid || map.listerBuildings == null)
+                {
+                    continue;
+                }
+
+                bool hasComms = HasPoweredCommsConsole(map);
+                float maxRadarRange = ResolveMaxGroundRadarRange(map);
+                if (!hasComms && maxRadarRange <= 0f)
+                {
+                    continue;
+                }
+
+                Vector3 mapDir = hasComms && grid != null
+                    ? grid.GetTileCenter(map.Tile).normalized
+                    : Vector3.zero;
+                cachedGroundSensors.Add(new GroundOrbitalSensorEntry(map.Tile, mapDir, hasComms, maxRadarRange));
+            }
+        }
+
+        var satellites = orbitalManager?.Satellites;
+        if (satellites != null)
+        {
+            for (int s = 0; s < satellites.Count; s++)
+            {
+                var playerSat = satellites[s];
+                if (playerSat != null && playerSat.Faction?.IsPlayer == true && playerSat.IsSensorActive)
+                {
+                    cachedPlayerSensorSatellites.Add(playerSat);
+                }
+            }
+        }
+    }
+
+    private static bool EvaluateWithSnapshot(WorldObject wo, PlanetTile targetTile, int currentTick)
+    {
+        WorldGrid? grid = Find.WorldGrid;
+        for (int i = 0; i < cachedGroundSensors.Count; i++)
+        {
+            GroundOrbitalSensorEntry entry = cachedGroundSensors[i];
+            if (entry.HasPoweredComms)
+            {
+                if (wo is WorldObject_Satellite sat && sat.CoversTile(entry.MapTile))
+                {
+                    return true;
+                }
+
+                if (wo is WorldObject_OrbitalStation station && station.Orbit != null && grid != null)
+                {
+                    Vector3 stationDir = OrbitalFlightModel.CalculateSubSatelliteDirection(station.Orbit, currentTick);
+                    if (OrbitalFlightModel.AngularDistanceDeg(entry.MapUnitDir, stationDir) <= station.ServiceAreaAngularRadiusDeg)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            if (entry.MaxRadarRangeTiles > 0f && grid != null &&
+                grid.ApproxDistanceInTiles(entry.MapTile, targetTile) <= entry.MaxRadarRangeTiles)
+            {
+                return true;
+            }
+        }
+
+        for (int s = 0; s < cachedPlayerSensorSatellites.Count; s++)
+        {
+            if (cachedPlayerSensorSatellites[s].CoversTile(targetTile))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -96,18 +341,30 @@ public static class OrbitalVisibilityUtility
     /// </summary>
     public static bool HasActiveSensorCoveringOrbitalEntity(WorldObject wo)
     {
-        if (Find.World == null) return false;
+        if (Find.World == null || wo == null) return false;
 
         PlanetTile targetTile = wo.Tile;
         if (!targetTile.Valid) return false;
 
+        if (SensoryManager.DistanceCalculationOverride != null)
+        {
+            return EvaluateDirectCoverage(wo, targetTile);
+        }
+
+        EnsureSensorSnapshot(OrbitalManager.Instance);
+        int currentTick = Current.Game?.tickManager?.TicksGame ?? 0;
+        return EvaluateWithSnapshot(wo, targetTile, currentTick);
+    }
+
+    private static bool EvaluateDirectCoverage(WorldObject wo, PlanetTile targetTile)
+    {
         // A. Check Colony Ground Infrastructure (Powered Comms Consoles & Technological Radars)
         if (Find.Maps != null)
         {
             for (int i = 0; i < Find.Maps.Count; i++)
             {
                 Map map = Find.Maps[i];
-                if (!map.IsPlayerHome || !map.Tile.Valid || map.listerBuildings == null) continue;
+                if (map == null || !map.IsPlayerHome || !map.Tile.Valid || map.listerBuildings == null) continue;
 
                 // 1. Powered Comms Console:
                 // Acquires orbital telemetry when the orbital entity passes within its comms footprint
@@ -130,28 +387,14 @@ public static class OrbitalVisibilityUtility
                 }
 
                 // 2. Operational Technological Radar (CompRadar):
-                // Early-Warning Radar Domes, Phased Radar Arrays, SIGINT Consoles
-                var buildings = map.listerBuildings.allBuildingsColonist;
-                if (buildings != null)
+                float maxRange = ResolveMaxGroundRadarRange(map);
+                if (maxRange > 0f)
                 {
-                    for (int b = 0; b < buildings.Count; b++)
+                    int maxSteps = Mathf.Max(1, Mathf.RoundToInt(maxRange));
+                    int dist = SensoryManager.DistanceCalculationOverride!(map.Tile, targetTile, maxSteps);
+                    if (dist <= maxSteps)
                     {
-                        Building building = buildings[b];
-                        if (building == null || !building.Spawned || building.Destroyed) continue;
-
-                        CompRadar? radar = building.GetComp<CompRadar>();
-                        if (radar != null && radar.IsSensorActive && radar.IsTechnological && !radar.IsOceanicSonar)
-                        {
-                            float maxRange = radar.DetectionRadiusInTiles;
-                            if (Find.WorldGrid != null)
-                            {
-                                float dist = Find.WorldGrid.ApproxDistanceInTiles(map.Tile, targetTile);
-                                if (dist <= maxRange)
-                                {
-                                    return true;
-                                }
-                            }
-                        }
+                        return true;
                     }
                 }
             }
@@ -177,13 +420,13 @@ public static class OrbitalVisibilityUtility
         return false;
     }
 
-    /// <summary>
-    /// Returns the first operational, powered Comms Console on the given map, or null if none exist.
-    /// </summary>
-    public static Building_CommsConsole? FindPoweredCommsConsole(Map map)
+    private static Building_CommsConsole? FindPoweredCommsConsoleInList(List<Building>? buildings)
     {
-        if (map?.listerBuildings?.allBuildingsColonist == null) return null;
-        var buildings = map.listerBuildings.allBuildingsColonist;
+        if (buildings == null)
+        {
+            return null;
+        }
+
         for (int i = 0; i < buildings.Count; i++)
         {
             Building b = buildings[i];
@@ -196,7 +439,28 @@ public static class OrbitalVisibilityUtility
                 }
             }
         }
+
         return null;
+    }
+
+    /// <summary>
+    /// Returns the first operational, powered Comms Console on the given map, or null if none exist.
+    /// </summary>
+    public static Building_CommsConsole? FindPoweredCommsConsole(Map map)
+    {
+        if (map?.listerBuildings == null) return null;
+
+        if (ThingDefOf.CommsConsole != null)
+        {
+            Building_CommsConsole? vanillaConsole = FindPoweredCommsConsoleInList(
+                map.listerBuildings.AllBuildingsColonistOfDef(ThingDefOf.CommsConsole));
+            if (vanillaConsole != null)
+            {
+                return vanillaConsole;
+            }
+        }
+
+        return FindPoweredCommsConsoleInList(map.listerBuildings.allBuildingsColonist);
     }
 
     /// <summary>

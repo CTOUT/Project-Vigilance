@@ -618,6 +618,23 @@ public static class DebugActionsVigilance
         Messages.Message($"Cleared {allHubs.Count} orbital hubs from orbit.", MessageTypeDefOf.PositiveEvent, false);
     }
 
+    [DebugAction("Project Vigilance", "Orbital: Deduplicate NPC Stations & Satellites", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.Playing)]
+    private static void DeduplicateNpcOrbitalEntities()
+    {
+        OrbitalManager? manager = OrbitalManager.Instance;
+        if (manager == null)
+        {
+            Messages.Message("No active OrbitalManager instance.", MessageTypeDefOf.RejectInput, false);
+            return;
+        }
+
+        (int prunedStations, int prunedSatellites) = manager.PruneDuplicateNpcOrbitalEntities("DebugAction");
+        Messages.Message(
+            $"Orbital deduplication pruned {prunedStations} station(s) and {prunedSatellites} satellite(s).",
+            MessageTypeDefOf.PositiveEvent,
+            false);
+    }
+
     #endregion
 
     #region Recon & Sensory Actions

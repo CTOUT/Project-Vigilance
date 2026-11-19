@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using ProjectVigilance.Geoscape;
+using ProjectVigilance.Geoscape.Orbital;
 using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
@@ -64,6 +65,9 @@ public static class GeoscapeTestHarness
 
     private static readonly FieldInfo? CreatingWorldField =
         typeof(Current).GetField("creatingWorldInt", BindingFlags.Static | BindingFlags.NonPublic);
+
+    private static readonly FieldInfo? CurrentGameField =
+        typeof(Current).GetField("gameInt", BindingFlags.Static | BindingFlags.NonPublic);
 
     public static readonly PlanetLayer DefaultLayer =
         (PlanetLayer)RuntimeHelpers.GetUninitializedObject(typeof(PlanetLayer));
@@ -288,6 +292,12 @@ public static class GeoscapeTestHarness
         NewCampaignRuleDraft.Clear();
 
         GeoscapeMod.Settings.ResetToDefaults();
+        SensoryManager.ClearStaticCaches();
+        WorldObject_Visibility_Patch.ClearVisibilityCaches();
+        OrbitalVisibilityUtility.ClearDetectionCaches();
+        OrbitalManager.Instance = null;
+        OrbitalManager.RemoveWorldObjectOverride = null;
+        CurrentGameField?.SetValue(null, null);
         ClearMockWorld();
     }
 }

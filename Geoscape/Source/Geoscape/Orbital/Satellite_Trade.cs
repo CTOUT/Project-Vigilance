@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -70,7 +71,14 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
 
         if (goods.Count == 0 && Current.ProgramState == ProgramState.Playing && Find.World != null && Find.FactionManager != null && Faction.OfPlayerSilentFail != null)
         {
-            GenerateInitialGoods();
+            try
+            {
+                GenerateInitialGoods();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[Project Vigilance] Failed to generate initial stock for trade satellite '{OrbitalCallsign}': {ex.Message}");
+            }
         }
     }
 
@@ -78,7 +86,14 @@ public class Satellite_Trade : WorldObject_Satellite, ICommunicable, ITrader, IT
     {
         if (goods.Count == 0 && Current.ProgramState == ProgramState.Playing && Find.World != null && Find.FactionManager != null && Faction.OfPlayerSilentFail != null)
         {
-            GenerateInitialGoods();
+            try
+            {
+                GenerateInitialGoods();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[Project Vigilance] Failed to generate initial stock for trade satellite '{OrbitalCallsign}': {ex.Message}");
+            }
         }
     }
 
