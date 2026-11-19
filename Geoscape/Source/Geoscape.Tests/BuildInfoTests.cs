@@ -12,7 +12,7 @@ public sealed class BuildInfoTests
         string buildDetails = GeoscapeMod.FormatBuildDetails();
 
         Assert.IsFalse(string.IsNullOrWhiteSpace(buildDetails));
-        StringAssert.Contains(buildDetails, "v0.4.1");
+        StringAssert.Contains(buildDetails, $"v{BuildInfo.Version}");
         StringAssert.Contains(buildDetails, "Built ");
         StringAssert.Contains(buildDetails, "UTC");
     }
