@@ -37,7 +37,7 @@ public sealed class OrbitalVisibilityTests
         GeoscapeMod.Settings.visibilityMode = originalMode;
     }
 
-    private static void SetFactionRaw(WorldObject wo, Faction f)
+    private static void SetFactionRaw(WorldObject wo, Faction? f)
     {
         HarmonyLib.Traverse.Create(wo).Field("factionInt").SetValue(f);
     }
@@ -697,5 +697,112 @@ public sealed class OrbitalVisibilityTests
         Assert.IsFalse(OrbitalManager.IsOrbitalFaction(tribalFaction, emptySettlementSet));
         Assert.IsFalse(OrbitalManager.IsOrbitalFaction(defeatedFaction, emptySettlementSet));
         Assert.IsTrue(OrbitalManager.IsOrbitalFaction(industrialFaction, emptySettlementSet));
+    }
+
+    [TestMethod]
+    public void OrbitalManager_FinalizeInitFromLoad_DefersPruningAndSpawningUntilPostLoadReconciliation()
+    {
+        PlanetLayer surfaceLayer = CreateSurfaceForOrbitalTests(16);
+        var holder = (WorldObjectsHolder)RuntimeHelpers.GetUninitializedObject(typeof(WorldObjectsHolder));
+        var worldObjects = new List<WorldObject>(16);
+        var settlements = new List<Settlement>(4);
+        AccessTools.Field(typeof(WorldObjectsHolder), "worldObjects")!.SetValue(holder, worldObjects);
+        AccessTools.Field(typeof(WorldObjectsHolder), "settlements")!.SetValue(holder, settlements);
+        Find.World!.worldObjects = holder;
+
+        OrbitalManager.RemoveWorldObjectOverride = wo => worldObjects.Remove(wo);
+        var orbitalManager = new OrbitalManager(Find.World!);
+        OrbitalManager.Instance = orbitalManager;
+
+        Faction surfaceFaction = GeoscapeTestHarness.CreateNpcFaction("OutlanderCivil", "outlander", "Civil Union");
+        Faction orbitalNpcFaction = GeoscapeTestHarness.CreateNpcFaction("TradersGuild", "traders guild", "Traders Guild");
+
+        Settlement settlement = GeoscapeTestHarness.CreateSettlement(
+            new PlanetTile(1, surfaceLayer),
+            surfaceFaction,
+            id: 50);
+        worldObjects.Add(settlement);
+        settlements.Add(settlement);
+
+        var station = new WorldObject_OrbitalStation { ID = 100 };
+        SetFactionRaw(station, orbitalNpcFaction);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(station, new PlanetTile(2, surfaceLayer));
+        worldObjects.Add(station);
+
+        var tradeSats = new List<Satellite_Trade>(5);
+        for (int i = 0; i < 5; i++)
+        {
+            var sat = new Satellite_Trade { ID = 200 + i };
+            SetFactionRaw(sat, orbitalNpcFaction);
+            AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(sat, new PlanetTile(3 + i, surfaceLayer));
+            worldObjects.Add(sat);
+            tradeSats.Add(sat);
+        }
+
+        try
+        {
+            // Simulate Game.LoadGame() IL_00A7: World.FinalizeInit(fromLoad: true) runs during LoadingVars
+            // before ScribeLoader.FinalizeLoading() resolves any Scribe_References (Faction == null).
+            Scribe.mode = LoadSaveMode.LoadingVars;
+            SetFactionRaw(settlement, null);
+            SetFactionRaw(station, null);
+            for (int i = 0; i < tradeSats.Count; i++)
+            {
+                SetFactionRaw(tradeSats[i], null);
+            }
+
+            orbitalManager.FinalizeInit(fromLoad: true);
+
+            Assert.IsTrue(orbitalManager.PendingPostLoadReconciliation);
+            Assert.IsTrue(worldObjects.Contains(station), "Station must not be pruned before cross-references resolve.");
+            for (int i = 0; i < tradeSats.Count; i++)
+            {
+                Assert.IsTrue(worldObjects.Contains(tradeSats[i]), "Satellites must not be pruned before cross-references resolve.");
+            }
+            Assert.AreEqual((0, 0), orbitalManager.PruneDuplicateNpcOrbitalEntities("MidScribeCheck", logWarningOnPrune: false));
+
+            // Simulate ScribeLoader.FinalizeLoading() IL_01B7 followed by GameComponent_OrbitalLifecycle.LoadedGame() IL_02AE.
+            SetFactionRaw(settlement, surfaceFaction);
+            SetFactionRaw(station, orbitalNpcFaction);
+            for (int i = 0; i < tradeSats.Count; i++)
+            {
+                SetFactionRaw(tradeSats[i], orbitalNpcFaction);
+            }
+            Scribe.mode = LoadSaveMode.Inactive;
+
+            orbitalManager.CompletePostLoadReconciliation();
+
+            Assert.IsFalse(orbitalManager.PendingPostLoadReconciliation);
+            Assert.AreEqual(3, worldObjects.Count, "Only settlement, surviving station, and 1 surviving trade satellite should remain.");
+            Assert.IsTrue(worldObjects.Contains(settlement));
+            Assert.IsTrue(worldObjects.Contains(station), "Legitimate NPC station must survive post-load dedupe.");
+            Assert.IsTrue(worldObjects.Contains(tradeSats[0]), "Lowest-ID trade satellite must survive post-load dedupe.");
+
+            // Simulate a second save/load cycle: surviving station & satellite must persist untouched with 0 prunes.
+            Scribe.mode = LoadSaveMode.LoadingVars;
+            SetFactionRaw(settlement, null);
+            SetFactionRaw(station, null);
+            SetFactionRaw(tradeSats[0], null);
+
+            orbitalManager.FinalizeInit(fromLoad: true);
+            Assert.IsTrue(orbitalManager.PendingPostLoadReconciliation);
+
+            SetFactionRaw(settlement, surfaceFaction);
+            SetFactionRaw(station, orbitalNpcFaction);
+            SetFactionRaw(tradeSats[0], orbitalNpcFaction);
+            Scribe.mode = LoadSaveMode.Inactive;
+
+            orbitalManager.CompletePostLoadReconciliation();
+
+            Assert.IsFalse(orbitalManager.PendingPostLoadReconciliation);
+            Assert.AreEqual(3, worldObjects.Count);
+            Assert.IsTrue(worldObjects.Contains(station));
+            Assert.IsTrue(worldObjects.Contains(tradeSats[0]));
+            Assert.AreEqual((0, 0), orbitalManager.PruneDuplicateNpcOrbitalEntities("Reload2", logWarningOnPrune: false));
+        }
+        finally
+        {
+            Scribe.mode = LoadSaveMode.Inactive;
+        }
     }
 }

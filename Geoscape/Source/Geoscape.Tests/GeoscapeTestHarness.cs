@@ -298,6 +298,7 @@ public static class GeoscapeTestHarness
         OrbitalManager.Instance = null;
         OrbitalManager.RemoveWorldObjectOverride = null;
         CurrentGameField?.SetValue(null, null);
+        Scribe.mode = LoadSaveMode.Inactive;
         ClearMockWorld();
     }
 }
