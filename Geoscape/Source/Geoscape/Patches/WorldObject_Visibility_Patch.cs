@@ -110,7 +110,7 @@ public static class WorldObject_Visibility_Patch
         if (wo == null) return false;
 
         VisibilityMode mode = GeoscapeRules.VisibilityMode;
-        if (mode != VisibilityMode.ClassicHazeOfWar)
+        if (mode == VisibilityMode.Omniscient)
         {
             return false;
         }
@@ -123,6 +123,11 @@ public static class WorldObject_Visibility_Patch
         if (wo is IOrbitalEntity)
         {
             return !VigilanceModuleManager.IsOrbitalEntityDetected(wo);
+        }
+
+        if (mode != VisibilityMode.ClassicHazeOfWar)
+        {
+            return false;
         }
 
         SensoryManager? sensory = SensoryManager.Instance;
@@ -887,6 +892,55 @@ public static class WorldObject_Visibility_Patch
             }
 
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Automatically drops selection on any non-player WorldObject that drifts outside active sensor
+    /// detection (e.g. an orbital satellite leaving radar coverage or an incursion fading from contact).
+    /// Zero-allocation O(1) bailout when nothing is selected or Omniscient mode is active.
+    /// </summary>
+    public static int PruneHiddenSelectedObjects(WorldSelector? selector)
+    {
+        if (selector == null || selector.NumSelectedObjects == 0)
+        {
+            return 0;
+        }
+
+        if (GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient)
+        {
+            return 0;
+        }
+
+        List<WorldObject> selected = selector.SelectedObjects;
+        int deselected = 0;
+        for (int i = selected.Count - 1; i >= 0; i--)
+        {
+            WorldObject wo = selected[i];
+            if (wo == null)
+            {
+                continue;
+            }
+
+            bool lostContact = ShouldHideWorldObject(wo) ||
+                (wo is WorldObject_Incursion incursion && incursion.CurrentIntelligenceTier < IntelligenceTier.Contact);
+
+            if (lostContact)
+            {
+                selector.Deselect(wo);
+                deselected++;
+            }
+        }
+
+        return deselected;
+    }
+
+    [HarmonyPatch(typeof(WorldInterface), nameof(WorldInterface.WorldInterfaceUpdate))]
+    public static class WorldInterface_Update_PruneHiddenSelection_Patch
+    {
+        public static void Prefix(WorldInterface __instance)
+        {
+            PruneHiddenSelectedObjects(__instance?.selector);
         }
     }
 

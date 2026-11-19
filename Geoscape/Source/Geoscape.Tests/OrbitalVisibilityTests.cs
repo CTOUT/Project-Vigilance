@@ -805,4 +805,96 @@ public sealed class OrbitalVisibilityTests
             Scribe.mode = LoadSaveMode.Inactive;
         }
     }
+
+    [TestMethod]
+    public void PlanetarySurveillance_HidesUndetectedNpcOrbitalEntities_WhileKeepingStaticSettlementsVisible()
+    {
+        PlanetLayer surfaceLayer = CreateSurfaceForOrbitalTests(16);
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.PlanetarySurveillance;
+
+        Faction playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+        Faction npcFaction = GeoscapeTestHarness.CreateNpcFaction("VoidbornEmporium", "voidborn", "Voidborn Emporium");
+
+        WorldObject_Satellite npcSat = new();
+        SetFactionRaw(npcSat, npcFaction);
+        npcSat.InitializeSatellite(
+            SatelliteRole.Trade,
+            new OrbitalParameters(600f, 62500, 40f, 0f, -3.5f, 0f, 0.8f, 0),
+            stationId: 101,
+            callsign: "NPC-Trade-Surveillance",
+            footprintRadius: 16f);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(npcSat, new PlanetTile(5, surfaceLayer));
+
+        WorldObject_OrbitalStation npcStation = new();
+        SetFactionRaw(npcStation, npcFaction);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(npcStation, new PlanetTile(6, surfaceLayer));
+
+        WorldObject_Satellite playerSat = new();
+        SetFactionRaw(playerSat, playerFaction);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(playerSat, new PlanetTile(7, surfaceLayer));
+
+        Settlement groundSettlement = GeoscapeTestHarness.CreateSettlement(
+            new PlanetTile(8, surfaceLayer),
+            npcFaction,
+            id: 9001);
+        Settlement spaceSettlement = GeoscapeTestHarness.CreateSettlement(
+            new PlanetTile(9, surfaceLayer),
+            npcFaction,
+            id: 9002,
+            def: new WorldObjectDef { defName = "SpaceSettlement" });
+
+        Assert.IsFalse(OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSat));
+        Assert.IsTrue(WorldObject_Visibility_Patch.ShouldHideWorldObject(npcSat), "Undetected NPC satellite must remain hidden under PlanetarySurveillance.");
+        Assert.IsTrue(WorldObject_Visibility_Patch.ShouldHideWorldObject(npcStation), "Undetected NPC orbital hub must remain hidden under PlanetarySurveillance.");
+        Assert.IsFalse(WorldObject_Visibility_Patch.ShouldHideWorldObject(playerSat), "Player satellite must remain visible under PlanetarySurveillance.");
+        Assert.IsFalse(WorldObject_Visibility_Patch.ShouldHideWorldObject(groundSettlement), "Static ground settlement must stay visible under PlanetarySurveillance.");
+        Assert.IsFalse(WorldObject_Visibility_Patch.ShouldHideWorldObject(spaceSettlement), "Static Odyssey SpaceSettlement must stay visible under PlanetarySurveillance.");
+
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.Omniscient;
+        Assert.IsFalse(WorldObject_Visibility_Patch.ShouldHideWorldObject(npcSat), "Omniscient mode must reveal all NPC satellites.");
+        Assert.IsFalse(WorldObject_Visibility_Patch.ShouldHideWorldObject(npcStation), "Omniscient mode must reveal all NPC stations.");
+    }
+
+    [TestMethod]
+    public void WorldObject_Visibility_Patch_PruneHiddenSelectedObjects_DeselectsLostContactSatelliteAndKeepsPlayerAsset()
+    {
+        PlanetLayer surfaceLayer = CreateSurfaceForOrbitalTests(16);
+        Faction playerFaction = GeoscapeTestHarness.CreatePlayerFaction();
+        Faction npcFaction = GeoscapeTestHarness.CreateNpcFaction("TradersGuild", "traders guild", "Traders Guild");
+
+        WorldObject_Satellite npcSat = new();
+        SetFactionRaw(npcSat, npcFaction);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(npcSat, new PlanetTile(5, surfaceLayer));
+
+        WorldObject_Satellite playerSat = new();
+        SetFactionRaw(playerSat, playerFaction);
+        AccessTools.Field(typeof(WorldObject), "tile")!.SetValue(playerSat, new PlanetTile(6, surfaceLayer));
+
+        var selector = (WorldSelector)RuntimeHelpers.GetUninitializedObject(typeof(WorldSelector));
+        var selectedList = new List<WorldObject> { npcSat, playerSat };
+        AccessTools.Field(typeof(WorldSelector), "selected")!.SetValue(selector, selectedList);
+
+        // 1. ClassicHazeOfWar (Fog of War) drops undetected NPC satellite but keeps player satellite.
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        int prunedFog = WorldObject_Visibility_Patch.PruneHiddenSelectedObjects(selector);
+        Assert.AreEqual(1, prunedFog);
+        Assert.AreEqual(1, selector.SelectedObjects.Count);
+        Assert.IsFalse(selector.SelectedObjects.Contains(npcSat));
+        Assert.IsTrue(selector.SelectedObjects.Contains(playerSat));
+
+        // 2. PlanetarySurveillance also drops undetected NPC satellite when it leaves radar coverage.
+        selectedList.Add(npcSat);
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.PlanetarySurveillance;
+        int prunedSurv = WorldObject_Visibility_Patch.PruneHiddenSelectedObjects(selector);
+        Assert.AreEqual(1, prunedSurv);
+        Assert.IsFalse(selector.SelectedObjects.Contains(npcSat));
+        Assert.IsTrue(selector.SelectedObjects.Contains(playerSat));
+
+        // 3. Omniscient leaves selected NPC satellite intact.
+        selectedList.Add(npcSat);
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.Omniscient;
+        int prunedOmni = WorldObject_Visibility_Patch.PruneHiddenSelectedObjects(selector);
+        Assert.AreEqual(0, prunedOmni);
+        Assert.IsTrue(selector.SelectedObjects.Contains(npcSat));
+    }
 }

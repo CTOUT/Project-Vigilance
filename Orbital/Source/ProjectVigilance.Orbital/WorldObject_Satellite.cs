@@ -340,6 +340,11 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
 
     public override void DrawExtraSelectionOverlays()
     {
+        if (!OrbitalVisibilityUtility.IsOrbitalEntityDetected(this))
+        {
+            return;
+        }
+
         base.DrawExtraSelectionOverlays();
         PlanetTile subTile = CurrentSubSatelliteTile;
         if (subTile.Valid)

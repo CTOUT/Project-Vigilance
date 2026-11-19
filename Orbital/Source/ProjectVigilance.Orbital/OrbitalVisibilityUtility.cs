@@ -131,9 +131,9 @@ public static class OrbitalVisibilityUtility
     {
         if (wo == null) return false;
 
-        // 1. Omniscient / Full Visibility modes bypass fog
+        // 1. Omniscient mode bypasses active orbital sensor tracking
         VisibilityMode mode = VigilanceModuleManager.GetEffectiveVisibilityMode();
-        if (mode != VisibilityMode.ClassicHazeOfWar)
+        if (mode == VisibilityMode.Omniscient)
         {
             return true;
         }
