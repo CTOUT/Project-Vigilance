@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
@@ -23,6 +24,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private const float PerimeterHalfWidth = 0.045f;           // Crisp glowing boundary ribbon width
     private const float IdentificationHalfWidth = 0.038f;      // Distinct bold optical classification horizon ring width
     private const float InteriorHalfWidth = 0.016f;            // Baseline holographic honeycomb grid line width
+    private static readonly long DimmingTimeSliceTicks = Math.Max(1L, (Stopwatch.Frequency * 3L) / 1000L);
 
     public static readonly Color32 SonarPerimeterColorRgb = new(0, 210, 255, 255);
     public static readonly Color32 VisualPerimeterColorRgb = new(235, 225, 185, 255);
@@ -40,6 +42,20 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private readonly List<Vector3> tmpHatchVerts = new(8);
     private readonly List<Vector2> tmpPoly2D = new(8);
     private readonly List<Vector3> tmpIntersections = new(4);
+    private readonly List<LayerSubMesh> dimSubMeshes = new(8);
+    private readonly List<LayerSubMesh> retiredDimSubMeshes = new(8);
+    private readonly HashSet<LayerSubMesh> dimSubMeshSet = new();
+    private readonly List<bool> dimMeshDirtyFlags = new(8);
+    private readonly Predicate<LayerSubMesh> isDimSubMeshPredicate;
+    private PlanetLayer? cachedDimLayer;
+    private int cachedDimTilesCount = -1;
+    private Material? cachedDimMaterial;
+    private byte cachedDimAlpha;
+    private bool dimMeshBuilt;
+    private int[] dimTileSubMeshIdx = Array.Empty<int>();
+    private int[] dimTileStartVert = Array.Empty<int>();
+    private int[] dimTileVertCount = Array.Empty<int>();
+    private bool[] dimTileWasActive = Array.Empty<bool>();
 
     public static WorldDrawLayer_RadarCoverage? Instance { get; private set; }
 
@@ -66,10 +82,12 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     public static System.Action<PlanetTile, List<PlanetTile>>? TileNeighborsOverride { get; set; }
 
     internal List<LayerSubMesh> SubMeshes => subMeshes;
+    internal int DimSubMeshCount => dimSubMeshes.Count;
 
     public WorldDrawLayer_RadarCoverage()
     {
         Instance = this;
+        isDimSubMeshPredicate = dimSubMeshSet.Contains;
     }
 
     public override bool VisibleWhenLayerNotSelected => true;
@@ -122,7 +140,12 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         Instance = this;
         for (int s = 0; s < subMeshes.Count; s++)
         {
-            subMeshes[s].Clear(MeshParts.All);
+            LayerSubMesh sm = subMeshes[s];
+            if (dimSubMeshSet.Contains(sm))
+            {
+                continue;
+            }
+            sm.Clear(MeshParts.All);
         }
 
         WorldGrid? grid = Find.WorldGrid;
@@ -133,6 +156,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 
         if (planetLayer == null || grid == null || !Visible)
         {
+            ClearDimmingCache();
             FinalizeMesh(MeshParts.All);
             yield break;
         }
@@ -140,6 +164,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         SensoryManager? sensory = SensoryManager.Instance;
         if (sensory == null)
         {
+            ClearDimmingCache();
             FinalizeMesh(MeshParts.All);
             yield break;
         }
@@ -166,79 +191,136 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                                 (GeoscapeMod.Settings.radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching ||
                                  GeoscapeMod.Settings.radarTerrainShadowStyle == RadarTerrainShadowStyle.Both);
 
-        // 2. Background Surveillance Dimming
-        if (drawOutlines && dimming > 0.005f && planetLayer != null)
+        // 2. Background Surveillance Dimming (PlanetarySurveillance mode only)
+        bool drawDimming = drawOutlines &&
+                           dimming > 0.005f &&
+                           GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar &&
+                           planetLayer != null;
+
+        if (!drawDimming)
+        {
+            ClearDimmingCache();
+        }
+        else
         {
             byte dimAlpha = (byte)(Mathf.Clamp01(dimming) * 255);
-            Color32 dimColor = new(10, 14, 20, dimAlpha);
-            int tilesCount = planetLayer.TilesCount;
-            int dimSubMeshIndex = 0;
+            int tilesCount = planetLayer!.TilesCount;
+            Material? dimMaterial = WorldDrawLayer_HazeOfWar.ResolveVertexColorMaterial(
+                DimmingRenderQueue,
+                SubMeshMaterialOverride,
+                RenderQueueMaterialOverride);
 
-            for (int i = 0; i < tilesCount; i++)
+            if (dimMeshBuilt &&
+                cachedDimLayer == planetLayer &&
+                cachedDimTilesCount == tilesCount &&
+                ReferenceEquals(cachedDimMaterial, dimMaterial))
             {
-                PlanetTile tile = planetLayer.PlanetTileForID(i);
-                if (!tile.Valid || activeTilesCache.Contains(tile))
-                {
-                    continue;
-                }
+                RefreshDimmingColors(planetLayer, tilesCount, dimAlpha);
+            }
+            else
+            {
+                ClearDimmingCache();
+                cachedDimLayer = planetLayer;
+                cachedDimTilesCount = tilesCount;
+                cachedDimMaterial = dimMaterial;
+                cachedDimAlpha = dimAlpha;
 
-                tmpDimmingVerts.Clear();
-                if (TileVerticesOverride != null)
+                if (tilesCount > 0)
                 {
-                    TileVerticesOverride(tile, tmpDimmingVerts);
-                }
-                else
-                {
-                    grid.GetTileVertices(tile, tmpDimmingVerts);
-                }
-                int vertCount = tmpDimmingVerts.Count;
-                if (vertCount < 3)
-                {
-                    continue;
-                }
+                    dimTileSubMeshIdx = new int[tilesCount];
+                    dimTileStartVert = new int[tilesCount];
+                    dimTileVertCount = new int[tilesCount];
+                    dimTileWasActive = new bool[tilesCount];
+                    Array.Fill(dimTileSubMeshIdx, -1);
 
-                Vector3 center = TileCenterOverride != null ? TileCenterOverride(tile) : grid.GetTileCenter(tile);
-                center += center.normalized * (RadarAltitudeOffset * 0.5f);
+                    Color32 dimColor = new(10, 14, 20, dimAlpha);
+                    Color32 transparentColor = new(10, 14, 20, 0);
+                    int dimSubMeshIndex = 0;
+                    long sliceStartTicks = Stopwatch.GetTimestamp();
 
-                for (int v = 0; v < vertCount; v++)
-                {
-                    Vector3 vert = tmpDimmingVerts[v];
-                    tmpDimmingVerts[v] = vert + vert.normalized * (RadarAltitudeOffset * 0.5f);
-                }
-
-                LayerSubMesh dimSubMesh = GetOrCreateSubMesh(vertCount + 1, DimmingRenderQueue, ref dimSubMeshIndex);
-                int centerIdx = dimSubMesh.verts.Count;
-                dimSubMesh.verts.Add(center);
-                dimSubMesh.colors.Add(dimColor);
-                dimSubMesh.uvs.Add(new Vector2(0.5f, 0.5f));
-
-                int cornerBaseIdx = dimSubMesh.verts.Count;
-                for (int v = 0; v < vertCount; v++)
-                {
-                    dimSubMesh.verts.Add(tmpDimmingVerts[v]);
-                    dimSubMesh.colors.Add(dimColor);
-                    dimSubMesh.uvs.Add(new Vector2(0.5f, 0.5f));
-                }
-
-                for (int k = 0; k < vertCount; k++)
-                {
-                    Vector3 vA = tmpDimmingVerts[k];
-                    Vector3 vB = tmpDimmingVerts[(k + 1) % vertCount];
-                    Vector3 normal = Vector3.Cross(vA - center, vB - center);
-
-                    if (Vector3.Dot(normal, center) > 0f)
+                    for (int i = 0; i < tilesCount; i++)
                     {
-                        dimSubMesh.tris.Add(centerIdx);
-                        dimSubMesh.tris.Add(cornerBaseIdx + k);
-                        dimSubMesh.tris.Add(cornerBaseIdx + ((k + 1) % vertCount));
-                    }
-                    else
-                    {
-                        dimSubMesh.tris.Add(centerIdx);
-                        dimSubMesh.tris.Add(cornerBaseIdx + ((k + 1) % vertCount));
-                        dimSubMesh.tris.Add(cornerBaseIdx + k);
+                        if ((i & 255) == 0 && i > 0 && Stopwatch.GetTimestamp() - sliceStartTicks >= DimmingTimeSliceTicks)
+                        {
+                            yield return null;
+                            sliceStartTicks = Stopwatch.GetTimestamp();
+                        }
+
+                        PlanetTile tile = planetLayer.PlanetTileForID(i);
+                        if (!tile.Valid)
+                        {
+                            continue;
+                        }
+
+                        tmpDimmingVerts.Clear();
+                        if (TileVerticesOverride != null)
+                        {
+                            TileVerticesOverride(tile, tmpDimmingVerts);
+                        }
+                        else
+                        {
+                            grid.GetTileVertices(tile, tmpDimmingVerts);
+                        }
+
+                        int vertCount = tmpDimmingVerts.Count;
+                        if (vertCount < 3)
+                        {
+                            continue;
+                        }
+
+                        for (int v = 0; v < vertCount; v++)
+                        {
+                            Vector3 vert = tmpDimmingVerts[v];
+                            tmpDimmingVerts[v] = vert + vert.normalized * (RadarAltitudeOffset * 0.5f);
+                        }
+
+                        bool isActive = activeTilesCache.Contains(tile);
+                        dimTileWasActive[i] = isActive;
+                        Color32 tileColor = isActive ? transparentColor : dimColor;
+
+                        LayerSubMesh dimSubMesh = GetOrCreateDimSubMesh(dimMaterial, vertCount, ref dimSubMeshIndex);
+                        int cornerBaseIdx = dimSubMesh.verts.Count;
+                        dimTileSubMeshIdx[i] = dimSubMeshIndex;
+                        dimTileStartVert[i] = cornerBaseIdx;
+                        dimTileVertCount[i] = vertCount;
+
+                        for (int v = 0; v < vertCount; v++)
+                        {
+                            dimSubMesh.verts.Add(tmpDimmingVerts[v]);
+                            dimSubMesh.colors.Add(tileColor);
+                        }
+
+                        Vector3 v0 = tmpDimmingVerts[0];
+                        Vector3 v1 = tmpDimmingVerts[1];
+                        Vector3 v2 = tmpDimmingVerts[2];
+                        bool ccwOutward = Vector3.Dot(Vector3.Cross(v1 - v0, v2 - v0), v0) > 0f;
+
+                        for (int k = 1; k < vertCount - 1; k++)
+                        {
+                            if (ccwOutward)
+                            {
+                                dimSubMesh.tris.Add(cornerBaseIdx);
+                                dimSubMesh.tris.Add(cornerBaseIdx + k);
+                                dimSubMesh.tris.Add(cornerBaseIdx + k + 1);
+                            }
+                            else
+                            {
+                                dimSubMesh.tris.Add(cornerBaseIdx);
+                                dimSubMesh.tris.Add(cornerBaseIdx + k + 1);
+                                dimSubMesh.tris.Add(cornerBaseIdx + k);
+                            }
+                        }
                     }
                 }
+
+                for (int s = 0; s < dimSubMeshes.Count; s++)
+                {
+                    LayerSubMesh dm = dimSubMeshes[s];
+                    dm.FinalizeMesh(MeshParts.All);
+                    dm.finalized = true;
+                }
+
+                dimMeshBuilt = true;
             }
         }
 
@@ -706,6 +788,132 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         }
     }
 
+    private void ClearDimmingCache()
+    {
+        for (int i = 0; i < dimSubMeshes.Count; i++)
+        {
+            LayerSubMesh dm = dimSubMeshes[i];
+            dm.Clear(MeshParts.All);
+            dm.finalized = false;
+            subMeshes.Remove(dm);
+            retiredDimSubMeshes.Add(dm);
+        }
+
+        dimSubMeshes.Clear();
+        dimSubMeshSet.Clear();
+        dimMeshDirtyFlags.Clear();
+        cachedDimLayer = null;
+        cachedDimTilesCount = -1;
+        cachedDimMaterial = null;
+        cachedDimAlpha = 0;
+        dimMeshBuilt = false;
+        dimTileSubMeshIdx = Array.Empty<int>();
+        dimTileStartVert = Array.Empty<int>();
+        dimTileVertCount = Array.Empty<int>();
+        dimTileWasActive = Array.Empty<bool>();
+    }
+
+    private LayerSubMesh GetOrCreateDimSubMesh(Material? dimMaterial, int neededVerts, ref int dimSubMeshIdx)
+    {
+        if (dimSubMeshIdx < dimSubMeshes.Count)
+        {
+            LayerSubMesh current = dimSubMeshes[dimSubMeshIdx];
+            if (ReferenceEquals(current.material, dimMaterial) &&
+                current.verts.Count + neededVerts <= MaxVertsPerMeshSafe)
+            {
+                return current;
+            }
+        }
+
+        for (int i = 0; i < dimSubMeshes.Count; i++)
+        {
+            LayerSubMesh existing = dimSubMeshes[i];
+            if (ReferenceEquals(existing.material, dimMaterial) &&
+                existing.verts.Count + neededVerts <= MaxVertsPerMeshSafe)
+            {
+                dimSubMeshIdx = i;
+                return existing;
+            }
+        }
+
+        LayerSubMesh? reused = null;
+        for (int r = retiredDimSubMeshes.Count - 1; r >= 0; r--)
+        {
+            if (ReferenceEquals(retiredDimSubMeshes[r].material, dimMaterial))
+            {
+                reused = retiredDimSubMeshes[r];
+                retiredDimSubMeshes.RemoveAt(r);
+                reused.Clear(MeshParts.All);
+                reused.finalized = false;
+                break;
+            }
+        }
+
+        LayerSubMesh dimSubMesh = reused ?? new LayerSubMesh(new Mesh(), dimMaterial!);
+        subMeshes.Add(dimSubMesh);
+        dimSubMeshes.Add(dimSubMesh);
+        dimSubMeshSet.Add(dimSubMesh);
+        dimMeshDirtyFlags.Add(false);
+        dimSubMeshIdx = dimSubMeshes.Count - 1;
+        return dimSubMesh;
+    }
+
+    private void RefreshDimmingColors(PlanetLayer layer, int tilesCount, byte dimAlpha)
+    {
+        bool alphaChanged = dimAlpha != cachedDimAlpha;
+        Color32 dimColor = new(10, 14, 20, dimAlpha);
+        Color32 transparentColor = new(10, 14, 20, 0);
+
+        for (int s = 0; s < dimMeshDirtyFlags.Count; s++)
+        {
+            dimMeshDirtyFlags[s] = false;
+        }
+
+        for (int i = 0; i < tilesCount; i++)
+        {
+            int subMeshIdx = dimTileSubMeshIdx[i];
+            if (subMeshIdx < 0)
+            {
+                continue;
+            }
+
+            PlanetTile tile = layer.PlanetTileForID(i);
+            bool isActive = !tile.Valid || activeTilesCache.Contains(tile);
+            bool stateChanged = isActive != dimTileWasActive[i];
+            if (!stateChanged && (!alphaChanged || isActive))
+            {
+                continue;
+            }
+
+            dimTileWasActive[i] = isActive;
+            Color32 targetColor = isActive ? transparentColor : dimColor;
+            List<Color32> colors = dimSubMeshes[subMeshIdx].colors;
+            int start = dimTileStartVert[i];
+            int count = dimTileVertCount[i];
+            for (int v = 0; v < count; v++)
+            {
+                colors[start + v] = targetColor;
+            }
+
+            dimMeshDirtyFlags[subMeshIdx] = true;
+        }
+
+        cachedDimAlpha = dimAlpha;
+
+        for (int s = 0; s < dimSubMeshes.Count; s++)
+        {
+            if (!dimMeshDirtyFlags[s])
+            {
+                continue;
+            }
+
+            LayerSubMesh dm = dimSubMeshes[s];
+            dm.finalized = false;
+            dm.FinalizeMesh(MeshParts.Colors);
+            dm.finalized = true;
+        }
+    }
+
     private LayerSubMesh GetOrCreateSubMesh(int neededVerts, ref int subMeshIndex)
     {
         return GetOrCreateSubMesh(neededVerts, OutlineRenderQueue, ref subMeshIndex);
@@ -720,7 +928,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             renderQueue,
             SubMeshMaterialOverride,
             RenderQueueMaterialOverride,
-            ref subMeshIndex);
+            ref subMeshIndex,
+            isDimSubMeshPredicate);
     }
 
     private readonly struct EdgeKey : IEquatable<EdgeKey>

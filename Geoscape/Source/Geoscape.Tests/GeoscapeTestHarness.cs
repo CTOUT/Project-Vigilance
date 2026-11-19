@@ -309,6 +309,8 @@ public static class GeoscapeTestHarness
         RegisterAllSuiteModulesForTesting();
 
         GeoscapeMod.Settings.ResetToDefaults();
+        SensoryManager.ClearStaticCaches();
+        WorldObject_Visibility_Patch.ClearVisibilityCaches();
         ClearMockWorld();
     }
 }
