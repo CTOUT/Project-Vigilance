@@ -43,6 +43,9 @@ public class OrbitalManager : WorldComponent
     private readonly List<WorldObject_OrbitalStation> stations = new(16);
     private readonly List<WorldObject_Satellite> satellites = new(32);
     private readonly List<Satellite_Trade> tmpTradeSatellites = new(8);
+    private bool pendingPostLoadReconciliation;
+
+    internal bool PendingPostLoadReconciliation => pendingPostLoadReconciliation;
 
     [ThreadStatic]
     private static OrbitalManager? testInstance;
@@ -75,13 +78,46 @@ public class OrbitalManager : WorldComponent
     {
         base.FinalizeInit(fromLoad);
         RescanWorldObjects();
-        PruneDuplicateNpcOrbitalEntities(fromLoad ? "SaveLoad" : "WorldInit");
+
+        // World.FinalizeInit(fromLoad: true) runs before ScribeLoader.FinalizeLoading() resolves
+        // cross-references (WorldObject.Faction and Settlement.Faction are still null here).
+        // Defer pruning and infrastructure checks until GameComponent_OrbitalLifecycle.LoadedGame().
+        if (fromLoad || Scribe.mode != LoadSaveMode.Inactive)
+        {
+            pendingPostLoadReconciliation = true;
+            return;
+        }
+
+        pendingPostLoadReconciliation = false;
+        PruneDuplicateNpcOrbitalEntities("WorldInit");
+        EnsureOrbitalFactionInfrastructure();
+    }
+
+    /// <summary>
+    /// Executes deferred save-load deduplication and infrastructure reconciliation once
+    /// ScribeLoader.FinalizeLoading() has resolved all WorldObject and Settlement Faction references.
+    /// </summary>
+    public void CompletePostLoadReconciliation()
+    {
+        if (!pendingPostLoadReconciliation || Scribe.mode != LoadSaveMode.Inactive)
+        {
+            return;
+        }
+
+        pendingPostLoadReconciliation = false;
+        RescanWorldObjects();
+        PruneDuplicateNpcOrbitalEntities("SaveLoad");
         EnsureOrbitalFactionInfrastructure();
     }
 
     public override void WorldComponentTick()
     {
         base.WorldComponentTick();
+
+        if (pendingPostLoadReconciliation && Scribe.mode == LoadSaveMode.Inactive)
+        {
+            CompletePostLoadReconciliation();
+        }
 
         int ticks = Current.Game?.tickManager?.TicksGame ?? 0;
         if (ticks > 0 && ticks % InfrastructureAuditIntervalTicks == 0)
@@ -170,6 +206,8 @@ public class OrbitalManager : WorldComponent
     /// </summary>
     public void EnsureOrbitalFactionInfrastructure()
     {
+        if (Scribe.mode != LoadSaveMode.Inactive) return;
+
         FactionManager? factionManager = Find.FactionManager;
         if (factionManager == null || Find.WorldObjects == null) return;
 
@@ -503,6 +541,11 @@ public class OrbitalManager : WorldComponent
         string triggerReason = "SaveLoad",
         bool logWarningOnPrune = true)
     {
+        if (Scribe.mode != LoadSaveMode.Inactive)
+        {
+            return (0, 0);
+        }
+
         var all = Find.World?.worldObjects?.AllWorldObjects;
         if (all == null || all.Count == 0)
         {

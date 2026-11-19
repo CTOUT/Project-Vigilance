@@ -319,6 +319,7 @@ public static class GeoscapeTestHarness
         OrbitalManager.RemoveWorldObjectOverride = null;
         ProjectVigilance.Geoscape.Debug.DebugActionsShroudSpikes.ClearSpikeStateForTesting();
         CurrentGameField?.SetValue(null, null);
+        Scribe.mode = LoadSaveMode.Inactive;
         ClearMockWorld();
     }
 }
