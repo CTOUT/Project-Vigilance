@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape;
+using ProjectVigilance.Geoscape.Debug;
 using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.Sensory;
 using RimWorld;
@@ -419,5 +420,52 @@ public sealed class FogOfWarOptimisationTests : GeoscapeTestBase
         Assert.IsTrue(sensory.HasActiveVision(new PlanetTile(53, surfaceLayer)), "Moved caravan tile 53 must become active.");
         Assert.IsTrue(sensory.HasActiveVision(new PlanetTile(54, surfaceLayer)), "Moved caravan neighbor tile 54 must become active.");
         Assert.IsFalse(sensory.HasActiveVision(new PlanetTile(50, surfaceLayer)), "Caravan departure tile 50 must leave active vision.");
+    }
+
+    [TestMethod]
+    public void Phase0Spikes_NullWorldAndMockTerrain_DoNotThrow()
+    {
+        WorldDrawLayer_HazeOfWar.SubMeshMaterialOverride = CreateMockMaterial;
+
+        // 1. Null Find.World safety: none of the Phase 0 spike methods may throw.
+        DebugActionsShroudSpikes.RunAllNonDestructiveSpikes();
+        DebugActionsShroudSpikes.RunSpikeS1a_ToggleTerrainFinalized();
+        DebugActionsShroudSpikes.RunSpikeS1b_ToggleTerrainDisabled();
+        DebugActionsShroudSpikes.ResetSpikeS1_RestoreTerrainSubMeshes();
+        DebugActionsShroudSpikes.RunSpikeS2_TerrainMappingAudit();
+        DebugActionsShroudSpikes.RunSpikeS3_FlushCompatBenchmark();
+        DebugActionsShroudSpikes.RunSpikeS4_GlobeRadiusAndLayerBaseline();
+
+        // 2. Mock terrain layer: S1a -> S1b -> Reset preserves and restores original (finalized, disabled) states.
+        PlanetLayer surfaceLayer = CreateSurfaceWithTiles(4);
+        var terrainLayer = new WorldDrawLayer_Terrain();
+        WorldDrawLayerPlanetLayerField!.SetValue(terrainLayer, surfaceLayer);
+
+        Material mat = CreateMockMaterial();
+        var sm0 = new LayerSubMesh(new Mesh(), mat) { finalized = true, disabled = false };
+        var sm1 = new LayerSubMesh(new Mesh(), mat) { finalized = false, disabled = true };
+        AccessTools.Field(typeof(WorldDrawLayerBase), "subMeshes")!
+            .SetValue(terrainLayer, new List<LayerSubMesh> { sm0, sm1 });
+
+        var drawLayers = (List<WorldDrawLayer>)PlanetLayerDrawLayersField!.GetValue(surfaceLayer)!;
+        drawLayers.Add(terrainLayer);
+
+        DebugActionsShroudSpikes.RunSpikeS1a_ToggleTerrainFinalized();
+        Assert.IsFalse(sm0.finalized);
+        Assert.IsFalse(sm0.disabled);
+        Assert.IsFalse(sm1.finalized);
+        Assert.IsTrue(sm1.disabled);
+
+        DebugActionsShroudSpikes.RunSpikeS1b_ToggleTerrainDisabled();
+        Assert.IsTrue(sm0.finalized);
+        Assert.IsTrue(sm0.disabled);
+        Assert.IsFalse(sm1.finalized);
+        Assert.IsTrue(sm1.disabled);
+
+        DebugActionsShroudSpikes.ResetSpikeS1_RestoreTerrainSubMeshes();
+        Assert.IsTrue(sm0.finalized);
+        Assert.IsFalse(sm0.disabled);
+        Assert.IsFalse(sm1.finalized);
+        Assert.IsTrue(sm1.disabled);
     }
 }
