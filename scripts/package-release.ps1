@@ -9,7 +9,7 @@
     automatically switches the local RimWorld Mods/ junctions on Windows to clean Workshop staging.
 
 .PARAMETER Version
-    The release version tag (defaults to '0.4.1').
+    The release version tag (defaults to '0.4.2').
 
 .PARAMETER OutputDir
     The output directory where staging and zip packages will be generated.
@@ -26,7 +26,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Version = '0.4.1',
+    [string]$Version = '0.4.2',
     [string]$OutputDir = 'dist',
     [switch]$StageWorkshopJunction,
     [switch]$SkipJunctionUpdate

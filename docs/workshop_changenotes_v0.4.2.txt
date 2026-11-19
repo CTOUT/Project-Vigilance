@@ -1,0 +1,18 @@
+[h2]v0.4.2 — Orbital Performance, Save Deduplication & Fog of War Hotfix[/h2]
+[list]
+[*] [b]World Map FPS & Orbital Detection Performance:[/b]
+    [list]
+    [*] Cached player orbital sensor snapshots (comms consoles, ground radar envelopes, and recon satellites) on a 0.5-second (30-tick) window with a zero-allocation per-entity visibility cache, eliminating severe world-map FPS drops when many orbital stations and satellites are active under Fog of War.
+    [*] Replaced repeated colony building loops with indexed [i]AllBuildingsColonistOfDef[/i] lookups and native geodesic tile distance queries.
+    [/list]
+[*] [b]Runaway Orbital Spawn Fix & Legacy Save Cleanup:[/b]
+    [list]
+    [*] Fixed a save-load lifecycle bug where orbital infrastructure checks ran before RimWorld resolved saved faction cross-references, which previously spawned duplicate NPC stations and satellites on repeated save reloads.
+    [*] Tightened orbital faction filtering (excluding temporary, defeated, and pre-industrial factions), capped auto-spawned NPC hubs at 6, widened periodic audits to 15,000 ticks, and hardened orbital [i]SpawnSetup[/i] and faction assignment fallbacks.
+    [*] Added automatic one-time load deduplication (plus a DevMode [i]Orbital: Deduplicate NPC Stations & Satellites[/i] action) that trims inflated legacy saves back to 1 hub and 1 satellite per NPC faction/role while preserving all player assets and Odyssey space settlements. A yellow warning is logged only if duplicates were pruned so healthy saves remain silent.
+    [/list]
+[*] [b]Fog of War Rendering Optimisations:[/b]
+    [list]
+    [*] Removed duplicate globe dimming passes under Classic Fog of War and added revision-keyed visibility/shroud caches, zero-allocation landmark filtering, and split stationary/mobile vision sweeps.
+    [/list]
+[/list]

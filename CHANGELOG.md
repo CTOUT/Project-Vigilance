@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-19
+
+### Hotfix: Orbital Performance, Runaway Spawn Deduplication & Fog of War Optimisations
+
+#### Fixed
+
+- **Save-Load Orbital Spawn Duplication & Cross-Reference Deferral (`GameComponent_OrbitalLifecycle`, `OrbitalManager`):** Deferred save-load orbital deduplication and infrastructure checks from `World.FinalizeInit(true)` (which runs before `ScribeLoader.FinalizeLoading()` resolves `Faction` cross-references) to `GameComponent_OrbitalLifecycle.LoadedGame()`, preventing every save reload from misclassifying loaded stations and settlements and spawning duplicate orbital constellations.
+- **Orbital Faction Assignment & Spawn Resilience (`OrbitalVisibilityUtility`, `WorldObject_OrbitalStation`, `WorldObject_Satellite`, `Satellite_Trade`):** Corrected reflection fallback field from `"faction"` to RimWorld's `WorldObject.factionInt`, moved `OrbitalManager` registration ahead of `SetTileSafe`, wrapped `Satellite_Trade.GenerateInitialGoods` in exception guards, tightened `IsOrbitalFaction` to exclude temporary, defeated, and pre-industrial zero-settlement factions, capped auto-spawned NPC stations at 6 (`MaxAutoSpawnedNpcStations`), and widened the periodic audit cadence to 15,000 ticks.
+- **Automatic Legacy Save Deduplication (`OrbitalManager.PruneDuplicateNpcOrbitalEntities`, `DebugActionsVigilance`):** Added load-time deduplication and a DevMode action (`Orbital: Deduplicate NPC Stations & Satellites`) pruning inflated legacy saves down to at most 1 hub and 1 satellite per NPC faction/role while preserving all player assets and Odyssey `SpaceSettlement`s; emits a one-time `Log.Warning` whenever duplicates are removed and stays silent on clean saves.
+- **Windows Clean Staging Build Target (`Geoscape.csproj`):** Fixed MSBuild `<Exec>` command parsing in `RotateLockedAssembly` and `StageCleanDistribution` when staging into a clean `dist/` directory on Windows.
+
+#### Changed
+
+- **Orbital Visibility Caching (`OrbitalVisibilityUtility`):** Cached player orbital sensor snapshots (comms consoles, ground radar ranges, and player recon/military satellites) on a 30-tick (~0.5 s) window alongside a zero-allocation `ReferenceEqualityComparer` detection cache invalidated on `SweepRevision` and visibility-mode changes, eliminating repeated per-frame colony building scans (`AllBuildingsColonistOfDef`) across large satellite counts.
+- **Fog of War & Geoscape Rendering Optimisations (`WorldDrawLayer_HazeOfWar`, `WorldDrawLayer_RadarCoverage`, `WorldObject_Visibility_Patch`, `SensoryManager`):** Eliminated double-globe dimming under `ClassicHazeOfWar`, added tile/revision-keyed visibility and shroud mask caches, zero-allocation pooled landmark filtering, stationary vs. mobile vision sweep splitting, and cached 3 ms corner-only dimming fans.
+
 ## [0.4.1] - 2026-11-18
 
 ### Milestone 1.4: Tooling, Visual Assets & Structural Materials
@@ -355,7 +371,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **In-Game Settings Dialogue:** Added `GeoscapeMod` and `GeoscapeSettings` allowing players to configure threat cooldown resets and transit speed multipliers.
 - **Architectural Specifications & Master Vision:** Comprehensive technical documentation for Geoscape & Radar, Interception, Containment & Biology, Invasion Campaign, Aquatic Operations (TftD), and DLC integrations.
 
-[Unreleased]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/CTOUT/Project-Vigilance/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/CTOUT/Project-Vigilance/compare/v0.2.0...v0.3.0
