@@ -94,3 +94,9 @@
 
 - `PlanetarySurveillance` reveals static planetary geography ("the map as it was"), not live moving entities. Dynamic contacts (incursions, satellites, mobile targets) require active sensor coverage in both `FogOfWar` and `PlanetarySurveillance`; only `Omniscient` bypasses detection checks.
 - Whenever a tracked contact or orbital entity leaves sensor detection range, actively deselect it from `Find.WorldSelector` so players cannot keep tracking hidden contacts via a sticky selection bracket or inspect pane.
+
+## 17. Intelligence Epistemic Boundaries & Sensor Progression
+
+- Non-sensor intelligence (regional charts, traveller rumours, site stashes, corpse logs, autopsies, interrogations, and Tier 2 allied relays) MUST reveal only static `Haze`, unidentified `?` pins, or uncertain search ellipses — never free live `Clear` vision. Live movement tracking remains strictly bounded to active sensors (lookouts, listening posts, radar, sonar, SIGINT, orbital passes, recon craft, or gated late-game Spacer allied data-links).
+- Never scale world-map fog or sensor detection radii from uncapped pawn `Sight` stats (bionics, archotech, or modded Sight break sensor progression). Keep optical lookouts bounded by `ScoutHorizonSensor` horizon, terrain vantage, circadian/weather modifiers (at most capped hardware optics), and route vehicle/airborne recon through X-COM craft or XML `DefModExtension_Sensor`.
+- Design all-source intelligence discovery generically across all threat archetypes (humanoids, aliens, hybrids, Anomaly entities, insectoid hives, and sentient animal lairs) and acquisition sources (stashes, wrecks, transponders, autopsies, studies, interrogations), emitting leads via Core soft contracts (`GeoscapeIntelLead` / `IIntelLeadSink`) without coupling optional modules directly to `Geoscape`.

@@ -45,6 +45,7 @@
   - **Colony Beacon Site Claiming:** Dedicated deployable structure (`Geoscape_ColonyBeacon`) carried by expedition party. Activating "Stake Colony Claim" creates player colony map and triggers precision drop pods delivering orbital staging cargo.
   - **Fail-Safe & Anti-Soft-Lock Guards:** Auto-deploy emergency drop pods if expedition party suffers catastrophic defeat, or allow secondary beacon fabrication at crafting spots if beacon is lost.
   - **Scenario Opt-In Architecture:** Configurable via `ExpeditionStartMode` (`Disabled`, `ScenarioDefault`, `ForceExpedition`) with XML `DefModExtension` support, automatically bypassing orbital/space starts (Odyssey, GravShips, SOS2).
+- [ ] **Blind Landing Drop-Zone Biome Filter:** Add an optional biome whitelist filter in `GeoscapeSettings` / `StartingSiteFeedbackUtility` for blind `FogOfWar` random landings so players can exclude extreme biomes (e.g. Sea Ice) while keeping exact coordinates, neighbours, and map previews strictly hidden ([`docs/all_source_intelligence_and_exploration_plan.md`](docs/all_source_intelligence_and_exploration_plan.md)).
 - [ ] **Odyssey DLC Synergy & Non-Destructive Gravcore Takeoff:**
   - Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
   - Patch gravcore launch sequence to eliminate permanent world tile destruction, preserving planetary terrain integrity during orbital deployments without external mod dependencies.
@@ -86,8 +87,11 @@
 
 ### Milestone 1.9: Imperfect Intelligence, Curiosity & Living Shroud
 
+- **Architectural Design Blueprint:** [`docs/all_source_intelligence_and_exploration_plan.md`](docs/all_source_intelligence_and_exploration_plan.md)
 - [ ] **Signal Confidence, Bearing Cones & Interferometric Triangulation:** Attach explicit confidence tags (`Unconfirmed`, `Bearing Only`, `Clutter`, `Confirmed`) and error arcs/strength brackets to marginal contacts; sharpen fixes automatically when two or more sensor stations overlap.
 - [ ] **Explored Haze Staleness & Off-Screen World Drift:** Track `Last Observed` timestamps across unmonitored Explored Haze tiles and settlements so off-screen skirmishes, collapse, or territorial turnover cause historical map memory to go stale honestly rather than updating magically.
+- [ ] **Tiered Allied Shared Vision & Early-Warning Relays:** Grant static settlement `Haze` visibility and forwarded hostile incursion alerts at Allied goodwill ($\ge +75$) with a powered `CommsConsole` (tech-tiered from courier dispatches to radio/Spacer telemetry data-links), while explicitly rejecting uncapped pawn `Sight`-stat scaling so radar infrastructure stays meaningful.
+- [ ] **All-Source Field Intelligence (HUMINT, DOCEX, Regional Cartography & TECHINT):** Add tradeable Regional Charts (`Haze`-only `8–12` hex sectors with staleness timestamps), raided camp stashes, commander corpse logs, hacked terminals, and salvaged convoy transponders routed through `Geoscape_SigintConsole` to publish `?` site pins or uncertain search ellipses via `GeoscapeIntelLead` — strictly revealing leads or `Haze`, never free live `Clear` vision.
 - [ ] **Non-Cheap Frontier Curiosity Hooks:** Surface indirect evidence along explored edges — roads/waterways cutting into Shroud, downstream river pollution/ash plumes, displaced stragglers escaping uncharted conflict, partial VHF radio intercepts, and hearsay-graded traveller rumours with varying reliability.
 - [ ] **Physically Grounded Noise, Clutter & Enemy Deception:** Introduce traceable false positives and misreadings (solar flare radar ghosts, biological echoes on early `Geoscape_SonarArray`, nocturnal/weather optical distortion, decoy campfires, spoofed caravan transponders, and hostile ECM split-blips countered via `Geoscape_SigintConsole`).
 - [ ] **Signal History & Cumulative Intelligence Dossier:** Maintain a non-quest historical signal journal logging recurring tracks (such as `Repeated Contact #12` with `First Observed`, `Observations`, `Confidence`, `Classification`, and `Last Seen`), integrating time-decayed uncertainty ellipses, low-confidence track correlation/splitting ambiguity, and historical sighting overlays in `[ INTEL ARCHIVE ]`.
@@ -167,6 +171,7 @@
 - [ ] Create tactical deployment and extraction drop-zone mechanics.
 - [ ] Build amphibious transport capabilities (Triton analogue for aquatic sites).
 - [ ] **Orbit-Layer Craft Visibility Policy (4-Tier Domain Rule):** Expose Phase 4 Air & Sub-Orbital craft (interceptors, Skyranger dropships, atmospheric UFOs) alongside Space/Orbital entities (`IOrbitalEntity`) and strategic colonies (`MapParent`) on the `Orbit` camera layer, keeping tactical ground foot/animal caravans and unmanned outposts culled to the `Surface` layer.
+- [ ] **Aerial Recon Sweeps & External Craft Sensor Hooks:** Grant interceptors, Skyranger dropships, and external vehicle/shuttle integrations (Odyssey shuttles, Vehicles Framework via `PatchOperationFindMod` + `DefModExtension_Sensor`) bounded corridor recon along flight paths gated by fuel, altitude, and airspace SAM/ASAT risk ([`docs/all_source_intelligence_and_exploration_plan.md`](docs/all_source_intelligence_and_exploration_plan.md)).
 - [ ] **Standalone Test:** Validate interception combat and dropship deployment against standard pirate shuttles without Module 1.
 
 ---
@@ -178,6 +183,7 @@
 - [ ] Create autopsy bills and surgical extraction recipes.
 - [ ] Implement interrogation mechanics with mental resistance tracking.
 - [ ] **Item-Triggered Research Discovery:** Build "Fog of Research" system unlocking tech upon physical salvage, autopsy, or interrogation.
+- [ ] **BIOINT & Forensic Geoscape Triangulation:** Emit soft-hooked `GeoscapeIntelLead` discoveries (search ellipses, pheromone/migration vectors, and `?` pins) via `ProjectVigilance.Core` from autopsies, Anomaly entity studies, tissue/spore tracing, and interrogations across aliens, human-alien hybrids, anomalies, insectoid hives, and sentient animal lairs without hard-coupling to `Geoscape` ([`docs/all_source_intelligence_and_exploration_plan.md`](docs/all_source_intelligence_and_exploration_plan.md)).
 - [ ] Design reverse-engineering knowledge tree (Alloys, Elerium-115, Weapon Fragments).
 - [ ] **Standalone Test:** Validate containment pods and autopsy bills on vanilla pawns/creatures in isolation.
 
