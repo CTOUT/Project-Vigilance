@@ -70,27 +70,27 @@
 
 ### Stage 2: Hierarchical Shroud Shell, Frontier, Effects & Terrain Cull (Phases 0, 2A–2D, 5)
 
-#### Phase 0: Waylith Runtime Spikes (DevMode-Only Diagnostics)
+#### Phase 0: Waylith Runtime Spikes (DevMode-Only Diagnostics — Measured `119,904`-Tile Globe)
 
-- **S1:** Verify runtime behaviour of toggling `LayerSubMesh.finalized` vs `tris` on vanilla terrain submeshes during render.
-- **S2:** Verify terrain submesh-to-tile mapping via `triangleIndexToTileID` round-trip accuracy.
-- **S3:** Benchmark Waylith `FlushCompat` (`FinalizeMesh(MeshParts.Colors)`) cost on a single 512-vertex shell chunk to lock nebula animation Hz.
-- **S4:** Sample maximum globe tile vertex radii to lock shell radial clearance (`sagitta` + ε).
+- **S1 (`S1a` / `S1b`):** Confirmed `LayerSubMesh.finalized = false` hides terrain geometry cleanly while preserving `MeshCollider` tile hover and right-click selection; `LayerSubMesh.disabled` is ignored by `WorldDrawLayerBase.Render()`.
+- **S2 (`TerrainMapping`):** Measured `71/71` aligned terrain submeshes (`479,615` tris covering `119,904/119,904` tiles, `0` mismatches); early-game cull yield was `66/71` fully shrouded submeshes (`400,904` tris, `83.6%`).
+- **S3 (`FlushCompat` Benchmark):** `FinalizeMesh(MeshParts.Colors)` measured `0.001 ms` median (`p95=0.007 ms`, `2,072 B/call`) at `512v / 1,024t` and `0.003 ms` median (`p95=0.003 ms`, `8,216 B/call`) at `2,048v / 4,096t`, confirming ~20 Hz round-robin nebula drift headroom.
+- **S4 (`GlobeRadii` & Baseline):** Measured `TileCenterMag=[99.9995, 99.9999]`, `TileVertexMag=[100.0000, 100.0000]`, `TerrainMeshVertMag=[100.0000, 100.0000]` (`RecommendedMinShellRadius >= 100.0250`); baseline Stage 1 `HazeOfWar` emitted `23` finalized submeshes, `839,327` verts, `719,423` tris, and `839,327` UVs.
 
-#### Phases 2A–2D
+#### Phases 2A–2D (Implemented)
 
-- **2A (Core Shell & Frontier):** Implement `ShroudGeometry.cs`, `ShroudHierarchy.cs`, `WorldDrawLayer_ShroudShell.cs`, convert `WorldDrawLayer_HazeOfWar` to 80-chunk corner-fan frontier rendering (`Patch` via `PlanetLayerPatch.xml`), and route `SensoryManager` transitions through `ShroudHierarchy`.
-- **2B (Lazy Fine Chunks):** Defer allocation/triangulation of uninhabited frontier chunks until a coarse face approaches exploration (+1 chunk margin).
-- **2C (Atmosphere Effects & Settings):** Add `ShroudEffectLevel`, `shroudEffects`, `reduceShroudMotion`, `optimiseUnexploredTerrain`, and keyed UI strings (`Languages/English/Keyed/Geoscape_Shroud.xml`).
-- **2D (Terrain Cull):** Add `Patches/WorldDrawLayer_Terrain_Cull.cs` gated behind Phase 0 checks and `optimiseUnexploredTerrain`.
+- **2A (Core Shell & Frontier):** Implemented `ShroudGeometry.cs` (`Subdivisions=5`, `20,480` faces, `10,242` vertices across `20` shell / `80` fine chunks), `ShroudHierarchy.cs` (zero-allocation CSR state machine), and `WorldDrawLayer_ShroudShell.cs` (altitude `+0.062f`, queue `3545`, `0` UVs). Refactored `WorldDrawLayer_HazeOfWar` (altitude `+0.065f`, queue `3546`) to corner-only fans (`vertCount` verts, `vertCount - 2` tris, `0` UVs) registered via `PlanetLayerPatch.xml` and `PlanetLayer_InitializeLayer_Patch.cs`, with `SensoryManager` and `RuleTransitionExecutor` routing through `NotifyTileState` / `FlushShroudUpdates`.
+- **2B (Lazy Fine Chunks):** Deferred `WorldDrawLayer_HazeOfWar` mesh allocation across `80` chunks until needed (`fineChunkVisibleTileCount > 0`), pumping a `+1`-chunk adjacency prewarm ring inside `WorldDrawLayer_ShroudShell.Render()` and hiding all-clear chunks (`finalized = false`).
+- **2C (Atmosphere Effects & Settings):** Added `ShroudEffectLevel` (`Off`, `Subtle`, `Atmospheric`), `ShroudAtmosphere.cs` (continuous 3D nebula drift and WCAG AA >8:1 frontier glow across all curated `SensoryTheme` presets), Mod Settings (`shroudEffects`, `reduceShroudMotion`, `optimiseUnexploredTerrain`) in `GeoscapeSettings.cs`, and British English (`en-GB`) keyed strings in `Languages/English/Keyed/Geoscape_Shroud.xml`.
+- **2D (Terrain Cull):** Added `Patches/WorldDrawLayer_Terrain_Cull.cs` (`TerrainCullIndex` + `WorldDrawLayerBase.FinalizeMesh` postfix) gating `LayerSubMesh.finalized` safely behind `optimiseUnexploredTerrain && ClassicHazeOfWar && ShroudShell.IsGeometryBuilt`, restoring original finalized states when toggled off or switching visibility modes.
 
 ---
 
 ## 4. Verification & Regression Suite
 
 1. **Headless Unit & Allocation Tests (`Geoscape.Tests`):**
-   - `FogOfWarOptimisationTests.cs`: Verify zero dimming triangles in `ClassicHazeOfWar`, corner-only fan topology + cached dimming color refresh in `PlanetarySurveillance`, `0`-byte GC allocation (`GC.GetAllocatedBytesForCurrentThread()`) in `LandmarksToShow_Patch`, `IsFeatureExplored`, `ShouldHideWorldObject`, `ShouldMaskWorldObjectAsUnknown`, stationary-cache preservation on mobile steps, and `MarkSurroundingTilesIdentified` scaling.
-   - Stage 2 (`ShroudHierarchyTests.cs`): Icosphere counts/ancestors, partition ownership, no-hole invariant across 10k random transitions, zero-alloc steady updates, and terrain cull counts.
+   - `FogOfWarOptimisationTests.cs`: Verify zero dimming triangles in `ClassicHazeOfWar`, corner-only fan topology + cached dimming colour refresh in `PlanetarySurveillance`, `0`-byte GC allocation (`GC.GetAllocatedBytesForCurrentThread()`) in `LandmarksToShow_Patch`, `IsFeatureExplored`, `ShouldHideWorldObject`, `ShouldMaskWorldObjectAsUnknown`, stationary-cache preservation on mobile steps, and `MarkSurroundingTilesIdentified` scaling.
+   - `ShroudHierarchyTests.cs`: Verify icosphere counts/outward winding/`FindOwningFace` accuracy and zero-alloc queries, `own(F)`/`ring(F)` disjointness and inverse consistency, 10,000-op brute-force classification and frontier parity, no-hole and shroud-on-shroud apron invariants, zero-alloc steady-state transitions, `ShroudAtmosphere` motion/contrast guarantees across all themes, end-to-end `ShroudShell` + lazy `HazeOfWar` corner fans and mode-switch round-trips, and `TerrainCullIndex` incremental cull/restore correctness.
 2. **Pre-Commit Pipeline (`pipeline_validation`):**
    - `dotnet test Geoscape/Source/Geoscape.slnx -c Release`
    - `npx prettier --check "."`

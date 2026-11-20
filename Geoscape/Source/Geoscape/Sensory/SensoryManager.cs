@@ -257,6 +257,8 @@ public class SensoryManager : WorldComponent
         if (Find.World?.grid?.Surface != null)
         {
             Patches.PlanetLayer_InitializeLayer_Patch.EnsureLayersAttached(Find.World.grid.Surface);
+            WorldDrawLayer_HazeOfWar.InvalidateHierarchySync();
+            WorldDrawLayer_HazeOfWar.RequestLayerRefresh(WorldDrawLayer_ShroudShell.Instance);
             WorldDrawLayer_HazeOfWar.RequestLayerRefresh(WorldDrawLayer_HazeOfWar.Instance);
             WorldDrawLayer_HazeOfWar.RequestLayerRefresh(WorldDrawLayer_RadarCoverage.Instance);
         }
@@ -1824,6 +1826,8 @@ public class SensoryManager : WorldComponent
             {
                 currentActiveVisionTileIds.Clear();
                 currentActiveVisionTileIds.UnionWith(newActiveVisionTileIds);
+                WorldDrawLayer_HazeOfWar.InvalidateHierarchySync();
+                WorldDrawLayer_ShroudShell.Instance?.SetDirty();
                 haze?.SetDirty();
                 return;
             }
@@ -1833,26 +1837,26 @@ public class SensoryManager : WorldComponent
             {
                 if (!newActiveVisionTileIds.Contains(oldTileId))
                 {
-                    Color32 color = IsTileIdExplored(oldTileId)
-                        ? WorldDrawLayer_HazeOfWar.HazeColor
-                        : WorldDrawLayer_HazeOfWar.ShroudColor;
-                    haze.SetTileColor(oldTileId, color);
+                    byte nextState = IsTileIdExplored(oldTileId)
+                        ? ShroudHierarchy.StateHaze
+                        : ShroudHierarchy.StateShroud;
+                    haze.NotifyTileState(oldTileId, nextState);
                 }
             }
 
-            // 2. Tiles entering active vision: set to ClearColor (100% transparent)
+            // 2. Tiles entering active vision: set to Clear (100% transparent)
             foreach (int newTileId in newActiveVisionTileIds)
             {
                 if (!currentActiveVisionTileIds.Contains(newTileId))
                 {
-                    haze.SetTileColor(newTileId, WorldDrawLayer_HazeOfWar.ClearColor);
+                    haze.NotifyTileState(newTileId, ShroudHierarchy.StateClear);
                 }
             }
 
             currentActiveVisionTileIds.Clear();
             currentActiveVisionTileIds.UnionWith(newActiveVisionTileIds);
 
-            haze.ApplyDirtyColors();
+            haze.FlushShroudUpdates();
         }
         finally
         {
@@ -1914,7 +1918,7 @@ public class SensoryManager : WorldComponent
 
                         if (hazeReady && !currentActiveVisionTileIds.Contains(tileId))
                         {
-                            haze?.SetTileColor(tileId, WorldDrawLayer_HazeOfWar.HazeColor);
+                            haze?.NotifyTileState(tileId, ShroudHierarchy.StateHaze);
                         }
 
                         if (!revealedAnyObject && Find.World?.worldObjects != null && Find.World.worldObjects.AnyWorldObjectAt(waterTile))
@@ -1975,7 +1979,7 @@ public class SensoryManager : WorldComponent
                         // If not currently under active vision (transparent), transition from Shroud to Haze
                         if (hazeReady && !currentActiveVisionTileIds.Contains(tileId))
                         {
-                            haze?.SetTileColor(tileId, WorldDrawLayer_HazeOfWar.HazeColor);
+                            haze?.NotifyTileState(tileId, ShroudHierarchy.StateHaze);
                         }
 
                         // Check if an unrevealed world object or settlement was on this tile
@@ -2029,10 +2033,12 @@ public class SensoryManager : WorldComponent
 
         if (hazeReady)
         {
-            haze?.ApplyDirtyColors();
+            haze?.FlushShroudUpdates();
         }
         else
         {
+            WorldDrawLayer_HazeOfWar.InvalidateHierarchySync();
+            WorldDrawLayer_ShroudShell.Instance?.SetDirty();
             haze?.SetDirty();
         }
 
@@ -2349,6 +2355,10 @@ public class SensoryManager : WorldComponent
     public void RefreshImmediateVision()
     {
         Notify_SensorRadiusChanged();
+        if (WorldDrawLayer_ShroudShell.Instance is { IsGeometryBuilt: true } shell)
+        {
+            WorldDrawLayer_HazeOfWar.RequestLayerRefresh(shell);
+        }
         if (WorldDrawLayer_HazeOfWar.Instance is { IsGeometryBuilt: true } haze)
         {
             WorldDrawLayer_HazeOfWar.RequestLayerRefresh(haze);
@@ -2375,6 +2385,8 @@ public class SensoryManager : WorldComponent
         InvalidateStationaryVisionCache();
         SweepRevision++;
         PerformSensorySweep();
+        WorldDrawLayer_HazeOfWar.InvalidateHierarchySync();
+        WorldDrawLayer_ShroudShell.Instance?.SetDirty();
         WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         if (Find.World?.grid?.Surface != null)

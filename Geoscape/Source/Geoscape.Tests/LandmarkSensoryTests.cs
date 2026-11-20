@@ -266,6 +266,8 @@ public sealed class LandmarkSensoryTests : GeoscapeTestBase
         {
             [WorldDrawLayer_RadarCoverage.DimmingRenderQueue] =
                 (UnityEngine.Material)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(UnityEngine.Material)),
+            [WorldDrawLayer_ShroudShell.ShroudShellRenderQueue] =
+                (UnityEngine.Material)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(UnityEngine.Material)),
             [WorldDrawLayer_HazeOfWar.HazeRenderQueue] =
                 (UnityEngine.Material)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(UnityEngine.Material)),
             [WorldDrawLayer_RadarCoverage.ShadowWashRenderQueue] =
@@ -277,6 +279,7 @@ public sealed class LandmarkSensoryTests : GeoscapeTestBase
         int[] orderedQueues =
         {
             WorldDrawLayer_RadarCoverage.DimmingRenderQueue,
+            WorldDrawLayer_ShroudShell.ShroudShellRenderQueue,
             WorldDrawLayer_HazeOfWar.HazeRenderQueue,
             WorldDrawLayer_RadarCoverage.ShadowWashRenderQueue,
             WorldDrawLayer_RadarCoverage.OutlineRenderQueue,
@@ -300,6 +303,8 @@ public sealed class LandmarkSensoryTests : GeoscapeTestBase
         int index = 0;
         Verse.LayerSubMesh dimMesh = WorldDrawLayer_HazeOfWar.GetOrCreateVertexColorSubMesh(
             subMeshes, 38000, 7, WorldDrawLayer_RadarCoverage.DimmingRenderQueue, null, queueOverride, ref index);
+        Verse.LayerSubMesh shellMesh = WorldDrawLayer_HazeOfWar.GetOrCreateVertexColorSubMesh(
+            subMeshes, 38000, 7, WorldDrawLayer_ShroudShell.ShroudShellRenderQueue, null, queueOverride, ref index);
         Verse.LayerSubMesh hazeMesh = WorldDrawLayer_HazeOfWar.GetOrCreateVertexColorSubMesh(
             subMeshes, 38000, 7, WorldDrawLayer_HazeOfWar.HazeRenderQueue, null, queueOverride, ref index);
         Verse.LayerSubMesh washMesh = WorldDrawLayer_HazeOfWar.GetOrCreateVertexColorSubMesh(
@@ -307,14 +312,16 @@ public sealed class LandmarkSensoryTests : GeoscapeTestBase
         Verse.LayerSubMesh outlineMesh = WorldDrawLayer_HazeOfWar.GetOrCreateVertexColorSubMesh(
             subMeshes, 38000, 4, WorldDrawLayer_RadarCoverage.OutlineRenderQueue, null, queueOverride, ref index);
 
-        Assert.AreEqual(4, subMeshes.Count);
-        Assert.AreNotSame(dimMesh, hazeMesh);
+        Assert.AreEqual(5, subMeshes.Count);
+        Assert.AreNotSame(dimMesh, shellMesh);
+        Assert.AreNotSame(shellMesh, hazeMesh);
         Assert.AreNotSame(hazeMesh, washMesh);
         Assert.AreNotSame(washMesh, outlineMesh);
         CollectionAssert.AreEqual(
             new[]
             {
                 WorldDrawLayer_RadarCoverage.DimmingRenderQueue,
+                WorldDrawLayer_ShroudShell.ShroudShellRenderQueue,
                 WorldDrawLayer_HazeOfWar.HazeRenderQueue,
                 WorldDrawLayer_RadarCoverage.ShadowWashRenderQueue,
                 WorldDrawLayer_RadarCoverage.OutlineRenderQueue
@@ -458,6 +465,7 @@ public sealed class LandmarkSensoryTests : GeoscapeTestBase
             new[]
             {
                 WorldDrawLayer_RadarCoverage.DimmingRenderQueue,
+                WorldDrawLayer_ShroudShell.ShroudShellRenderQueue,
                 WorldDrawLayer_HazeOfWar.HazeRenderQueue,
                 WorldDrawLayer_RadarCoverage.ShadowWashRenderQueue,
                 WorldDrawLayer_RadarCoverage.OutlineRenderQueue

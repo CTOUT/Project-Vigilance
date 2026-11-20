@@ -252,9 +252,9 @@ public static class GeoscapeTestHarness
         WorldDrawLayer_RadarCoverage.TileCenterOverride = null;
         WorldDrawLayer_RadarCoverage.TileNeighborsOverride = null;
 
-        WorldDrawLayer_HazeOfWar.SubMeshMaterialOverride = null;
-        WorldDrawLayer_HazeOfWar.RenderQueueMaterialOverride = null;
-        WorldDrawLayer_HazeOfWar.IsInMainThreadOverride = null;
+        WorldDrawLayer_HazeOfWar.ResetSharedHierarchyForTesting();
+        WorldDrawLayer_ShroudShell.ClearStaticStateForTesting();
+        WorldDrawLayer_Terrain_Cull.ClearStaticStateForTesting();
 
         HazeReconnaissanceManager.WorldObjectLookupOverride = null;
         HazeReconnaissanceManager.Instance = null;

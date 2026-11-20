@@ -44,8 +44,11 @@ public static class RuleTransitionExecutor
         // 4. Invalidate 3D GPU mesh layers and feature labels
         if (effects.HasFlag(RuleTransitionEffects.RebuildWorldLayers))
         {
+            WorldDrawLayer_HazeOfWar.InvalidateHierarchySync();
+            WorldDrawLayer_ShroudShell.Instance?.SetDirty();
             WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
             WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
+            Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
 
             if (Find.WorldGrid?.Surface != null)
             {

@@ -21,8 +21,29 @@ public static class PlanetLayer_InitializeLayer_Patch
 
     public static void EnsureLayersAttached(PlanetLayer layer)
     {
+        EnsureShroudShellLayerAttached(layer);
         EnsureHazeLayerAttached(layer);
         EnsureRadarLayerAttached(layer);
+    }
+
+    public static void EnsureShroudShellLayerAttached(PlanetLayer layer)
+    {
+        if (layer?.WorldDrawLayers == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < layer.WorldDrawLayers.Count; i++)
+        {
+            if (layer.WorldDrawLayers[i] is WorldDrawLayer_ShroudShell)
+            {
+                return;
+            }
+        }
+
+        WorldDrawLayer_ShroudShell shellLayer = new();
+        shellLayer.Initialize(layer);
+        layer.WorldDrawLayers.Add(shellLayer);
     }
 
     public static void EnsureHazeLayerAttached(PlanetLayer layer)

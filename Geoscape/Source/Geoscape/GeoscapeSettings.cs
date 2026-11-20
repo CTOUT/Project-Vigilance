@@ -63,6 +63,9 @@ public class GeoscapeSettings : ModSettings
     public bool enableThermalIntegrityAudit = true;
     public bool optimisticCaravanDetours = true;
     public bool enableInterFactionCollisions = true;
+    public ShroudEffectLevel shroudEffects = ShroudEffectLevel.Subtle;
+    public bool reduceShroudMotion = false;
+    public bool optimiseUnexploredTerrain = true;
 
     // =========================================================================
     // Transient UI State (Tabs, Scrolling & Dynamic Sizing)
@@ -159,6 +162,7 @@ public class GeoscapeSettings : ModSettings
         sonarCustomColor = colors.sonar;
         useCustomIdentificationColor = true;
         NotifyRadarVisualsChanged();
+        WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
     }
 
     public override void ExposeData()
@@ -205,6 +209,9 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref enableThermalIntegrityAudit, "enableThermalIntegrityAudit", true);
         Scribe_Values.Look(ref optimisticCaravanDetours, "optimisticCaravanDetours", true);
         Scribe_Values.Look(ref enableInterFactionCollisions, "enableInterFactionCollisions", true);
+        Scribe_Values.Look(ref shroudEffects, "shroudEffects", ShroudEffectLevel.Subtle);
+        Scribe_Values.Look(ref reduceShroudMotion, "reduceShroudMotion", false);
+        Scribe_Values.Look(ref optimiseUnexploredTerrain, "optimiseUnexploredTerrain", true);
     }
 
     // =========================================================================
@@ -699,6 +706,65 @@ public class GeoscapeSettings : ModSettings
         shadowRight.End();
 
         shadowGridHeight = Mathf.Max(shadowLeft.CurHeight, shadowRight.CurHeight) + 2f;
+
+        listing.GapLine();
+
+        // 4. Shroud Atmosphere & Performance
+        Text.Font = GameFont.Tiny;
+        GUI.color = SectionHeaderColor;
+        listing.Label("PV_Shroud_SectionHeader".Translate());
+        GUI.color = SubNoteColor;
+        listing.Label("PV_Shroud_SectionDesc".Translate());
+        GUI.color = Color.white;
+        Text.Font = GameFont.Small;
+
+        Rect styleRow = listing.GetRect(28f);
+        Rect styleLabelRect = new Rect(styleRow.x, styleRow.y + 2f, styleRow.width * 0.45f, 24f);
+        Rect styleBtnRect = new Rect(styleLabelRect.xMax + 8f, styleRow.y, styleRow.width * 0.55f - 8f, 26f);
+        Widgets.Label(styleLabelRect, "PV_Shroud_EffectsLabel".Translate());
+        string currentEffectLabel = $"PV_Shroud_Effects_{shroudEffects}".Translate();
+        if (Widgets.ButtonText(styleBtnRect, currentEffectLabel))
+        {
+            var options = new List<FloatMenuOption>();
+            foreach (ShroudEffectLevel lvl in Enum.GetValues(typeof(ShroudEffectLevel)))
+            {
+                ShroudEffectLevel captured = lvl;
+                string optLabel = $"PV_Shroud_Effects_{captured}".Translate();
+                options.Add(new FloatMenuOption(optLabel, () =>
+                {
+                    if (shroudEffects != captured)
+                    {
+                        shroudEffects = captured;
+                        WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
+                    }
+                }));
+            }
+            Find.WindowStack.Add(new FloatMenu(options));
+        }
+        TooltipHandler.TipRegion(styleRow, "PV_Shroud_EffectsTooltip".Translate());
+
+        listing.Gap(4f);
+        bool prevReduceMotion = reduceShroudMotion;
+        DrawToggleableCheckbox(
+            listing,
+            "PV_Shroud_ReduceMotionLabel".Translate(),
+            ref reduceShroudMotion,
+            "PV_Shroud_ReduceMotionTooltip".Translate(),
+            shroudEffects != ShroudEffectLevel.Off);
+        if (prevReduceMotion != reduceShroudMotion)
+        {
+            WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
+        }
+
+        bool prevOptimise = optimiseUnexploredTerrain;
+        listing.CheckboxLabeled(
+            "PV_Shroud_OptimiseTerrainLabel".Translate(),
+            ref optimiseUnexploredTerrain,
+            "PV_Shroud_OptimiseTerrainTooltip".Translate());
+        if (prevOptimise != optimiseUnexploredTerrain)
+        {
+            Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
+        }
     }
 
     private void DrawToggleableCheckbox(Listing_Standard listing, string label, ref bool value, string tooltip, bool enabled)
@@ -1126,6 +1192,11 @@ public class GeoscapeSettings : ModSettings
         enableIntelligentRightClick = true;
         maxContextualCaravansShown = 3;
         maxContextualColoniesShown = 2;
+        shroudEffects = ShroudEffectLevel.Subtle;
+        reduceShroudMotion = false;
+        optimiseUnexploredTerrain = true;
+        WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
+        Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
         NotifyRadarVisualsChanged();
         OnVisibilityModeChanged();
     }

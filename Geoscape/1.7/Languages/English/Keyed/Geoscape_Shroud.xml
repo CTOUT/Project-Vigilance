@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <!-- Shroud Atmosphere & Performance Settings (en-GB) -->
+  <PV_Shroud_SectionHeader>SHROUD ATMOSPHERE &amp; PERFORMANCE</PV_Shroud_SectionHeader>
+  <PV_Shroud_SectionDesc>Configure procedural nebula styling along the Fog of War frontier and unexplored terrain rendering optimisation.</PV_Shroud_SectionDesc>
+  <PV_Shroud_EffectsLabel>Shroud Visual Style</PV_Shroud_EffectsLabel>
+  <PV_Shroud_Effects_Off>Off (Flat Obsidian)</PV_Shroud_Effects_Off>
+  <PV_Shroud_Effects_Subtle>Subtle (Recommended)</PV_Shroud_Effects_Subtle>
+  <PV_Shroud_Effects_Atmospheric>Atmospheric</PV_Shroud_Effects_Atmospheric>
+  <PV_Shroud_EffectsTooltip>Controls subtle 3D nebula drift and frontier edge glow across unexplored Fog of War territory.</PV_Shroud_EffectsTooltip>
+  <PV_Shroud_ReduceMotionLabel>Reduce Shroud Motion</PV_Shroud_ReduceMotionLabel>
+  <PV_Shroud_ReduceMotionTooltip>Freezes procedural nebula drift and frontier glow pulsing into a static appearance.</PV_Shroud_ReduceMotionTooltip>
+  <PV_Shroud_OptimiseTerrainLabel>Optimise Unexplored Terrain</PV_Shroud_OptimiseTerrainLabel>
+  <PV_Shroud_OptimiseTerrainTooltip>Skips rendering fully shrouded terrain mesh chunks beneath the Fog of War shell while keeping tile selection and pathing intact.</PV_Shroud_OptimiseTerrainTooltip>
+</LanguageData>
