@@ -23,8 +23,9 @@
 
 ## 5. Headless Test Safe Lifecycle & Parallel Isolation
 
-- When overriding WorldObject or Thing lifecycle methods, never assume `Find.World` implies `Find.WorldObjects` or `Find.FactionManager` are initialised.
-- Guard against null sub-managers to allow headless test runners to execute without mocking entire engine singletons.
+- When overriding WorldObject or Thing lifecycle methods, never assume `Find.World` implies `Find.WorldObjects`, `Find.FactionManager`, or `PlanetLayer.WorldDrawLayers` are initialised.
+- Guard against null sub-managers (including `layer.WorldDrawLayers != null` before `layer.GetLayer<T>()`) so headless test runners execute without mocking entire engine singletons.
+- Never invoke `WorldDrawLayerBase.Render()` or `WorldRendererUtility.WorldRendered` in headless tests (triggers Waylith `ShaderRegistry` static initialisation); extract frame-advance work into testable internal helpers called by `Render()`.
 - Because `MSTestSettings.cs` enables method-level parallelisation, every `[TestClass]` that calls `GeoscapeTestHarness.ResetAllStaticState()`, sets `VigilanceModuleManager` test overrides, or mutates static singletons (`SensoryManager.Instance`, global hooks) MUST be annotated with `[DoNotParallelize]`.
 
 ## 6. Project Documentation & Repository Colocation
@@ -77,3 +78,19 @@
 - Whenever public types move into `ProjectVigilance.Core`, preserve their CLR namespaces where appropriate and emit `[assembly: TypeForwardedTo(...)]` entries in `Geoscape/Source/Geoscape/AssemblyForwarders.cs`.
 - Whenever Defs or WorldComponents extract out of an existing package into an optional module, add safe Scribe redirection mappings in `BackCompatibilityConverter_VigilanceModular` (`MissingModuleWorldObjectStub` / `DeprecatedWorldComponentStub`) so pre-split or partial-module saves load with zero red console errors.
 - Wire extracted modules into `VigilanceMigrationTracker` and `Dialog_VigilanceModuleMigration` so players receive clear missing-module advisories, Workshop links, and one-click stub retirement (`RuleChangeKind.ModuleMigration`).
+
+## 14. Waylith 1.7 WorldDrawLayer & Mesh Overlay Standards
+
+- `WorldDrawLayerBase.Render()` checks `LayerSubMesh.finalized` and ignores `LayerSubMesh.disabled`. Hide terrain or empty overlay chunks via `LayerSubMesh.finalized = false` (preserving original finalized flags for safe restoration and leaving `MeshCollider` picking intact), and never cull terrain unless the covering shroud layer reports `IsGeometryBuilt`.
+- `WorldVertexColorTransparent` uses Vulkan `Back`-face culling with `depthTest=false` and `depthWrite=false`; verify outward winding (`Vector3.Dot(Vector3.Cross(v1 - v0, v2 - v0), outwardDir) > 0f`) on every triangle, omit UVs (`0` UVs), and enforce draw ordering strictly via explicit render queues (`Dimming 3544 < ShroudShell 3545 < Haze 3546 < ShadowWash 3547 < Outline 3548 < WorldObjects 3550`) and altitude separation.
+- Never use `PlanetTile` as a `HashSet<T>` or `Dictionary<TKey, TValue>` key (`PlanetTile.GetHashCode()` dereferences `Find.WorldGrid`); always key spatial state tables by `int tileId`.
+
+## 15. Scribe Save-Load Deferred Audits & Migration Timing
+
+- Never run world-object deduplication, orphan cleanup, or faction-infrastructure audits inside `ExposeData()` (loading or `PostLoadInit` phases), where Scribe cross-references (`Faction`, `WorldObject`) may still be unresolved.
+- Defer cross-reference-dependent post-load audits and legacy migrations to `FinalizeInit()` / `LoadedGame()`, log a warning whenever legacy save cleanup executes, and queue player migration dialogs cleanly after `MapInitializing`.
+
+## 16. Visibility Mode Semantics & Selection Hygiene
+
+- `PlanetarySurveillance` reveals static planetary geography ("the map as it was"), not live moving entities. Dynamic contacts (incursions, satellites, mobile targets) require active sensor coverage in both `FogOfWar` and `PlanetarySurveillance`; only `Omniscient` bypasses detection checks.
+- Whenever a tracked contact or orbital entity leaves sensor detection range, actively deselect it from `Find.WorldSelector` so players cannot keep tracking hidden contacts via a sticky selection bracket or inspect pane.
