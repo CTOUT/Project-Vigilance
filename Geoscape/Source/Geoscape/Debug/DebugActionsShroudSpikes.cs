@@ -101,13 +101,17 @@ public static class DebugActionsShroudSpikes
         out int verts,
         out int tris,
         out int uvs,
-        out int finalizedCount)
+        out int finalizedCount,
+        out int drawnVerts,
+        out int drawnTris)
     {
         subMeshCount = subMeshes?.Count ?? 0;
         verts = 0;
         tris = 0;
         uvs = 0;
         finalizedCount = 0;
+        drawnVerts = 0;
+        drawnTris = 0;
         if (subMeshes == null)
         {
             return;
@@ -121,12 +125,16 @@ public static class DebugActionsShroudSpikes
                 continue;
             }
 
-            verts += sm.verts.Count;
-            tris += sm.tris.Count / 3;
+            int smVerts = sm.verts.Count;
+            int smTris = sm.tris.Count / 3;
+            verts += smVerts;
+            tris += smTris;
             uvs += sm.uvs.Count;
             if (sm.finalized)
             {
                 finalizedCount++;
+                drawnVerts += smVerts;
+                drawnTris += smTris;
             }
         }
     }
@@ -606,22 +614,23 @@ public static class DebugActionsShroudSpikes
         var radarLayer = (surface.WorldDrawLayers != null ? surface.GetLayer<WorldDrawLayer_RadarCoverage>() : null) ?? WorldDrawLayer_RadarCoverage.Instance;
 
         var shellSubMeshes = shellLayer != null ? SubMeshesField?.GetValue(shellLayer) as List<LayerSubMesh> : null;
-        SummarizeLayerMeshes(shellSubMeshes, out int shellSm, out int shellVerts, out int shellTris, out int shellUvs, out int shellFin);
+        SummarizeLayerMeshes(shellSubMeshes, out int shellSm, out int shellVerts, out int shellTris, out int shellUvs, out int shellFin, out int shellDrawnVerts, out int shellDrawnTris);
 
         var hazeSubMeshes = hazeLayer != null ? SubMeshesField?.GetValue(hazeLayer) as List<LayerSubMesh> : null;
-        SummarizeLayerMeshes(hazeSubMeshes, out int hazeSm, out int hazeVerts, out int hazeTris, out int hazeUvs, out int hazeFin);
+        SummarizeLayerMeshes(hazeSubMeshes, out int hazeSm, out int hazeVerts, out int hazeTris, out int hazeUvs, out int hazeFin, out int hazeDrawnVerts, out int hazeDrawnTris);
 
         var radarSubMeshes = radarLayer != null ? SubMeshesField?.GetValue(radarLayer) as List<LayerSubMesh> : null;
-        SummarizeLayerMeshes(radarSubMeshes, out int radarSm, out int radarVerts, out int radarTris, out int radarUvs, out int radarFin);
+        SummarizeLayerMeshes(radarSubMeshes, out int radarSm, out int radarVerts, out int radarTris, out int radarUvs, out int radarFin, out _, out _);
 
         var cullStats = ProjectVigilance.Geoscape.Patches.WorldDrawLayer_Terrain_Cull.GetCullStats();
+        bool cullSetting = GeoscapeMod.Settings?.optimiseUnexploredTerrain ?? true;
 
         Log.Message(
             $"[PV Spike S4] Globe Radii & Stage 2 Layer Telemetry (VisibilityMode={GeoscapeRules.VisibilityMode}, Tiles={tilesCount:N0}):{Environment.NewLine}" +
             $"  TileCenterMag=[{minCenterMag:F4}, {maxCenterMag:F4}], TileVertexMag=[{minTileVertMag:F4}, {maxTileVertMag:F4}], TerrainMeshVertMag=[{minTerrainVertMag:F4}, {maxTerrainVertMag:F4}], RecommendedMinShellRadius>={recommendedMinShellRadius:F4}{Environment.NewLine}" +
-            $"  ShroudShellLayer: built={(shellLayer?.IsGeometryBuilt ?? false)}, activeChunks={shellLayer?.ActiveShellChunkCount ?? 0}/{ShroudGeometry.ShellChunkCount}, subMeshes={shellSm} (finalized={shellFin}), verts={shellVerts:N0}, tris={shellTris:N0}, uvs={shellUvs:N0}{Environment.NewLine}" +
-            $"  HazeOfWarLayer: built={(hazeLayer?.IsGeometryBuilt ?? false)}, builtChunks={hazeLayer?.BuiltFineChunkCount ?? 0}/{ShroudGeometry.FineChunkCount}, visibleChunks={hazeLayer?.VisibleFineChunkCount ?? 0}, subMeshes={hazeSm} (finalized={hazeFin}), verts={hazeVerts:N0}, tris={hazeTris:N0}, uvs={hazeUvs:N0}{Environment.NewLine}" +
-            $"  TerrainCull: active={cullStats.active}, culledSubMeshes={cullStats.culledSubMeshes}/{cullStats.totalSubMeshes}, culledTris={cullStats.culledTris:N0}/{cullStats.totalTris:N0}{Environment.NewLine}" +
+            $"  ShroudShellLayer: built={(shellLayer?.IsGeometryBuilt ?? false)}, activeChunks={shellLayer?.ActiveShellChunkCount ?? 0}/{ShroudGeometry.ShellChunkCount}, subMeshes={shellSm} (finalized={shellFin}), drawnVerts={shellDrawnVerts:N0} (alloc={shellVerts:N0}), drawnTris={shellDrawnTris:N0} (alloc={shellTris:N0}), uvs={shellUvs:N0}{Environment.NewLine}" +
+            $"  HazeOfWarLayer: built={(hazeLayer?.IsGeometryBuilt ?? false)}, builtChunks={hazeLayer?.BuiltFineChunkCount ?? 0}/{ShroudGeometry.FineChunkCount}, visibleChunks={hazeLayer?.VisibleFineChunkCount ?? 0}, subMeshes={hazeSm} (finalized={hazeFin}), drawnVerts={hazeDrawnVerts:N0} (alloc={hazeVerts:N0}), drawnTris={hazeDrawnTris:N0} (alloc={hazeTris:N0}), uvs={hazeUvs:N0}{Environment.NewLine}" +
+            $"  TerrainCull: setting={cullSetting}, active={cullStats.active}, culledSubMeshes={cullStats.culledSubMeshes}/{cullStats.totalSubMeshes}, culledTris={cullStats.culledTris:N0}/{cullStats.totalTris:N0}{Environment.NewLine}" +
             $"  RadarCoverageLayer: visible={(radarLayer?.Visible ?? false)}, dimSubMeshes={(radarLayer?.DimSubMeshCount ?? 0)}, totalSubMeshes={radarSm} (finalized={radarFin}), verts={radarVerts:N0}, tris={radarTris:N0}, uvs={radarUvs:N0}");
     }
 }

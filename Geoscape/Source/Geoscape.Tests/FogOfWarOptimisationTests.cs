@@ -202,6 +202,7 @@ public sealed class FogOfWarOptimisationTests : GeoscapeTestBase
         LayerSubMesh? reusedDimSubMesh = layer.SubMeshes.Find(sm => ReferenceEquals(sm.material, dimMat));
         Assert.IsNotNull(reusedDimSubMesh);
         Assert.AreSame(dimSubMesh, reusedDimSubMesh, "Subsequent Regenerate must reuse cached dimming LayerSubMesh in-place.");
+        Assert.IsTrue(layer.SubMeshes.TrueForAll(static sm => sm.finalized), "All RadarCoverage submeshes must stay finalized across repeated Regenerate calls.");
         Assert.AreEqual(36, reusedDimSubMesh.verts.Count);
         Assert.AreEqual(72, reusedDimSubMesh.tris.Count);
         Assert.AreEqual(0, reusedDimSubMesh.uvs.Count);

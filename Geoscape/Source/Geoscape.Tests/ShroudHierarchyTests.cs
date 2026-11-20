@@ -268,7 +268,7 @@ public sealed class ShroudHierarchyTests : GeoscapeTestBase
                 int globalFace = chunk.StartFace + f;
                 Assert.AreEqual(c, ShroudGeometry.GetShellChunk(globalFace));
                 int fc = ShroudGeometry.GetFineChunk(globalFace);
-                Assert.IsTrue(fc >= c * 4 && fc < (c + 1) * 4);
+                Assert.IsTrue(fc >= c * 16 && fc < (c + 1) * 16);
                 Assert.IsTrue((uint)chunk.FaceLocalV0[f] < (uint)chunk.LocalVertexCount);
                 Assert.IsTrue((uint)chunk.FaceLocalV1[f] < (uint)chunk.LocalVertexCount);
                 Assert.IsTrue((uint)chunk.FaceLocalV2[f] < (uint)chunk.LocalVertexCount);
@@ -663,7 +663,7 @@ public sealed class ShroudHierarchyTests : GeoscapeTestBase
         int initialBuiltChunks = hazeLayer.BuiltFineChunkCount;
         int initialVisibleChunks = hazeLayer.VisibleFineChunkCount;
         Assert.IsTrue(initialBuiltChunks > 0 && initialBuiltChunks < ShroudGeometry.FineChunkCount,
-            $"Expected lazy Tier F build (built={initialBuiltChunks} out of 80).");
+            $"Expected lazy Tier F build (built={initialBuiltChunks} out of {ShroudGeometry.FineChunkCount}).");
         Assert.IsTrue(initialVisibleChunks > 0);
 
         var hazeSubMeshes = (List<LayerSubMesh>)WorldDrawLayerSubMeshesField!.GetValue(hazeLayer)!;
@@ -674,10 +674,12 @@ public sealed class ShroudHierarchyTests : GeoscapeTestBase
             Assert.IsTrue(sm.verts.Count > 0 && sm.tris.Count > 0);
         }
 
-        // Background prewarm builds 1 adjacent chunk without making an all-shroud chunk finalized
+        // Background prewarm builds 1 adjacent non-empty chunk without making an all-shroud chunk finalized
         shellLayer.AdvanceFrameWork();
         Assert.AreEqual(initialBuiltChunks + 1, hazeLayer.BuiltFineChunkCount);
         Assert.AreEqual(initialVisibleChunks, hazeLayer.VisibleFineChunkCount);
+        Assert.IsTrue(hazeSubMeshes.TrueForAll(static sm => sm.verts.Count > 0),
+            "Lazy prewarm must skip empty uninhabited chunks.");
 
         // Revealing a tile in an untouched distant chunk triggers synchronous lazy chunk creation
         int distantTile = -1;

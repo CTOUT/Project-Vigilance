@@ -660,23 +660,24 @@ namespace ProjectVigilance.Geoscape.Sensory
             const int count = ShroudGeometry.FineChunkCount;
             bool[,] matrix = new bool[count, count];
 
-            // Geometric adjacency: fine chunks 0..79 match level-1 faces at Hierarchy offset 20..99
-            const int level1Offset = 20;
+            // Edge-only geometric adjacency: fine chunks 0..319 match level-2 faces at Hierarchy offset 100..419
+            const int level2Offset = 100;
             for (int c0 = 0; c0 < count; c0++)
             {
-                int a0 = sphere.HierarchyV0[level1Offset + c0];
-                int a1 = sphere.HierarchyV1[level1Offset + c0];
-                int a2 = sphere.HierarchyV2[level1Offset + c0];
+                int a0 = sphere.HierarchyV0[level2Offset + c0];
+                int a1 = sphere.HierarchyV1[level2Offset + c0];
+                int a2 = sphere.HierarchyV2[level2Offset + c0];
 
                 for (int c1 = c0 + 1; c1 < count; c1++)
                 {
-                    int b0 = sphere.HierarchyV0[level1Offset + c1];
-                    int b1 = sphere.HierarchyV1[level1Offset + c1];
-                    int b2 = sphere.HierarchyV2[level1Offset + c1];
+                    int b0 = sphere.HierarchyV0[level2Offset + c1];
+                    int b1 = sphere.HierarchyV1[level2Offset + c1];
+                    int b2 = sphere.HierarchyV2[level2Offset + c1];
 
-                    if (a0 == b0 || a0 == b1 || a0 == b2
-                        || a1 == b0 || a1 == b1 || a1 == b2
-                        || a2 == b0 || a2 == b1 || a2 == b2)
+                    int shared = (a0 == b0 || a0 == b1 || a0 == b2 ? 1 : 0)
+                               + (a1 == b0 || a1 == b1 || a1 == b2 ? 1 : 0)
+                               + (a2 == b0 || a2 == b1 || a2 == b2 ? 1 : 0);
+                    if (shared >= 2)
                     {
                         matrix[c0, c1] = true;
                         matrix[c1, c0] = true;

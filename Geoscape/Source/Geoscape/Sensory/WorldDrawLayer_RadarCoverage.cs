@@ -157,7 +157,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         if (planetLayer == null || grid == null || !Visible)
         {
             ClearDimmingCache();
-            FinalizeMesh(MeshParts.All);
+            FinalizeUnfinalizedSubMeshes();
             yield break;
         }
 
@@ -165,7 +165,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         if (sensory == null)
         {
             ClearDimmingCache();
-            FinalizeMesh(MeshParts.All);
+            FinalizeUnfinalizedSubMeshes();
             yield break;
         }
 
@@ -576,8 +576,20 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             }
         }
 
-        FinalizeMesh(MeshParts.All);
+        FinalizeUnfinalizedSubMeshes();
         yield break;
+    }
+
+    private void FinalizeUnfinalizedSubMeshes()
+    {
+        for (int i = 0; i < subMeshes.Count; i++)
+        {
+            LayerSubMesh? sm = subMeshes[i];
+            if (sm != null && !sm.finalized)
+            {
+                sm.FinalizeMesh(MeshParts.All);
+            }
+        }
     }
 
     public static Color GetAutomaticIdentificationColor(Color baseColor)

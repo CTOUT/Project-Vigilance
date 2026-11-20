@@ -13,9 +13,9 @@ namespace ProjectVigilance.Geoscape.Sensory
         public const int Subdivisions = 5;
         public const int BaseFaceCount = 20;
         public const int ShellChunkCount = 20;
-        public const int FineChunkCount = 80;
+        public const int FineChunkCount = 320;
         public const int FacesPerShellChunk = 1024;
-        public const int FacesPerFineChunk = 256;
+        public const int FacesPerFineChunk = 64;
         public const int TotalFaceCount = BaseFaceCount * FacesPerShellChunk;
         public const int TotalVertexCount = 10242;
 
@@ -126,11 +126,11 @@ namespace ProjectVigilance.Geoscape.Sensory
         }
 
         /// <summary>
-        /// Returns the owning Tier F chunk index (0..79) for a subdivision-5 face.
+        /// Returns the owning Tier F chunk index (0..319) for a subdivision-5 face.
         /// </summary>
         public static int GetFineChunk(int faceIndex)
         {
-            return faceIndex >> 8;
+            return faceIndex >> 6;
         }
 
         /// <summary>

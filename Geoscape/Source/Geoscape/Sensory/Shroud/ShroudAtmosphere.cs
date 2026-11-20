@@ -84,15 +84,18 @@ namespace ProjectVigilance.Geoscape.Sensory
             Vector3 dir = unitDir.sqrMagnitude > 1e-12f ? unitDir.normalized : Vector3.up;
             float t = reduceMotion ? 0f : timeSeconds;
 
+            bool atmospheric = level == ShroudEffectLevel.Atmospheric;
+            float driftScale = atmospheric ? 1.0f : 0.62f;
+
             Vector3 samplePos = new Vector3(
-                (dir.x * 3.1f) + (t * 0.017f),
-                (dir.y * 3.1f) - (t * 0.011f),
-                (dir.z * 3.1f) + (t * 0.008f));
+                (dir.x * 3.1f) + (t * 0.072f * driftScale),
+                (dir.y * 3.1f) - (t * 0.046f * driftScale),
+                (dir.z * 3.1f) + (t * 0.032f * driftScale));
 
             float nebula = SampleFbm3D(samplePos);
             float secondary = SampleFbm3D(new Vector3(
-                (dir.x * 6.4f) - (t * 0.009f),
-                (dir.y * 6.4f) + (t * 0.013f),
+                (dir.x * 6.4f) - (t * 0.040f * driftScale),
+                (dir.y * 6.4f) + (t * 0.052f * driftScale),
                 (dir.z * 6.4f) + 7.3f));
 
             float blendedNebula = Mathf.Clamp01((nebula * 0.70f) + (secondary * 0.30f));
@@ -101,20 +104,22 @@ namespace ProjectVigilance.Geoscape.Sensory
 
             GetThemePalette(theme, out Color baseObsidian, out Color nebulaTint, out Color frontierGlow);
 
-            float nebulaStrength = level == ShroudEffectLevel.Atmospheric ? 1.0f : 0.55f;
+            float nebulaStrength = atmospheric ? 1.0f : 0.55f;
             float r = Mathf.Lerp(baseObsidian.r, nebulaTint.r, wisp * nebulaStrength);
             float g = Mathf.Lerp(baseObsidian.g, nebulaTint.g, wisp * nebulaStrength);
             float b = Mathf.Lerp(baseObsidian.b, nebulaTint.b, wisp * nebulaStrength);
 
-            float maxByte = 34f;
+            float maxByte = atmospheric ? 38f : 34f;
             if (isFrontierRing)
             {
-                float pulse = reduceMotion ? 1.0f : (0.90f + (0.10f * Mathf.Sin(t * 0.85f)));
-                float frontierStrength = (level == ShroudEffectLevel.Atmospheric ? 0.88f : 0.45f) * pulse;
+                float pulseSpeed = atmospheric ? 1.45f : 1.15f;
+                float pulseAmp = atmospheric ? 0.15f : 0.08f;
+                float pulse = reduceMotion ? 1.0f : ((1.0f - pulseAmp) + (pulseAmp * Mathf.Sin(t * pulseSpeed)));
+                float frontierStrength = (atmospheric ? 0.88f : 0.45f) * pulse;
                 r = Mathf.Lerp(r, frontierGlow.r, frontierStrength);
                 g = Mathf.Lerp(g, frontierGlow.g, frontierStrength);
                 b = Mathf.Lerp(b, frontierGlow.b, frontierStrength);
-                maxByte = level == ShroudEffectLevel.Atmospheric ? 68f : 50f;
+                maxByte = atmospheric ? 74f : 50f;
             }
 
             byte br = (byte)Mathf.Clamp(Mathf.RoundToInt(r * 255f), 4, (int)maxByte);

@@ -8,7 +8,7 @@ using Verse;
 namespace ProjectVigilance.Geoscape.Sensory;
 
 /// <summary>
-/// Tier F hierarchical Fog of War layer rendering lazy corner-only tile fans across 80 surface
+/// Tier F hierarchical Fog of War layer rendering lazy corner-only tile fans across 320 surface
 /// chunks at altitude +0.065f and render queue 3546 for frontier shroud, explored haze, and
 /// live vision clearings, paired with <see cref="WorldDrawLayer_ShroudShell"/> (Tier S).
 /// </summary>
@@ -771,7 +771,9 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
         for (int i = 0; i < adj.Length; i++)
         {
             int nChunk = adj[i];
-            if (!_fineChunkBuilt[nChunk] && !_prewarmQueued[nChunk])
+            if (!_fineChunkBuilt[nChunk]
+                && !_prewarmQueued[nChunk]
+                && hierarchy.GetFineChunkTiles(nChunk).Length > 0)
             {
                 _prewarmQueued[nChunk] = true;
                 _prewarmQueue.Enqueue(nChunk);
