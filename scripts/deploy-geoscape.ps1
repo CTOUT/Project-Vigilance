@@ -64,6 +64,8 @@ foreach ($mod in $modules) {
     $stagedDll = Join-Path $repoRoot (Join-Path 'dist' (Join-Path $mod.PackageName (Join-Path '1.7' (Join-Path 'Assemblies' $mod.Assembly))))
     Invoke-AssemblyLockRotation -AssemblyPath $stagedDll
 }
+$embeddedCoreStagedDll = Join-Path $repoRoot 'dist\ProjectVigilance-Geoscape\1.7\EmbeddedCore\Assemblies\ProjectVigilance.Core.dll'
+Invoke-AssemblyLockRotation -AssemblyPath $embeddedCoreStagedDll
 
 # 3. Build .NET 10 suite solution (automatically runs StageCleanDistribution via Directory.Build.targets)
 Write-Host "--> Compiling Geoscape.slnx targeting .NET 10 (Release)..." -ForegroundColor Yellow
@@ -91,6 +93,11 @@ foreach ($mod in $modules) {
                 Remove-Item -Force -ErrorAction SilentlyContinue
         }
     }
+}
+$embeddedCoreAsmDir = Join-Path $repoRoot 'dist\ProjectVigilance-Geoscape\1.7\EmbeddedCore\Assemblies'
+if (Test-Path -LiteralPath $embeddedCoreAsmDir) {
+    Get-ChildItem -LiteralPath $embeddedCoreAsmDir -Filter '*.old' -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
 # 4. Validate target Mods folder

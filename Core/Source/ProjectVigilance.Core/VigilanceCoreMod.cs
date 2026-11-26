@@ -27,10 +27,21 @@ public class VigilanceCoreMod : Mod
 
     public VigilanceCoreMod(ModContentPack content) : base(content)
     {
-        VigilanceModuleManager.RegisterActiveModule(VigilanceModuleId.Core);
+        bool isStandaloneCore = string.Equals(content?.PackageId, PackageId, StringComparison.OrdinalIgnoreCase);
+        if (isStandaloneCore)
+        {
+            VigilanceModuleManager.SetCoreEmbeddedFallback(false);
+            VigilanceModuleManager.RegisterActiveModule(VigilanceModuleId.Core);
+        }
+        else
+        {
+            VigilanceModuleManager.SetCoreEmbeddedFallback(true);
+        }
+
         RegisterBackCompatibilityConverter();
 
-        Log.Message("[Project Vigilance] Initialized Core Framework. Unified options host & modular migration ready.");
+        string modeLabel = isStandaloneCore ? "standalone" : "embedded Geoscape fallback";
+        Log.Message($"[Project Vigilance] Initialized Core Framework ({modeLabel}). Unified options host & modular migration ready.");
     }
 
     public static void RegisterBackCompatibilityConverter()

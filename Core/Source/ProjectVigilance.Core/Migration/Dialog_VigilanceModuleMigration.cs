@@ -82,14 +82,17 @@ public sealed class Dialog_VigilanceModuleMigration : Window
             Widgets.Label(new Rect(inner.x, inner.y + 22f, infoWidth, 24f), subText);
 
             // Status Badge
+            bool isEmbeddedCore = mod.Id == VigilanceModuleId.Core && !isActive && VigilanceModuleManager.IsCoreEmbeddedFallback;
             Rect badgeRect = new(inner.x + infoWidth + 6f, inner.y + 10f, badgeWidth, 26f);
             GUI.color = isActive
                 ? new Color(0.35f, 0.95f, 0.45f)
-                : (isFlaggedMissing ? new Color(1f, 0.72f, 0.25f) : new Color(0.65f, 0.7f, 0.75f));
+                : (isEmbeddedCore || isFlaggedMissing ? new Color(1f, 0.72f, 0.25f) : new Color(0.65f, 0.7f, 0.75f));
             Text.Anchor = TextAnchor.MiddleCenter;
             string statusText = isActive
                 ? ("PV_Migration_ModuleActive".CanTranslate() ? "PV_Migration_ModuleActive".Translate().ToString() : "INSTALLED")
-                : ("PV_Migration_ModuleMissing".CanTranslate() ? "PV_Migration_ModuleMissing".Translate().ToString() : "NOT INSTALLED");
+                : (isEmbeddedCore
+                    ? ("PV_Migration_ModuleEmbedded".CanTranslate() ? "PV_Migration_ModuleEmbedded".Translate().ToString() : "EMBEDDED FALLBACK")
+                    : ("PV_Migration_ModuleMissing".CanTranslate() ? "PV_Migration_ModuleMissing".Translate().ToString() : "NOT INSTALLED"));
             Widgets.Label(badgeRect, statusText);
             Text.Anchor = TextAnchor.UpperLeft;
             GUI.color = Color.white;

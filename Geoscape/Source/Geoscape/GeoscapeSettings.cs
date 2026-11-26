@@ -110,8 +110,12 @@ public class GeoscapeSettings : ModSettings
         set => currentTabKey = value.ToString();
     }
 
+    private static float sensoryColumnsHeight = 250f;
     private static float radarColumnsHeight = 180f;
     private static float shadowGridHeight = 56f;
+    private static float radarBottomRowHeight = 148f;
+    private static float geoscapeTopHeight = 195f;
+    private static float diagnosticsBottomHeight = 185f;
 
     private static readonly Color LatchedTabFill = new(0.12f, 0.22f, 0.32f, 0.85f);
     private static readonly Color LatchedTabAccent = new(0f, 0.85f, 1f);
@@ -285,11 +289,11 @@ public class GeoscapeSettings : ModSettings
         }
         if (!dynamicTabHeights.ContainsKey(currentTabKey))
         {
-            dynamicTabHeights[currentTabKey] = 600f;
+            dynamicTabHeights[currentTabKey] = contentHeight;
         }
 
         float requiredHeight = Mathf.Max(dynamicTabHeights[currentTabKey], contentHeight);
-        bool needsScrollbar = requiredHeight > contentHeight;
+        bool needsScrollbar = requiredHeight > contentHeight + 1f;
         Rect viewRect = new Rect(0f, 0f, contentRect.width - (needsScrollbar ? 16f : 0f), requiredHeight);
 
         Vector2 scroll = dynamicScrollPositions[currentTabKey];
@@ -302,7 +306,7 @@ public class GeoscapeSettings : ModSettings
         var activeTab = tabs.FirstOrDefault(t => t.TabKey == currentTabKey) ?? tabs[0];
         activeTab.DoTabContents(listing, viewRect);
 
-        dynamicTabHeights[currentTabKey] = Mathf.Max(listing.CurHeight + 20f, contentHeight);
+        dynamicTabHeights[currentTabKey] = Mathf.Max(listing.CurHeight + 8f, contentHeight);
         listing.End();
         Widgets.EndScrollView();
     }
@@ -388,8 +392,23 @@ public class GeoscapeSettings : ModSettings
         DrawContextBanner(listing, campaign);
 
         CampaignRulesPanel.DrawSensoryVisibilitySection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
-        CampaignRulesPanel.DrawLookoutScoutingSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
-        CampaignRulesPanel.DrawStartingSiteSelectionSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
+
+        float colWidth = (listing.ColumnWidth - 16f) / 2f;
+        Rect colsRect = listing.GetRect(sensoryColumnsHeight);
+        Rect leftRect = new(colsRect.x, colsRect.y, colWidth, colsRect.height);
+        Rect rightRect = new(colsRect.x + colWidth + 16f, colsRect.y, colWidth, colsRect.height);
+
+        Listing_Standard leftCol = new() { maxOneColumn = true };
+        leftCol.Begin(leftRect);
+        CampaignRulesPanel.DrawLookoutScoutingSection(leftCol, rules, campaign, ctx, showLockPreview: !inCampaign);
+        leftCol.End();
+
+        Listing_Standard rightCol = new() { maxOneColumn = true };
+        rightCol.Begin(rightRect);
+        CampaignRulesPanel.DrawStartingSiteSelectionSection(rightCol, rules, campaign, ctx, showLockPreview: !inCampaign);
+        rightCol.End();
+
+        sensoryColumnsHeight = Mathf.Max(leftCol.CurHeight, rightCol.CurHeight) + 2f;
 
         if (!inCampaign)
         {
@@ -415,16 +434,11 @@ public class GeoscapeSettings : ModSettings
 
     private void DrawRadarTab(Listing_Standard listing)
     {
-        Text.Font = GameFont.Medium;
-        listing.Label("Tactical Radar Overlay & Range Outlines");
-        Text.Font = GameFont.Small;
-        listing.Gap(4f);
-
         // 1. Header: Live HUD Scope Preview, Overlay Mode & Background Dimming
-        float headerHeight = 182f;
+        float headerHeight = 158f;
         Rect headerRect = listing.GetRect(headerHeight);
 
-        float previewSize = 180f;
+        float previewSize = 156f;
         Rect previewRect = new Rect(headerRect.x, headerRect.y, previewSize, previewSize);
         Rect modeColRect = new Rect(headerRect.x + previewSize + 16f, headerRect.y, headerRect.width - previewSize - 16f, headerHeight);
 
@@ -466,7 +480,7 @@ public class GeoscapeSettings : ModSettings
                 }
             }
 
-            modeListing.Gap(6f);
+            modeListing.Gap(4f);
             DrawToggleableSlider(
                 modeListing,
                 $"Surveillance Background Dimming: {surveillanceDimming:P0}",
@@ -474,16 +488,10 @@ public class GeoscapeSettings : ModSettings
                 0.0f,
                 1.0f,
                 radarOutlineStyle != RadarOutlineStyle.None);
-
-            Text.Font = GameFont.Tiny;
-            GUI.color = SubNoteColor;
-            modeListing.Label("Hover the HUD scope for a legend. Changes below update the scope live.");
-            GUI.color = Color.white;
-            Text.Font = GameFont.Small;
         }
         modeListing.End();
 
-        listing.GapLine();
+        listing.GapLine(6f);
 
         bool outlinesEnabled = radarOutlineStyle != RadarOutlineStyle.None;
         bool gridEnabled = radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid;
@@ -492,15 +500,20 @@ public class GeoscapeSettings : ModSettings
         bool customColorsEnabled = outlinesEnabled && useCustomPaletteOverrides;
         bool customIdColorsEnabled = idControlsEnabled && useCustomPaletteOverrides;
 
-        // 2. Curated Sensory Theme & Custom Overrides Toggle
+        // 2. Curated Sensory Theme & Custom Overrides Toggle (single compact row)
         Text.Font = GameFont.Tiny;
         GUI.color = outlinesEnabled ? SectionHeaderColor : DisabledHeaderColor;
         listing.Label("SENSORY PALETTE THEME & ACCESSIBILITY (WCAG AA)");
         GUI.color = Color.white;
         Text.Font = GameFont.Small;
 
-        Rect themeRect = listing.GetRect(28f);
-        Rect themeBtn = new Rect(themeRect.x, themeRect.y, 360f, 28f);
+        float totalWidth = listing.ColumnWidth;
+        float colWidth = (totalWidth - 16f) / 2f;
+
+        Rect themeRow = listing.GetRect(28f);
+        Rect themeBtn = new Rect(themeRow.x, themeRow.y, colWidth, 26f);
+        Rect overrideRect = new Rect(themeRow.x + colWidth + 16f, themeRow.y, colWidth, 26f);
+
         string themeKey = $"PV_Settings_Theme_{sensoryTheme}";
         string themeLabel = themeKey.CanTranslate() ? themeKey.Translate().ToString() : sensoryTheme.ToString();
         if (Widgets.ButtonText(themeBtn, $"Theme: {themeLabel}"))
@@ -518,18 +531,20 @@ public class GeoscapeSettings : ModSettings
             Find.WindowStack.Add(new FloatMenu(themeOptions));
         }
 
-        DrawToggleableCheckbox(
-            listing,
-            "PV_Settings_UseCustomPaletteOverrides".CanTranslate() ? "PV_Settings_UseCustomPaletteOverrides".Translate().ToString() : "Use Custom Palette Overrides",
-            ref useCustomPaletteOverrides,
-            "PV_Settings_UseCustomPaletteOverrides_Desc".CanTranslate() ? "PV_Settings_UseCustomPaletteOverrides_Desc".Translate().ToString() : "Enable granular colour overrides for Radar, Identification, and Scout perimeters. When disabled, curated theme presets apply.",
-            outlinesEnabled);
+        bool customOverride = useCustomPaletteOverrides;
+        string overrideLabel = "PV_Settings_UseCustomPaletteOverrides".CanTranslate() ? "PV_Settings_UseCustomPaletteOverrides".Translate().ToString() : "Use Custom Palette Overrides";
+        string overrideDesc = "PV_Settings_UseCustomPaletteOverrides_Desc".CanTranslate() ? "PV_Settings_UseCustomPaletteOverrides_Desc".Translate().ToString() : "Enable granular colour overrides for Radar, Identification, and Scout perimeters. When disabled, curated theme presets apply.";
+        if (!outlinesEnabled) GUI.color = DisabledControlColor;
+        Widgets.CheckboxLabeled(overrideRect, overrideLabel, ref customOverride, disabled: !outlinesEnabled);
+        GUI.color = Color.white;
+        TooltipHandler.TipRegion(overrideRect, overrideDesc);
+        if (outlinesEnabled && customOverride != useCustomPaletteOverrides)
+        {
+            useCustomPaletteOverrides = customOverride;
+            NotifyRadarVisualsChanged();
+        }
 
         listing.Gap(4f);
-
-        // 3. Two-Column Layout for Detection vs Identification (all controls remain in fixed positions; non-applicable items grey out)
-        float totalWidth = listing.ColumnWidth;
-        float colWidth = (totalWidth - 16f) / 2f;
 
         Rect twoColRect = listing.GetRect(radarColumnsHeight);
         Rect leftRect = new Rect(twoColRect.x, twoColRect.y, colWidth, twoColRect.height);
@@ -644,127 +659,139 @@ public class GeoscapeSettings : ModSettings
 
         radarColumnsHeight = Mathf.Max(leftListing.CurHeight, rightListing.CurHeight) + 4f;
 
-        listing.GapLine();
+        listing.GapLine(6f);
 
-        // 3. Terrain Masking (Mountain Radar Shadows) in a 2x2 Grid
-        Text.Font = GameFont.Tiny;
-        GUI.color = shadowsEnabled ? SectionHeaderColor : DisabledHeaderColor;
-        listing.Label("TERRAIN MASKING (MOUNTAIN RADAR SHADOWS)");
-        GUI.color = shadowsEnabled ? SubNoteColor : DisabledControlColor;
-        listing.Label("Mountains inside the identification horizon hide contacts in their valleys; tracks there stay unidentified (?) unless an array linked to a SIGINT console penetrates the terrain. Choose how shadowed mountain hexes are marked on the globe:");
-        GUI.color = Color.white;
-        Text.Font = GameFont.Small;
+        // 3 & 4 Bottom Two-Column Row: Terrain Masking (left) & Shroud Atmosphere (right)
+        Rect bottomRowRect = listing.GetRect(radarBottomRowHeight);
+        Rect shadowColRect = new Rect(bottomRowRect.x, bottomRowRect.y, colWidth, bottomRowRect.height);
+        Rect shroudColRect = new Rect(bottomRowRect.x + colWidth + 16f, bottomRowRect.y, colWidth, bottomRowRect.height);
 
-        Rect shadowGridRect = listing.GetRect(shadowGridHeight);
-        Rect shadowLeftRect = new Rect(shadowGridRect.x, shadowGridRect.y, colWidth, shadowGridRect.height);
-        Rect shadowRightRect = new Rect(shadowGridRect.x + colWidth + 16f, shadowGridRect.y, colWidth, shadowGridRect.height);
-
-        Listing_Standard shadowLeft = new() { maxOneColumn = true };
-        shadowLeft.Begin(shadowLeftRect);
+        Listing_Standard shadowCol = new() { maxOneColumn = true };
+        shadowCol.Begin(shadowColRect);
         {
-            if (DrawToggleableRadio(shadowLeft, "Both (Dashed Contours & Cell Hatching)", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, "Marks shadowed mountain hexes inside identification range with both a dashed amber outer contour and diagonal cell hatching.", shadowsEnabled))
+            Text.Font = GameFont.Tiny;
+            GUI.color = shadowsEnabled ? SectionHeaderColor : DisabledHeaderColor;
+            shadowCol.Label("TERRAIN MASKING (MOUNTAIN RADAR SHADOWS)");
+            GUI.color = shadowsEnabled ? SubNoteColor : DisabledControlColor;
+            shadowCol.Label("Mountains hide unpenetrated tracks unless a SIGINT-linked array sees them.");
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            float subColW = (colWidth - 8f) / 2f;
+            Rect shadowGridRect = shadowCol.GetRect(shadowGridHeight);
+            Rect shadowLeftRect = new Rect(shadowGridRect.x, shadowGridRect.y, subColW, shadowGridRect.height);
+            Rect shadowRightRect = new Rect(shadowGridRect.x + subColW + 8f, shadowGridRect.y, subColW, shadowGridRect.height);
+
+            Listing_Standard shadowLeft = new() { maxOneColumn = true };
+            shadowLeft.Begin(shadowLeftRect);
             {
-                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
+                if (DrawToggleableRadio(shadowLeft, "Both", radarTerrainShadowStyle == RadarTerrainShadowStyle.Both, "Marks shadowed mountain hexes inside identification range with both a dashed amber outer contour and diagonal cell hatching.", shadowsEnabled))
                 {
-                    radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
-                    NotifyRadarVisualsChanged();
-                }
-            }
-
-            if (DrawToggleableRadio(shadowLeft, "Cell Hatching Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, "Draws diagonal scanline hatching across shadowed mountain hexes inside identification range.", shadowsEnabled))
-            {
-                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
-                {
-                    radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
-                    NotifyRadarVisualsChanged();
-                }
-            }
-        }
-        shadowLeft.End();
-
-        Listing_Standard shadowRight = new() { maxOneColumn = true };
-        shadowRight.Begin(shadowRightRect);
-        {
-            if (DrawToggleableRadio(shadowRight, "Dashed Contours Only", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, "Draws a dashed amber outline around shadowed mountain clusters inside identification range.", shadowsEnabled))
-            {
-                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
-                {
-                    radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
-                    NotifyRadarVisualsChanged();
-                }
-            }
-
-            if (DrawToggleableRadio(shadowRight, "None (Undecorated)", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, "Leaves shadowed mountain hexes undecorated on the globe (terrain masking mechanics still apply).", shadowsEnabled))
-            {
-                if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
-                {
-                    radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
-                    NotifyRadarVisualsChanged();
-                }
-            }
-        }
-        shadowRight.End();
-
-        shadowGridHeight = Mathf.Max(shadowLeft.CurHeight, shadowRight.CurHeight) + 2f;
-
-        listing.GapLine();
-
-        // 4. Shroud Atmosphere & Performance
-        Text.Font = GameFont.Tiny;
-        GUI.color = SectionHeaderColor;
-        listing.Label("PV_Shroud_SectionHeader".Translate());
-        GUI.color = SubNoteColor;
-        listing.Label("PV_Shroud_SectionDesc".Translate());
-        GUI.color = Color.white;
-        Text.Font = GameFont.Small;
-
-        Rect styleRow = listing.GetRect(28f);
-        Rect styleLabelRect = new Rect(styleRow.x, styleRow.y + 2f, styleRow.width * 0.45f, 24f);
-        Rect styleBtnRect = new Rect(styleLabelRect.xMax + 8f, styleRow.y, styleRow.width * 0.55f - 8f, 26f);
-        Widgets.Label(styleLabelRect, "PV_Shroud_EffectsLabel".Translate());
-        string currentEffectLabel = $"PV_Shroud_Effects_{shroudEffects}".Translate();
-        if (Widgets.ButtonText(styleBtnRect, currentEffectLabel))
-        {
-            var options = new List<FloatMenuOption>();
-            foreach (ShroudEffectLevel lvl in Enum.GetValues(typeof(ShroudEffectLevel)))
-            {
-                ShroudEffectLevel captured = lvl;
-                string optLabel = $"PV_Shroud_Effects_{captured}".Translate();
-                options.Add(new FloatMenuOption(optLabel, () =>
-                {
-                    if (shroudEffects != captured)
+                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.Both)
                     {
-                        shroudEffects = captured;
-                        WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
+                        radarTerrainShadowStyle = RadarTerrainShadowStyle.Both;
+                        NotifyRadarVisualsChanged();
                     }
-                }));
+                }
+
+                if (DrawToggleableRadio(shadowLeft, "Hatching", radarTerrainShadowStyle == RadarTerrainShadowStyle.CellHatching, "Draws diagonal scanline hatching across shadowed mountain hexes inside identification range.", shadowsEnabled))
+                {
+                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.CellHatching)
+                    {
+                        radarTerrainShadowStyle = RadarTerrainShadowStyle.CellHatching;
+                        NotifyRadarVisualsChanged();
+                    }
+                }
             }
-            Find.WindowStack.Add(new FloatMenu(options));
-        }
-        TooltipHandler.TipRegion(styleRow, "PV_Shroud_EffectsTooltip".Translate());
+            shadowLeft.End();
 
-        listing.Gap(4f);
-        bool prevReduceMotion = reduceShroudMotion;
-        DrawToggleableCheckbox(
-            listing,
-            "PV_Shroud_ReduceMotionLabel".Translate(),
-            ref reduceShroudMotion,
-            "PV_Shroud_ReduceMotionTooltip".Translate(),
-            shroudEffects != ShroudEffectLevel.Off);
-        if (prevReduceMotion != reduceShroudMotion)
-        {
-            WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
-        }
+            Listing_Standard shadowRight = new() { maxOneColumn = true };
+            shadowRight.Begin(shadowRightRect);
+            {
+                if (DrawToggleableRadio(shadowRight, "Contours", radarTerrainShadowStyle == RadarTerrainShadowStyle.DashedContours, "Draws a dashed amber outline around shadowed mountain clusters inside identification range.", shadowsEnabled))
+                {
+                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.DashedContours)
+                    {
+                        radarTerrainShadowStyle = RadarTerrainShadowStyle.DashedContours;
+                        NotifyRadarVisualsChanged();
+                    }
+                }
 
-        bool prevOptimise = optimiseUnexploredTerrain;
-        listing.CheckboxLabeled(
-            "PV_Shroud_OptimiseTerrainLabel".Translate(),
-            ref optimiseUnexploredTerrain,
-            "PV_Shroud_OptimiseTerrainTooltip".Translate());
-        if (prevOptimise != optimiseUnexploredTerrain)
-        {
-            Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
+                if (DrawToggleableRadio(shadowRight, "None", radarTerrainShadowStyle == RadarTerrainShadowStyle.None, "Leaves shadowed mountain hexes undecorated on the globe (terrain masking mechanics still apply).", shadowsEnabled))
+                {
+                    if (radarTerrainShadowStyle != RadarTerrainShadowStyle.None)
+                    {
+                        radarTerrainShadowStyle = RadarTerrainShadowStyle.None;
+                        NotifyRadarVisualsChanged();
+                    }
+                }
+            }
+            shadowRight.End();
+
+            shadowGridHeight = Mathf.Max(shadowLeft.CurHeight, shadowRight.CurHeight) + 2f;
         }
+        shadowCol.End();
+
+        Listing_Standard shroudCol = new() { maxOneColumn = true };
+        shroudCol.Begin(shroudColRect);
+        {
+            Text.Font = GameFont.Tiny;
+            GUI.color = SectionHeaderColor;
+            shroudCol.Label("PV_Shroud_SectionHeader".Translate());
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            Rect styleRow = shroudCol.GetRect(26f);
+            Rect styleLabelRect = new Rect(styleRow.x, styleRow.y + 2f, styleRow.width * 0.44f, 22f);
+            Rect styleBtnRect = new Rect(styleLabelRect.xMax + 6f, styleRow.y, styleRow.width * 0.56f - 6f, 24f);
+            Widgets.Label(styleLabelRect, "PV_Shroud_EffectsLabel".Translate());
+            string currentEffectLabel = $"PV_Shroud_Effects_{shroudEffects}".Translate();
+            if (Widgets.ButtonText(styleBtnRect, currentEffectLabel))
+            {
+                var options = new List<FloatMenuOption>();
+                foreach (ShroudEffectLevel lvl in Enum.GetValues(typeof(ShroudEffectLevel)))
+                {
+                    ShroudEffectLevel captured = lvl;
+                    string optLabel = $"PV_Shroud_Effects_{captured}".Translate();
+                    options.Add(new FloatMenuOption(optLabel, () =>
+                    {
+                        if (shroudEffects != captured)
+                        {
+                            shroudEffects = captured;
+                            WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
+                        }
+                    }));
+                }
+                Find.WindowStack.Add(new FloatMenu(options));
+            }
+            TooltipHandler.TipRegion(styleRow, "PV_Shroud_EffectsTooltip".Translate());
+
+            shroudCol.Gap(2f);
+            bool prevReduceMotion = reduceShroudMotion;
+            DrawToggleableCheckbox(
+                shroudCol,
+                "PV_Shroud_ReduceMotionLabel".Translate(),
+                ref reduceShroudMotion,
+                "PV_Shroud_ReduceMotionTooltip".Translate(),
+                shroudEffects != ShroudEffectLevel.Off);
+            if (prevReduceMotion != reduceShroudMotion)
+            {
+                WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
+            }
+
+            bool prevOptimise = optimiseUnexploredTerrain;
+            shroudCol.CheckboxLabeled(
+                "PV_Shroud_OptimiseTerrainLabel".Translate(),
+                ref optimiseUnexploredTerrain,
+                "PV_Shroud_OptimiseTerrainTooltip".Translate());
+            if (prevOptimise != optimiseUnexploredTerrain)
+            {
+                Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
+            }
+        }
+        shroudCol.End();
+
+        radarBottomRowHeight = Mathf.Max(shadowCol.CurHeight, shroudCol.CurHeight) + 2f;
     }
 
     private void DrawToggleableCheckbox(Listing_Standard listing, string label, ref bool value, string tooltip, bool enabled)
@@ -932,95 +959,111 @@ public class GeoscapeSettings : ModSettings
         GeoscapeRuleSet rules = campaign != null ? campaign.Rules : GetOrCreateTransientRuleSet();
         RuleEditContext ctx = campaign != null ? campaign.CreateEditContext() : new RuleEditContext(false, false, false);
 
-        Text.Font = GameFont.Medium;
-        listing.Label("Geoscape Tactical Controls");
-        Text.Font = GameFont.Small;
-        listing.GapLine();
+        float colWidth = (listing.ColumnWidth - 16f) / 2f;
+        Rect topRowRect = listing.GetRect(geoscapeTopHeight);
+        Rect leftRect = new Rect(topRowRect.x, topRowRect.y, colWidth, topRowRect.height);
+        Rect rightRect = new Rect(topRowRect.x + colWidth + 16f, topRowRect.y, colWidth, topRowRect.height);
 
-        listing.CheckboxLabeled(
-            "Tactical Contact Disambiguation Menu",
-            ref enableOverlappingEntitySelectionMenu,
-            "When entities overlap on the planetary Geoscape (such as a caravan stationed at a colony), open a tactical selection menu rather than blindly cycling.");
-
-        listing.CheckboxLabeled(
-            "Intelligent Geoscape Right-Click Dispatch",
-            ref enableIntelligentRightClick,
-            "Allow right-clicking anywhere on the Geoscape without selecting a source first, intelligently suggesting actions from the nearest colonies and caravans.");
-
-        listing.CheckboxLabeled(
-            "PV_Settings_OptimisticDetours".CanTranslate() ? "PV_Settings_OptimisticDetours".Translate().ToString() : "Optimistic Caravan Detours",
-            ref optimisticCaravanDetours,
-            "PV_Settings_OptimisticDetours_Desc".CanTranslate() ? "PV_Settings_OptimisticDetours_Desc".Translate().ToString() : "Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered.");
-
-        if (!ProjectVigilance.Core.Modules.VigilanceModuleManager.IsThermalActive)
+        Listing_Standard leftCol = new() { maxOneColumn = true };
+        leftCol.Begin(leftRect);
         {
-            listing.CheckboxLabeled(
-                "PV_Settings_ThermalIntegrityAudit".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit".Translate().ToString() : "Thermal Integrity Def Audit",
-                ref enableThermalIntegrityAudit,
-                "PV_Settings_ThermalIntegrityAudit_Desc".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit_Desc".Translate().ToString() : "Automatically enforces non-combustible properties on metals, stone, and structural components at startup.");
+            Text.Font = GameFont.Medium;
+            leftCol.Label("Geoscape Tactical Controls");
+            Text.Font = GameFont.Small;
+            leftCol.GapLine();
+
+            leftCol.CheckboxLabeled(
+                "Tactical Contact Disambiguation Menu",
+                ref enableOverlappingEntitySelectionMenu,
+                "When entities overlap on the planetary Geoscape (such as a caravan stationed at a colony), open a tactical selection menu rather than blindly cycling.");
+
+            leftCol.CheckboxLabeled(
+                "Intelligent Geoscape Right-Click Dispatch",
+                ref enableIntelligentRightClick,
+                "Allow right-clicking anywhere on the Geoscape without selecting a source first, intelligently suggesting actions from the nearest colonies and caravans.");
+
+            leftCol.CheckboxLabeled(
+                "PV_Settings_OptimisticDetours".CanTranslate() ? "PV_Settings_OptimisticDetours".Translate().ToString() : "Optimistic Caravan Detours",
+                ref optimisticCaravanDetours,
+                "PV_Settings_OptimisticDetours_Desc".CanTranslate() ? "PV_Settings_OptimisticDetours_Desc".Translate().ToString() : "Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered.");
+
+            if (!ProjectVigilance.Core.Modules.VigilanceModuleManager.IsThermalActive)
+            {
+                leftCol.CheckboxLabeled(
+                    "PV_Settings_ThermalIntegrityAudit".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit".Translate().ToString() : "Thermal Integrity Def Audit",
+                    ref enableThermalIntegrityAudit,
+                    "PV_Settings_ThermalIntegrityAudit_Desc".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit_Desc".Translate().ToString() : "Automatically enforces non-combustible properties on metals, stone, and structural components at startup.");
+            }
         }
+        leftCol.End();
 
-        listing.Gap(4f);
-        DrawToggleableIntSlider(
-            listing,
-            $"Max Contextual Caravans Displayed: {maxContextualCaravansShown}",
-            ref maxContextualCaravansShown,
-            1,
-            8,
-            "Limits the number of nearest player caravans directly displayed on the right-click menu. Additional caravans can be accessed via a drilldown sub-menu.",
-            enableIntelligentRightClick);
+        Listing_Standard rightCol = new() { maxOneColumn = true };
+        rightCol.Begin(rightRect);
+        {
+            Text.Font = GameFont.Medium;
+            rightCol.Label("Context Limits & Early Warning");
+            Text.Font = GameFont.Small;
+            rightCol.GapLine();
 
-        DrawToggleableIntSlider(
-            listing,
-            $"Max Contextual Colonies Displayed: {maxContextualColoniesShown}",
-            ref maxContextualColoniesShown,
-            1,
-            5,
-            "Limits the number of nearest player colonies directly displayed on the right-click menu. Additional colonies can be accessed via a drilldown sub-menu.",
-            enableIntelligentRightClick);
+            DrawToggleableIntSlider(
+                rightCol,
+                $"Max Contextual Caravans: {maxContextualCaravansShown}",
+                ref maxContextualCaravansShown,
+                1,
+                8,
+                "Limits the number of nearest player caravans directly displayed on the right-click menu. Additional caravans can be accessed via a drilldown sub-menu.",
+                enableIntelligentRightClick);
 
-        listing.Gap();
+            DrawToggleableIntSlider(
+                rightCol,
+                $"Max Contextual Colonies: {maxContextualColoniesShown}",
+                ref maxContextualColoniesShown,
+                1,
+                5,
+                "Limits the number of nearest player colonies directly displayed on the right-click menu. Additional colonies can be accessed via a drilldown sub-menu.",
+                enableIntelligentRightClick);
 
-        CampaignRulesPanel.DrawNotificationsSection(listing, rules, campaign, ctx, showLockPreview: !inCampaign);
+            rightCol.Gap(2f);
+            CampaignRulesPanel.DrawNotificationsSection(rightCol, rules, campaign, ctx, showLockPreview: !inCampaign);
+        }
+        rightCol.End();
 
-        listing.Gap();
+        geoscapeTopHeight = Mathf.Max(leftCol.CurHeight, rightCol.CurHeight) + 4f;
 
-        Text.Font = GameFont.Medium;
-        listing.Label("Epistemic Discovery: \"You Don't Know What You Don't Know\"");
+        listing.GapLine(6f);
+
+        // Side-by-side Epistemic Discovery & Sensory Narrative Cards
+        float infoLeftW = (listing.ColumnWidth - 16f) * 0.56f;
+        float infoRightW = (listing.ColumnWidth - 16f) - infoLeftW;
+
+        Rect cardsHeader = listing.GetRect(24f);
         Text.Font = GameFont.Small;
-        listing.GapLine();
+        Widgets.Label(new Rect(cardsHeader.x, cardsHeader.y, infoLeftW, 24f), "Epistemic Discovery: \"You Don't Know What You Don't Know\"");
+        Widgets.Label(new Rect(cardsHeader.x + infoLeftW + 16f, cardsHeader.y, infoRightW, 24f), "Sensory Narrative & Tech-Level Adaptability");
 
-        Rect infoRect = listing.GetRect(190f);
+        Rect cardsRect = listing.GetRect(168f);
+        Rect infoRect = new Rect(cardsRect.x, cardsRect.y, infoLeftW, cardsRect.height);
+        Rect techRect = new Rect(cardsRect.x + infoLeftW + 16f, cardsRect.y, infoRightW, cardsRect.height);
+
         Widgets.DrawBoxSolid(infoRect, new Color(0.12f, 0.15f, 0.20f, 0.6f));
         Widgets.DrawBox(infoRect);
-        Rect textRect = infoRect.ContractedBy(8f);
-
-        string infoText = "Project Vigilance models information warfare. Threats evolve across a locked 5-tier intelligence architecture as sensor telemetry deepens:\n\n" +
-                          "• Undetected: Shrouded in planetary fog of war. Zero tactical awareness.\n" +
-                          "• Suspected: Distant cues from smoke columns, traveller rumours, or acoustic anomalies.\n" +
-                          "• Contact: Radar track or lookout visual. Planetary position, velocity vector, and heading known.\n" +
-                          "• Classified: Faction identity and force size revealed within discrete identification rings (expanded via multi-dish interferometry).\n" +
-                          "• Analysed: Full tactical breakdown (pawn headcounts, weaponry, target colony, ETA) via linked SIGINT decryption or field interception.";
-
-        Widgets.Label(textRect, infoText);
-
-        listing.Gap();
-
-        Text.Font = GameFont.Medium;
-        listing.Label("Sensory Narrative & Tech-Level Adaptability");
-        Text.Font = GameFont.Small;
-        listing.GapLine();
-
-        Rect techRect = listing.GetRect(90f);
         Widgets.DrawBoxSolid(techRect, new Color(0.12f, 0.15f, 0.20f, 0.6f));
         Widgets.DrawBox(techRect);
-        Rect techTextRect = techRect.ContractedBy(8f);
 
-        string techInfo = "Sensory feedback adapts dynamically to your colony's tech level:\n" +
-                          "• Neolithic / Medieval: Lookouts use narrative, observational language (e.g., 'Approaching Strangers', 'Band of hostile fighters').\n" +
-                          "• Industrial / Spacer: Advanced sensors provide military telemetry (e.g., 'Contact-03', 'Bearing South-Southeast, ~24 hexes/day').";
+        Text.Font = GameFont.Tiny;
+        string infoText = "Threats evolve across a 5-tier intelligence architecture:\n" +
+                          "• Undetected: Shrouded in planetary fog of war.\n" +
+                          "• Suspected: Distant cues from smoke, rumours, or acoustic anomalies.\n" +
+                          "• Contact: Radar track or lookout visual (position & heading known).\n" +
+                          "• Classified: Faction & force size revealed inside identification rings.\n" +
+                          "• Analysed: Full breakdown (headcount, weapons, target, ETA) via SIGINT.";
+        Widgets.Label(infoRect.ContractedBy(8f), infoText);
 
-        Widgets.Label(techTextRect, techInfo);
+        string techInfo = "Sensory feedback adapts to colony tech level:\n\n" +
+                          "• Neolithic / Medieval:\n   Observational terms ('Approaching Strangers', 'Hostile band').\n\n" +
+                          "• Industrial / Spacer:\n   Military telemetry ('Contact-03', 'Bearing SSE, ~24 hexes/day').";
+        Widgets.Label(techRect.ContractedBy(8f), techInfo);
+        Text.Font = GameFont.Small;
 
         if (!inCampaign)
         {
@@ -1035,132 +1078,230 @@ public class GeoscapeSettings : ModSettings
     private void DrawAboutDiagnosticsTab(Listing_Standard listing)
     {
         Text.Font = GameFont.Medium;
-        listing.Label("Project Vigilance — Modular Architecture");
+        listing.Label("PV_Diag_ArchTitle".CanTranslate() ? "PV_Diag_ArchTitle".Translate().ToString() : "Project Vigilance — Modular Architecture");
         Text.Font = GameFont.Small;
         listing.GapLine();
 
-        Rect descRect = listing.GetRect(85f);
+        Rect descRect = listing.GetRect(46f);
         Widgets.DrawBoxSolid(descRect, new Color(0.12f, 0.15f, 0.20f, 0.6f));
         Widgets.DrawBox(descRect);
-        Rect descTextRect = descRect.ContractedBy(8f);
-        string desc = "Project Vigilance is engineered as a decoupled suite of standalone utility modules designed for maximum compatibility with RimWorld 1.7.\n\n" +
-                      "Each module functions as an independent framework while seamlessly interconnecting when multiple modules are active.";
-        Widgets.Label(descTextRect, desc);
+        string desc = "PV_Diag_ArchDesc".CanTranslate()
+            ? "PV_Diag_ArchDesc".Translate().ToString()
+            : "Decoupled RimWorld 1.7 framework suite. Modules operate independently and interconnect automatically when active.";
+        Widgets.Label(descRect.ContractedBy(8f), desc);
 
-        listing.Gap();
+        listing.Gap(6f);
 
         Text.Font = GameFont.Medium;
-        listing.Label("Installed & Available Modules");
+        listing.Label("PV_Diag_ModulesHeader".CanTranslate() ? "PV_Diag_ModulesHeader".Translate().ToString() : "Installed & Available Modules");
         Text.Font = GameFont.Small;
         listing.GapLine();
 
-        Rect modTableRect = listing.GetRect(140f);
+        var modules = ProjectVigilance.Core.Modules.VigilanceModuleManager.Modules;
+        bool isEmbeddedFallback = ProjectVigilance.Core.Modules.VigilanceModuleManager.IsCoreEmbeddedFallback;
+        float rowHeight = 24f;
+        float tableHeight = (modules.Count * rowHeight) + 16f + (isEmbeddedFallback ? 24f : 0f);
+
+        Rect modTableRect = listing.GetRect(tableHeight);
         Widgets.DrawBoxSolid(modTableRect, new Color(0.08f, 0.11f, 0.14f, 0.8f));
         Widgets.DrawBox(modTableRect);
         Rect modContentRect = modTableRect.ContractedBy(8f);
 
-        string modulesStatus = $"• Module 1: Geoscape & Radar Grid (Active — {GeoscapeMod.FormatBuildDetails()})\n" +
-                               "   Planetary fog of war, early-warning radar domes, sensor grids, incursion tracking.\n" +
-                               $"• Module 2: Tactical Ground Interception & Forward Ambush (Active — v{BuildInfo.Version})\n" +
-                               "   Dynamic overland pursuit, unaware column ambushes, field scouting recon, hostage rescue.\n" +
-                               "• Module 3: Containment & Biology (Planned)\n" +
-                               "   Stasis holding pods, surgical autopsies, and alien/entity reverse-engineering.";
-        Widgets.Label(modContentRect, modulesStatus);
+        string activeLabel = "PV_Diag_Status_Active".CanTranslate() ? "PV_Diag_Status_Active".Translate().ToString() : "Active";
+        string embeddedLabel = "PV_Diag_Status_Embedded".CanTranslate() ? "PV_Diag_Status_Embedded".Translate().ToString() : "Embedded Fallback";
+        string notInstalledLabel = "PV_Diag_Status_NotInstalled".CanTranslate() ? "PV_Diag_Status_NotInstalled".Translate().ToString() : "Not Installed";
 
-        listing.Gap();
-
-        GeoscapeCampaignRules? campaign = GeoscapeCampaignRules.Active;
-        if (campaign != null)
+        float curY = modContentRect.y;
+        for (int i = 0; i < modules.Count; i++)
         {
-            Text.Font = GameFont.Medium;
-            listing.Label("Active Campaign Rules & Governance");
-            Text.Font = GameFont.Small;
-            listing.GapLine();
+            var mod = modules[i];
+            bool isActive = ProjectVigilance.Core.Modules.VigilanceModuleManager.IsModuleActive(mod.Id);
+            bool isCoreEmbedded = mod.Id == ProjectVigilance.Core.Modules.VigilanceModuleId.Core && !isActive && isEmbeddedFallback;
 
-            string statusText = $"• Active Profile: {campaign.Rules.DetectCurrentProfile().GetDisplayName()}\n" +
-                                $"• Schema Version: v{campaign.SchemaVersion}\n" +
-                                $"• Campaign Integrity: {campaign.IntegrityStatusLabel}\n" +
-                                $"• Review Window: {(campaign.ReviewWindowOpen ? "Open (Day 1 Grace Period)" : "Locked")}\n" +
-                                $"• Ledger Records: {campaign.Ledger.Count} entries";
-            listing.Label(statusText);
-
-            if (campaign.HasExternalModifications)
+            Rect rowRect = new Rect(modContentRect.x, curY, modContentRect.width, rowHeight);
+            if ((i & 1) == 1)
             {
-                RuleChangeRecord? lastMod = campaign.Ledger.LastOrDefault(r => r.kind == RuleChangeKind.ExternalModification);
-                if (lastMod != null)
-                {
-                    listing.Gap(4f);
-                    Rect warnRect = listing.GetRect(44f);
-                    Widgets.DrawBoxSolid(warnRect, new Color(0.35f, 0.08f, 0.08f, 0.6f));
-                    Widgets.DrawBox(warnRect);
-                    GUI.color = new Color(1f, 0.45f, 0.45f);
-                    Widgets.Label(warnRect.ContractedBy(6f), $"[Save Integrity Warning] {lastMod.note}");
-                    GUI.color = Color.white;
-                }
+                Widgets.DrawBoxSolid(rowRect, new Color(1f, 1f, 1f, 0.03f));
             }
 
-            if (campaign.ReviewWindowOpen)
+            float leftWidth = rowRect.width * 0.68f;
+            float rightWidth = rowRect.width - leftWidth;
+
+            string versionInfo = string.Empty;
+            if (isActive)
             {
-                if (listing.ButtonText("Confirm & Lock In Campaign Rules Now"))
+                versionInfo = mod.Id == ProjectVigilance.Core.Modules.VigilanceModuleId.Geoscape
+                    ? $" ({GeoscapeMod.FormatBuildDetails()})"
+                    : $" (v{BuildInfo.Version})";
+            }
+
+            Widgets.Label(new Rect(rowRect.x + 4f, rowRect.y + 2f, leftWidth - 4f, rowHeight - 2f), $"• {mod.DisplayName}{versionInfo}");
+
+            TextAnchor prevAnchor = Text.Anchor;
+            Text.Anchor = TextAnchor.MiddleRight;
+            if (isActive)
+            {
+                GUI.color = new Color(0.35f, 0.95f, 0.45f);
+                Widgets.Label(new Rect(rowRect.x + leftWidth, rowRect.y, rightWidth - 6f, rowHeight), activeLabel);
+            }
+            else if (isCoreEmbedded)
+            {
+                GUI.color = new Color(1f, 0.72f, 0.25f);
+                Widgets.Label(new Rect(rowRect.x + leftWidth, rowRect.y, rightWidth - 6f, rowHeight), embeddedLabel);
+            }
+            else
+            {
+                GUI.color = new Color(0.58f, 0.65f, 0.72f);
+                Widgets.Label(new Rect(rowRect.x + leftWidth, rowRect.y, rightWidth - 6f, rowHeight), notInstalledLabel);
+            }
+            GUI.color = Color.white;
+            Text.Anchor = prevAnchor;
+
+            string tip = "PV_Diag_ModTooltip".CanTranslate()
+                ? "PV_Diag_ModTooltip".Translate(mod.Summary, mod.PackageId).ToString()
+                : $"{mod.Summary}\nPackage ID: {mod.PackageId}";
+            TooltipHandler.TipRegion(rowRect, tip);
+
+            curY += rowHeight;
+        }
+
+        if (isEmbeddedFallback)
+        {
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(1f, 0.80f, 0.35f);
+            string note = "PV_Diag_EmbeddedCoreNote".CanTranslate()
+                ? "PV_Diag_EmbeddedCoreNote".Translate().ToString()
+                : "Running Geoscape with embedded Core fallback. Subscribe to standalone Core Framework to enable optional modules (Orbital, Aquatics, Thermal).";
+            Widgets.Label(new Rect(modContentRect.x + 4f, curY + 2f, modContentRect.width - 8f, 22f), note);
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+        }
+
+        listing.Gap(6f);
+
+        float leftColW = (listing.ColumnWidth - 16f) * 0.56f;
+        float rightColW = (listing.ColumnWidth - 16f) - leftColW;
+        Rect bottomRect = listing.GetRect(diagnosticsBottomHeight);
+        Rect govRect = new Rect(bottomRect.x, bottomRect.y, leftColW, bottomRect.height);
+        Rect cfgRect = new Rect(bottomRect.x + leftColW + 16f, bottomRect.y, rightColW, bottomRect.height);
+
+        GeoscapeCampaignRules? campaign = GeoscapeCampaignRules.Active;
+
+        Listing_Standard govCol = new() { maxOneColumn = true };
+        govCol.Begin(govRect);
+        {
+            Text.Font = GameFont.Medium;
+            govCol.Label("PV_Diag_GovernanceHeader".CanTranslate() ? "PV_Diag_GovernanceHeader".Translate().ToString() : "Active Campaign Governance");
+            Text.Font = GameFont.Small;
+            govCol.GapLine();
+
+            if (campaign != null)
+            {
+                string statusText = $"• Active Profile: {campaign.Rules.DetectCurrentProfile().GetDisplayName()}\n" +
+                                    $"• Schema Version: v{campaign.SchemaVersion}\n" +
+                                    $"• Campaign Integrity: {campaign.IntegrityStatusLabel}\n" +
+                                    $"• Review Window: {(campaign.ReviewWindowOpen ? "Open (Day 1 Grace Period)" : "Locked")}\n" +
+                                    $"• Ledger Records: {campaign.Ledger.Count} entries";
+                govCol.Label(statusText);
+
+                if (campaign.HasExternalModifications)
+                {
+                    RuleChangeRecord? lastMod = campaign.Ledger.LastOrDefault(r => r.kind == RuleChangeKind.ExternalModification);
+                    if (lastMod != null)
+                    {
+                        govCol.Gap(2f);
+                        Rect warnRect = govCol.GetRect(38f);
+                        Widgets.DrawBoxSolid(warnRect, new Color(0.35f, 0.08f, 0.08f, 0.6f));
+                        Widgets.DrawBox(warnRect);
+                        GUI.color = new Color(1f, 0.45f, 0.45f);
+                        Widgets.Label(warnRect.ContractedBy(4f), $"[Save Integrity Warning] {lastMod.note}");
+                        GUI.color = Color.white;
+                    }
+                }
+
+                if (campaign.ReviewWindowOpen && govCol.ButtonText("Confirm & Lock In Campaign Rules Now"))
                 {
                     campaign.ConfirmAndLock();
                     SoundDefOf.Click?.PlayOneShotOnCamera();
                     Messages.Message("Campaign rules locked. Mutability restrictions now active.", MessageTypeDefOf.PositiveEvent, historical: false);
                 }
-            }
 
-            if (Prefs.DevMode)
-            {
-                listing.Gap(6f);
-                bool req = UnsafeRuleOverride.Requested;
-                bool prev = req;
-                listing.CheckboxLabeled(
-                    "Allow Unsafe Rule Transitions (Session Only)",
-                    ref req,
-                    "Developer Mode override. Bypasses all mutability constraints, allowing downgrades and editing of immutable rules. All changes are marked [Unsafe] in the audit ledger.");
-                if (req != prev)
+                if (Prefs.DevMode)
                 {
-                    if (!req)
+                    govCol.Gap(4f);
+                    bool req = UnsafeRuleOverride.Requested;
+                    bool prev = req;
+                    govCol.CheckboxLabeled(
+                        "Allow Unsafe Rule Transitions (Session Only)",
+                        ref req,
+                        "Developer Mode override. Bypasses all mutability constraints, allowing downgrades and editing of immutable rules. All changes are marked [Unsafe] in the audit ledger.");
+                    if (req != prev)
                     {
-                        UnsafeRuleOverride.SetRequested(false);
-                    }
-                    else
-                    {
-                        string warnText = "WARNING: Enabling unsafe rule transitions allows bypassing all campaign mutability constraints (including irreversible downgrades and immutable rule overrides).\n\n" +
-                                          "Modifying locked rules mid-campaign can desynchronise active incursion intelligence, corrupt fog-of-war exploration state, or compromise campaign integrity.\n\n" +
-                                          "This override lasts for this game session only, but any rule changes made while active are permanently signed into the campaign audit ledger.\n\n" +
-                                          "Do you wish to enable Developer Mode unsafe rule transitions?";
-                        Dialog_MessageBox confirmBox = Dialog_MessageBox.CreateConfirmation(
-                            warnText,
-                            () => UnsafeRuleOverride.SetRequested(true),
-                            destructive: true,
-                            title: "Enable Unsafe Rule Transitions");
-                        Find.WindowStack?.Add(confirmBox);
+                        if (!req)
+                        {
+                            UnsafeRuleOverride.SetRequested(false);
+                        }
+                        else
+                        {
+                            string warnText = "WARNING: Enabling unsafe rule transitions allows bypassing all campaign mutability constraints (including irreversible downgrades and immutable rule overrides).\n\n" +
+                                              "Modifying locked rules mid-campaign can desynchronise active incursion intelligence, corrupt fog-of-war exploration state, or compromise campaign integrity.\n\n" +
+                                              "This override lasts for this game session only, but any rule changes made while active are permanently signed into the campaign audit ledger.\n\n" +
+                                              "Do you wish to enable Developer Mode unsafe rule transitions?";
+                            Dialog_MessageBox confirmBox = Dialog_MessageBox.CreateConfirmation(
+                                warnText,
+                                () => UnsafeRuleOverride.SetRequested(true),
+                                destructive: true,
+                                title: "Enable Unsafe Rule Transitions");
+                            Find.WindowStack?.Add(confirmBox);
+                        }
                     }
                 }
             }
-
-            listing.Gap();
+            else
+            {
+                GUI.color = SubNoteColor;
+                string noSave = "PV_Diag_GovernanceNoSave".CanTranslate()
+                    ? "PV_Diag_GovernanceNoSave".Translate().ToString()
+                    : "No active campaign loaded. Defaults apply to newly started colonies.";
+                govCol.Label(noSave);
+                GUI.color = Color.white;
+            }
         }
+        govCol.End();
 
-        Text.Font = GameFont.Medium;
-        listing.Label("Configuration Management");
-        Text.Font = GameFont.Small;
-        listing.GapLine();
-
-        string resetBtnLabel = campaign != null
-            ? "Reset New Campaign Defaults to Factory Settings"
-            : "Reset All Geoscape Settings to Defaults";
-
-        if (listing.ButtonText(resetBtnLabel))
+        Listing_Standard cfgCol = new() { maxOneColumn = true };
+        cfgCol.Begin(cfgRect);
         {
-            ResetToDefaults();
-            SoundDefOf.ClickReject?.PlayOneShotOnCamera();
-            string msg = campaign != null
-                ? "Project Vigilance new campaign defaults reset. Active save rules remain unaffected."
-                : "Project Vigilance settings reset to default values.";
-            Messages.Message(msg, MessageTypeDefOf.NeutralEvent, historical: false);
+            Text.Font = GameFont.Medium;
+            cfgCol.Label("PV_Diag_ConfigHeader".CanTranslate() ? "PV_Diag_ConfigHeader".Translate().ToString() : "Configuration Management");
+            Text.Font = GameFont.Small;
+            cfgCol.GapLine();
+
+            GUI.color = SubNoteColor;
+            string cfgDesc = "PV_Diag_ConfigDesc".CanTranslate()
+                ? "PV_Diag_ConfigDesc".Translate().ToString()
+                : "Restore all Geoscape defaults or reset new-campaign rules without altering an active save.";
+            cfgCol.Label(cfgDesc);
+            GUI.color = Color.white;
+            cfgCol.Gap(6f);
+
+            string resetBtnLabel = campaign != null
+                ? ("PV_Diag_ResetCampaignDefaults".CanTranslate() ? "PV_Diag_ResetCampaignDefaults".Translate().ToString() : "Reset New Campaign Defaults")
+                : ("PV_Diag_ResetDefaults".CanTranslate() ? "PV_Diag_ResetDefaults".Translate().ToString() : "Reset All Geoscape Settings");
+
+            if (cfgCol.ButtonText(resetBtnLabel))
+            {
+                ResetToDefaults();
+                SoundDefOf.ClickReject?.PlayOneShotOnCamera();
+                string msg = campaign != null
+                    ? "Project Vigilance new campaign defaults reset. Active save rules remain unaffected."
+                    : "Project Vigilance settings reset to default values.";
+                Messages.Message(msg, MessageTypeDefOf.NeutralEvent, historical: false);
+            }
         }
+        cfgCol.End();
+
+        diagnosticsBottomHeight = Mathf.Max(govCol.CurHeight, cfgCol.CurHeight) + 2f;
     }
 
     public void ResetToDefaults()

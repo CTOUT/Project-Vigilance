@@ -52,9 +52,17 @@ public class VigilanceMigrationTracker : WorldComponent
 
             if (IsPreSplitLegacySave && missing.Count == 0)
             {
+                if (!VigilanceModuleManager.IsModuleActive(VigilanceModuleId.Core)) missing.Add(VigilanceModuleId.Core);
                 if (!VigilanceModuleManager.IsOrbitalActive) missing.Add(VigilanceModuleId.Orbital);
                 if (!VigilanceModuleManager.IsAquaticsActive) missing.Add(VigilanceModuleId.Aquatics);
                 if (!VigilanceModuleManager.IsThermalActive) missing.Add(VigilanceModuleId.Thermal);
+            }
+            else if (VigilanceModuleManager.IsCoreEmbeddedFallback &&
+                     !VigilanceModuleManager.IsModuleActive(VigilanceModuleId.Core) &&
+                     missing.Count > 0 &&
+                     !missing.Contains(VigilanceModuleId.Core))
+            {
+                missing.Insert(0, VigilanceModuleId.Core);
             }
 
             return missing;
@@ -197,7 +205,8 @@ public class VigilanceMigrationTracker : WorldComponent
         }
 
         bool legacySplitGap = IsPreSplitLegacySave &&
-                              (!VigilanceModuleManager.IsOrbitalActive ||
+                              (!VigilanceModuleManager.IsModuleActive(VigilanceModuleId.Core) ||
+                               !VigilanceModuleManager.IsOrbitalActive ||
                                !VigilanceModuleManager.IsAquaticsActive ||
                                !VigilanceModuleManager.IsThermalActive);
 

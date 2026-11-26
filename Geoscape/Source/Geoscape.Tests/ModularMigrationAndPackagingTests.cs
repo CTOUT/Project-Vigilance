@@ -74,12 +74,56 @@ public class ModularMigrationAndPackagingTests
                 Assert.IsFalse(deps.Any(d => d.StartsWith("ProjectVigilance.", StringComparison.OrdinalIgnoreCase)),
                     "Core module must not depend on any Project Vigilance sub-module.");
             }
+            else if (module == "Geoscape")
+            {
+                Assert.IsTrue(deps.Contains("brrainz.harmony"),
+                    "Geoscape must declare brrainz.harmony so existing Workshop subscribers can boot standalone via LoadFolders EmbeddedCore.");
+                Assert.IsFalse(deps.Contains("ProjectVigilance.Core"),
+                    "Geoscape must not hard-require ProjectVigilance.Core in modDependencies so existing subscribers upgrade with zero red errors.");
+
+                var loadAfterNodes = doc.SelectNodes("//loadAfter/li");
+                var loadAfter = new List<string>();
+                if (loadAfterNodes != null)
+                {
+                    foreach (XmlNode node in loadAfterNodes)
+                    {
+                        loadAfter.Add(node.InnerText.Trim());
+                    }
+                }
+                Assert.IsTrue(loadAfter.Contains("ProjectVigilance.Core"), "Geoscape must loadAfter ProjectVigilance.Core when standalone Core is active.");
+            }
             else
             {
                 Assert.IsTrue(deps.Contains("ProjectVigilance.Core"), $"Module '{module}' must declare ProjectVigilance.Core dependency.");
                 Assert.IsFalse(deps.Contains("brrainz.harmony"), $"Module '{module}' should inherit Harmony transitively through Core rather than duplicating brrainz.harmony.");
             }
         }
+
+        string loadFoldersPath = Path.Combine(RepoRoot, "Geoscape", "LoadFolders.xml");
+        Assert.IsTrue(File.Exists(loadFoldersPath), "Geoscape must include LoadFolders.xml for seamless EmbeddedCore fallback.");
+        var loadFoldersDoc = new XmlDocument();
+        loadFoldersDoc.Load(loadFoldersPath);
+        XmlNodeList? folderEntries = loadFoldersDoc.SelectNodes("//v1.7/li");
+        Assert.IsNotNull(folderEntries);
+
+        int embeddedIdx = -1;
+        int mainIdx = -1;
+        for (int i = 0; i < folderEntries!.Count; i++)
+        {
+            XmlNode node = folderEntries[i]!;
+            string text = node.InnerText.Trim();
+            string? ifNotActive = node.Attributes?["IfModNotActive"]?.Value;
+            if (text == "1.7/EmbeddedCore" && ifNotActive == "ProjectVigilance.Core")
+            {
+                embeddedIdx = i;
+            }
+            else if (text == "1.7" && ifNotActive == null)
+            {
+                mainIdx = i;
+            }
+        }
+        Assert.IsTrue(embeddedIdx >= 0, "LoadFolders.xml must declare <li IfModNotActive=\"ProjectVigilance.Core\">1.7/EmbeddedCore</li>.");
+        Assert.IsTrue(mainIdx > embeddedIdx, "1.7/EmbeddedCore must load before 1.7 when standalone Core is inactive.");
 
         string publishedIdPath = Path.Combine(RepoRoot, "Geoscape", "About", "PublishedFileId.txt");
         Assert.IsTrue(File.Exists(publishedIdPath), "Geoscape must retain PublishedFileId.txt for existing Steam Workshop subscribers.");
@@ -252,5 +296,36 @@ public class ModularMigrationAndPackagingTests
         Assert.AreEqual(string.Empty, orbitalMod.SettingsCategory());
         Assert.AreEqual(string.Empty, aquaticsMod.SettingsCategory());
         Assert.AreEqual(string.Empty, thermalMod.SettingsCategory());
+    }
+
+    [TestMethod]
+    public void VigilanceCoreMod_EmbeddedFallbackMode_SetsFlagAndFlagsCoreMissingOnLegacySave()
+    {
+        VigilanceModuleManager.SetCoreEmbeddedFallbackOverride(true);
+        VigilanceModuleManager.SetModuleActiveOverride(VigilanceModuleId.Core, false);
+        VigilanceModuleManager.SetModuleActiveOverride(VigilanceModuleId.Orbital, false);
+        VigilanceModuleManager.HasPriorGeoscapeSaveDataHook = static () => true;
+
+        var tracker = new VigilanceMigrationTracker(Find.World);
+        tracker.SetSavedActiveModulesForTesting(Array.Empty<string>(), schemaVersion: 0, markLoaded: true);
+        tracker.EvaluateMigrationState(fromLoad: true);
+
+        Assert.IsTrue(VigilanceModuleManager.IsCoreEmbeddedFallback);
+        Assert.IsTrue(tracker.RequiresMigrationAdvisory);
+        CollectionAssert.Contains(tracker.MissingModules.ToList(), VigilanceModuleId.Core);
+    }
+
+    [TestMethod]
+    public void StageCleanDistribution_GeoscapeIncludesLoadFoldersAndEmbeddedCore()
+    {
+        string distGeoscape = Path.Combine(RepoRoot, "dist", "ProjectVigilance-Geoscape");
+        Assert.IsTrue(File.Exists(Path.Combine(distGeoscape, "LoadFolders.xml")),
+            "Staged Geoscape package must include LoadFolders.xml.");
+        Assert.IsTrue(File.Exists(Path.Combine(distGeoscape, "1.7", "EmbeddedCore", "Assemblies", "ProjectVigilance.Core.dll")),
+            "Staged Geoscape package must include EmbeddedCore/Assemblies/ProjectVigilance.Core.dll.");
+        Assert.IsTrue(File.Exists(Path.Combine(distGeoscape, "1.7", "EmbeddedCore", "Defs", "WorldObjectDefs", "WorldObjects_MigrationStubs.xml")),
+            "Staged Geoscape package must include EmbeddedCore migration stub Defs.");
+        Assert.IsTrue(File.Exists(Path.Combine(distGeoscape, "1.7", "EmbeddedCore", "Languages", "English", "Keyed", "Core_Migration.xml")),
+            "Staged Geoscape package must include EmbeddedCore keyed migration strings.");
     }
 }

@@ -174,6 +174,24 @@ function Copy-CleanModuleLayout {
         Copy-OptionalTree -From (Join-Path $srcDir "1.7\$sub") -To (Join-Path $staging17 $sub)
     }
 
+    # LoadFolders.xml & EmbeddedCore fallback payload for standalone Geoscape upgrade
+    $loadFoldersSrc = Join-Path $srcDir 'LoadFolders.xml'
+    if (Test-Path -LiteralPath $loadFoldersSrc) {
+        Copy-Item -LiteralPath $loadFoldersSrc -Destination (Join-Path $DestinationRoot 'LoadFolders.xml') -Force
+    }
+    if ($Module.Source -eq 'Geoscape') {
+        $embeddedCoreDir = Join-Path $staging17 'EmbeddedCore'
+        $embeddedAsmDir = Join-Path $embeddedCoreDir 'Assemblies'
+        New-Item -ItemType Directory -Path $embeddedAsmDir -Force | Out-Null
+
+        $coreDllSrc = Join-Path $repoRoot 'Core\1.7\Assemblies\ProjectVigilance.Core.dll'
+        if (Test-Path -LiteralPath $coreDllSrc) {
+            Copy-Item -LiteralPath $coreDllSrc -Destination (Join-Path $embeddedAsmDir 'ProjectVigilance.Core.dll') -Force
+        }
+        Copy-OptionalTree -From (Join-Path $repoRoot 'Core\1.7\Defs') -To (Join-Path $embeddedCoreDir 'Defs')
+        Copy-OptionalTree -From (Join-Path $repoRoot 'Core\1.7\Languages') -To (Join-Path $embeddedCoreDir 'Languages')
+    }
+
     # License & README
     Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination (Join-Path $DestinationRoot 'LICENSE') -Force
     $modReadme = Join-Path $srcDir 'README.md'

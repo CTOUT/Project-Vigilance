@@ -40,6 +40,8 @@ public static class VigilanceModuleManager
     private static readonly object syncLock = new();
     private static readonly HashSet<VigilanceModuleId> registeredModules = new();
     private static readonly Dictionary<VigilanceModuleId, bool> testModuleOverrides = new();
+    private static bool coreEmbeddedFallback;
+    private static bool? testCoreEmbeddedFallbackOverride;
 
     private static readonly IReadOnlyList<VigilanceModuleDescriptor> AllDescriptors = new[]
     {
@@ -119,6 +121,33 @@ public static class VigilanceModuleManager
     public static bool IsGeoscapeActive => IsModuleActive(VigilanceModuleId.Geoscape);
     public static bool IsThermalActive => IsModuleActive(VigilanceModuleId.Thermal);
 
+    public static bool IsCoreEmbeddedFallback
+    {
+        get
+        {
+            lock (syncLock)
+            {
+                return testCoreEmbeddedFallbackOverride ?? coreEmbeddedFallback;
+            }
+        }
+    }
+
+    public static void SetCoreEmbeddedFallback(bool isEmbedded)
+    {
+        lock (syncLock)
+        {
+            coreEmbeddedFallback = isEmbedded;
+        }
+    }
+
+    public static void SetCoreEmbeddedFallbackOverride(bool? isEmbedded)
+    {
+        lock (syncLock)
+        {
+            testCoreEmbeddedFallbackOverride = isEmbedded;
+        }
+    }
+
     public static void RegisterActiveModule(VigilanceModuleId id)
     {
         lock (syncLock)
@@ -153,6 +182,8 @@ public static class VigilanceModuleManager
         lock (syncLock)
         {
             testModuleOverrides.Clear();
+            coreEmbeddedFallback = false;
+            testCoreEmbeddedFallbackOverride = null;
         }
         AllowSonarInTests = false;
         DistanceCalculationOverrideHook = null;

@@ -26,4 +26,21 @@
   <PV_Settings_OptimisticDetours_Desc>Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered.</PV_Settings_OptimisticDetours_Desc>
   <PV_Settings_InterFactionCollisions>Inter-Faction Overland Collisions</PV_Settings_InterFactionCollisions>
   <PV_Settings_InterFactionCollisions_Desc>Simulates background encounters and skirmishes when rival NPC incursions cross paths on the globe.</PV_Settings_InterFactionCollisions_Desc>
+
+  <!-- Diagnostics & Module Status (en-GB) -->
+  <PV_Diag_ArchTitle>Project Vigilance — Modular Architecture</PV_Diag_ArchTitle>
+  <PV_Diag_ArchDesc>Decoupled RimWorld 1.7 framework suite. Modules operate independently and interconnect automatically when active.</PV_Diag_ArchDesc>
+  <PV_Diag_ModulesHeader>Installed &amp; Available Modules</PV_Diag_ModulesHeader>
+  <PV_Diag_Status_Active>Active</PV_Diag_Status_Active>
+  <PV_Diag_Status_Embedded>Embedded Fallback</PV_Diag_Status_Embedded>
+  <PV_Diag_Status_NotInstalled>Not Installed</PV_Diag_Status_NotInstalled>
+  <PV_Diag_EmbeddedCoreNote>Running Geoscape with embedded Core fallback. Subscribe to standalone Core Framework to enable optional modules (Orbital, Aquatics, Thermal).</PV_Diag_EmbeddedCoreNote>
+  <PV_Diag_GovernanceHeader>Active Campaign Governance</PV_Diag_GovernanceHeader>
+  <PV_Diag_GovernanceNoSave>No active campaign loaded. Defaults apply to newly started colonies.</PV_Diag_GovernanceNoSave>
+  <PV_Diag_ConfigHeader>Configuration Management</PV_Diag_ConfigHeader>
+  <PV_Diag_ConfigDesc>Restore all Geoscape defaults or reset new-campaign rules without altering an active save.</PV_Diag_ConfigDesc>
+  <PV_Diag_ResetDefaults>Reset All Geoscape Settings</PV_Diag_ResetDefaults>
+  <PV_Diag_ResetCampaignDefaults>Reset New Campaign Defaults</PV_Diag_ResetCampaignDefaults>
+  <PV_Diag_ModTooltip>{0}
+Package ID: {1}</PV_Diag_ModTooltip>
 </LanguageData>

@@ -42,6 +42,7 @@
 
       <_StagingDocs Include="$(MSBuildThisFileDirectory)LICENSE" Condition="Exists('$(MSBuildThisFileDirectory)LICENSE')" />
       <_StagingDocs Include="$(ModRootDir)README.md" Condition="Exists('$(ModRootDir)README.md')" />
+      <_StagingRootFiles Include="$(ModRootDir)LoadFolders.xml" Condition="Exists('$(ModRootDir)LoadFolders.xml')" />
     </ItemGroup>
 
     <Copy SourceFiles="@(_StagingAbout)" DestinationFolder="$(CleanStagingDir)About" SkipUnchangedFiles="true" Condition="'@(_StagingAbout)' != ''" />
@@ -52,6 +53,41 @@
     <Copy SourceFiles="@(_StagingLanguages)" DestinationFiles="@(_StagingLanguages->'$(CleanStagingDir)1.7/Languages/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingLanguages)' != ''" />
     <Copy SourceFiles="@(_StagingSounds)" DestinationFiles="@(_StagingSounds->'$(CleanStagingDir)1.7/Sounds/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingSounds)' != ''" />
     <Copy SourceFiles="@(_StagingDocs)" DestinationFolder="$(CleanStagingDir)" SkipUnchangedFiles="true" Condition="'@(_StagingDocs)' != ''" />
+    <Copy SourceFiles="@(_StagingRootFiles)" DestinationFolder="$(CleanStagingDir)" SkipUnchangedFiles="true" Condition="'@(_StagingRootFiles)' != ''" />
+
+    <!-- Sync EmbeddedCore fallback payload inside Geoscape staging for LoadFolders.xml IfModNotActive="ProjectVigilance.Core" -->
+    <PropertyGroup Condition="'$(ModFolderName)' == 'Geoscape'">
+      <CoreModuleDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)Core'))</CoreModuleDir>
+      <EmbeddedCoreDir>$([MSBuild]::NormalizeDirectory('$(CleanStagingDir)1.7/EmbeddedCore'))</EmbeddedCoreDir>
+    </PropertyGroup>
+    <Exec Condition="'$(ModFolderName)' == 'Geoscape' and $([MSBuild]::IsOSPlatform('Windows')) and Exists('$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old')"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low"
+          Command="del /f /q &quot;$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old&quot; 2&gt;nul" />
+    <Exec Condition="'$(ModFolderName)' == 'Geoscape' and $([MSBuild]::IsOSPlatform('Windows')) and Exists('$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll')"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low"
+          Command="move /y &quot;$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll&quot; &quot;$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old&quot; &gt;nul 2&gt;&amp;1" />
+    <Exec Condition="'$(ModFolderName)' == 'Geoscape' and !$([MSBuild]::IsOSPlatform('Windows'))"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low"
+          Command="rm -f &quot;$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll.old&quot; &quot;$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll&quot; 2&gt;/dev/null || true" />
+    <ItemGroup Condition="'$(ModFolderName)' == 'Geoscape'">
+      <_EmbeddedCoreAssembly Include="$(CoreModuleDir)1.7/Assemblies/ProjectVigilance.Core.dll" Condition="Exists('$(CoreModuleDir)1.7/Assemblies/ProjectVigilance.Core.dll')" />
+      <_EmbeddedCoreDefs Include="$(CoreModuleDir)1.7/Defs/**/*" Condition="Exists('$(CoreModuleDir)1.7/Defs')" />
+      <_EmbeddedCoreLanguages Include="$(CoreModuleDir)1.7/Languages/**/*" Condition="Exists('$(CoreModuleDir)1.7/Languages')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_EmbeddedCoreAssembly)" DestinationFolder="$(EmbeddedCoreDir)Assemblies" SkipUnchangedFiles="true" Condition="'$(ModFolderName)' == 'Geoscape' and '@(_EmbeddedCoreAssembly)' != ''" />
+    <Copy SourceFiles="@(_EmbeddedCoreDefs)" DestinationFiles="@(_EmbeddedCoreDefs->'$(EmbeddedCoreDir)Defs/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'$(ModFolderName)' == 'Geoscape' and '@(_EmbeddedCoreDefs)' != ''" />
+    <Copy SourceFiles="@(_EmbeddedCoreLanguages)" DestinationFiles="@(_EmbeddedCoreLanguages->'$(EmbeddedCoreDir)Languages/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'$(ModFolderName)' == 'Geoscape' and '@(_EmbeddedCoreLanguages)' != ''" />
+    <Exec Condition="'$(ModFolderName)' == 'Geoscape' and $([MSBuild]::IsOSPlatform('Windows')) and Exists('$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old')"
+          IgnoreExitCode="true"
+          StandardOutputImportance="Low"
+          StandardErrorImportance="Low"
+          Command="del /f /q &quot;$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old&quot; 2&gt;nul" />
 
     <!-- Remove rotated staged .old backup immediately if RimWorld is not holding a lock on it -->
     <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"

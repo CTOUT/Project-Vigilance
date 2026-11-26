@@ -21,6 +21,7 @@ references/
 *.sln.docstates
 
 # RimWorld mod assemblies & local game assemblies
+Geoscape/1.7/EmbeddedCore/
 **/Assemblies/*.dll
 **/Assemblies/*.pdb
 **/Assemblies/*.deps.json
