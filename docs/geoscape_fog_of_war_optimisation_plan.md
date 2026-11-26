@@ -96,6 +96,18 @@
 | **TerrainCull (OFF)**                      | `0/68` submeshes / `0 / 479,615` tris                                                            | `0/166` submeshes / `0 / 2,361,956` tris                                                             |
 | **Mode Switches (`Fog` ↔ `Surveillance`)** | `0` warnings / `0` errors                                                                        | `0` warnings / `0` errors                                                                            |
 
+#### Verified Stage 2 Telemetry (`1.7.5014 rev1195` Waylith `S4` Benchmarks)
+
+| Metric | 30% World (`119,904` tiles) | 100% World (`590,492` tiles) |
+| --- | --- | --- |
+| **ShroudShellLayer Drawn** | `11,220` verts / `20,475` tris / `0` UVs (`20/20` chunks) | `11,220` verts / `20,474` tris / `0` UVs (`20/20` chunks) |
+| **HazeOfWarLayer Built / Finalised** | `6/320` built / `1` finalized | `14/320` built / `2` finalized |
+| **HazeOfWarLayer Drawn (Alloc)** | `10,854` (`67,271`) verts / `7,236` (`44,847`) tris / `0` UVs | `23,597` (`151,787`) verts / `15,731` (`101,191`) tris / `0` UVs |
+| **Combined Drawn Fog + Shroud** | `22,074` verts (`-97.4%` vs `839,327` baseline) / `27,711` tris (`-96.1%` vs `719,423` baseline) | `34,817` verts (`-99.2%` vs ~`4.13M` unoptimised) / `36,205` tris (`-99.0%` vs ~`3.54M` unoptimised) |
+| **TerrainCull (ON)** | `65/68` submeshes / `442,095 / 479,615` tris (`-92.2%`) | `139/166` submeshes / `1,674,878 / 2,361,956` tris (`-70.9%`) |
+| **TerrainCull (OFF)** | `0/68` submeshes / `0 / 479,615` tris | `0/166` submeshes / `0 / 2,361,956` tris |
+| **Mode Switches (`Fog` ↔ `Surveillance`)** | `0` warnings / `0` errors | `0` warnings / `0` errors |
+
 ---
 
 ## 4. Verification & Regression Suite
