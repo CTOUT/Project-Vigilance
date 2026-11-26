@@ -51,4 +51,6 @@
   <PV_Diag_ResetCampaignDefaults>Reset New Campaign Defaults</PV_Diag_ResetCampaignDefaults>
   <PV_Diag_ModTooltip>{0}
 Package ID: {1}</PV_Diag_ModTooltip>
+  <PV_Rules_ColonyIdCapTooltip>Capped at {0} hex(es) (Colony scout horizon - 1). Increase Colony scout horizon to unlock higher identification range.</PV_Rules_ColonyIdCapTooltip>
+  <PV_Rules_CaravanIdCapTooltip>Capped at {0} hex(es) (Caravan scout horizon - 1). Increase Caravan scout horizon to unlock higher identification range.</PV_Rules_CaravanIdCapTooltip>
 </LanguageData>

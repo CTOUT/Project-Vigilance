@@ -140,6 +140,9 @@ public static class CampaignRulesPanel
             enabled: applicable);
 
         float maxColonyId = ClampIdHorizon(rules.ColonyScoutRadius, rules.ColonyIdentificationRadius, campaign);
+        string colonyIdCapTip = "PV_Rules_ColonyIdCapTooltip".CanTranslate()
+            ? "PV_Rules_ColonyIdCapTooltip".Translate(maxColonyId.ToString("0")).ToString()
+            : $"Capped at {maxColonyId:0} hex(es) (Colony scout horizon - 1). Increase Colony scout horizon to unlock higher identification range.";
         CampaignRuleWidgets.DrawFloat(
             listing,
             rules.ColonyIdentificationRadius,
@@ -150,7 +153,7 @@ public static class CampaignRulesPanel
             showLockPreview,
             enabled: applicable && maxColonyId > 0.0f,
             effectiveMax: maxColonyId,
-            effectiveMaxTooltip: $"Capped at {maxColonyId:0} hex(es) (Colony scout horizon - 1). Increase Colony scout horizon to unlock higher identification range.");
+            effectiveMaxTooltip: colonyIdCapTip);
 
         CampaignRuleWidgets.DrawFloat(
             listing,
@@ -163,6 +166,9 @@ public static class CampaignRulesPanel
             enabled: applicable);
 
         float maxCaravanId = ClampIdHorizon(rules.CaravanScoutRadius, rules.CaravanIdentificationRadius, campaign);
+        string caravanIdCapTip = "PV_Rules_CaravanIdCapTooltip".CanTranslate()
+            ? "PV_Rules_CaravanIdCapTooltip".Translate(maxCaravanId.ToString("0")).ToString()
+            : $"Capped at {maxCaravanId:0} hex(es) (Caravan scout horizon - 1). Increase Caravan scout horizon to unlock higher identification range.";
         CampaignRuleWidgets.DrawFloat(
             listing,
             rules.CaravanIdentificationRadius,
@@ -173,7 +179,7 @@ public static class CampaignRulesPanel
             showLockPreview,
             enabled: applicable && maxCaravanId > 0.0f,
             effectiveMax: maxCaravanId,
-            effectiveMaxTooltip: $"Capped at {maxCaravanId:0} hex(es) (Caravan scout horizon - 1). Increase Caravan scout horizon to unlock higher identification range.");
+            effectiveMaxTooltip: caravanIdCapTip);
 
         CampaignRuleWidgets.DrawBool(
             listing,
