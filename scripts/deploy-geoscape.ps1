@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Deploys all 5 Project Vigilance modular packages to the local RimWorld Mods directory.
 
