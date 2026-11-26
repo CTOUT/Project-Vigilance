@@ -296,6 +296,12 @@ public class ModularMigrationAndPackagingTests
         Assert.AreEqual("Project Vigilance — Orbital", orbitalMod.SettingsCategory());
         Assert.AreEqual("Project Vigilance — Aquatics", aquaticsMod.SettingsCategory());
         Assert.AreEqual("Project Vigilance — Thermal", thermalMod.SettingsCategory());
+
+        var filtered = ProjectVigilance.Core.Patches.Dialog_Options_ModFilter_Patch
+            .FilterModsForOptionsGrid(new Mod[] { coreMod, geoscapeMod, orbitalMod, aquaticsMod, thermalMod })
+            .ToList();
+        Assert.AreEqual(1, filtered.Count, "Dialog_Options Mod Options grid must show only the primary Project Vigilance entry.");
+        Assert.AreSame(coreMod, filtered[0]);
     }
 
     [TestMethod]

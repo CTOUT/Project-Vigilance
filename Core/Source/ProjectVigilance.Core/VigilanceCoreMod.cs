@@ -20,6 +20,7 @@ public class VigilanceCoreMod : Mod
 {
     public const string PackageId = "ProjectVigilance.Core";
     private static bool compatibilityRegistered;
+    private static bool harmonyPatched;
 
     private static string currentTabKey = string.Empty;
     private static string lastSelectedModuleKey = string.Empty;
@@ -40,9 +41,29 @@ public class VigilanceCoreMod : Mod
         }
 
         RegisterBackCompatibilityConverter();
+        ApplyHarmonyPatches();
 
         string modeLabel = isStandaloneCore ? "standalone" : "embedded Geoscape fallback";
         Log.Message($"[Project Vigilance] Initialized Core Framework ({modeLabel}). Unified options host & modular migration ready.");
+    }
+
+    private static void ApplyHarmonyPatches()
+    {
+        if (harmonyPatched)
+        {
+            return;
+        }
+        harmonyPatched = true;
+
+        try
+        {
+            var harmony = new Harmony(PackageId);
+            harmony.PatchAll(Assembly.GetExecutingAssembly());
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"[Project Vigilance] Could not apply Core Harmony patches: {ex.Message}");
+        }
     }
 
     public static void RegisterBackCompatibilityConverter()
