@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Seamless Geoscape / Battlescape Camera Zoom (`SeamlessCameraZoomUtility`, `GeoscapeSettings`):**
+  - Zooming out past maximum map zoom transitions to the planetary Geoscape centred on `Find.CurrentMap.Tile` at `1.06× MinAltitude`.
+  - Zooming in past minimum globe altitude transitions into an active loaded map (`Find.Maps`) within 2 tiles (`CursorFirst` with screen-centre fallback, or `ScreenCenter` only; tie-breaking on `WorldSelector.SingleSelectedObject`), landing at `92%` maximum map zoom-out.
+  - Guarded by configurable over-scroll notches (`1`–`5`, default `2`, clamped to `<= 1` notch per IMGUI scroll event), `0.65 s` over-scroll decay, `0.45 s` post-transition cooldown, and UI/window scroll blocking checks.
+
 ## [0.4.2] - 2026-11-19
 
 ### Hotfix: Orbital Performance, Runaway Spawn Deduplication & Fog of War Optimisations

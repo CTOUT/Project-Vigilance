@@ -78,6 +78,8 @@ namespace ProjectVigilance.Geoscape.Sensory
             }
         }
 
+        public override bool VisibleWhenLayerNotSelected => true;
+
         public override bool Visible
         {
             get
@@ -87,7 +89,10 @@ namespace ProjectVigilance.Geoscape.Sensory
                     return false;
                 }
 
-                return Find.World != null && WorldRendererUtility.WorldRendered;
+                return planetLayer != null
+                    && planetLayer.Visible
+                    && Find.World != null
+                    && WorldRendererUtility.WorldRendered;
             }
         }
 

@@ -20,6 +20,12 @@ public enum GeoscapeSettingsTab
     Diagnostics
 }
 
+public enum SeamlessZoomTargetMode
+{
+    CursorFirst,
+    ScreenCenter
+}
+
 public class GeoscapeSettings : ModSettings
 {
     // =========================================================================
@@ -66,6 +72,11 @@ public class GeoscapeSettings : ModSettings
     public ShroudEffectLevel shroudEffects = ShroudEffectLevel.Subtle;
     public bool reduceShroudMotion = false;
     public bool optimiseUnexploredTerrain = true;
+    public bool showGeoscapeClouds = true;
+    public float geoscapeCloudOpacity = 0.18f;
+    public bool enableSeamlessCameraZoom = true;
+    public int seamlessZoomOverscrollNotches = 2;
+    public SeamlessZoomTargetMode seamlessZoomTargetMode = SeamlessZoomTargetMode.CursorFirst;
 
     // =========================================================================
     // Transient UI State (Tabs, Scrolling & Dynamic Sizing)
@@ -216,6 +227,13 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref shroudEffects, "shroudEffects", ShroudEffectLevel.Subtle);
         Scribe_Values.Look(ref reduceShroudMotion, "reduceShroudMotion", false);
         Scribe_Values.Look(ref optimiseUnexploredTerrain, "optimiseUnexploredTerrain", true);
+        Scribe_Values.Look(ref showGeoscapeClouds, "showGeoscapeClouds", true);
+        Scribe_Values.Look(ref geoscapeCloudOpacity, "geoscapeCloudOpacity", 0.18f);
+        geoscapeCloudOpacity = Mathf.Clamp(geoscapeCloudOpacity, 0f, 0.75f);
+        Scribe_Values.Look(ref enableSeamlessCameraZoom, "enableSeamlessCameraZoom", true);
+        Scribe_Values.Look(ref seamlessZoomOverscrollNotches, "seamlessZoomOverscrollNotches", 2);
+        seamlessZoomOverscrollNotches = Mathf.Clamp(seamlessZoomOverscrollNotches, 1, 5);
+        Scribe_Values.Look(ref seamlessZoomTargetMode, "seamlessZoomTargetMode", SeamlessZoomTargetMode.CursorFirst);
     }
 
     // =========================================================================
@@ -788,6 +806,19 @@ public class GeoscapeSettings : ModSettings
             {
                 Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
             }
+
+            shroudCol.Gap(2f);
+            shroudCol.CheckboxLabeled(
+                "PV_Shroud_CloudsLabel".Translate(),
+                ref showGeoscapeClouds,
+                "PV_Shroud_CloudsTooltip".Translate());
+            DrawToggleableSlider(
+                shroudCol,
+                "PV_Shroud_CloudOpacityLabel".Translate(Mathf.RoundToInt(geoscapeCloudOpacity * 100f)),
+                ref geoscapeCloudOpacity,
+                0f,
+                0.75f,
+                showGeoscapeClouds);
         }
         shroudCol.End();
 
@@ -993,6 +1024,40 @@ public class GeoscapeSettings : ModSettings
                     "PV_Settings_ThermalIntegrityAudit".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit".Translate().ToString() : "Thermal Integrity Def Audit",
                     ref enableThermalIntegrityAudit,
                     "PV_Settings_ThermalIntegrityAudit_Desc".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit_Desc".Translate().ToString() : "Automatically enforces non-combustible properties on metals, stone, and structural components at startup.");
+            }
+
+            leftCol.CheckboxLabeled(
+                "PV_Settings_SeamlessZoom".CanTranslate() ? "PV_Settings_SeamlessZoom".Translate().ToString() : "Seamless Geoscape / Battlescape Zoom",
+                ref enableSeamlessCameraZoom,
+                "PV_Settings_SeamlessZoom_Desc".CanTranslate() ? "PV_Settings_SeamlessZoom_Desc".Translate().ToString() : "Allows zooming out past maximum map zoom to open the planetary Geoscape centred on that tile, and zooming in past minimum globe altitude to enter an active battlescape or colony map.");
+
+            DrawToggleableIntSlider(
+                leftCol,
+                "PV_Settings_SeamlessZoomNotches".CanTranslate() ? "PV_Settings_SeamlessZoomNotches".Translate(seamlessZoomOverscrollNotches).ToString() : $"Overscroll Notches Required: {seamlessZoomOverscrollNotches}",
+                ref seamlessZoomOverscrollNotches,
+                1,
+                5,
+                "PV_Settings_SeamlessZoomNotches_Desc".CanTranslate() ? "PV_Settings_SeamlessZoomNotches_Desc".Translate().ToString() : "Number of extra scroll-wheel notches required after hitting the zoom boundary before transitioning between Battlescape and Geoscape.",
+                enableSeamlessCameraZoom);
+
+            if (enableSeamlessCameraZoom)
+            {
+                string targetLabel = "PV_Settings_SeamlessZoomTarget".CanTranslate()
+                    ? "PV_Settings_SeamlessZoomTarget".Translate().ToString()
+                    : "Zoom-In Target Priority";
+                string targetValue = seamlessZoomTargetMode == SeamlessZoomTargetMode.CursorFirst
+                    ? ("PV_Settings_SeamlessZoomTarget_CursorFirst".CanTranslate() ? "PV_Settings_SeamlessZoomTarget_CursorFirst".Translate().ToString() : "Cursor First (Centre Fallback)")
+                    : ("PV_Settings_SeamlessZoomTarget_ScreenCenter".CanTranslate() ? "PV_Settings_SeamlessZoomTarget_ScreenCenter".Translate().ToString() : "Screen Centre Only");
+                string targetDesc = "PV_Settings_SeamlessZoomTarget_Desc".CanTranslate()
+                    ? "PV_Settings_SeamlessZoomTarget_Desc".Translate().ToString()
+                    : "Determines how an active map is chosen when zooming in from the Geoscape when multiple battlescapes or colonies are nearby.";
+                if (leftCol.ButtonTextLabeled(targetLabel, targetValue, tooltip: targetDesc))
+                {
+                    seamlessZoomTargetMode = seamlessZoomTargetMode == SeamlessZoomTargetMode.CursorFirst
+                        ? SeamlessZoomTargetMode.ScreenCenter
+                        : SeamlessZoomTargetMode.CursorFirst;
+                    SoundDefOf.Click?.PlayOneShotOnCamera();
+                }
             }
         }
         leftCol.End();
@@ -1336,6 +1401,11 @@ public class GeoscapeSettings : ModSettings
         shroudEffects = ShroudEffectLevel.Subtle;
         reduceShroudMotion = false;
         optimiseUnexploredTerrain = true;
+        showGeoscapeClouds = true;
+        geoscapeCloudOpacity = 0.18f;
+        enableSeamlessCameraZoom = true;
+        seamlessZoomOverscrollNotches = 2;
+        seamlessZoomTargetMode = SeamlessZoomTargetMode.CursorFirst;
         WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
         Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
         NotifyRadarVisualsChanged();

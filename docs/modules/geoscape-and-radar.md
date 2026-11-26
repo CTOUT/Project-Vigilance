@@ -735,3 +735,16 @@ Project Vigilance implements an overland trade caravan architecture:
 4. **Pre-Entry Impassable Safeguards (`SetupMoveIntoNextTile` & `TryEnterNextPathTile`):**
    - `Caravan_PathFollower_TryEnterNextPathTile_Patch` and `Caravan_PathFollower_SetupMoveIntoNextTile_Patch` (which inspects `path.Peek(1)` before vanilla consumes the next node) validate `OptimisticPathingUtility.IsTileActuallyImpassable`.
    - If an upcoming tile is unwalkable, only that single blocked tile is uncovered via `MarkSurroundingTilesExplored(tile, 0f)` (`maxSteps = 0`), `NotifyCaravanVisionUpdated(caravan)` triggers recovery, and if the stale path is not replaced, `StopDead()` halts the caravan before stepping onto the impassable tile.
+
+### 6.12 Seamless Geoscape & Battlescape Camera Zoom
+
+1. **Boundary Over-Scroll Transitions (`SeamlessCameraZoomUtility`):**
+   - Harmony prefixes on `CameraDriver.CameraDriverOnGUI` and `WorldCameraDriver.WorldCameraDriverOnGUI` enable continuous scroll-wheel transitions between active tactical maps and the planetary Geoscape.
+   - **Map → Geoscape:** Scrolling out past `CameraMapConfig.sizeRange.max` centres the globe (`WorldCameraDriver.JumpTo`) on `Find.CurrentMap.Tile` at `1.06 × WorldCameraDriver.MinAltitude`.
+   - **Geoscape → Map:** Scrolling in past `WorldCameraDriver.MinAltitude` scans active `Find.Maps` within a 2-tile snap radius (`Find.WorldGrid.ApproxDistanceInTiles` on matching `PlanetLayer`) and enters the matched map at `92%` of `sizeRange.max`.
+2. **Accidental Trigger & Anti-Bounce Guards:**
+   - Each IMGUI scroll event is clamped to at most `1.0` notch so fast wheel flicks cannot bypass the configured over-scroll threshold (`1`–`5` notches, default `2`).
+   - Over-scroll resets on opposite-direction scrolling, after `0.65 s` of idle time, or during the `0.45 s` post-transition cooldown; scrolling over open UI windows or blocking dialogs is ignored.
+3. **Multi-Zone Disambiguation & Mod Settings (`GeoscapeSettings`):**
+   - **Target Priority (`SeamlessZoomTargetMode`):** Supports `CursorFirst` (picks the active map nearest the mouse cursor within snap radius, falling back to screen centre) or `ScreenCenter` only. Multiple equidistant maps tie-break in favour of `Find.WorldSelector.SingleSelectedObject`.
+   - Configurable in **Geoscape Rules** (enable toggle, notch threshold, and target priority).

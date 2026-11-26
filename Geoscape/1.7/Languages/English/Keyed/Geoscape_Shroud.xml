@@ -12,4 +12,7 @@
   <PV_Shroud_ReduceMotionTooltip>Freezes procedural nebula drift and frontier glow pulsing into a static appearance.</PV_Shroud_ReduceMotionTooltip>
   <PV_Shroud_OptimiseTerrainLabel>Optimise Unexplored Terrain</PV_Shroud_OptimiseTerrainLabel>
   <PV_Shroud_OptimiseTerrainTooltip>Skips rendering fully shrouded terrain mesh chunks beneath the Fog of War shell while keeping tile selection and pathing intact.</PV_Shroud_OptimiseTerrainTooltip>
+  <PV_Shroud_CloudsLabel>Show Geoscape Clouds</PV_Shroud_CloudsLabel>
+  <PV_Shroud_CloudsTooltip>Keeps the planetary cloud layer subtly visible when zoomed in to the Geoscape, fading smoothly into full orbital clouds when zooming out.</PV_Shroud_CloudsTooltip>
+  <PV_Shroud_CloudOpacityLabel>Zoomed-In Cloud Opacity: {0}%</PV_Shroud_CloudOpacityLabel>
 </LanguageData>

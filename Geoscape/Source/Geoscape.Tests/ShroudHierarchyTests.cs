@@ -938,4 +938,25 @@ public sealed class ShroudHierarchyTests : GeoscapeTestBase
             }
         }
     }
+
+    [TestMethod]
+    public void OrbitZoomVisibility_ShroudAndHazeStayVisibleWhenLayerNotSelected_AndCloudsClampBelowShroud()
+    {
+        var shellLayer = new WorldDrawLayer_ShroudShell();
+        var hazeLayer = new WorldDrawLayer_HazeOfWar();
+
+        Assert.IsTrue(shellLayer.VisibleWhenLayerNotSelected);
+        Assert.IsTrue(hazeLayer.VisibleWhenLayerNotSelected);
+
+        const int expectedMaxAllowed = WorldDrawLayer_RadarCoverage.DimmingRenderQueue - 1;
+        Assert.AreEqual(expectedMaxAllowed, WorldDrawLayer_Clouds_Patch.ComputeTargetRenderQueue(3550, shroudActive: true));
+        Assert.AreEqual(3510, WorldDrawLayer_Clouds_Patch.ComputeTargetRenderQueue(3510, shroudActive: true));
+        Assert.AreEqual(3550, WorldDrawLayer_Clouds_Patch.ComputeTargetRenderQueue(3550, shroudActive: false));
+
+        Assert.AreEqual(0f, WorldDrawLayer_Clouds_GetTargetOpacity_Patch.ComputeTargetOpacity(0f, showCloudsOnSurface: false, 0.18f), 0.0001f);
+        Assert.AreEqual(1f, WorldDrawLayer_Clouds_GetTargetOpacity_Patch.ComputeTargetOpacity(1f, showCloudsOnSurface: false, 0.18f), 0.0001f);
+        Assert.AreEqual(0.18f, WorldDrawLayer_Clouds_GetTargetOpacity_Patch.ComputeTargetOpacity(0f, showCloudsOnSurface: true, 0.18f), 0.0001f);
+        Assert.AreEqual(1f, WorldDrawLayer_Clouds_GetTargetOpacity_Patch.ComputeTargetOpacity(1f, showCloudsOnSurface: true, 0.18f), 0.0001f);
+        Assert.AreEqual(0.75f, WorldDrawLayer_Clouds_GetTargetOpacity_Patch.ComputeTargetOpacity(0f, showCloudsOnSurface: true, 0.95f), 0.0001f);
+    }
 }

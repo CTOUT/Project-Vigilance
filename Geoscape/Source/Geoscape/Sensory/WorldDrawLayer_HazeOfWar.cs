@@ -130,6 +130,8 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
         Instance = this;
     }
 
+    public override bool VisibleWhenLayerNotSelected => true;
+
     public override bool Visible
     {
         get
@@ -139,7 +141,10 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
                 return false;
             }
 
-            return Find.World != null && WorldRendererUtility.WorldRendered;
+            return planetLayer != null
+                && planetLayer.Visible
+                && Find.World != null
+                && WorldRendererUtility.WorldRendered;
         }
     }
 

@@ -26,6 +26,14 @@
   <PV_Settings_OptimisticDetours_Desc>Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered.</PV_Settings_OptimisticDetours_Desc>
   <PV_Settings_InterFactionCollisions>Inter-Faction Overland Collisions</PV_Settings_InterFactionCollisions>
   <PV_Settings_InterFactionCollisions_Desc>Simulates background encounters and skirmishes when rival NPC incursions cross paths on the globe.</PV_Settings_InterFactionCollisions_Desc>
+  <PV_Settings_SeamlessZoom>Seamless Geoscape / Battlescape Zoom</PV_Settings_SeamlessZoom>
+  <PV_Settings_SeamlessZoom_Desc>Allows zooming out past maximum map zoom to open the planetary Geoscape centred on that tile, and zooming in past minimum globe altitude to enter an active battlescape or colony map.</PV_Settings_SeamlessZoom_Desc>
+  <PV_Settings_SeamlessZoomNotches>Overscroll Notches Required: {0}</PV_Settings_SeamlessZoomNotches>
+  <PV_Settings_SeamlessZoomNotches_Desc>Number of extra scroll-wheel notches required after hitting the zoom boundary before transitioning between Battlescape and Geoscape. Higher values prevent accidental transitions.</PV_Settings_SeamlessZoomNotches_Desc>
+  <PV_Settings_SeamlessZoomTarget>Zoom-In Target Priority</PV_Settings_SeamlessZoomTarget>
+  <PV_Settings_SeamlessZoomTarget_Desc>Determines how an active map is chosen when zooming in from the Geoscape when multiple battlescapes or colonies are nearby.</PV_Settings_SeamlessZoomTarget_Desc>
+  <PV_Settings_SeamlessZoomTarget_CursorFirst>Cursor First (Centre Fallback)</PV_Settings_SeamlessZoomTarget_CursorFirst>
+  <PV_Settings_SeamlessZoomTarget_ScreenCenter>Screen Centre Only</PV_Settings_SeamlessZoomTarget_ScreenCenter>
 
   <!-- Diagnostics & Module Status (en-GB) -->
   <PV_Diag_ArchTitle>Project Vigilance — Modular Architecture</PV_Diag_ArchTitle>
