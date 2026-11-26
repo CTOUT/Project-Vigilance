@@ -144,11 +144,13 @@ public static class CampaignRulesPanel
             listing,
             rules.ColonyIdentificationRadius,
             0.0f,
-            Mathf.Max(1.0f, maxColonyId),
+            14.0f,
             campaign,
             ctx,
             showLockPreview,
-            enabled: applicable && maxColonyId > 0.0f);
+            enabled: applicable && maxColonyId > 0.0f,
+            effectiveMax: maxColonyId,
+            effectiveMaxTooltip: $"Capped at {maxColonyId:0} hex(es) (Colony scout horizon - 1). Increase Colony scout horizon to unlock higher identification range.");
 
         CampaignRuleWidgets.DrawFloat(
             listing,
@@ -165,11 +167,13 @@ public static class CampaignRulesPanel
             listing,
             rules.CaravanIdentificationRadius,
             0.0f,
-            Mathf.Max(1.0f, maxCaravanId),
+            9.0f,
             campaign,
             ctx,
             showLockPreview,
-            enabled: applicable && maxCaravanId > 0.0f);
+            enabled: applicable && maxCaravanId > 0.0f,
+            effectiveMax: maxCaravanId,
+            effectiveMaxTooltip: $"Capped at {maxCaravanId:0} hex(es) (Caravan scout horizon - 1). Increase Caravan scout horizon to unlock higher identification range.");
 
         CampaignRuleWidgets.DrawBool(
             listing,

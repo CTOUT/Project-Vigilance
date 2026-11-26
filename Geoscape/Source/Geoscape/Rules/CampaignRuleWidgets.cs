@@ -70,11 +70,14 @@ public static class CampaignRuleWidgets
         RuleEditContext ctx,
         bool showLockPreview = false,
         bool enabled = true,
-        bool roundToInt = true)
+        bool roundToInt = true,
+        float? effectiveMax = null,
+        string? effectiveMaxTooltip = null)
     {
         float current = roundToInt ? Mathf.Round(rule.Value) : rule.Value;
+        float capMax = effectiveMax.HasValue ? Mathf.Clamp(effectiveMax.Value, min, max) : max;
         RuleTransitionVerdict testVerdict = rule.Evaluate(current + 1.0f, ctx);
-        bool isLocked = !enabled || (testVerdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled);
+        bool isLocked = !enabled || (capMax <= min) || (testVerdict == RuleTransitionVerdict.Blocked && !ctx.UnsafeOverrideEnabled);
 
         string header = $"{rule.Label}: {rule.CurrentValueLabel}";
         if (showLockPreview && rule.Mutability == RuleMutability.Immutable)
@@ -94,14 +97,20 @@ public static class CampaignRuleWidgets
         {
             GUI.color = DisabledTextColor;
             listing.Label(header, tooltip: rule.Description);
-            listing.Slider(current, min, max);
+            Rect lockedRect = listing.GetRect(22f);
+            Widgets.HorizontalSlider(lockedRect, current, min, max, middleAlignment: true);
+            DrawSliderCapOverlay(lockedRect, min, max, capMax, effectiveMaxTooltip);
             GUI.color = Color.white;
             return;
         }
 
         listing.Label(header, tooltip: rule.Description);
-        float rawSlider = listing.Slider(current, min, max);
+        Rect sliderRect = listing.GetRect(22f);
+        float rawSlider = Widgets.HorizontalSlider(sliderRect, current, min, max, middleAlignment: true);
+        DrawSliderCapOverlay(sliderRect, min, max, capMax, effectiveMaxTooltip);
+
         float newRadius = roundToInt ? Mathf.Round(rawSlider) : rawSlider;
+        newRadius = Mathf.Min(newRadius, capMax);
         if (Mathf.Abs(newRadius - current) > 0.05f)
         {
             RuleTransitionVerdict verdict = rule.Evaluate(newRadius, ctx);
@@ -256,6 +265,37 @@ public static class CampaignRuleWidgets
                     title: "Unsafe Campaign Rule Override");
                 Find.WindowStack?.Add(unsafeBox);
                 break;
+        }
+    }
+
+    private static void DrawSliderCapOverlay(
+        Rect sliderRect,
+        float min,
+        float max,
+        float capMax,
+        string? tooltip)
+    {
+        if (capMax >= max - 0.001f)
+        {
+            return;
+        }
+
+        float capFraction = Mathf.Clamp01(Mathf.InverseLerp(min, max, capMax));
+        float capX = sliderRect.x + sliderRect.width * capFraction;
+        Rect blockedRect = new Rect(
+            capX,
+            sliderRect.y + 5f,
+            Mathf.Max(0f, sliderRect.xMax - capX),
+            sliderRect.height - 10f);
+
+        Widgets.DrawBoxSolid(blockedRect, new Color(0.10f, 0.11f, 0.13f, 0.80f));
+        Widgets.DrawBoxSolid(
+            new Rect(capX - 1f, sliderRect.y + 3f, 2f, sliderRect.height - 6f),
+            new Color(0.60f, 0.64f, 0.68f, 0.75f));
+
+        if (!string.IsNullOrEmpty(tooltip))
+        {
+            TooltipHandler.TipRegion(blockedRect, tooltip);
         }
     }
 }

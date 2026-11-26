@@ -453,10 +453,10 @@ public class GeoscapeSettings : ModSettings
     private void DrawRadarTab(Listing_Standard listing)
     {
         // 1. Header: Live HUD Scope Preview, Overlay Mode & Background Dimming
-        float headerHeight = 158f;
+        float headerHeight = 138f;
         Rect headerRect = listing.GetRect(headerHeight);
 
-        float previewSize = 156f;
+        float previewSize = 136f;
         Rect previewRect = new Rect(headerRect.x, headerRect.y, previewSize, previewSize);
         Rect modeColRect = new Rect(headerRect.x + previewSize + 16f, headerRect.y, headerRect.width - previewSize - 16f, headerHeight);
 
@@ -498,7 +498,6 @@ public class GeoscapeSettings : ModSettings
                 }
             }
 
-            modeListing.Gap(4f);
             DrawToggleableSlider(
                 modeListing,
                 $"Surveillance Background Dimming: {surveillanceDimming:P0}",
@@ -509,7 +508,7 @@ public class GeoscapeSettings : ModSettings
         }
         modeListing.End();
 
-        listing.GapLine(6f);
+        listing.GapLine(4f);
 
         bool outlinesEnabled = radarOutlineStyle != RadarOutlineStyle.None;
         bool gridEnabled = radarOutlineStyle == RadarOutlineStyle.BoundaryAndGrid;
@@ -528,9 +527,9 @@ public class GeoscapeSettings : ModSettings
         float totalWidth = listing.ColumnWidth;
         float colWidth = (totalWidth - 16f) / 2f;
 
-        Rect themeRow = listing.GetRect(28f);
-        Rect themeBtn = new Rect(themeRow.x, themeRow.y, colWidth, 26f);
-        Rect overrideRect = new Rect(themeRow.x + colWidth + 16f, themeRow.y, colWidth, 26f);
+        Rect themeRow = listing.GetRect(26f);
+        Rect themeBtn = new Rect(themeRow.x, themeRow.y, colWidth, 24f);
+        Rect overrideRect = new Rect(themeRow.x + colWidth + 16f, themeRow.y, colWidth, 24f);
 
         string themeKey = $"PV_Settings_Theme_{sensoryTheme}";
         string themeLabel = themeKey.CanTranslate() ? themeKey.Translate().ToString() : sensoryTheme.ToString();
@@ -562,7 +561,7 @@ public class GeoscapeSettings : ModSettings
             NotifyRadarVisualsChanged();
         }
 
-        listing.Gap(4f);
+        listing.Gap(2f);
 
         Rect twoColRect = listing.GetRect(radarColumnsHeight);
         Rect leftRect = new Rect(twoColRect.x, twoColRect.y, colWidth, twoColRect.height);
@@ -604,7 +603,6 @@ public class GeoscapeSettings : ModSettings
                 () => usePlayerFactionColor = false,
                 customColorsEnabled);
 
-            leftListing.Gap(4f);
             DrawToggleableSlider(
                 leftListing,
                 $"Perimeter Intensity: {radarOutlineOpacity:P0}",
@@ -675,9 +673,9 @@ public class GeoscapeSettings : ModSettings
         }
         rightListing.End();
 
-        radarColumnsHeight = Mathf.Max(leftListing.CurHeight, rightListing.CurHeight) + 4f;
+        radarColumnsHeight = Mathf.Max(leftListing.CurHeight, rightListing.CurHeight) + 2f;
 
-        listing.GapLine(6f);
+        listing.GapLine(4f);
 
         // 3 & 4 Bottom Two-Column Row: Terrain Masking (left) & Shroud Atmosphere (right)
         Rect bottomRowRect = listing.GetRect(radarBottomRowHeight);
@@ -759,9 +757,9 @@ public class GeoscapeSettings : ModSettings
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 
-            Rect styleRow = shroudCol.GetRect(26f);
-            Rect styleLabelRect = new Rect(styleRow.x, styleRow.y + 2f, styleRow.width * 0.44f, 22f);
-            Rect styleBtnRect = new Rect(styleLabelRect.xMax + 6f, styleRow.y, styleRow.width * 0.56f - 6f, 24f);
+            Rect styleRow = shroudCol.GetRect(24f);
+            Rect styleLabelRect = new Rect(styleRow.x, styleRow.y + 1f, styleRow.width * 0.44f, 22f);
+            Rect styleBtnRect = new Rect(styleLabelRect.xMax + 6f, styleRow.y, styleRow.width * 0.56f - 6f, 22f);
             Widgets.Label(styleLabelRect, "PV_Shroud_EffectsLabel".Translate());
             string currentEffectLabel = $"PV_Shroud_Effects_{shroudEffects}".Translate();
             if (Widgets.ButtonText(styleBtnRect, currentEffectLabel))
@@ -784,7 +782,6 @@ public class GeoscapeSettings : ModSettings
             }
             TooltipHandler.TipRegion(styleRow, "PV_Shroud_EffectsTooltip".Translate());
 
-            shroudCol.Gap(2f);
             bool prevReduceMotion = reduceShroudMotion;
             DrawToggleableCheckbox(
                 shroudCol,
@@ -807,22 +804,33 @@ public class GeoscapeSettings : ModSettings
                 Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
             }
 
-            shroudCol.Gap(2f);
             shroudCol.CheckboxLabeled(
                 "PV_Shroud_CloudsLabel".Translate(),
                 ref showGeoscapeClouds,
                 "PV_Shroud_CloudsTooltip".Translate());
-            DrawToggleableSlider(
-                shroudCol,
-                "PV_Shroud_CloudOpacityLabel".Translate(Mathf.RoundToInt(geoscapeCloudOpacity * 100f)),
-                ref geoscapeCloudOpacity,
-                0f,
-                0.75f,
-                showGeoscapeClouds);
+
+            Rect cloudSliderRow = shroudCol.GetRect(24f);
+            Rect cloudLabelRect = new Rect(cloudSliderRow.x, cloudSliderRow.y + 1f, cloudSliderRow.width * 0.56f, 22f);
+            Rect cloudBarRect = new Rect(cloudLabelRect.xMax + 6f, cloudSliderRow.y + 1f, cloudSliderRow.width * 0.44f - 6f, 22f);
+            if (!showGeoscapeClouds)
+            {
+                GUI.color = DisabledControlColor;
+            }
+            Widgets.Label(cloudLabelRect, "PV_Shroud_CloudOpacityLabel".Translate(Mathf.RoundToInt(geoscapeCloudOpacity * 100f)));
+            float newCloudOpacity = Widgets.HorizontalSlider(cloudBarRect, geoscapeCloudOpacity, 0f, 0.75f, middleAlignment: true);
+            if (!showGeoscapeClouds)
+            {
+                GUI.color = Color.white;
+            }
+            else if (Mathf.Abs(newCloudOpacity - geoscapeCloudOpacity) > 0.005f)
+            {
+                geoscapeCloudOpacity = newCloudOpacity;
+                NotifyRadarVisualsChanged();
+            }
         }
         shroudCol.End();
 
-        radarBottomRowHeight = Mathf.Max(shadowCol.CurHeight, shroudCol.CurHeight) + 2f;
+        radarBottomRowHeight = Mathf.Max(shadowCol.CurHeight, shroudCol.CurHeight);
     }
 
     private void DrawToggleableCheckbox(Listing_Standard listing, string label, ref bool value, string tooltip, bool enabled)
