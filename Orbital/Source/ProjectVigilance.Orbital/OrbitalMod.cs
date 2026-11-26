@@ -1,6 +1,9 @@
 using System.Reflection;
 using HarmonyLib;
+using ProjectVigilance.Core;
 using ProjectVigilance.Core.Modules;
+using ProjectVigilance.Geoscape.Settings;
+using UnityEngine;
 using Verse;
 
 namespace ProjectVigilance.Geoscape.Orbital;
@@ -28,7 +31,18 @@ public class OrbitalMod : Mod
         VigilanceModuleManager.HasNavigationCoverageHook = tile => OrbitalManager.Instance?.HasNavigationCoverage(tile) == true;
     }
 
-    public override string SettingsCategory() => string.Empty;
+    public override void DoSettingsWindowContents(Rect inRect)
+    {
+        VigilanceCoreMod.DrawUnifiedOptionsWindowForModule(PackageId, "Diagnostics", inRect);
+    }
+
+    public override void WriteSettings()
+    {
+        base.WriteSettings();
+        VigilanceSettingsRegistry.NotifyWriteAllSettings();
+    }
+
+    public override string SettingsCategory() => "Project Vigilance — Orbital";
 }
 
 [StaticConstructorOnStartup]

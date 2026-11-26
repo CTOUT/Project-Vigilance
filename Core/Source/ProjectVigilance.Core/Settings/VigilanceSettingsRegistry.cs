@@ -13,12 +13,28 @@ public static class VigilanceSettingsRegistry
     private static readonly List<ISettingsTabProvider> tabProviders = new();
     private static string? pendingTabSelection;
 
+    [ThreadStatic]
+    private static bool isNotifyingWrite;
+
     public static event Action<string>? OnTabSelectionRequested;
     public static event Action? OnWriteAllSettings;
 
     public static void NotifyWriteAllSettings()
     {
-        OnWriteAllSettings?.Invoke();
+        if (isNotifyingWrite)
+        {
+            return;
+        }
+
+        isNotifyingWrite = true;
+        try
+        {
+            OnWriteAllSettings?.Invoke();
+        }
+        finally
+        {
+            isNotifyingWrite = false;
+        }
     }
 
     public static IReadOnlyList<ISettingsTabProvider> RegisteredTabs

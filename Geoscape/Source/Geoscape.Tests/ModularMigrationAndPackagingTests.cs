@@ -292,10 +292,10 @@ public class ModularMigrationAndPackagingTests
 #pragma warning restore SYSLIB0050
 
         Assert.AreEqual("Project Vigilance", coreMod.SettingsCategory());
-        Assert.AreEqual(string.Empty, geoscapeMod.SettingsCategory());
-        Assert.AreEqual(string.Empty, orbitalMod.SettingsCategory());
-        Assert.AreEqual(string.Empty, aquaticsMod.SettingsCategory());
-        Assert.AreEqual(string.Empty, thermalMod.SettingsCategory());
+        Assert.AreEqual("Project Vigilance — Geoscape", geoscapeMod.SettingsCategory());
+        Assert.AreEqual("Project Vigilance — Orbital", orbitalMod.SettingsCategory());
+        Assert.AreEqual("Project Vigilance — Aquatics", aquaticsMod.SettingsCategory());
+        Assert.AreEqual("Project Vigilance — Thermal", thermalMod.SettingsCategory());
     }
 
     [TestMethod]

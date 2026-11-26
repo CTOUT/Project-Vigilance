@@ -74,7 +74,18 @@ public class ThermalMod : Mod, ISettingsTabProvider
         listing.CheckboxLabeled(label, ref Settings.enableThermalIntegrityAudit, tooltip);
     }
 
-    public override string SettingsCategory() => string.Empty;
+    public override void DoSettingsWindowContents(Rect inRect)
+    {
+        ProjectVigilance.Core.VigilanceCoreMod.DrawUnifiedOptionsWindowForModule(PackageId, "Thermal", inRect);
+    }
+
+    public override void WriteSettings()
+    {
+        base.WriteSettings();
+        VigilanceSettingsRegistry.NotifyWriteAllSettings();
+    }
+
+    public override string SettingsCategory() => "Project Vigilance — Thermal";
 }
 
 [StaticConstructorOnStartup]

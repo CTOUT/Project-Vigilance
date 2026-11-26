@@ -169,10 +169,16 @@ public class GeoscapeMod : Mod
 
     public override void DoSettingsWindowContents(Rect inRect)
     {
-        Settings.DoWindowContents(inRect);
+        ProjectVigilance.Core.VigilanceCoreMod.DrawUnifiedOptionsWindowForModule(PackageId, "Sensory", inRect);
     }
 
-    public override string SettingsCategory() => string.Empty;
+    public override void WriteSettings()
+    {
+        base.WriteSettings();
+        VigilanceSettingsRegistry.NotifyWriteAllSettings();
+    }
+
+    public override string SettingsCategory() => "Project Vigilance — Geoscape";
 }
 
 [StaticConstructorOnStartup]

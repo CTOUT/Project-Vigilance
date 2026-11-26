@@ -22,6 +22,7 @@ public class VigilanceCoreMod : Mod
     private static bool compatibilityRegistered;
 
     private static string currentTabKey = string.Empty;
+    private static string lastSelectedModuleKey = string.Empty;
     private static readonly Dictionary<string, Vector2> tabScrolls = new();
     private static readonly Dictionary<string, float> tabHeights = new();
 
@@ -82,6 +83,24 @@ public class VigilanceCoreMod : Mod
 
     public override void DoSettingsWindowContents(Rect inRect)
     {
+        DrawUnifiedOptionsWindowForModule(PackageId, null, inRect);
+    }
+
+    /// <summary>
+    /// Opens the single unified Project Vigilance options window from any suite module's Mod Options entry,
+    /// optionally pre-selecting that module's tab the first time the user switches to it.
+    /// </summary>
+    public static void DrawUnifiedOptionsWindowForModule(string moduleKey, string? defaultTabKey, Rect inRect)
+    {
+        if (!string.Equals(lastSelectedModuleKey, moduleKey, StringComparison.Ordinal))
+        {
+            lastSelectedModuleKey = moduleKey;
+            if (!string.IsNullOrEmpty(defaultTabKey))
+            {
+                VigilanceSettingsRegistry.RequestTabSelection(defaultTabKey);
+            }
+        }
+
         if (VigilanceModuleManager.DoUnifiedSettingsWindowContentsHook != null)
         {
             VigilanceModuleManager.DoUnifiedSettingsWindowContentsHook(inRect);
@@ -170,7 +189,11 @@ internal static class VigilanceCoreStartup
 {
     static VigilanceCoreStartup()
     {
-        VigilanceModuleManager.RegisterActiveModule(VigilanceModuleId.Core);
+        if (!VigilanceModuleManager.IsCoreEmbeddedFallback &&
+            ModLister.GetActiveModWithIdentifier(VigilanceCoreMod.PackageId, ignorePostfix: true) != null)
+        {
+            VigilanceModuleManager.RegisterActiveModule(VigilanceModuleId.Core);
+        }
         VigilanceCoreMod.RegisterBackCompatibilityConverter();
     }
 }

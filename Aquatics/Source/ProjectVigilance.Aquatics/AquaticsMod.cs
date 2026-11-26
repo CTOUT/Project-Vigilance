@@ -1,4 +1,7 @@
+using ProjectVigilance.Core;
 using ProjectVigilance.Core.Modules;
+using ProjectVigilance.Geoscape.Settings;
+using UnityEngine;
 using Verse;
 
 namespace ProjectVigilance.Geoscape.Sensory;
@@ -21,7 +24,18 @@ public class AquaticsMod : Mod
         VigilanceModuleManager.RegisterActiveModule(VigilanceModuleId.Aquatics);
     }
 
-    public override string SettingsCategory() => string.Empty;
+    public override void DoSettingsWindowContents(Rect inRect)
+    {
+        VigilanceCoreMod.DrawUnifiedOptionsWindowForModule(PackageId, "Radar", inRect);
+    }
+
+    public override void WriteSettings()
+    {
+        base.WriteSettings();
+        VigilanceSettingsRegistry.NotifyWriteAllSettings();
+    }
+
+    public override string SettingsCategory() => "Project Vigilance — Aquatics";
 }
 
 [StaticConstructorOnStartup]

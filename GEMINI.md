@@ -70,7 +70,7 @@
 - Optional domain mechanics (e.g. orbital logistics, coastal sonar, thermal integrity, tactical battlescape) must not introduce hard compile-time assembly references between domain modules or into `ProjectVigilance.Core`.
 - Declare `brrainz.harmony` ONLY in `Core/About/About.xml`; domain sub-modules declare only `ProjectVigilance.Core` in `<modDependencies>` and reference `ProjectVigilance.Core.csproj` with `<Private>false</Private>`.
 - Use Core interfaces, `VigilanceModuleManager` soft hooks registered via `[StaticConstructorOnStartup]` (never `[ModuleInitializer]`, which violates `CA2255`), and XML `PatchOperationFindMod` for conditional cross-module integration.
-- Only `VigilanceCoreMod` returns `"Project Vigilance"` from `SettingsCategory()`; domain sub-modules return `string.Empty`, register tabs into `VigilanceSettingsRegistry` via `ISettingsTabProvider`, and subscribe to `VigilanceSettingsRegistry.OnWriteAllSettings`.
+- Only `VigilanceCoreMod` owns the unified `"Project Vigilance"` options host; domain sub-modules return `"Project Vigilance — <Module>"` from `SettingsCategory()`, delegate `DoSettingsWindowContents()` to `VigilanceCoreMod.DrawUnifiedOptionsWindowForModule(...)`, register tabs into `VigilanceSettingsRegistry` via `ISettingsTabProvider`, and subscribe to `VigilanceSettingsRegistry.OnWriteAllSettings`.
 
 ## 13. Modular Savegame Migration & Workshop Continuity
 
