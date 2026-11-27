@@ -538,18 +538,29 @@ public sealed class ShroudHierarchyTests : GeoscapeTestBase
 
         hierarchy.ClearDirtyFlags();
 
-        long bytesBefore = GC.GetAllocatedBytesForCurrentThread();
-        for (int iter = 0; iter < 500; iter++)
+        // Measure two consecutive 500-iteration steady-state batches; any one-time tiered-JIT or TLAB
+        // adjustment can only affect at most one batch, whereas per-transition allocations hit both.
+        long minAllocated = long.MaxValue;
+        for (int pass = 0; pass < 2; pass++)
         {
-            int tileId = iter % globe.TileCount;
-            hierarchy.SetTileState(tileId, ShroudHierarchy.StateClear);
-            hierarchy.SetTileState(tileId, ShroudHierarchy.StateHaze);
-            hierarchy.SetTileState(tileId, ShroudHierarchy.StateShroud);
-            hierarchy.ClearDirtyFlags();
+            long bytesBefore = GC.GetAllocatedBytesForCurrentThread();
+            for (int iter = 0; iter < 500; iter++)
+            {
+                int tileId = iter % globe.TileCount;
+                hierarchy.SetTileState(tileId, ShroudHierarchy.StateClear);
+                hierarchy.SetTileState(tileId, ShroudHierarchy.StateHaze);
+                hierarchy.SetTileState(tileId, ShroudHierarchy.StateShroud);
+                hierarchy.ClearDirtyFlags();
+            }
+
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - bytesBefore;
+            if (allocated < minAllocated)
+            {
+                minAllocated = allocated;
+            }
         }
 
-        long bytesAfter = GC.GetAllocatedBytesForCurrentThread();
-        Assert.AreEqual(0L, bytesAfter - bytesBefore, "Steady-state ShroudHierarchy transitions must allocate 0 bytes.");
+        Assert.AreEqual(0L, minAllocated, "Steady-state ShroudHierarchy transitions must allocate 0 bytes.");
     }
 
     [TestMethod]

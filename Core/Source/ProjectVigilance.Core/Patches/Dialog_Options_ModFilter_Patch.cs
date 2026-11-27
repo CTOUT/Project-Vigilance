@@ -20,8 +20,7 @@ public static class Dialog_Options_ModFilter_Patch
     private static readonly FieldInfo? CachedModsWithSettingsField =
         AccessTools.Field(typeof(Dialog_Options), "cachedModsWithSettings");
 
-    private static readonly ConditionalWeakTable<Dialog_Options, object> filteredDialogs = new();
-    private static readonly object FilteredSentinel = new();
+    private static readonly ConditionalWeakTable<Dialog_Options, List<Mod>> filteredDialogs = new();
 
     internal static IEnumerable<Mod> FilterModsForOptionsGrid(IEnumerable<Mod>? mods)
     {
@@ -61,7 +60,7 @@ public static class Dialog_Options_ModFilter_Patch
         return true;
     }
 
-    private static void ApplyFilter(Dialog_Options instance)
+    internal static void ApplyFilter(Dialog_Options instance)
     {
         if (instance == null || CachedModsWithSettingsField == null)
         {
@@ -69,26 +68,26 @@ public static class Dialog_Options_ModFilter_Patch
         }
 
         object? raw = CachedModsWithSettingsField.GetValue(instance);
-        if (filteredDialogs.TryGetValue(instance, out _) && raw != null)
+        if (raw != null && filteredDialogs.TryGetValue(instance, out List<Mod>? lastFiltered) && ReferenceEquals(raw, lastFiltered))
         {
             return;
         }
 
+        List<Mod> filtered;
         if (raw is IEnumerable<Mod> current)
         {
-            List<Mod> filtered = FilterModsForOptionsGrid(current).ToList();
-            CachedModsWithSettingsField.SetValue(instance, filtered);
+            filtered = FilterModsForOptionsGrid(current).ToList();
         }
         else
         {
-            List<Mod> populated = FilterModsForOptionsGrid(
+            filtered = FilterModsForOptionsGrid(
                     LoadedModManager.ModHandles.Where(m => !m.SettingsCategory().NullOrEmpty()))
                 .OrderBy(m => m.SettingsCategory(), StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            CachedModsWithSettingsField.SetValue(instance, populated);
         }
 
-        filteredDialogs.AddOrUpdate(instance, FilteredSentinel);
+        CachedModsWithSettingsField.SetValue(instance, filtered);
+        filteredDialogs.AddOrUpdate(instance, filtered);
     }
 
     [HarmonyPatch(typeof(Dialog_Options), MethodType.Constructor)]

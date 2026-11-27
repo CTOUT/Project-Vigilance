@@ -379,22 +379,12 @@ namespace ProjectVigilance.Geoscape.Sensory
                 return;
             }
 
+            // RimWorld's LayerSubMesh.FinalizeMesh invokes mesh.Clear() whenever MeshParts.Verts or MeshParts.Tris
+            // is present, so triangle re-uploads must always include Verts and Colors to avoid wiping the chunk mesh.
             sm.finalized = false;
-            if (!_chunkVertsUploaded[chunkIndex])
-            {
-                sm.FinalizeMesh(MeshParts.Verts | MeshParts.Colors | MeshParts.Tris);
-                _chunkVertsUploaded[chunkIndex] = true;
-                _chunkColorsDirtyWhileHidden[chunkIndex] = false;
-            }
-            else if (_chunkColorsDirtyWhileHidden[chunkIndex])
-            {
-                sm.FinalizeMesh(MeshParts.Colors | MeshParts.Tris);
-                _chunkColorsDirtyWhileHidden[chunkIndex] = false;
-            }
-            else
-            {
-                sm.FinalizeMesh(MeshParts.Tris);
-            }
+            sm.FinalizeMesh(MeshParts.Verts | MeshParts.Colors | MeshParts.Tris);
+            _chunkVertsUploaded[chunkIndex] = true;
+            _chunkColorsDirtyWhileHidden[chunkIndex] = false;
         }
 
         private void UpdateChunkColors(
