@@ -44,10 +44,10 @@ public class FoundationMilestone15Tests : GeoscapeTestBase
         public int SortOrder { get; }
         public bool DidRender { get; private set; }
 
-        public MockTabProvider(string key, string labelKey, string fallback, int order)
+        public MockTabProvider(string tabId, string labelId, string fallback, int order)
         {
-            TabKey = key;
-            TabLabelKey = labelKey;
+            TabKey = tabId;
+            TabLabelKey = labelId;
             FallbackTabLabel = fallback;
             SortOrder = order;
         }

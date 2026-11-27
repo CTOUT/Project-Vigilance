@@ -19,7 +19,8 @@ public static class SeamlessCameraZoomUtility
 {
     public const float TransitionCooldownSeconds = 0.45f;
     public const float OverscrollDecaySeconds = 0.65f;
-    public const float CloudTransitionDurationSeconds = 0.70f;
+    public const float CloudTransitionDurationSeconds = 1.00f;
+    public const float CloudSwapPointNormalized = 0.16f;
     public const int DefaultSnapRadiusTiles = 2;
     public const float MapBoundaryEpsilon = 0.35f;
     public const float WorldBoundaryEpsilon = 0.35f;
@@ -188,7 +189,7 @@ public static class SeamlessCameraZoomUtility
         }
 
         bool shouldSwap = false;
-        if (progress >= 0.5f && !transitionSwapped)
+        if (progress >= CloudSwapPointNormalized && !transitionSwapped)
         {
             transitionSwapped = true;
             shouldSwap = true;
@@ -206,7 +207,7 @@ public static class SeamlessCameraZoomUtility
         ref float accumulator,
         ref float lastOverscrollTime)
     {
-        if (isTransitionActive || now - lastTransitionTime < TransitionCooldownSeconds)
+        if ((isTransitionActive && !transitionSwapped) || now - lastTransitionTime < TransitionCooldownSeconds)
         {
             accumulator = 0f;
             return false;
@@ -709,39 +710,68 @@ public static class SeamlessCameraZoomUtility
 
         float w = UI.screenWidth;
         float h = UI.screenHeight;
-        // Smooth bell curve so clouds roll in gently, cover the midpoint swap, and part smoothly
-        float sinCurve = Mathf.Sin(progress * Mathf.PI);
-        float density = sinCurve * sinCurve;
-        float ease = progress * progress * (3f - 2f * progress);
+        bool inEntry = progress < CloudSwapPointNormalized;
+
+        float veilAlpha;
+        float puffAlpha;
+        float radialShift;
+        float sizeScale;
+
+        if (inEntry)
+        {
+            // Fast 0.16s roll-in to cover the binary view swap
+            float entryT = Mathf.Clamp01(progress / CloudSwapPointNormalized);
+            float easeIn = entryT * entryT;
+            veilAlpha = easeIn * 0.48f;
+            puffAlpha = easeIn * 0.36f;
+            radialShift = direction == TransitionDirection.ToGeoscape
+                ? Mathf.Lerp(0.88f, 0.42f, easeIn)
+                : Mathf.Lerp(0.42f, 0.72f, easeIn);
+            sizeScale = 0.90f + easeIn * 0.45f;
+        }
+        else
+        {
+            // Slow 0.84s centre-clear peripheral wisp drift (veil clears quickly; wisps part off-screen)
+            float exitT = Mathf.Clamp01((progress - CloudSwapPointNormalized) / (1f - CloudSwapPointNormalized));
+            float easeOut = 1f - Mathf.Pow(1f - exitT, 2.2f);
+            veilAlpha = Mathf.Pow(1f - exitT, 2.8f) * 0.44f;
+            puffAlpha = Mathf.Pow(1f - exitT, 1.45f) * 0.34f;
+            radialShift = Mathf.Lerp(0.55f, 1.48f, easeOut);
+            sizeScale = 1.35f + easeOut * 0.45f;
+        }
 
         using (new VigilanceUiWidgets.ImguiStateScope())
         {
-            // Muted atmospheric twilight cloud-deck veil (avoids harsh white flashbang glare)
-            GUI.color = new Color(0.20f, 0.25f, 0.31f, density * 0.62f);
-            GUI.DrawTexture(new Rect(0f, 0f, w, h), BaseContent.WhiteTex);
-
-            float cx = w * 0.5f;
-            float cy = h * 0.5f;
-            float maxDim = Mathf.Sqrt(w * w + h * h) * 0.56f;
-            bool ascending = direction == TransitionDirection.ToGeoscape;
-
-            for (int i = 0; i < CloudSeeds.Length; i++)
+            if (veilAlpha > 0.005f)
             {
-                CloudPuffSeed seed = CloudSeeds[i];
-                float radialShift = ascending
-                    ? (0.28f + ease * 0.92f)
-                    : (1.20f - ease * 0.92f);
-                float rDist = seed.DistNorm * maxDim * radialShift;
-                float px = cx + seed.CosAngle * rDist;
-                float py = cy + seed.SinAngle * rDist * 0.72f;
-                float radius = seed.BaseRadius * (w / 960f) * (0.95f + density * 0.65f);
+                GUI.color = new Color(0.18f, 0.23f, 0.29f, veilAlpha);
+                GUI.DrawTexture(new Rect(0f, 0f, w, h), BaseContent.WhiteTex);
+            }
 
-                // Layered cool-slate cloud puffs: darker underside puffs + muted silver-grey mist
-                float r = seed.Shade * 0.92f;
-                float g = seed.Shade * 0.97f;
-                float b = Mathf.Min(1f, seed.Shade * 1.04f);
-                GUI.color = new Color(r, g, b, density * 0.34f);
-                GUI.DrawTexture(new Rect(px - radius, py - radius, radius * 2f, radius * 2f), cachedCloudPuffTex);
+            if (puffAlpha > 0.005f)
+            {
+                float cx = w * 0.5f;
+                float cy = h * 0.5f;
+                float maxDim = Mathf.Sqrt(w * w + h * h) * 0.56f;
+
+                for (int i = 0; i < CloudSeeds.Length; i++)
+                {
+                    CloudPuffSeed seed = CloudSeeds[i];
+                    // Push inner seeds outward after swap so centre focal area stays unobstructed
+                    float effectiveDist = inEntry
+                        ? seed.DistNorm
+                        : Mathf.Max(seed.DistNorm, 0.42f);
+                    float rDist = effectiveDist * maxDim * radialShift;
+                    float px = cx + seed.CosAngle * rDist;
+                    float py = cy + seed.SinAngle * rDist * 0.72f;
+                    float radius = seed.BaseRadius * (w / 960f) * sizeScale;
+
+                    float r = seed.Shade * 0.92f;
+                    float g = seed.Shade * 0.97f;
+                    float b = Mathf.Min(1f, seed.Shade * 1.04f);
+                    GUI.color = new Color(r, g, b, puffAlpha);
+                    GUI.DrawTexture(new Rect(px - radius, py - radius, radius * 2f, radius * 2f), cachedCloudPuffTex);
+                }
             }
         }
     }

@@ -143,18 +143,21 @@ public class SeamlessCameraZoomTests
 
         Assert.IsTrue(SeamlessCameraZoomUtility.IsTransitionActive);
 
-        // Before midpoint: active, no swap yet
-        var early = SeamlessCameraZoomUtility.StepCloudTransition(10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * 0.25f);
+        // Before swap point: active, no swap yet
+        var early = SeamlessCameraZoomUtility.StepCloudTransition(
+            10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * (SeamlessCameraZoomUtility.CloudSwapPointNormalized * 0.5f));
         Assert.IsTrue(early.IsActive);
         Assert.IsFalse(early.ShouldSwapView);
 
-        // At midpoint: triggers view swap exactly once
-        var mid = SeamlessCameraZoomUtility.StepCloudTransition(10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * 0.55f);
-        Assert.IsTrue(mid.IsActive);
-        Assert.IsTrue(mid.ShouldSwapView);
+        // At/past swap point: triggers view swap exactly once
+        var swap = SeamlessCameraZoomUtility.StepCloudTransition(
+            10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * (SeamlessCameraZoomUtility.CloudSwapPointNormalized + 0.05f));
+        Assert.IsTrue(swap.IsActive);
+        Assert.IsTrue(swap.ShouldSwapView);
 
-        // Past midpoint: still active, does not swap a second time
-        var late = SeamlessCameraZoomUtility.StepCloudTransition(10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * 0.80f);
+        // During peripheral wisp drift: still active, does not swap a second time
+        var late = SeamlessCameraZoomUtility.StepCloudTransition(
+            10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * 0.65f);
         Assert.IsTrue(late.IsActive);
         Assert.IsFalse(late.ShouldSwapView);
 
