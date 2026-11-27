@@ -4,9 +4,9 @@ This test plan provides step-by-step procedures to validate the improvements imp
 
 ## Current Status & Next Tests
 
-- **Passed (In-Game):** `TC-01` (single `Project Vigilance` button in `Mod options`, child modules accessible from `Mods`, no scrollbar on `Radar & Visuals`, greyed-out ID horizon cap), `TC-02` (all 8 themes, CVD/High Contrast auto-disabling `Use Player Faction Colour`, non-CVD presets leaving unchecked state intact), `TC-03` (shroud chunk intact after vantage expansion, smooth slider drags and `Reduce Shroud Motion` toggles at ~200 FPS / `5.0 ms` median with zero warnings/errors).
+- **Passed (In-Game):** `TC-01` (single `Project Vigilance` button in `Mod options`, child modules accessible from `Mods`, no scrollbar on `Radar & Visuals`, greyed-out ID horizon cap), `TC-02` (all 8 themes, CVD/High Contrast auto-disabling `Use Player Faction Colour`, non-CVD presets leaving unchecked state intact), `TC-03` (shroud chunk intact after vantage expansion, smooth slider drags and `Reduce Shroud Motion` toggles at ~200 FPS / `5.0 ms` median with zero warnings/errors), `TC-04` (consolidated caravan & colony menus with zero duplicates; Sonar hidden inland and when Development mode is off, shown on coastal tiles only when Development mode and Aquatics are both active).
 - **Passed (Automated Test Suite & Pipeline):** `TC-10` verified passing via `dotnet test Geoscape/Source/Geoscape.slnx -c Release` (`504/504` tests, `0` failed, `0` skipped, `0` warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`), `npm run spellcheck` (`0` issues), `npx prettier --check` (all formatted), `scripts/deploy-geoscape.ps1`, and zero `.pdb` files in Release assemblies or `dist/ProjectVigilance-*`.
-- **Pending In-Game Verification:** `TC-04` through `TC-09`.
+- **Pending In-Game Verification:** `TC-05` through `TC-09`.
 
 ---
 
@@ -43,18 +43,18 @@ This test plan provides step-by-step procedures to validate the improvements imp
 
 ## Test Matrix Overview
 
-| Test Case | Feature Under Test                                     | Expected Behaviour                                                                                                                                    | Status                  | Primary Screen / Tool                 |
-| :-------- | :----------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------- | :------------------------------------ |
-| **TC-01** | Unified Mod Options, Radar Layout & Horizon Cap        | Single `Project Vigilance` entry in `Mod options`; child modules still accessible in `Mods` manager; no scrollbar on `Radar & Visuals`; greyed ID cap | `🟢 In-Game Pass`       | Mod Options / Mods Manager            |
-| **TC-02** | WCAG AA Themes, CVD Auto-Override & Globe Perimeters   | All 8 themes legible (`>= 4.5:1`); CVD/High Contrast auto-disables faction colour; sonar & scout rings follow active theme on the globe               | `🟢 In-Game Pass`       | Mod Settings (`Radar & Visuals`)      |
-| **TC-03** | `Reduce Shroud Motion` & Slider / GPU Material Hygiene | Incursion & outpost pulses freeze cleanly when `Reduce Shroud Motion` is on; radar/cloud slider drags stay fluid with no material leak                | `🟢 In-Game Pass`       | World Map / Mod Settings / Profiler   |
-| **TC-04** | Consolidated Outpost Float Menus & Sonar Gating        | Caravan & colony outpost menus deploy/dispatch identically with zero duplicates; Sonar hidden without Aquatics or DevMode                             | `🔴 Focus 1: Immediate` | World Map Right-Click Context Menus   |
-| **TC-05** | Rule 16 Visibility Semantics & Orbital Detection       | `Planetary Surveillance` reveals static terrain only; dynamic contacts & non-player orbital entities require active sensor coverage                   | `🟡 Focus 2: Playtest`  | World Map / Orbit View                |
-| **TC-06** | Unified Renderer & Shroud Diagnostics Debug Action     | Single read-only `Dump World Renderer & Shroud Diagnostics` tool logs full shroud/layer telemetry; legacy `S1a`–`S4` spike buttons absent             | `🟡 Focus 2: Playtest`  | DevMode Debug Actions / Log           |
-| **TC-07** | Save-Load Signing (v2/v3), Sanitisation & Cache Reset  | Pre-v3 saves load cleanly without false tamper flags; rich-text tags stripped in UI; loading another save leaves no stale sensory/expedition state    | `🟡 Focus 2: Playtest`  | Save/Load / Diagnostics / Migration   |
-| **TC-08** | Overland Ambush HUD, IMGUI Isolation & Hot-Path Perf   | Ambush banners, world search masks, and landmark icons do not bleed `GUI.color`/`Text.Font`; smooth TPS during active ambushes and concealed quests   | `🟡 Focus 2: Playtest`  | Tactical Ambush Map / World Search    |
-| **TC-09** | Dynamic Text Layout & `VigilanceLoc.Tr` Fallbacks      | No clipped buttons/badges in `Dialog_ScavengeAftermath`, `Dialog_VigilanceModuleMigration`, or `Diagnostics` embedded Core note                       | `🟡 Focus 2: Playtest`  | Migration / Aftermath / Diagnostics   |
-| **TC-10** | Automated Suite, Spellcheck, Formatting & Zero PDBs    | `502/502` Release tests pass (`0` warnings); `cspell` `0` issues; `prettier` clean; zero `.pdb` files in assemblies or `dist/ProjectVigilance-*`      | `🟢 Automated Pass`     | `dotnet test` / `cspell` / `prettier` |
+| Test Case | Feature Under Test                                     | Expected Behaviour                                                                                                                                    | Status                 | Primary Screen / Tool                 |
+| :-------- | :----------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------- | :------------------------------------ |
+| **TC-01** | Unified Mod Options, Radar Layout & Horizon Cap        | Single `Project Vigilance` entry in `Mod options`; child modules still accessible in `Mods` manager; no scrollbar on `Radar & Visuals`; greyed ID cap | `🟢 In-Game Pass`      | Mod Options / Mods Manager            |
+| **TC-02** | WCAG AA Themes, CVD Auto-Override & Globe Perimeters   | All 8 themes legible (`>= 4.5:1`); CVD/High Contrast auto-disables faction colour; sonar & scout rings follow active theme on the globe               | `🟢 In-Game Pass`      | Mod Settings (`Radar & Visuals`)      |
+| **TC-03** | `Reduce Shroud Motion` & Slider / GPU Material Hygiene | Incursion & outpost pulses freeze cleanly when `Reduce Shroud Motion` is on; radar/cloud slider drags stay fluid with no material leak                | `🟢 In-Game Pass`      | World Map / Mod Settings / Profiler   |
+| **TC-04** | Consolidated Outpost Float Menus & Sonar Gating        | Caravan & colony outpost menus deploy/dispatch identically with zero duplicates; Sonar hidden without Aquatics and DevMode                            | `🟢 In-Game Pass`      | World Map Right-Click Context Menus   |
+| **TC-05** | Rule 16 Visibility Semantics & Orbital Detection       | `Planetary Surveillance` reveals static terrain only; dynamic contacts & non-player orbital entities require active sensor coverage                   | `🟡 Focus 2: Playtest` | World Map / Orbit View                |
+| **TC-06** | Unified Renderer & Shroud Diagnostics Debug Action     | Single read-only `Dump World Renderer & Shroud Diagnostics` tool logs full shroud/layer telemetry; legacy `S1a`–`S4` spike buttons absent             | `🟡 Focus 2: Playtest` | DevMode Debug Actions / Log           |
+| **TC-07** | Save-Load Signing (v2/v3), Sanitisation & Cache Reset  | Pre-v3 saves load cleanly without false tamper flags; rich-text tags stripped in UI; loading another save leaves no stale sensory/expedition state    | `🟡 Focus 2: Playtest` | Save/Load / Diagnostics / Migration   |
+| **TC-08** | Overland Ambush HUD, IMGUI Isolation & Hot-Path Perf   | Ambush banners, world search masks, and landmark icons do not bleed `GUI.color`/`Text.Font`; smooth TPS during active ambushes and concealed quests   | `🟡 Focus 2: Playtest` | Tactical Ambush Map / World Search    |
+| **TC-09** | Dynamic Text Layout & `VigilanceLoc.Tr` Fallbacks      | No clipped buttons/badges in `Dialog_ScavengeAftermath`, `Dialog_VigilanceModuleMigration`, or `Diagnostics` embedded Core note                       | `🟡 Focus 2: Playtest` | Migration / Aftermath / Diagnostics   |
+| **TC-10** | Automated Suite, Spellcheck, Formatting & Zero PDBs    | `502/502` Release tests pass (`0` warnings); `cspell` `0` issues; `prettier` clean; zero `.pdb` files in assemblies or `dist/ProjectVigilance-*`      | `🟢 Automated Pass`    | `dotnet test` / `cspell` / `prettier` |
 
 ---
 
@@ -139,8 +139,8 @@ This test plan provides step-by-step procedures to validate the improvements imp
 
 **Steps:**
 
-1. **Without Aquatics active and with DevMode OFF:** right-click a coastal tile (both with a caravan selected and via intelligent right-click with nothing selected).
-2. **With DevMode ON (or Aquatics active):** right-click the same coastal tile.
+1. **With DevMode OFF (or Aquatics inactive):** right-click a coastal tile (both with a caravan selected and via intelligent right-click with nothing selected).
+2. **With DevMode ON and Aquatics active:** right-click the same coastal tile.
 3. Test all 4 outpost deployment paths:
    - Caravan on tile -> immediate `Deploy Automated Listening Post` / `Construct Signal Beacon` / `Deploy Automated Sonar Station`.
    - Caravan distant from passable tile -> `Travel and deploy ...`.
