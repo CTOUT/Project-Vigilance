@@ -4,10 +4,9 @@ This test plan provides step-by-step procedures to validate the improvements imp
 
 ## Current Status & Next Tests
 
-- **Passed (In-Game):** `TC-02` (all 8 themes, CVD/High Contrast auto-disabling `Use Player Faction Colour`, non-CVD presets leaving unchecked state intact).
-- **Fixed & Ready for Re-Test:** `TC-01` (`Dialog_Options_ModFilter_Patch` now tracks the filtered `List<Mod>` reference so RimWorld's `PreOpen()` list replacement is re-filtered immediately), `TC-03` (`WorldDrawLayer_ShroudShell.RebuildChunkTriangles` now passes `MeshParts.Verts | MeshParts.Colors | MeshParts.Tris` because `LayerSubMesh.FinalizeMesh` clears the mesh whenever `MeshParts.Tris` is set, preventing whole-icosahedron shell chunk disappearance on first exploration).
+- **Passed (In-Game):** `TC-01` (single `Project Vigilance` button in `Mod options`, child modules accessible from `Mods`, no scrollbar on `Radar & Visuals`, greyed-out ID horizon cap), `TC-02` (all 8 themes, CVD/High Contrast auto-disabling `Use Player Faction Colour`, non-CVD presets leaving unchecked state intact), `TC-03` (shroud chunk intact after vantage expansion, smooth slider drags and `Reduce Shroud Motion` toggles at ~200 FPS / `5.0 ms` median with zero warnings/errors).
 - **Passed (Automated Test Suite & Pipeline):** `TC-10` verified passing via `dotnet test Geoscape/Source/Geoscape.slnx -c Release` (`504/504` tests, `0` failed, `0` skipped, `0` warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`), `npm run spellcheck` (`0` issues), `npx prettier --check` (all formatted), `scripts/deploy-geoscape.ps1`, and zero `.pdb` files in Release assemblies or `dist/ProjectVigilance-*`.
-- **Pending In-Game Verification:** `TC-01` (re-test), `TC-03` (re-test), and `TC-04` through `TC-09`.
+- **Pending In-Game Verification:** `TC-04` through `TC-09`.
 
 ---
 
@@ -46,9 +45,9 @@ This test plan provides step-by-step procedures to validate the improvements imp
 
 | Test Case | Feature Under Test                                     | Expected Behaviour                                                                                                                                    | Status                  | Primary Screen / Tool                 |
 | :-------- | :----------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------- | :------------------------------------ |
-| **TC-01** | Unified Mod Options, Radar Layout & Horizon Cap        | Single `Project Vigilance` entry in `Mod options`; child modules still accessible in `Mods` manager; no scrollbar on `Radar & Visuals`; greyed ID cap | `🔴 Re-Test (Fixed)`    | Mod Options / Mods Manager            |
+| **TC-01** | Unified Mod Options, Radar Layout & Horizon Cap        | Single `Project Vigilance` entry in `Mod options`; child modules still accessible in `Mods` manager; no scrollbar on `Radar & Visuals`; greyed ID cap | `🟢 In-Game Pass`       | Mod Options / Mods Manager            |
 | **TC-02** | WCAG AA Themes, CVD Auto-Override & Globe Perimeters   | All 8 themes legible (`>= 4.5:1`); CVD/High Contrast auto-disables faction colour; sonar & scout rings follow active theme on the globe               | `🟢 In-Game Pass`       | Mod Settings (`Radar & Visuals`)      |
-| **TC-03** | `Reduce Shroud Motion` & Slider / GPU Material Hygiene | Incursion & outpost pulses freeze cleanly when `Reduce Shroud Motion` is on; radar/cloud slider drags stay fluid with no material leak                | `🔴 Re-Test (Fixed)`    | World Map / Mod Settings / Profiler   |
+| **TC-03** | `Reduce Shroud Motion` & Slider / GPU Material Hygiene | Incursion & outpost pulses freeze cleanly when `Reduce Shroud Motion` is on; radar/cloud slider drags stay fluid with no material leak                | `🟢 In-Game Pass`       | World Map / Mod Settings / Profiler   |
 | **TC-04** | Consolidated Outpost Float Menus & Sonar Gating        | Caravan & colony outpost menus deploy/dispatch identically with zero duplicates; Sonar hidden without Aquatics or DevMode                             | `🔴 Focus 1: Immediate` | World Map Right-Click Context Menus   |
 | **TC-05** | Rule 16 Visibility Semantics & Orbital Detection       | `Planetary Surveillance` reveals static terrain only; dynamic contacts & non-player orbital entities require active sensor coverage                   | `🟡 Focus 2: Playtest`  | World Map / Orbit View                |
 | **TC-06** | Unified Renderer & Shroud Diagnostics Debug Action     | Single read-only `Dump World Renderer & Shroud Diagnostics` tool logs full shroud/layer telemetry; legacy `S1a`–`S4` spike buttons absent             | `🟡 Focus 2: Playtest`  | DevMode Debug Actions / Log           |
