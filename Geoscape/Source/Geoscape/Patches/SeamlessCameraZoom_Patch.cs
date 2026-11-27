@@ -19,6 +19,8 @@ public static class SeamlessCameraZoomUtility
 {
     public const float TransitionCooldownSeconds = 0.45f;
     public const float OverscrollDecaySeconds = 0.65f;
+    public const float FadeTransitionDurationSeconds = 0.22f;
+    public const float FadeSwapPointNormalized = 0.08f / 0.22f;
     public const float CloudTransitionDurationSeconds = 1.00f;
     public const float CloudSwapPointNormalized = 0.16f;
     public const int DefaultSnapRadiusTiles = 2;
@@ -87,6 +89,7 @@ public static class SeamlessCameraZoomUtility
     private static bool transitionSwapped;
     private static float transitionStartTime = -10f;
     private static TransitionDirection transitionDirection = TransitionDirection.None;
+    private static SeamlessZoomTransitionStyle activeTransitionStyle = SeamlessZoomTransitionStyle.Instant;
     private static PlanetTile pendingGeoscapeTile = PlanetTile.Invalid;
     private static Map? pendingBattlescapeMap;
 
@@ -112,6 +115,7 @@ public static class SeamlessCameraZoomUtility
         transitionSwapped = false;
         transitionStartTime = -10f;
         transitionDirection = TransitionDirection.None;
+        activeTransitionStyle = SeamlessZoomTransitionStyle.Instant;
         pendingGeoscapeTile = PlanetTile.Invalid;
         pendingBattlescapeMap = null;
     }
@@ -148,14 +152,18 @@ public static class SeamlessCameraZoomUtility
         armedWorldTargetLabel = null;
     }
 
-    internal static bool ShouldUseCloudTransition(GeoscapeSettings? settings)
+    internal static SeamlessZoomTransitionStyle ResolveEffectiveTransitionStyle(GeoscapeSettings? settings)
     {
-        return settings != null
-            && settings.seamlessZoomTransitionStyle == SeamlessZoomTransitionStyle.ThroughClouds
-            && !settings.reduceShroudMotion;
+        if (settings == null || settings.reduceShroudMotion)
+        {
+            return SeamlessZoomTransitionStyle.Instant;
+        }
+
+        return settings.seamlessZoomTransitionStyle;
     }
 
-    internal static void BeginCloudTransition(
+    internal static void BeginTransition(
+        SeamlessZoomTransitionStyle style,
         TransitionDirection direction,
         PlanetTile geoscapeTile,
         Map? battlescapeMap,
@@ -166,18 +174,26 @@ public static class SeamlessCameraZoomUtility
         transitionSwapped = false;
         transitionStartTime = now;
         transitionDirection = direction;
+        activeTransitionStyle = style;
         pendingGeoscapeTile = geoscapeTile;
         pendingBattlescapeMap = battlescapeMap;
     }
 
-    internal static TransitionStepResult StepCloudTransition(float now)
+    internal static TransitionStepResult StepTransition(float now)
     {
         if (!isTransitionActive)
         {
             return default;
         }
 
-        float progress = (now - transitionStartTime) / CloudTransitionDurationSeconds;
+        float duration = activeTransitionStyle == SeamlessZoomTransitionStyle.Fade
+            ? FadeTransitionDurationSeconds
+            : CloudTransitionDurationSeconds;
+        float swapPoint = activeTransitionStyle == SeamlessZoomTransitionStyle.Fade
+            ? FadeSwapPointNormalized
+            : CloudSwapPointNormalized;
+
+        float progress = (now - transitionStartTime) / duration;
         if (progress >= 1f)
         {
             bool missedSwap = !transitionSwapped;
@@ -189,7 +205,7 @@ public static class SeamlessCameraZoomUtility
         }
 
         bool shouldSwap = false;
-        if (progress >= CloudSwapPointNormalized && !transitionSwapped)
+        if (progress >= swapPoint && !transitionSwapped)
         {
             transitionSwapped = true;
             shouldSwap = true;
@@ -385,10 +401,11 @@ public static class SeamlessCameraZoomUtility
         PlanetTile originTile = Find.CurrentMap.Tile;
         current.Use();
 
-        if (ShouldUseCloudTransition(settings))
+        SeamlessZoomTransitionStyle effectiveStyle = ResolveEffectiveTransitionStyle(settings);
+        if (effectiveStyle != SeamlessZoomTransitionStyle.Instant)
         {
             SoundDefOf.Click?.PlayOneShotOnCamera();
-            BeginCloudTransition(TransitionDirection.ToGeoscape, originTile, null, now);
+            BeginTransition(effectiveStyle, TransitionDirection.ToGeoscape, originTile, null, now);
         }
         else
         {
@@ -474,10 +491,11 @@ public static class SeamlessCameraZoomUtility
 
         current.Use();
 
-        if (ShouldUseCloudTransition(settings))
+        SeamlessZoomTransitionStyle effectiveStyle = ResolveEffectiveTransitionStyle(settings);
+        if (effectiveStyle != SeamlessZoomTransitionStyle.Instant)
         {
             SoundDefOf.Click?.PlayOneShotOnCamera();
-            BeginCloudTransition(TransitionDirection.ToBattlescape, PlanetTile.Invalid, targetMap, now);
+            BeginTransition(effectiveStyle, TransitionDirection.ToBattlescape, PlanetTile.Invalid, targetMap, now);
         }
         else
         {
@@ -509,10 +527,11 @@ public static class SeamlessCameraZoomUtility
 
         float now = Time.realtimeSinceStartup;
 
-        // 1. Advance and render active cloud transition
+        // 1. Advance and render active view transition (Fade or Traverse)
         if (isTransitionActive)
         {
-            TransitionStepResult step = StepCloudTransition(now);
+            SeamlessZoomTransitionStyle currentStyle = activeTransitionStyle;
+            TransitionStepResult step = StepTransition(now);
             if (step.ShouldSwapView)
             {
                 if (step.Direction == TransitionDirection.ToGeoscape && pendingGeoscapeTile.Valid)
@@ -529,7 +548,14 @@ public static class SeamlessCameraZoomUtility
 
             if (step.IsActive && Event.current != null && Event.current.type == EventType.Repaint)
             {
-                DrawCloudSweepOverlay(step.Progress, step.Direction);
+                if (currentStyle == SeamlessZoomTransitionStyle.Fade)
+                {
+                    DrawFadeTransitionOverlay(step.Progress, settings.EffectiveRadarColor);
+                }
+                else
+                {
+                    DrawCloudSweepOverlay(step.Progress, step.Direction);
+                }
             }
             return;
         }
@@ -698,6 +724,50 @@ public static class SeamlessCameraZoomUtility
         Rect fillRect = new(trackRect.x, trackRect.y, trackRect.width * remainPct, trackRect.height);
         GUI.color = accent;
         GUI.DrawTexture(fillRect, BaseContent.WhiteTex);
+    }
+
+    private static void DrawFadeTransitionOverlay(float progress, Color accent)
+    {
+        float alpha;
+        if (progress < FadeSwapPointNormalized)
+        {
+            float t = Mathf.Clamp01(progress / FadeSwapPointNormalized);
+            alpha = (t * t) * 0.72f;
+        }
+        else
+        {
+            float t = Mathf.Clamp01((progress - FadeSwapPointNormalized) / (1f - FadeSwapPointNormalized));
+            alpha = Mathf.Pow(1f - t, 1.8f) * 0.72f;
+        }
+
+        if (alpha <= 0.005f)
+        {
+            return;
+        }
+
+        float w = UI.screenWidth;
+        float h = UI.screenHeight;
+
+        using (new VigilanceUiWidgets.ImguiStateScope())
+        {
+            GUI.color = new Color(0.04f, 0.06f, 0.08f, alpha);
+            GUI.DrawTexture(new Rect(0f, 0f, w, h), BaseContent.WhiteTex);
+
+            // Subtle peripheral accent tint along viewport edges
+            EnsureBorderGradientTextures();
+            const float edgeDepth = 36f;
+            GUI.color = new Color(accent.r, accent.g, accent.b, alpha * 0.22f);
+            if (cachedBorderGradVertical != null)
+            {
+                GUI.DrawTexture(new Rect(0f, 0f, w, edgeDepth), cachedBorderGradVertical);
+                GUI.DrawTextureWithTexCoords(new Rect(0f, h - edgeDepth, w, edgeDepth), cachedBorderGradVertical, new Rect(0f, 1f, 1f, -1f));
+            }
+            if (cachedBorderGradHorizontal != null)
+            {
+                GUI.DrawTexture(new Rect(0f, 0f, edgeDepth, h), cachedBorderGradHorizontal);
+                GUI.DrawTextureWithTexCoords(new Rect(w - edgeDepth, 0f, edgeDepth, h), cachedBorderGradHorizontal, new Rect(1f, 0f, -1f, 1f));
+            }
+        }
     }
 
     private static void DrawCloudSweepOverlay(float progress, TransitionDirection direction)

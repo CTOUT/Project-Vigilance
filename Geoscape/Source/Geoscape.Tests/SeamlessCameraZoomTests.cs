@@ -115,27 +115,34 @@ public class SeamlessCameraZoomTests
     }
 
     [TestMethod]
-    public void CloudTransition_HonoursReduceShroudMotionAndSettingToggle()
+    public void TransitionStyle_HonoursReduceShroudMotionAndAllThreeModes()
     {
         var settings = new GeoscapeSettings
         {
-            seamlessZoomTransitionStyle = SeamlessZoomTransitionStyle.ThroughClouds,
+            seamlessZoomTransitionStyle = SeamlessZoomTransitionStyle.Traverse,
             reduceShroudMotion = false
         };
-        Assert.IsTrue(SeamlessCameraZoomUtility.ShouldUseCloudTransition(settings));
+        Assert.AreEqual(SeamlessZoomTransitionStyle.Traverse, SeamlessCameraZoomUtility.ResolveEffectiveTransitionStyle(settings));
+
+        settings.seamlessZoomTransitionStyle = SeamlessZoomTransitionStyle.Fade;
+        Assert.AreEqual(SeamlessZoomTransitionStyle.Fade, SeamlessCameraZoomUtility.ResolveEffectiveTransitionStyle(settings));
 
         settings.reduceShroudMotion = true;
-        Assert.IsFalse(SeamlessCameraZoomUtility.ShouldUseCloudTransition(settings));
+        Assert.AreEqual(SeamlessZoomTransitionStyle.Instant, SeamlessCameraZoomUtility.ResolveEffectiveTransitionStyle(settings));
+
+        settings.seamlessZoomTransitionStyle = SeamlessZoomTransitionStyle.Traverse;
+        Assert.AreEqual(SeamlessZoomTransitionStyle.Instant, SeamlessCameraZoomUtility.ResolveEffectiveTransitionStyle(settings));
 
         settings.reduceShroudMotion = false;
         settings.seamlessZoomTransitionStyle = SeamlessZoomTransitionStyle.Instant;
-        Assert.IsFalse(SeamlessCameraZoomUtility.ShouldUseCloudTransition(settings));
+        Assert.AreEqual(SeamlessZoomTransitionStyle.Instant, SeamlessCameraZoomUtility.ResolveEffectiveTransitionStyle(settings));
     }
 
     [TestMethod]
-    public void CloudTransition_SwapsViewOnceAtMidpointAndCompletesCleanly()
+    public void TraverseTransition_SwapsViewOnceAtSwapPointAndCompletesCleanly()
     {
-        SeamlessCameraZoomUtility.BeginCloudTransition(
+        SeamlessCameraZoomUtility.BeginTransition(
+            SeamlessZoomTransitionStyle.Traverse,
             SeamlessCameraZoomUtility.TransitionDirection.ToGeoscape,
             new PlanetTile(12),
             null,
@@ -144,34 +151,58 @@ public class SeamlessCameraZoomTests
         Assert.IsTrue(SeamlessCameraZoomUtility.IsTransitionActive);
 
         // Before swap point: active, no swap yet
-        var early = SeamlessCameraZoomUtility.StepCloudTransition(
+        var early = SeamlessCameraZoomUtility.StepTransition(
             10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * (SeamlessCameraZoomUtility.CloudSwapPointNormalized * 0.5f));
         Assert.IsTrue(early.IsActive);
         Assert.IsFalse(early.ShouldSwapView);
 
         // At/past swap point: triggers view swap exactly once
-        var swap = SeamlessCameraZoomUtility.StepCloudTransition(
+        var swap = SeamlessCameraZoomUtility.StepTransition(
             10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * (SeamlessCameraZoomUtility.CloudSwapPointNormalized + 0.05f));
         Assert.IsTrue(swap.IsActive);
         Assert.IsTrue(swap.ShouldSwapView);
 
         // During peripheral wisp drift: still active, does not swap a second time
-        var late = SeamlessCameraZoomUtility.StepCloudTransition(
+        var late = SeamlessCameraZoomUtility.StepTransition(
             10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds * 0.65f);
         Assert.IsTrue(late.IsActive);
         Assert.IsFalse(late.ShouldSwapView);
 
         // Completion: clears active state
-        var done = SeamlessCameraZoomUtility.StepCloudTransition(10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds + 0.01f);
+        var done = SeamlessCameraZoomUtility.StepTransition(10.0f + SeamlessCameraZoomUtility.CloudTransitionDurationSeconds + 0.01f);
         Assert.IsFalse(done.IsActive);
         Assert.IsFalse(done.ShouldSwapView);
         Assert.IsFalse(SeamlessCameraZoomUtility.IsTransitionActive);
     }
 
     [TestMethod]
-    public void Overscroll_BlockedWhileCloudTransitionActive()
+    public void FadeTransition_SwapsViewOnceAtFadeSwapPointAndCompletesCleanly()
     {
-        SeamlessCameraZoomUtility.BeginCloudTransition(
+        SeamlessCameraZoomUtility.BeginTransition(
+            SeamlessZoomTransitionStyle.Fade,
+            SeamlessCameraZoomUtility.TransitionDirection.ToBattlescape,
+            PlanetTile.Invalid,
+            null,
+            now: 30.0f);
+
+        var early = SeamlessCameraZoomUtility.StepTransition(30.0f + 0.03f);
+        Assert.IsTrue(early.IsActive);
+        Assert.IsFalse(early.ShouldSwapView);
+
+        var swap = SeamlessCameraZoomUtility.StepTransition(30.0f + 0.09f);
+        Assert.IsTrue(swap.IsActive);
+        Assert.IsTrue(swap.ShouldSwapView);
+
+        var done = SeamlessCameraZoomUtility.StepTransition(30.0f + SeamlessCameraZoomUtility.FadeTransitionDurationSeconds + 0.01f);
+        Assert.IsFalse(done.IsActive);
+        Assert.IsFalse(SeamlessCameraZoomUtility.IsTransitionActive);
+    }
+
+    [TestMethod]
+    public void Overscroll_BlockedWhilePreSwapTransitionActive()
+    {
+        SeamlessCameraZoomUtility.BeginTransition(
+            SeamlessZoomTransitionStyle.Traverse,
             SeamlessCameraZoomUtility.TransitionDirection.ToGeoscape,
             new PlanetTile(12),
             null,
@@ -182,6 +213,6 @@ public class SeamlessCameraZoomTests
             zoomingIn: true,
             scrollDeltaY: -3f,
             requiredNotches: 1,
-            now: 20.1f));
+            now: 20.05f));
     }
 }

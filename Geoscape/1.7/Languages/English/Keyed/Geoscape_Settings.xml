@@ -41,9 +41,10 @@
   <PV_Settings_SeamlessZoomIndicator_BottomPill>Bottom Prompt</PV_Settings_SeamlessZoomIndicator_BottomPill>
   <PV_Settings_SeamlessZoomIndicator_Hybrid>Border Flash + Prompt</PV_Settings_SeamlessZoomIndicator_Hybrid>
   <PV_Settings_SeamlessZoomTransition>View Transition Style</PV_Settings_SeamlessZoomTransition>
-  <PV_Settings_SeamlessZoomTransition_Desc>Animated cloud-deck sweep when transitioning between Battlescape and Geoscape. Automatically falls back to Instant Cut when Reduce Shroud Motion is enabled.</PV_Settings_SeamlessZoomTransition_Desc>
-  <PV_Settings_SeamlessZoomTransition_ThroughClouds>Through the Clouds</PV_Settings_SeamlessZoomTransition_ThroughClouds>
-  <PV_Settings_SeamlessZoomTransition_Instant>Instant Cut</PV_Settings_SeamlessZoomTransition_Instant>
+  <PV_Settings_SeamlessZoomTransition_Desc>Transition effect between Battlescape and Geoscape: Instant (no effect), Fade (brief dark dip), or Traverse (cloud-deck drift). Enabling Reduce Shroud Motion automatically selects Instant.</PV_Settings_SeamlessZoomTransition_Desc>
+  <PV_Settings_SeamlessZoomTransition_Instant>Instant</PV_Settings_SeamlessZoomTransition_Instant>
+  <PV_Settings_SeamlessZoomTransition_Fade>Fade</PV_Settings_SeamlessZoomTransition_Fade>
+  <PV_Settings_SeamlessZoomTransition_Traverse>Traverse</PV_Settings_SeamlessZoomTransition_Traverse>
   <PV_SeamlessZoom_PromptToGeoscape>Scroll out again → Geoscape</PV_SeamlessZoom_PromptToGeoscape>
   <PV_SeamlessZoom_PromptToMap>Scroll in again → {0}</PV_SeamlessZoom_PromptToMap>
 
