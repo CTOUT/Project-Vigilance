@@ -87,6 +87,10 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         {
             if (isConstructing)
             {
+                if (GeoscapeMod.Settings?.reduceShroudMotion == true)
+                {
+                    return new Color(1f, 0.82f, 0.2f, 0.92f);
+                }
                 float pulse = 0.65f + 0.35f * Mathf.Sin(Time.realtimeSinceStartup * 4f);
                 return new Color(1f, 0.82f, 0.2f, pulse);
             }

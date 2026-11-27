@@ -244,7 +244,7 @@ public static class ExternalFogCompatibility
         for (int i = 0; i < revealNames.Length; i++)
         {
             MethodInfo? method = type.GetMethod(revealNames[i], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(int)], null);
-            if (method != null)
+            if (method != null && method.ReturnType == typeof(void))
             {
                 revealTileAction = (Action<int>)Delegate.CreateDelegate(typeof(Action<int>), comp, method);
                 boundAny = true;
@@ -346,7 +346,7 @@ public static class ExternalFogCompatibility
             for (int r = 0; r < revealNames.Length; r++)
             {
                 MethodInfo? method = t.GetMethod(revealNames[r], BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, [typeof(int)], null);
-                if (method != null)
+                if (method != null && method.ReturnType == typeof(void))
                 {
                     revealTileAction = (Action<int>)Delegate.CreateDelegate(typeof(Action<int>), method);
                     boundAny = true;

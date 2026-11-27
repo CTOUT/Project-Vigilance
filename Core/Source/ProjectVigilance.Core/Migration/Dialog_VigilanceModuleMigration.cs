@@ -73,7 +73,11 @@ public sealed class Dialog_VigilanceModuleMigration : Window
             string subText = mod.Summary;
             if (!isActive && intercepted.TryGetValue(mod.Id, out List<string>? entities) && entities.Count > 0)
             {
-                string summaryCounts = string.Join(", ", entities.GroupBy(e => e).Select(g => $"{g.Count()}x {g.Key}"));
+                string summaryCounts = string.Join(", ", entities.GroupBy(e => e).Select(g => $"{g.Count()}x {SanitizeDisplayText(g.Key, 64)}"));
+                if (summaryCounts.Length > 256)
+                {
+                    summaryCounts = summaryCounts.Substring(0, 253) + "...";
+                }
                 subText = "PV_Migration_DetectedEntities".CanTranslate()
                     ? "PV_Migration_DetectedEntities".Translate(summaryCounts).ToString()
                     : $"Detected in save: {summaryCounts}";
@@ -139,5 +143,45 @@ public sealed class Dialog_VigilanceModuleMigration : Window
             Messages.Message(msg, MessageTypeDefOf.NeutralEvent, historical: false);
             Close();
         }
+    }
+
+    internal static string SanitizeDisplayText(string? raw, int maxLength = 256)
+    {
+        if (string.IsNullOrEmpty(raw))
+        {
+            return string.Empty;
+        }
+
+        var sb = new System.Text.StringBuilder(Math.Min(raw.Length, maxLength));
+        bool inTag = false;
+        for (int i = 0; i < raw.Length; i++)
+        {
+            char c = raw[i];
+            if (c == '<')
+            {
+                inTag = true;
+                continue;
+            }
+            if (c == '>')
+            {
+                inTag = false;
+                continue;
+            }
+            if (!inTag)
+            {
+                sb.Append(c);
+                if (sb.Length >= maxLength)
+                {
+                    break;
+                }
+            }
+        }
+
+        string cleaned = sb.ToString();
+        if (cleaned.Length >= maxLength && raw.Length > maxLength && maxLength > 3)
+        {
+            return cleaned.Substring(0, maxLength - 3) + "...";
+        }
+        return cleaned;
     }
 }

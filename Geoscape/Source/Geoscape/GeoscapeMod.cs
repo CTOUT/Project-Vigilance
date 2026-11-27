@@ -30,10 +30,16 @@ public class GeoscapeMod : Mod
         VigilanceSettingsRegistry.OnWriteAllSettings += WriteSettings;
         RegisterModuleHooks();
 
-        var harmony = new Harmony(PackageId);
-        harmony.PatchAll(Assembly.GetExecutingAssembly());
-
-        Log.Message($"[Project Vigilance] Initialized Module 1: Geoscape & Radar Grid ({FormatBuildDetails()}). Harmony patches applied.");
+        try
+        {
+            var harmony = new Harmony(PackageId);
+            harmony.PatchAll(Assembly.GetExecutingAssembly());
+            Log.Message($"[Project Vigilance] Initialized Module 1: Geoscape & Radar Grid ({FormatBuildDetails()}). Harmony patches applied.");
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"[Project Vigilance] Failed to apply Geoscape Harmony patches: {ex}");
+        }
     }
 
     public static string FormatBuildDetails()
@@ -67,7 +73,6 @@ public class GeoscapeMod : Mod
         VigilanceModuleManager.RegisterDynamicSensorHook = SensoryManager.RegisterDynamicSensor;
         VigilanceModuleManager.DeregisterDynamicSensorHook = SensoryManager.UnregisterDynamicSensor;
         VigilanceModuleManager.PerformSensorySweepHook = static () => SensoryManager.Instance?.PerformSensorySweep();
-        VigilanceModuleManager.SetRadarLayerDirtyHook = static () => WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
         VigilanceModuleManager.DeploySonarOutpostHook = DeploySonarOutpost;
         VigilanceModuleManager.HasPriorGeoscapeSaveDataHook = static () =>
             (SensoryManager.Instance?.LoadedFromSave == true) ||

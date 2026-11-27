@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Deploys all 5 Project Vigilance modular packages to the local RimWorld Mods directory.
 
@@ -22,7 +22,9 @@
 [CmdletBinding()]
 param(
     [string]$RimWorldModsPath,
-    [switch]$Dev
+    [switch]$Dev,
+    [switch]$ForceReplace,
+    [switch]$SkipRimWorldCheck
 )
 
 $ErrorActionPreference = 'Stop'
@@ -102,6 +104,16 @@ if (Test-Path -LiteralPath $embeddedCoreAsmDir) {
 
 # 4. Validate target Mods folder
 if (-not (Test-Path -LiteralPath $RimWorldModsPath)) {
+    if (-not $SkipRimWorldCheck) {
+        $rimWorldRoot = Split-Path -Path $RimWorldModsPath -Parent
+        $hasGameExe = $false
+        if (-not [string]::IsNullOrEmpty($rimWorldRoot) -and (Test-Path -LiteralPath $rimWorldRoot)) {
+            $hasGameExe = $null -ne (Get-ChildItem -LiteralPath $rimWorldRoot -Filter 'RimWorld*' -File -ErrorAction SilentlyContinue | Select-Object -First 1)
+        }
+        if (-not $hasGameExe) {
+            throw "Refusing to create '$RimWorldModsPath' because no RimWorld installation was detected in parent '$rimWorldRoot'. Pass -RimWorldModsPath or -SkipRimWorldCheck to override."
+        }
+    }
     Write-Host "--> Target Mods directory not found. Creating: $RimWorldModsPath" -ForegroundColor Yellow
     New-Item -ItemType Directory -Path $RimWorldModsPath -Force | Out-Null
 }
@@ -153,7 +165,10 @@ foreach ($mod in $modules) {
             New-Item -ItemType $linkType -Path $targetLink -Target $deploySourceDir | Out-Null
             Write-Host "--> Updated $linkType`: $targetLink -> $deploySourceDir" -ForegroundColor Green
         } else {
-            Write-Warning "Target exists and is not a $linkType. Removing and recreating..."
+            if (-not $ForceReplace) {
+                throw "Refusing to delete non-$linkType directory at '$targetLink'. Remove/move it manually or pass -ForceReplace."
+            }
+            Write-Warning "Target exists and is not a $linkType (-ForceReplace specified). Removing and recreating..."
             Remove-Item -LiteralPath $targetLink -Recurse -Force
             New-Item -ItemType $linkType -Path $targetLink -Target $deploySourceDir | Out-Null
             Write-Host "--> Created $linkType`: $targetLink -> $deploySourceDir" -ForegroundColor Green

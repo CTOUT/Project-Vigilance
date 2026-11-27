@@ -11,6 +11,7 @@ using Verse;
 namespace Geoscape.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class WorldPawnIntegrityTests
 {
     private static readonly FieldInfo MapIndexOrStateField =

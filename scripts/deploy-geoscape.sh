@@ -67,6 +67,7 @@ SKIP_BUILD=false
 REBUILD=false
 COPY_MODE=false
 DEV_MODE=false
+FORCE_REPLACE=false
 
 show_help() {
 	cat <<EOF
@@ -84,6 +85,7 @@ Options:
   -d, --dev            Link/copy raw <Module>/ directories instead of clean dist/ staging
   -c, --copy           Copy mod directories instead of creating symlinks
   -r, --rebuild        Force clean rebuild (dotnet build --no-incremental)
+  -f, --force-replace  Allow replacing an existing non-symlink directory
   -h, --help           Show this help message and exit
 
 Detected Environment: $OS_NAME
@@ -121,6 +123,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	-r | --rebuild)
 		REBUILD=true
+		shift
+		;;
+	-f | --force-replace)
+		FORCE_REPLACE=true
 		shift
 		;;
 	-h | --help)
@@ -163,9 +169,12 @@ if [[ ! -f $SOLUTION_FILE ]]; then
 	exit 1
 fi
 
-# Ensure valid runtime directory for .NET / NuGet mutexes (fixes errors in sandboxed or headless Linux sessions)
+# Ensure valid private runtime directory for .NET / NuGet mutexes
 if [[ -z ${XDG_RUNTIME_DIR:-} || ! -d ${XDG_RUNTIME_DIR:-} ]]; then
-	export XDG_RUNTIME_DIR="/tmp"
+	PV_TEMP_RUNTIME_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pv-runtime.XXXXXX")"
+	chmod 700 "$PV_TEMP_RUNTIME_DIR"
+	export XDG_RUNTIME_DIR="$PV_TEMP_RUNTIME_DIR"
+	trap 'rm -rf "$PV_TEMP_RUNTIME_DIR"' EXIT
 fi
 
 # 2. Handle active assembly locks if RimWorld is running
@@ -318,6 +327,10 @@ for entry in "${MODULES[@]}"; do
 	fi
 
 	if [[ $COPY_MODE == true ]]; then
+		if [[ -e $TARGET_DESTINATION && ! -L $TARGET_DESTINATION && $FORCE_REPLACE != true ]]; then
+			echo -e "${RED}Error: Refusing to delete non-symlink directory '$TARGET_DESTINATION' without --force-replace.${NC}" >&2
+			exit 1
+		fi
 		echo -e "${YELLOW}--> Copy mode: syncing $pkg_name to $TARGET_DESTINATION${NC}"
 		rm -rf "$TARGET_DESTINATION"
 		mkdir -p "$TARGET_DESTINATION"
@@ -332,6 +345,10 @@ for entry in "${MODULES[@]}"; do
 				ln -sfn "$DEPLOY_SOURCE_DIR" "$TARGET_DESTINATION"
 			fi
 		elif [[ -e $TARGET_DESTINATION ]]; then
+			if [[ $FORCE_REPLACE != true ]]; then
+				echo -e "${RED}Error: Refusing to replace non-symlink directory '$TARGET_DESTINATION' without --force-replace.${NC}" >&2
+				exit 1
+			fi
 			echo -e "${YELLOW}--> Replacing non-symlink $TARGET_DESTINATION -> $DEPLOY_SOURCE_DIR${NC}"
 			rm -rf "$TARGET_DESTINATION"
 			ln -sfn "$DEPLOY_SOURCE_DIR" "$TARGET_DESTINATION"

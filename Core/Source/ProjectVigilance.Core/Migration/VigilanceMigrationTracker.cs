@@ -296,7 +296,6 @@ public class VigilanceMigrationTracker : WorldComponent
         RequiresMigrationAdvisory = false;
 
         VigilanceModuleManager.RecordModuleMigrationHook?.Invoke($"Retired {removedCount} missing-module objects; active: {string.Join(", ", savedActiveModules)}");
-        VigilanceModuleManager.OnMigrationResolved?.Invoke();
 
         return removedCount;
     }

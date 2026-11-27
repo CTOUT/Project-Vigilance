@@ -10,12 +10,15 @@ namespace ProjectVigilance.Geoscape.Sensory;
 /// </summary>
 public static class SonarGatingUtility
 {
+    internal static System.Func<bool>? DevModeOverrideForTesting { get; set; }
+
     /// <summary>
     /// Evaluates whether the specified planet tile meets all criteria for offering sonar outpost deployment.
     /// </summary>
     public static bool ShouldOfferSonarDeployment(PlanetTile tile)
     {
-        return Prefs.DevMode
+        bool devMode = DevModeOverrideForTesting?.Invoke() ?? Prefs.DevMode;
+        return devMode
             && (VigilanceModuleManager.IsAquaticsActive || VigilanceModuleManager.AllowSonarInTests)
             && SonarTraversalUtility.CanEvaluateWorldGrid()
             && SonarTraversalUtility.HasCoastalAccess(tile);

@@ -229,6 +229,9 @@ public class SensoryManager : WorldComponent
     public override void FinalizeInit(bool fromLoad)
     {
         base.FinalizeInit(fromLoad);
+        ClearStaticCaches();
+        CaravanExpeditionUtility.ClearAllPendingDirectives();
+        Patches.WorldObject_Visibility_Patch.ClearVisibilityCaches();
         ExternalFogCompatibility.ResetAndRescan();
         hasCompletedInitialTickRefresh = false;
 
@@ -1566,11 +1569,8 @@ public class SensoryManager : WorldComponent
         {
             IndexUnidentifiedObject(wo.ID, wo.Tile);
             SweepRevision++;
-            if (Find.World?.grid?.Surface != null)
-            {
-                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
-            }
+            SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_Expandable>();
+            SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_NonExpandable>();
         }
         else
         {
@@ -1612,14 +1612,11 @@ public class SensoryManager : WorldComponent
         if (changed)
         {
             SweepRevision++;
-            if (Find.World?.grid?.Surface != null)
+            SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_Expandable>();
+            SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_NonExpandable>();
+            if (tileWasLandmark)
             {
-                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
-                if (tileWasLandmark)
-                {
-                    Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
-                }
+                SetSurfaceLayerDirty<WorldDrawLayer_Landmarks>();
             }
         }
     }
@@ -2048,15 +2045,15 @@ public class SensoryManager : WorldComponent
         }
 
         // Selective dirtying: only notify vanilla layers if an actual object, feature, or landmark was uncovered
-        if (revealedAnyObject && Find.World?.grid?.Surface != null)
+        if (revealedAnyObject)
         {
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
+            SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_Expandable>();
+            SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_NonExpandable>();
         }
 
-        if ((revealedAnyFeature || revealedAnyLandmark) && Find.World?.grid?.Surface != null)
+        if (revealedAnyFeature || revealedAnyLandmark)
         {
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
+            SetSurfaceLayerDirty<WorldDrawLayer_Landmarks>();
         }
 
         HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
@@ -2331,18 +2328,15 @@ public class SensoryManager : WorldComponent
             SweepRevision++;
         }
 
-        if (Find.World?.grid?.Surface != null)
+        if (identifiedAnyObject)
         {
-            if (identifiedAnyObject)
-            {
-                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-                Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
-            }
+            SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_Expandable>();
+            SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_NonExpandable>();
+        }
 
-            if (identifiedAnyLandmark)
-            {
-                Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
-            }
+        if (identifiedAnyLandmark)
+        {
+            SetSurfaceLayerDirty<WorldDrawLayer_Landmarks>();
         }
 
         HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
@@ -2389,11 +2383,16 @@ public class SensoryManager : WorldComponent
         WorldDrawLayer_ShroudShell.Instance?.SetDirty();
         WorldDrawLayer_HazeOfWar.Instance?.SetDirty();
         WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
-        if (Find.World?.grid?.Surface != null)
+        SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_Expandable>();
+        SetSurfaceLayerDirty<WorldDrawLayer_WorldObjects_NonExpandable>();
+        SetSurfaceLayerDirty<WorldDrawLayer_Landmarks>();
+    }
+
+    private static void SetSurfaceLayerDirty<T>() where T : WorldDrawLayer
+    {
+        if (Find.World?.grid?.Surface is { WorldDrawLayers: not null } surface)
         {
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_Expandable>()?.SetDirty();
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_WorldObjects_NonExpandable>()?.SetDirty();
-            Find.World.grid.Surface.GetLayer<WorldDrawLayer_Landmarks>()?.SetDirty();
+            surface.GetLayer<T>()?.SetDirty();
         }
     }
 
@@ -2406,11 +2405,12 @@ public class SensoryManager : WorldComponent
         }
 
         int requiredBytes = (Mathf.Max(totalTiles, minTileCount) + 7) / 8;
+        bool hasWorldGrid = Find.World?.grid != null && Find.World.grid.TilesCount > 0;
         if (exploredBytes == null)
         {
             exploredBytes = new byte[requiredBytes];
         }
-        else if (exploredBytes.Length < requiredBytes)
+        else if (exploredBytes.Length < requiredBytes || (hasWorldGrid && exploredBytes.Length > requiredBytes))
         {
             Array.Resize(ref exploredBytes, requiredBytes);
         }
@@ -2419,7 +2419,7 @@ public class SensoryManager : WorldComponent
         {
             identifiedBytes = new byte[requiredBytes];
         }
-        else if (identifiedBytes.Length < requiredBytes)
+        else if (identifiedBytes.Length < requiredBytes || (hasWorldGrid && identifiedBytes.Length > requiredBytes))
         {
             Array.Resize(ref identifiedBytes, requiredBytes);
         }

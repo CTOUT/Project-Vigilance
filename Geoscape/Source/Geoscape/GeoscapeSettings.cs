@@ -825,7 +825,6 @@ public class GeoscapeSettings : ModSettings
             else if (Mathf.Abs(newCloudOpacity - geoscapeCloudOpacity) > 0.005f)
             {
                 geoscapeCloudOpacity = newCloudOpacity;
-                NotifyRadarVisualsChanged();
             }
         }
         shroudCol.End();
@@ -1287,7 +1286,8 @@ public class GeoscapeSettings : ModSettings
                         Widgets.DrawBoxSolid(warnRect, new Color(0.35f, 0.08f, 0.08f, 0.6f));
                         Widgets.DrawBox(warnRect);
                         GUI.color = new Color(1f, 0.45f, 0.45f);
-                        Widgets.Label(warnRect.ContractedBy(4f), $"[Save Integrity Warning] {lastMod.note}");
+                        string safeNote = SanitizeSaveText(lastMod.note, 256);
+                        Widgets.Label(warnRect.ContractedBy(4f), $"[Save Integrity Warning] {safeNote}");
                         GUI.color = Color.white;
                     }
                 }
@@ -1515,4 +1515,7 @@ public class GeoscapeSettings : ModSettings
     {
         RuleTransitionExecutor.Execute(RuleTransitionEffects.RebuildWorldLayers);
     }
+
+    private static string SanitizeSaveText(string? raw, int maxLength) =>
+        ProjectVigilance.Core.Migration.Dialog_VigilanceModuleMigration.SanitizeDisplayText(raw, maxLength);
 }

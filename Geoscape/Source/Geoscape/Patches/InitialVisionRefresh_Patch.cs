@@ -40,6 +40,8 @@ public static class InitialVisionRefresh_Patch
     [HarmonyPatch]
     public static class CaravanEnterMapUtility_Enter_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods()
         {
             return AccessTools.GetDeclaredMethods(typeof(CaravanEnterMapUtility))

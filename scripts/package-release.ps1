@@ -26,6 +26,7 @@
 
 [CmdletBinding()]
 param(
+    [ValidatePattern('^\d+\.\d+\.\d+$')]
     [string]$Version = '0.4.2',
     [string]$OutputDir = 'dist',
     [switch]$StageWorkshopJunction,
@@ -38,7 +39,11 @@ Write-Host "==> [Project Vigilance] Starting modular suite packaging pipeline fo
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $solutionFile = Join-Path $repoRoot 'Geoscape\Source\Geoscape.slnx'
-$distPath = Join-Path $repoRoot $OutputDir
+$distPath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutputDir))
+$repoRootPrefix = $repoRoot.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+if (-not $distPath.StartsWith($repoRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "OutputDir '$OutputDir' resolves outside repository root: $distPath"
+}
 $suiteStagingRoot = Join-Path $distPath "ProjectVigilance-Suite-v$Version"
 $suiteZipFile = Join-Path $distPath "ProjectVigilance-Suite-v$Version.zip"
 

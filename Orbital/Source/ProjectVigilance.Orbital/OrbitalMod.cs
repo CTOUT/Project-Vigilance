@@ -18,10 +18,16 @@ public class OrbitalMod : Mod
     public OrbitalMod(ModContentPack content) : base(content)
     {
         RegisterModuleHooks();
-        var harmony = new Harmony(PackageId);
-        harmony.PatchAll(Assembly.GetExecutingAssembly());
-
-        Log.Message("[Project Vigilance] Initialized Module: Orbital Logistics & Satellites.");
+        try
+        {
+            var harmony = new Harmony(PackageId);
+            harmony.PatchAll(Assembly.GetExecutingAssembly());
+            Log.Message("[Project Vigilance] Initialized Module: Orbital Logistics & Satellites.");
+        }
+        catch (System.Exception ex)
+        {
+            Log.Error($"[Project Vigilance] Failed to apply Orbital Harmony patches: {ex}");
+        }
     }
 
     public static void RegisterModuleHooks()

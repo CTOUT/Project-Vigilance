@@ -903,7 +903,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
                         }
                     }, MenuOptionPriority.Default) { Disabled = !canAffordRelay });
 
-                    bool destHasCoast = SonarTraversalUtility.CanEvaluateWorldGrid() && SonarTraversalUtility.HasCoastalAccess(effectiveTile);
+                    bool destHasCoast = SonarGatingUtility.ShouldOfferSonarDeployment(effectiveTile);
                     if (destHasCoast)
                     {
                         bool canAffordSonar = CaravanExpeditionUtility.CanColonyDeployAutomatedSonar(map, out int mapSonarSteel, out int mapSonarComp);

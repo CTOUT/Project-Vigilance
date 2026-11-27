@@ -108,13 +108,11 @@ public static class VigilanceModuleManager
     public static Action<ISensorProvider>? RegisterDynamicSensorHook { get; set; }
     public static Action<ISensorProvider>? DeregisterDynamicSensorHook { get; set; }
     public static Action? PerformSensorySweepHook { get; set; }
-    public static Action? SetRadarLayerDirtyHook { get; set; }
     public static Action<PlanetTile>? DeploySonarOutpostHook { get; set; }
     public static Func<bool>? IsThermalAuditEnabledHook { get; set; }
     public static Action<Rect>? DoUnifiedSettingsWindowContentsHook { get; set; }
     public static Func<bool>? HasPriorGeoscapeSaveDataHook { get; set; }
     public static Action<string>? RecordModuleMigrationHook { get; set; }
-    public static Action? OnMigrationResolved { get; set; }
 
     public static bool IsAquaticsActive => IsModuleActive(VigilanceModuleId.Aquatics);
     public static bool IsOrbitalActive => IsModuleActive(VigilanceModuleId.Orbital);
@@ -189,6 +187,9 @@ public static class VigilanceModuleManager
         DistanceCalculationOverrideHook = null;
         GetSensorySweepRevisionHook = null;
         GetMaxGroundRadarRangeHook = null;
+        HasPriorGeoscapeSaveDataHook = null;
+        RecordModuleMigrationHook = null;
+        ProjectVigilance.Geoscape.Sensory.SonarGatingUtility.DevModeOverrideForTesting = null;
     }
 
     public static bool IsModuleActive(VigilanceModuleId id)
@@ -270,7 +271,7 @@ public static class VigilanceModuleManager
         {
             return true;
         }
-        return GetEffectiveVisibilityMode() != VisibilityMode.ClassicHazeOfWar;
+        return GetEffectiveVisibilityMode() == VisibilityMode.Omniscient;
     }
 
     public static bool HasNavigationCoverage(PlanetTile tile) =>
@@ -296,9 +297,6 @@ public static class VigilanceModuleManager
 
     public static void PerformSensorySweep() =>
         PerformSensorySweepHook?.Invoke();
-
-    public static void SetRadarLayerDirty() =>
-        SetRadarLayerDirtyHook?.Invoke();
 
     public static void DeploySonarOutpost(PlanetTile tile) =>
         DeploySonarOutpostHook?.Invoke(tile);

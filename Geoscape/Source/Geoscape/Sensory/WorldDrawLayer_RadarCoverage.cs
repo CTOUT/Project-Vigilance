@@ -119,7 +119,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 
         if (Instance != null)
         {
-            WorldDrawLayer_HazeOfWar.RequestLayerRefresh(Instance);
+            Instance.SetDirty();
         }
 
         if (Find.WorldGrid?.Surface?.WorldDrawLayers != null)
@@ -129,7 +129,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             {
                 if (layers[i] is WorldDrawLayer_RadarCoverage radarLayer && radarLayer != Instance)
                 {
-                    WorldDrawLayer_HazeOfWar.RequestLayerRefresh(radarLayer);
+                    radarLayer.SetDirty();
                 }
             }
         }

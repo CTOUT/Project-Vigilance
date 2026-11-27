@@ -17,6 +17,7 @@ namespace Geoscape.Tests;
 /// and defensive handling of unreachable destinations and NotFound world paths in RimWorld 1.7.
 /// </summary>
 [TestClass]
+[DoNotParallelize]
 public class CaravanPathingResilienceTests
 {
     [TestInitialize]

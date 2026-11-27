@@ -8,6 +8,7 @@ using Verse;
 namespace Geoscape.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class WorldObject_ListeningPostTests
 {
     private static (float detection, int identification) CalculateRadii(ListeningPostKind kind, int vantageBonus, bool isSabotaged) =>

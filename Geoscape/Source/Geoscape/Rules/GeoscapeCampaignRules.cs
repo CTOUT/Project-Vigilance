@@ -654,10 +654,38 @@ public sealed class GeoscapeCampaignRules : WorldComponent
             loadedFromSave = true;
             rules ??= new GeoscapeRuleSet();
             ledger ??= new List<RuleChangeRecord>();
+            EnforceLoadedLedgerCap();
             if (string.IsNullOrEmpty(campaignId))
             {
                 campaignId = Guid.NewGuid().ToString("N");
             }
+        }
+    }
+
+    private void EnforceLoadedLedgerCap()
+    {
+        if (ledger.Count <= MaxLedgerEntries)
+        {
+            return;
+        }
+
+        // First evict oldest unpinned entries
+        for (int i = 0; i < ledger.Count && ledger.Count > MaxLedgerEntries;)
+        {
+            if (!ledger[i].IsPinned)
+            {
+                ledger.RemoveAt(i);
+            }
+            else
+            {
+                i++;
+            }
+        }
+
+        // Hard safety cap against crafted saves marking every entry as pinned
+        if (ledger.Count > MaxLedgerEntries)
+        {
+            ledger.RemoveRange(0, ledger.Count - MaxLedgerEntries);
         }
     }
 

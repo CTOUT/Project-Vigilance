@@ -918,12 +918,20 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         }
     }
 
+    private static MaterialPropertyBlock? sharedDrawPropertyBlock;
+
     /// <summary>
     /// Calculates a calm, rhythmic tactical amber pulse (breathing beacon) for unidentified contacts.
     /// Uses real-world time with a smooth sinusoidal curve (~2.5s cycle) easing between 0.18 and 1.0 alpha.
+    /// Returns a steady luminance value when reduced motion is enabled.
     /// </summary>
     public static Color TacticalAmberPulseColor(float alphaMultiplier = 1f)
     {
+        if (GeoscapeMod.Settings?.reduceShroudMotion == true)
+        {
+            return new Color(1f, 0.78f, 0.15f, 0.92f * alphaMultiplier);
+        }
+
         // Smooth breathing cycle (~2.5s) easing between 0.18 (deep translucency) and 1.0 (vivid beacon)
         float sinVal = 0.5f + 0.5f * Mathf.Sin(Time.realtimeSinceStartup * 2.5f);
         float pulse = 0.18f + 0.82f * sinVal;
@@ -960,7 +968,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         {
             if (GeoscapeRules.VisibilityMode != VisibilityMode.Omniscient && intelligenceTier < IntelligenceTier.Classified)
             {
-                return MaterialPool.MatFrom(CaravanWorldTexture, ShaderDatabase.WorldOverlayTransparentLit, TacticalAmberPulseColor(0.95f), WorldMaterials.DynamicObjectRenderQueue);
+                return MaterialPool.MatFrom(
+                    CaravanWorldTexture,
+                    ShaderDatabase.WorldOverlayTransparentLit,
+                    new Color(1f, 0.78f, 0.15f, 0.95f),
+                    WorldMaterials.DynamicObjectRenderQueue);
             }
 
             Color incursionColor = Faction != null ? Faction.Color : ((Faction?.HostileTo(Faction.OfPlayer) ?? true)
@@ -1012,12 +1024,15 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             alpha = Mathf.Clamp01(1f - rawTransitionPct);
         }
 
-        // 1. Base Layer: Caravan / marching force silhouette
+        // 1. Base Layer: Caravan / marching force silhouette (fixed white base material + MaterialPropertyBlock tint to avoid MaterialPool leaks)
         Material baseMat = MaterialPool.MatFrom(
             CaravanWorldTexture,
             ShaderDatabase.WorldOverlayTransparentLit,
-            new Color(statusColor.r, statusColor.g, statusColor.b, statusColor.a * alpha),
+            Color.white,
             WorldMaterials.DynamicObjectRenderQueue);
+
+        sharedDrawPropertyBlock ??= new MaterialPropertyBlock();
+        sharedDrawPropertyBlock.SetColor(ShaderPropertyIDs.Color, new Color(statusColor.r, statusColor.g, statusColor.b, statusColor.a * alpha));
 
         WorldRendererUtility.DrawQuadTangentialToPlanet(
             DrawPos,
@@ -1027,7 +1042,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             WorldObject_ListeningPost.UprightQuadRotationAngle,
             false,
             false,
-            null);
+            sharedDrawPropertyBlock);
 
         // 2. Overlay Layer: Faction Emblem (ONLY when Classified or Analysed)
         bool canShowEmblem = GeoscapeRules.VisibilityMode == VisibilityMode.Omniscient || intelligenceTier >= IntelligenceTier.Classified;
@@ -1037,8 +1052,10 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             Material emblemMat = MaterialPool.MatFrom(
                 Faction.def.FactionIcon,
                 ShaderDatabase.WorldOverlayTransparentLit,
-                new Color(factionTint.r, factionTint.g, factionTint.b, alpha),
+                Color.white,
                 WorldMaterials.DynamicObjectRenderQueue);
+
+            sharedDrawPropertyBlock.SetColor(ShaderPropertyIDs.Color, new Color(factionTint.r, factionTint.g, factionTint.b, alpha));
 
             WorldRendererUtility.DrawQuadTangentialToPlanet(
                 DrawPos,
@@ -1048,7 +1065,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 WorldObject_ListeningPost.UprightQuadRotationAngle,
                 false,
                 false,
-                null);
+                sharedDrawPropertyBlock);
         }
     }
 

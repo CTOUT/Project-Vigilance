@@ -269,6 +269,8 @@ public static class GeoscapeTestHarness
         OptimisticPathingUtility.OnCaravanReroutedForTesting = null;
         OptimisticPathingUtility.OnCaravanHaltedForTesting = null;
         OptimisticPathingUtility.Active = false;
+        OptimisticPathingUtility.ForceActive = false;
+        OptimisticPathingUtility.ActiveFormCaravanCount = 0;
 
         CaravanExpeditionUtility.ClearAllPendingDirectives();
         CaravanExpeditionUtility.BeaconMaterialsOverride = null;

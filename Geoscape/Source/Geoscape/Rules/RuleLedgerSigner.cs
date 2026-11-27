@@ -37,9 +37,37 @@ public static class RuleLedgerSigner
         string rNote = note ?? string.Empty;
         string cId = string.IsNullOrEmpty(campaignId) ? "DEFAULT-CAMPAIGN" : campaignId;
 
-        // Canonical payload representation
-        string payload = $"{pHash}|{tick}|{(int)kind}|{rKey}|{rFrom}|{rTo}|{rNote}|{cId}";
+        // Canonical length-prefixed payload prevents delimiter collision across free-form notes
+        string payload =
+            $"{pHash.Length}:{pHash}|{tick}|{(int)kind}|" +
+            $"{rKey.Length}:{rKey}|{rFrom.Length}:{rFrom}|{rTo.Length}:{rTo}|{rNote.Length}:{rNote}|{cId.Length}:{cId}";
 
+        return SignPayload(payload);
+    }
+
+    internal static string ComputeLegacyV2RecordHash(
+        string? prevHash,
+        int tick,
+        RuleChangeKind kind,
+        string? ruleKey,
+        string? from,
+        string? to,
+        string? note,
+        string? campaignId)
+    {
+        string pHash = string.IsNullOrEmpty(prevHash) ? GenesisHash : prevHash;
+        string rKey = ruleKey ?? string.Empty;
+        string rFrom = from ?? string.Empty;
+        string rTo = to ?? string.Empty;
+        string rNote = note ?? string.Empty;
+        string cId = string.IsNullOrEmpty(campaignId) ? "DEFAULT-CAMPAIGN" : campaignId;
+
+        string payload = $"{pHash}|{tick}|{(int)kind}|{rKey}|{rFrom}|{rTo}|{rNote}|{cId}";
+        return SignPayload(payload);
+    }
+
+    private static string SignPayload(string payload)
+    {
         using var hmac = new HMACSHA256(ModSecret);
         byte[] hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
@@ -47,6 +75,7 @@ public static class RuleLedgerSigner
 
     /// <summary>
     /// Verifies the cryptographic signature of a single ledger record against expected predecessor and campaign state.
+    /// Supports both current length-prefixed v3 hashes and legacy v2 pipe-delimited hashes from older saves.
     /// </summary>
     public static bool VerifyRecordHash(
         RuleChangeRecord record,
@@ -58,7 +87,9 @@ public static class RuleLedgerSigner
             return false;
         }
 
-        string expected = ComputeRecordHash(
+        byte[] actual = Encoding.UTF8.GetBytes(record.hash.ToLowerInvariant());
+
+        string expectedV3 = ComputeRecordHash(
             prevHash,
             record.tick,
             record.kind,
@@ -67,10 +98,22 @@ public static class RuleLedgerSigner
             record.to,
             record.note,
             campaignId);
+        byte[] expectedV3Bytes = Encoding.UTF8.GetBytes(expectedV3);
+        if (actual.Length == expectedV3Bytes.Length && CryptographicOperations.FixedTimeEquals(actual, expectedV3Bytes))
+        {
+            return true;
+        }
 
-        byte[] a = Encoding.UTF8.GetBytes(record.hash.ToLowerInvariant());
-        byte[] b = Encoding.UTF8.GetBytes(expected.ToLowerInvariant());
-
-        return CryptographicOperations.FixedTimeEquals(a, b);
+        string expectedV2 = ComputeLegacyV2RecordHash(
+            prevHash,
+            record.tick,
+            record.kind,
+            record.ruleKey,
+            record.from,
+            record.to,
+            record.note,
+            campaignId);
+        byte[] expectedV2Bytes = Encoding.UTF8.GetBytes(expectedV2);
+        return actual.Length == expectedV2Bytes.Length && CryptographicOperations.FixedTimeEquals(actual, expectedV2Bytes);
     }
 }

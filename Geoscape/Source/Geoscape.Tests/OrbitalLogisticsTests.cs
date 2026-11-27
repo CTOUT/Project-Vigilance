@@ -12,6 +12,7 @@ using Verse;
 namespace Geoscape.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class OrbitalLogisticsTests
 {
     [TestMethod]

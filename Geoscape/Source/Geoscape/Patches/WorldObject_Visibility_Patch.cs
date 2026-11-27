@@ -419,6 +419,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class WorldObjects_ShouldSkip_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             "ShouldSkip",
             typeof(WorldDrawLayer_WorldObjects_Expandable),
@@ -989,6 +991,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_Label_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             "get_Label",
             typeof(WorldObject),
@@ -1016,6 +1020,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_ExpandingIcon_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             "get_ExpandingIcon",
             typeof(WorldObject),
@@ -1039,6 +1045,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_ExpandingIconColor_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             "get_ExpandingIconColor",
             typeof(WorldObject),
@@ -1075,6 +1083,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_Material_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             "get_Material",
             typeof(WorldObject),
@@ -1101,6 +1111,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_GetInspectString_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             nameof(WorldObject.GetInspectString),
             typeof(WorldObject),
@@ -1127,6 +1139,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_GetDescription_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             nameof(WorldObject.GetDescription),
             typeof(WorldObject),
@@ -1148,6 +1162,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_ShowRelatedQuests_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             "get_ShowRelatedQuests",
             typeof(WorldObject),
@@ -1167,6 +1183,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_GetGizmos_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             nameof(WorldObject.GetGizmos),
             typeof(WorldObject),
@@ -1189,6 +1207,8 @@ public static class WorldObject_Visibility_Patch
     [HarmonyPatch]
     public static class UnknownSite_GetFloatMenuOptions_Patch
     {
+        public static bool Prepare() => TargetMethods().Any();
+
         public static IEnumerable<MethodBase> TargetMethods() => ResolveDeclaredMethods(
             nameof(WorldObject.GetFloatMenuOptions),
             typeof(WorldObject),

@@ -44,7 +44,7 @@ jobs:
             created=$(echo "$clean_run" | jq -r '.created // empty')
             conclusion=$(echo "$clean_run" | jq -r '.conclusion // empty')
 
-            if [[ -z "$id" || "$id" == "null" ]]; then continue; fi
+            if [[ -z "$id" || "$id" == "null" || ! "$id" =~ ^[0-9]+$ ]]; then continue; fi
 
             if [[ "$conclusion" == "failure" && "$created" < "$CUTOFF_FAILURE" ]]; then
               echo "Deleting FAILED run $id from $created"
@@ -79,7 +79,7 @@ jobs:
             id=$(echo "$clean_art" | jq -r '.id // empty')
             created=$(echo "$clean_art" | jq -r '.created // empty')
 
-            if [[ -z "$id" || "$id" == "null" ]]; then continue; fi
+            if [[ -z "$id" || "$id" == "null" || ! "$id" =~ ^[0-9]+$ ]]; then continue; fi
 
             if [[ "$created" < "$CUTOFF_ARTIFACTS" ]]; then
               echo "Deleting ARTIFACT $id from $created"
@@ -99,7 +99,7 @@ jobs:
             id=$(echo "$clean_cache" | jq -r '.id // empty')
             created=$(echo "$clean_cache" | jq -r '.created // empty')
 
-            if [[ -z "$id" || "$id" == "null" ]]; then continue; fi
+            if [[ -z "$id" || "$id" == "null" || ! "$id" =~ ^[0-9]+$ ]]; then continue; fi
 
             if [[ "$created" < "$CUTOFF_CACHES" ]]; then
               echo "Deleting CACHE $id from $created"

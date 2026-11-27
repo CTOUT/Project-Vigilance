@@ -527,6 +527,10 @@ public class ContactRegistry : WorldComponent
         if (Scribe.mode == LoadSaveMode.PostLoadInit)
         {
             historicalRecords ??= new List<ContactArchiveRecord>();
+            if (historicalRecords.Count > MaxHistoricalRecords)
+            {
+                historicalRecords.RemoveRange(0, historicalRecords.Count - MaxHistoricalRecords);
+            }
         }
     }
 }

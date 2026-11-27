@@ -12,6 +12,7 @@ using ProjectVigilance.Geoscape.Sensory;
 namespace Geoscape.Tests;
 
 [TestClass]
+[DoNotParallelize]
 public sealed class InterFactionEncounterTests
 {
     [TestInitialize]
