@@ -346,9 +346,11 @@ public sealed class Dialog_ScavengeAftermath : Window
         }
 
         Rect countTextRect = new(rightX + 64f, btnY + 2f, 44f, 20f);
-        Text.Anchor = TextAnchor.MiddleCenter;
-        Widgets.Label(countTextRect, entry.CountToTake.ToString());
-        Text.Anchor = TextAnchor.UpperLeft;
+        using (new ProjectVigilance.Core.UI.VigilanceUiWidgets.ImguiStateScope())
+        {
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Widgets.Label(countTextRect, entry.CountToTake.ToString());
+        }
 
         if (Widgets.ButtonText(new Rect(rightX + 112f, btnY, 26f, 24f), ">"))
         {
@@ -359,16 +361,20 @@ public sealed class Dialog_ScavengeAftermath : Window
             }
         }
 
-        if (Widgets.ButtonText(new Rect(rightX + 142f, btnY, 34f, 24f), "All"))
+        float allBtnW = Mathf.Max(34f, Text.CalcSize("All").x + 12f);
+        if (Widgets.ButtonText(new Rect(rightX + 142f, btnY, allBtnW, 24f), "All"))
         {
             entry.CountToTake = entry.MaxCount;
             SoundDefOf.Click?.PlayOneShotOnCamera();
         }
 
-        Rect totalItemMassRect = new(rightX + 182f, btnY + 2f, 60f, 20f);
-        Text.Anchor = TextAnchor.MiddleRight;
-        Widgets.Label(totalItemMassRect, $"{(entry.CountToTake * entry.UnitMass):F1} kg");
-        Text.Anchor = TextAnchor.UpperLeft;
+        float massX = Mathf.Max(rightX + 182f, rightX + 146f + allBtnW);
+        Rect totalItemMassRect = new(massX, btnY + 2f, Mathf.Max(48f, rightX + 242f - massX), 20f);
+        using (new ProjectVigilance.Core.UI.VigilanceUiWidgets.ImguiStateScope())
+        {
+            Text.Anchor = TextAnchor.MiddleRight;
+            Widgets.Label(totalItemMassRect, $"{(entry.CountToTake * entry.UnitMass):F1} kg");
+        }
     }
 
     private void SelectWhatFits(float allowedMass)

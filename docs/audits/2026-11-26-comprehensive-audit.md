@@ -77,9 +77,9 @@
 ### Active Branch (`feat/milestone-1.5`)
 
 - [x] **Wave 0:** Colocate audit report in `docs/audits/2026-11-26-comprehensive-audit.md` and record Wave 4 follow-up in `TODO.md`.
-- [ ] **Wave 1:** Bugfixes (`ARCH-01`, `ARCH-02`), `MaterialPool` leak (`PERF-01`), slider sync rebuild (`PERF-02`), `reduceShroudMotion` pulses (`A11Y-02`), Rule 5 test isolation (`ARCH-03`), Scribe bounds & cache resets (`SEC-04`, `SEC-07`, `SEC-08`, `SEC-09`), CI/script hardening (`SEC-01`, `SEC-02`, `SEC-05`, `SEC-10`).
-- [ ] **Wave 2:** Rule 14 `int tileId` migration (`PERF-03`), hot-path zero-alloc optimisations (`PERF-04`..`PERF-10`), centralise `Directory.Build.props`/`targets` & strip Release `.pdb`s (`SEC-03`, `SEC-06`, `SEC-10`, `ARCH-04`), unify `DebugActionsRendererDiagnostics` & prune dead code (`ARCH-05`).
-- [ ] **Wave 3:** WCAG AA swatch/banner upgrades (`A11Y-01`), wire `EffectiveScoutColor`/`EffectiveSonarColor` & auto-disable faction colour on colourblind/high-contrast presets, add `VigilanceLoc.Tr`, `VigilanceUiWidgets` (`ImguiStateScope`, dynamic badges/buttons — `A11Y-03`, `A11Y-04`), and consolidate `OutpostFloatMenuHelper` (`ARCH-01`).
+- [x] **Wave 1:** Bugfixes (`ARCH-01`, `ARCH-02`), `MaterialPool` leak (`PERF-01`), slider sync rebuild (`PERF-02`), `reduceShroudMotion` pulses (`A11Y-02`), Rule 5 test isolation (`ARCH-03`), Scribe bounds & cache resets (`SEC-04`, `SEC-07`, `SEC-08`, `SEC-09`), CI/script hardening (`SEC-01`, `SEC-02`, `SEC-05`, `SEC-10`).
+- [x] **Wave 2:** Rule 14 `int tileId` migration (`PERF-03`), hot-path zero-alloc optimisations (`PERF-04`..`PERF-10`), centralise `Directory.Build.props`/`targets` & strip Release `.pdb`s (`SEC-03`, `SEC-06`, `SEC-10`, `ARCH-04`), unify `DebugActionsRendererDiagnostics` & prune dead code (`ARCH-05`).
+- [x] **Wave 3:** WCAG AA swatch/banner upgrades (`A11Y-01`), wire `EffectiveScoutColor`/`EffectiveSonarColor` & auto-disable faction colour on colourblind/high-contrast presets, add `VigilanceLoc.Tr`, `VigilanceUiWidgets` (`ImguiStateScope`, dynamic badges/buttons — `A11Y-03`, `A11Y-04`), and consolidate `OutpostFloatMenuHelper` (`ARCH-01`).
 
 ### Follow-Up Branch (`refactor/wave-4-i18n-and-decomposition`)
 

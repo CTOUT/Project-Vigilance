@@ -1,4 +1,6 @@
+using ProjectVigilance.Core.Localization;
 using ProjectVigilance.Core.Modules;
+using ProjectVigilance.Core.UI;
 using ProjectVigilance.Geoscape.Settings;
 using UnityEngine;
 using Verse;
@@ -56,20 +58,13 @@ public class ThermalMod : Mod, ISettingsTabProvider
 
     public void DoTabContents(Listing_Standard listing, Rect inRect)
     {
-        Text.Font = GameFont.Medium;
-        string header = "PV_Settings_Thermal_Header".CanTranslate()
-            ? "PV_Settings_Thermal_Header".Translate().ToString()
-            : "Thermal Integrity & Non-Combustible Materials";
-        listing.Label(header);
-        Text.Font = GameFont.Small;
-        listing.GapLine();
+        string header = VigilanceLoc.Tr("PV_Settings_Thermal_Header", "Thermal Integrity & Non-Combustible Materials");
+        VigilanceUiWidgets.DrawSectionHeader(listing, header);
 
-        string label = "PV_Settings_Thermal_Toggle".CanTranslate()
-            ? "PV_Settings_Thermal_Toggle".Translate().ToString()
-            : "Enable Thermal Integrity Post-Def Audit";
-        string tooltip = "PV_Settings_Thermal_Toggle_Desc".CanTranslate()
-            ? "PV_Settings_Thermal_Toggle_Desc".Translate().ToString()
-            : "Automatically enforces non-combustible properties on structural metals, stonework, Odyssey heavy bridges, machinery, and radar dishes.";
+        string label = VigilanceLoc.Tr("PV_Settings_Thermal_Toggle", "Enable Thermal Integrity Post-Def Audit");
+        string tooltip = VigilanceLoc.Tr(
+            "PV_Settings_Thermal_Toggle_Desc",
+            "Automatically enforces non-combustible properties on structural metals, stonework, Odyssey heavy bridges, machinery, and radar dishes.");
 
         listing.CheckboxLabeled(label, ref Settings.enableThermalIntegrityAudit, tooltip);
     }

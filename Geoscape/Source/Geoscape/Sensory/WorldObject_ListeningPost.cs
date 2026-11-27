@@ -1019,5 +1019,37 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         }
     }
 
+    /// <summary>
+    /// Instantiates a new player-owned listening post, signal beacon, or sonar station in construction state
+    /// and adds it to the world objects holder.
+    /// </summary>
+    public static WorldObject_ListeningPost SpawnNewOutpost(
+        PlanetTile tile,
+        ListeningPostKind kind,
+        ThingDef? stuffDef = null,
+        int constructionTicks = 2500,
+        WorldObjectsHolder? targetWorldObjects = null)
+    {
+        string defName = kind switch
+        {
+            ListeningPostKind.SignalBeacon => "Vigilance_ListeningPost_Beacon",
+            ListeningPostKind.AutomatedSonar => "Vigilance_ListeningPost_Sonar",
+            _ => "Vigilance_ListeningPost_Automated"
+        };
+
+        WorldObjectDef def = kind == ListeningPostKind.AutomatedSonar
+            ? (DefDatabase<WorldObjectDef>.GetNamedSilentFail(defName) ?? DefDatabase<WorldObjectDef>.GetNamed("Vigilance_ListeningPost_Automated"))
+            : DefDatabase<WorldObjectDef>.GetNamed(defName);
+
+        var post = (WorldObject_ListeningPost)WorldObjectMaker.MakeWorldObject(def);
+        post.Tile = tile;
+        post.SetFaction(Faction.OfPlayer);
+        post.Kind = kind;
+        post.stuffDef = stuffDef;
+        post.StartConstruction(constructionTicks);
+        (targetWorldObjects ?? Find.World?.worldObjects)?.Add(post);
+        return post;
+    }
+
     #endregion
 }

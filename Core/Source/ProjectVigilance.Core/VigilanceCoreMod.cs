@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
+using ProjectVigilance.Core.Localization;
 using ProjectVigilance.Core.Migration;
 using ProjectVigilance.Core.Modules;
+using ProjectVigilance.Core.UI;
 using ProjectVigilance.Geoscape.Settings;
 using RimWorld;
 using UnityEngine;
@@ -165,15 +167,16 @@ public class VigilanceCoreMod : Mod
         {
             var tab = tabs[i];
             Rect btnRect = new(tabRowRect.x + i * (tabWidth + spacing), tabRowRect.y, tabWidth, 30f);
-            string label = tab.TabLabelKey.CanTranslate() ? tab.TabLabelKey.Translate().ToString() : tab.FallbackTabLabel;
+            string label = VigilanceLoc.Tr(tab.TabLabelKey, tab.FallbackTabLabel);
 
             if (currentTabKey == tab.TabKey)
             {
                 Widgets.DrawHighlightSelected(btnRect);
-                TextAnchor prev = Text.Anchor;
-                Text.Anchor = TextAnchor.MiddleCenter;
-                Widgets.Label(btnRect, label);
-                Text.Anchor = prev;
+                using (new VigilanceUiWidgets.ImguiStateScope())
+                {
+                    Text.Anchor = TextAnchor.MiddleCenter;
+                    Widgets.Label(btnRect, label);
+                }
             }
             else if (Widgets.ButtonText(btnRect, label))
             {

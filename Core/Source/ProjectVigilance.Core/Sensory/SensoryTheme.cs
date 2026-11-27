@@ -31,31 +31,31 @@ public static class SensoryThemeUtility
                 new Color(0f, 0.90f, 1.0f),       // Cyan
                 new Color(1.0f, 0.82f, 0.15f),    // Gold
                 new Color(1.0f, 0.75f, 0.20f),    // Amber
-                new Color(0.12f, 0.45f, 0.85f)    // Cobalt
+                new Color(0.22f, 0.57f, 1.0f)     // Cobalt (AA)
             ),
             SensoryTheme.AmberCRT => (
                 new Color(1.0f, 0.70f, 0.10f),    // Warm Amber
                 new Color(1.0f, 0.88f, 0.35f),    // Bright Amber
                 new Color(0.95f, 0.85f, 0.40f),   // Pale Yellow
-                new Color(0.65f, 0.42f, 0.15f)    // Bronze
+                new Color(0.80f, 0.52f, 0.20f)    // Bronze (AA)
             ),
             SensoryTheme.EmeraldPhosphor => (
                 new Color(0.15f, 0.95f, 0.35f),   // Classic Green
                 new Color(0.35f, 1.0f, 0.65f),    // Mint
                 new Color(0.70f, 1.0f, 0.25f),    // Lime
-                new Color(0.10f, 0.55f, 0.45f)    // Dark Teal
+                new Color(0.15f, 0.65f, 0.54f)    // Teal (AA)
             ),
             SensoryTheme.CrimsonAlert => (
-                new Color(1.0f, 0.25f, 0.15f),    // Blood Orange
+                new Color(1.0f, 0.32f, 0.22f),    // Blood Orange (AA)
                 new Color(1.0f, 0.50f, 0.40f),    // Coral
                 new Color(1.0f, 0.35f, 0.25f),    // Scarlet
-                new Color(0.65f, 0.12f, 0.20f)    // Dark Ruby
+                new Color(1.0f, 0.36f, 0.44f)     // Ruby Rose (AA)
             ),
             SensoryTheme.GhostWhite => (
                 new Color(0.85f, 0.90f, 0.95f),   // Slate White
                 new Color(0.95f, 0.95f, 0.95f),   // Pure White
                 new Color(0.80f, 0.82f, 0.85f),   // Silver
-                new Color(0.50f, 0.55f, 0.60f)    // Ash Grey
+                new Color(0.52f, 0.57f, 0.62f)    // Ash Grey (AA)
             ),
             SensoryTheme.HighContrast => (
                 new Color(1.0f, 1.0f, 1.0f),       // Bright White
@@ -67,10 +67,10 @@ public static class SensoryThemeUtility
                 new Color(0.15f, 0.70f, 1.0f),    // High-Luminance Blue
                 new Color(1.0f, 0.85f, 0.10f),    // Yellow
                 new Color(1.0f, 0.90f, 0.30f),    // Bright Sand
-                new Color(0.05f, 0.40f, 0.85f)    // Deep Azure
+                new Color(0.24f, 0.55f, 1.0f)     // Bright Azure (AA)
             ),
             SensoryTheme.Tritanopia => (
-                new Color(0.95f, 0.20f, 0.70f),   // Magenta
+                new Color(1.0f, 0.28f, 0.75f),    // Magenta (AA)
                 new Color(0.15f, 0.90f, 0.85f),   // Teal
                 new Color(0.95f, 0.40f, 0.80f),   // Pink
                 new Color(0.10f, 0.65f, 0.70f)    // Cyan Sonar
@@ -79,7 +79,7 @@ public static class SensoryThemeUtility
                 new Color(0f, 0.90f, 1.0f),
                 new Color(1.0f, 0.82f, 0.15f),
                 new Color(1.0f, 0.75f, 0.20f),
-                new Color(0.12f, 0.45f, 0.85f)
+                new Color(0.22f, 0.57f, 1.0f)
             )
         };
     }

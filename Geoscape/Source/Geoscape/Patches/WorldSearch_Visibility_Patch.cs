@@ -186,9 +186,11 @@ public static class WorldSearch_Visibility_Patch
                     ? LandmarkSensoryUtility.TacticalCyan
                     : WorldObject_Visibility_Patch.UnknownSiteIconColor;
 
-                GUI.color = color;
-                GUI.DrawTexture(iconRect, icon);
-                GUI.color = Color.white;
+                using (new ProjectVigilance.Core.UI.VigilanceUiWidgets.ImguiStateScope())
+                {
+                    GUI.color = color;
+                    GUI.DrawTexture(iconRect, icon);
+                }
                 return false;
             }
 

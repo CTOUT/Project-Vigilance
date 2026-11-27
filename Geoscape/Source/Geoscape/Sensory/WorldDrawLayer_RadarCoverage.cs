@@ -26,8 +26,11 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private const float InteriorHalfWidth = 0.016f;            // Baseline holographic honeycomb grid line width
     private static readonly long DimmingTimeSliceTicks = Math.Max(1L, (Stopwatch.Frequency * 3L) / 1000L);
 
-    public static readonly Color32 SonarPerimeterColorRgb = new(0, 210, 255, 255);
-    public static readonly Color32 VisualPerimeterColorRgb = new(235, 225, 185, 255);
+    public static Color32 SonarPerimeterColorRgb =>
+        (Color32)(GeoscapeMod.Settings?.EffectiveSonarColor ?? SensoryThemeUtility.GetThemeColors(SensoryTheme.TacticalCyan).sonar);
+
+    public static Color32 VisualPerimeterColorRgb =>
+        (Color32)(GeoscapeMod.Settings?.EffectiveScoutColor ?? SensoryThemeUtility.GetThemeColors(SensoryTheme.TacticalCyan).scout);
 
     private readonly HashSet<int> activeTileIdsCache = new(256);
     private readonly HashSet<int> identifiedTileIdsCache = new(64);
@@ -329,6 +332,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         {
             Color32 baseColor = (Color32)GeoscapeMod.Settings.EffectiveRadarColor;
             Color32 idColor = (Color32)GeoscapeMod.Settings.EffectiveIdentificationColor;
+            Color32 sonarRgb = SonarPerimeterColorRgb;
+            Color32 visualRgb = VisualPerimeterColorRgb;
 
             byte alphaPerimeter = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.radarOutlineOpacity) * 255);
             Color32 perimeterColor = baseColor;
@@ -494,11 +499,11 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                     }
                     else if ((info.DomainFlags & SensorDomainFlags.Sonar) != 0)
                     {
-                        color = new Color32(SonarPerimeterColorRgb.r, SonarPerimeterColorRgb.g, SonarPerimeterColorRgb.b, alphaPerimeter);
+                        color = new Color32(sonarRgb.r, sonarRgb.g, sonarRgb.b, alphaPerimeter);
                     }
                     else
                     {
-                        color = new Color32(VisualPerimeterColorRgb.r, VisualPerimeterColorRgb.g, VisualPerimeterColorRgb.b, alphaPerimeter);
+                        color = new Color32(visualRgb.r, visualRgb.g, visualRgb.b, alphaPerimeter);
                     }
                 }
                 else if (isIdentificationHorizon)
@@ -536,7 +541,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                     byte interiorAlpha = (byte)(Mathf.Clamp01(GeoscapeMod.Settings.honeycombGridOpacity * factor) * 255);
                     if ((info.DomainFlags & SensorDomainFlags.Sonar) != 0)
                     {
-                        color = new Color32(SonarPerimeterColorRgb.r, SonarPerimeterColorRgb.g, SonarPerimeterColorRgb.b, interiorAlpha);
+                        color = new Color32(sonarRgb.r, sonarRgb.g, sonarRgb.b, interiorAlpha);
                     }
                     else
                     {

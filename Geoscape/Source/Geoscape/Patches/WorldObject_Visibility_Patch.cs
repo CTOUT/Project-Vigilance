@@ -663,45 +663,47 @@ public static class WorldObject_Visibility_Patch
             List<PlanetTile> tiles = getLandmarksToShow!();
             float transitionPct = getTransitionPct!();
 
-            for (int i = 0; i < tiles.Count; i++)
+            using (new ProjectVigilance.Core.UI.VigilanceUiWidgets.ImguiStateScope())
             {
-                PlanetTile tile = tiles[i];
-                try
+                for (int i = 0; i < tiles.Count; i++)
                 {
-                    bool highlighted = isHighlighted!(tile);
-                    if (transitionPct == 0f && !highlighted)
+                    PlanetTile tile = tiles[i];
+                    try
                     {
-                        continue;
-                    }
+                        bool highlighted = isHighlighted!(tile);
+                        if (transitionPct == 0f && !highlighted)
+                        {
+                            continue;
+                        }
 
-                    if (hiddenBehindTerrainNow!(tile))
+                        if (hiddenBehindTerrainNow!(tile))
+                        {
+                            continue;
+                        }
+
+                        Landmark? landmark = Find.WorldGrid?[tile]?.Landmark;
+                        bool isMaskedManMade = landmark?.def != null &&
+                            LandmarkSensoryUtility.IsManMadeLandmarkDef(landmark.def.defName) &&
+                            !sensory.IsTileIdentified(tile);
+
+                        Color drawColor = isMaskedManMade ? LandmarkSensoryUtility.TacticalCyan : Color.white;
+                        drawColor.a = highlighted ? 1f : transitionPct;
+                        Texture2D tex = isMaskedManMade
+                            ? LandmarkSensoryUtility.GetUnknownLandmarkExpandingTexture()
+                            : getLandmarkTex!();
+
+                        GUI.color = drawColor;
+                        Rect rect = expandedIconScreenRect!(tile);
+                        Material? mat = highlighted ? getMaterial!(drawColor) : null;
+                        Widgets.DrawTextureRotated(rect, tex, 0f, mat);
+                    }
+                    catch (Exception ex)
                     {
-                        continue;
+                        Log.Error($"Error while drawing landmark at {tile.ToStringSafe()}: {ex}");
                     }
-
-                    Landmark? landmark = Find.WorldGrid?[tile]?.Landmark;
-                    bool isMaskedManMade = landmark?.def != null &&
-                        LandmarkSensoryUtility.IsManMadeLandmarkDef(landmark.def.defName) &&
-                        !sensory.IsTileIdentified(tile);
-
-                    Color drawColor = isMaskedManMade ? LandmarkSensoryUtility.TacticalCyan : Color.white;
-                    drawColor.a = highlighted ? 1f : transitionPct;
-                    Texture2D tex = isMaskedManMade
-                        ? LandmarkSensoryUtility.GetUnknownLandmarkExpandingTexture()
-                        : getLandmarkTex!();
-
-                    GUI.color = drawColor;
-                    Rect rect = expandedIconScreenRect!(tile);
-                    Material? mat = highlighted ? getMaterial!(drawColor) : null;
-                    Widgets.DrawTextureRotated(rect, tex, 0f, mat);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"Error while drawing landmark at {tile.ToStringSafe()}: {ex}");
                 }
             }
 
-            GUI.color = Color.white;
             return false;
         }
 

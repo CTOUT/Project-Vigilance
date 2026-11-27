@@ -1,3 +1,5 @@
+using ProjectVigilance.Core.Localization;
+using ProjectVigilance.Core.UI;
 using ProjectVigilance.Geoscape.Sensory;
 using UnityEngine;
 using Verse;
@@ -98,15 +100,7 @@ public static class CampaignRulesPanel
     {
         bool applicable = rules.Visibility.Value != VisibilityMode.Omniscient;
 
-        Text.Font = GameFont.Medium;
-        if (!applicable)
-        {
-            GUI.color = new Color(1f, 1f, 1f, 0.38f);
-        }
-        listing.Label("Lookout & Scouting Horizons");
-        GUI.color = Color.white;
-        Text.Font = GameFont.Small;
-        listing.GapLine();
+        VigilanceUiWidgets.DrawSectionHeader(listing, "Lookout & Scouting Horizons", applicable ? null : VigilanceUiWidgets.DisabledTextColor);
 
         static float ClampIdHorizon(
             CampaignRule<float> scoutRule,
@@ -140,9 +134,10 @@ public static class CampaignRulesPanel
             enabled: applicable);
 
         float maxColonyId = ClampIdHorizon(rules.ColonyScoutRadius, rules.ColonyIdentificationRadius, campaign);
-        string colonyIdCapTip = "PV_Rules_ColonyIdCapTooltip".CanTranslate()
-            ? "PV_Rules_ColonyIdCapTooltip".Translate(maxColonyId.ToString("0")).ToString()
-            : $"Capped at {maxColonyId:0} hex(es) (Colony scout horizon - 1). Increase Colony scout horizon to unlock higher identification range.";
+        string colonyIdCapTip = VigilanceLoc.Tr(
+            "PV_Rules_ColonyIdCapTooltip",
+            $"Capped at {maxColonyId:0} hex(es) (Colony scout horizon - 1). Increase Colony scout horizon to unlock higher identification range.",
+            maxColonyId.ToString("0"));
         CampaignRuleWidgets.DrawFloat(
             listing,
             rules.ColonyIdentificationRadius,
@@ -166,9 +161,10 @@ public static class CampaignRulesPanel
             enabled: applicable);
 
         float maxCaravanId = ClampIdHorizon(rules.CaravanScoutRadius, rules.CaravanIdentificationRadius, campaign);
-        string caravanIdCapTip = "PV_Rules_CaravanIdCapTooltip".CanTranslate()
-            ? "PV_Rules_CaravanIdCapTooltip".Translate(maxCaravanId.ToString("0")).ToString()
-            : $"Capped at {maxCaravanId:0} hex(es) (Caravan scout horizon - 1). Increase Caravan scout horizon to unlock higher identification range.";
+        string caravanIdCapTip = VigilanceLoc.Tr(
+            "PV_Rules_CaravanIdCapTooltip",
+            $"Capped at {maxCaravanId:0} hex(es) (Caravan scout horizon - 1). Increase Caravan scout horizon to unlock higher identification range.",
+            maxCaravanId.ToString("0"));
         CampaignRuleWidgets.DrawFloat(
             listing,
             rules.CaravanIdentificationRadius,

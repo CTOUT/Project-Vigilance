@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ProjectVigilance.Core.Localization;
+using ProjectVigilance.Core.UI;
 using ProjectVigilance.Geoscape.Rules;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.Settings;
@@ -49,7 +51,7 @@ public class GeoscapeSettings : ModSettings
     public bool useCustomIdentificationColor = false;
     public Color radarIdentificationColor = new(1.0f, 0.82f, 0.15f);
     public Color scoutCustomColor = new(1.0f, 0.75f, 0.20f);
-    public Color sonarCustomColor = new(0.12f, 0.45f, 0.85f);
+    public Color sonarCustomColor = new(0.22f, 0.57f, 1.0f);
     public float surveillanceDimming = 0.25f;
     public float colonyScoutRadius = 3.0f;
     public float colonyIdentificationRadius = 1.0f;
@@ -133,8 +135,8 @@ public class GeoscapeSettings : ModSettings
     private static readonly Color LatchedTabText = new(0.4f, 0.95f, 1f);
     private static readonly Color SectionHeaderColor = new(0.7f, 0.9f, 1f);
     private static readonly Color SubNoteColor = new(0.7f, 0.85f, 0.95f);
-    private static readonly Color DisabledControlColor = new(1f, 1f, 1f, 0.38f);
-    private static readonly Color DisabledHeaderColor = new(0.45f, 0.58f, 0.65f, 0.50f);
+    private static readonly Color DisabledControlColor = VigilanceUiWidgets.DisabledTextColor;
+    private static readonly Color DisabledHeaderColor = new(0.62f, 0.76f, 0.84f, 0.72f);
 
     public Color EffectiveRadarColor
     {
@@ -170,6 +172,10 @@ public class GeoscapeSettings : ModSettings
     public void ApplySensoryTheme(SensoryTheme theme)
     {
         sensoryTheme = theme;
+        if (theme is SensoryTheme.ProtanopiaDeuteranopia or SensoryTheme.Tritanopia or SensoryTheme.HighContrast)
+        {
+            usePlayerFactionColor = false;
+        }
         var colors = SensoryThemeUtility.GetThemeColors(theme);
         radarCustomColor = colors.radar;
         radarIdentificationColor = colors.identification;
@@ -200,7 +206,7 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref useCustomIdentificationColor, "useCustomIdentificationColor", false);
         Scribe_Values.Look(ref radarIdentificationColor, "radarIdentificationColor", new Color(1.0f, 0.82f, 0.15f));
         Scribe_Values.Look(ref scoutCustomColor, "scoutCustomColor", new Color(1.0f, 0.75f, 0.20f));
-        Scribe_Values.Look(ref sonarCustomColor, "sonarCustomColor", new Color(0.12f, 0.45f, 0.85f));
+        Scribe_Values.Look(ref sonarCustomColor, "sonarCustomColor", new Color(0.22f, 0.57f, 1.0f));
         Scribe_Values.Look(ref showIdentificationHorizon, "showIdentificationHorizon", true);
         Scribe_Values.Look(ref radarTerrainShadowStyle, "radarTerrainShadowStyle", RadarTerrainShadowStyle.Both);
         Scribe_Values.Look(ref surveillanceDimming, "surveillanceDimming", 0.25f);
@@ -281,7 +287,7 @@ public class GeoscapeSettings : ModSettings
             var tab = tabs[i];
             Rect tabBtnRect = new Rect(tabRowRect.x + i * (tabWidth + spacing), tabRowRect.y, tabWidth, 30f);
             bool isSelected = currentTabKey == tab.TabKey;
-            string label = tab.TabLabelKey.CanTranslate() ? tab.TabLabelKey.Translate().ToString() : tab.FallbackTabLabel;
+            string label = VigilanceLoc.Tr(tab.TabLabelKey, tab.FallbackTabLabel);
 
             if (isSelected)
             {
@@ -358,19 +364,23 @@ public class GeoscapeSettings : ModSettings
         {
             if (campaign.HasExternalModifications)
             {
-                Widgets.DrawBoxSolid(bannerRect, new Color(0.5f, 0.1f, 0.1f, 0.65f));
+                Widgets.DrawBoxSolid(bannerRect, new Color(0.32f, 0.08f, 0.08f, 0.78f));
                 Widgets.DrawHighlight(bannerRect);
-                GUI.color = new Color(1f, 0.35f, 0.35f);
-                Widgets.Label(bannerRect.ContractedBy(4f), "Active Save: EXTERNAL SAVE MODIFICATION DETECTED (Active rules diverge from audit ledger)");
-                GUI.color = Color.white;
+                using (new VigilanceUiWidgets.ImguiStateScope())
+                {
+                    GUI.color = VigilanceUiWidgets.AlertTextColor;
+                    Widgets.Label(bannerRect.ContractedBy(4f), "Active Save: EXTERNAL SAVE MODIFICATION DETECTED (Active rules diverge from audit ledger)");
+                }
             }
             else if (UnsafeRuleOverride.Effective)
             {
-                Widgets.DrawBoxSolid(bannerRect, new Color(0.4f, 0.1f, 0.1f, 0.5f));
+                Widgets.DrawBoxSolid(bannerRect, new Color(0.30f, 0.08f, 0.08f, 0.72f));
                 Widgets.DrawHighlight(bannerRect);
-                GUI.color = new Color(1f, 0.4f, 0.4f);
-                Widgets.Label(bannerRect.ContractedBy(4f), "Active Save: DEV OVERRIDE ACTIVE (All rule mutability restrictions bypassed)");
-                GUI.color = Color.white;
+                using (new VigilanceUiWidgets.ImguiStateScope())
+                {
+                    GUI.color = VigilanceUiWidgets.AlertTextColor;
+                    Widgets.Label(bannerRect.ContractedBy(4f), "Active Save: DEV OVERRIDE ACTIVE (All rule mutability restrictions bypassed)");
+                }
             }
             else if (campaign.ReviewWindowOpen)
             {
@@ -532,14 +542,14 @@ public class GeoscapeSettings : ModSettings
         Rect overrideRect = new Rect(themeRow.x + colWidth + 16f, themeRow.y, colWidth, 24f);
 
         string themeKey = $"PV_Settings_Theme_{sensoryTheme}";
-        string themeLabel = themeKey.CanTranslate() ? themeKey.Translate().ToString() : sensoryTheme.ToString();
+        string themeLabel = VigilanceLoc.Tr(themeKey, sensoryTheme.ToString());
         if (Widgets.ButtonText(themeBtn, $"Theme: {themeLabel}"))
         {
             List<FloatMenuOption> themeOptions = new();
             foreach (SensoryTheme st in Enum.GetValues(typeof(SensoryTheme)))
             {
                 string key = $"PV_Settings_Theme_{st}";
-                string lbl = key.CanTranslate() ? key.Translate().ToString() : st.ToString();
+                string lbl = VigilanceLoc.Tr(key, st.ToString());
                 themeOptions.Add(new FloatMenuOption(lbl, () =>
                 {
                     ApplySensoryTheme(st);
@@ -549,8 +559,10 @@ public class GeoscapeSettings : ModSettings
         }
 
         bool customOverride = useCustomPaletteOverrides;
-        string overrideLabel = "PV_Settings_UseCustomPaletteOverrides".CanTranslate() ? "PV_Settings_UseCustomPaletteOverrides".Translate().ToString() : "Use Custom Palette Overrides";
-        string overrideDesc = "PV_Settings_UseCustomPaletteOverrides_Desc".CanTranslate() ? "PV_Settings_UseCustomPaletteOverrides_Desc".Translate().ToString() : "Enable granular colour overrides for Radar, Identification, and Scout perimeters. When disabled, curated theme presets apply.";
+        string overrideLabel = VigilanceLoc.Tr("PV_Settings_UseCustomPaletteOverrides", "Use Custom Palette Overrides");
+        string overrideDesc = VigilanceLoc.Tr(
+            "PV_Settings_UseCustomPaletteOverrides_Desc",
+            "Enable granular colour overrides for Radar, Identification, and Scout perimeters. When disabled, curated theme presets apply.");
         if (!outlinesEnabled) GUI.color = DisabledControlColor;
         Widgets.CheckboxLabeled(overrideRect, overrideLabel, ref customOverride, disabled: !outlinesEnabled);
         GUI.color = Color.white;
@@ -976,9 +988,9 @@ public class GeoscapeSettings : ModSettings
             "Render the attacking faction's emblem icon on planetary incursions once classified, instead of generic markers.");
 
         listing.CheckboxLabeled(
-            "PV_Settings_InterFactionCollisions".CanTranslate() ? "PV_Settings_InterFactionCollisions".Translate().ToString() : "Inter-Faction Overland Collisions",
+            VigilanceLoc.Tr("PV_Settings_InterFactionCollisions", "Inter-Faction Overland Collisions"),
             ref enableInterFactionCollisions,
-            "PV_Settings_InterFactionCollisions_Desc".CanTranslate() ? "PV_Settings_InterFactionCollisions_Desc".Translate().ToString() : "Simulates background encounters and skirmishes when rival NPC incursions cross paths on the globe.");
+            VigilanceLoc.Tr("PV_Settings_InterFactionCollisions_Desc", "Simulates background encounters and skirmishes when rival NPC incursions cross paths on the globe."));
 
         if (!inCampaign)
         {
@@ -1021,43 +1033,41 @@ public class GeoscapeSettings : ModSettings
                 "Allow right-clicking anywhere on the Geoscape without selecting a source first, intelligently suggesting actions from the nearest colonies and caravans.");
 
             leftCol.CheckboxLabeled(
-                "PV_Settings_OptimisticDetours".CanTranslate() ? "PV_Settings_OptimisticDetours".Translate().ToString() : "Optimistic Caravan Detours",
+                VigilanceLoc.Tr("PV_Settings_OptimisticDetours", "Optimistic Caravan Detours"),
                 ref optimisticCaravanDetours,
-                "PV_Settings_OptimisticDetours_Desc".CanTranslate() ? "PV_Settings_OptimisticDetours_Desc".Translate().ToString() : "Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered.");
+                VigilanceLoc.Tr("PV_Settings_OptimisticDetours_Desc", "Caravans plot paths assuming unmapped fog-of-war sectors are passable, repathing dynamically when impassable terrain is discovered."));
 
             if (!ProjectVigilance.Core.Modules.VigilanceModuleManager.IsThermalActive)
             {
                 leftCol.CheckboxLabeled(
-                    "PV_Settings_ThermalIntegrityAudit".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit".Translate().ToString() : "Thermal Integrity Def Audit",
+                    VigilanceLoc.Tr("PV_Settings_ThermalIntegrityAudit", "Thermal Integrity Def Audit"),
                     ref enableThermalIntegrityAudit,
-                    "PV_Settings_ThermalIntegrityAudit_Desc".CanTranslate() ? "PV_Settings_ThermalIntegrityAudit_Desc".Translate().ToString() : "Automatically enforces non-combustible properties on metals, stone, and structural components at startup.");
+                    VigilanceLoc.Tr("PV_Settings_ThermalIntegrityAudit_Desc", "Automatically enforces non-combustible properties on metals, stone, and structural components at startup."));
             }
 
             leftCol.CheckboxLabeled(
-                "PV_Settings_SeamlessZoom".CanTranslate() ? "PV_Settings_SeamlessZoom".Translate().ToString() : "Seamless Geoscape / Battlescape Zoom",
+                VigilanceLoc.Tr("PV_Settings_SeamlessZoom", "Seamless Geoscape / Battlescape Zoom"),
                 ref enableSeamlessCameraZoom,
-                "PV_Settings_SeamlessZoom_Desc".CanTranslate() ? "PV_Settings_SeamlessZoom_Desc".Translate().ToString() : "Allows zooming out past maximum map zoom to open the planetary Geoscape centred on that tile, and zooming in past minimum globe altitude to enter an active battlescape or colony map.");
+                VigilanceLoc.Tr("PV_Settings_SeamlessZoom_Desc", "Allows zooming out past maximum map zoom to open the planetary Geoscape centred on that tile, and zooming in past minimum globe altitude to enter an active battlescape or colony map."));
 
             DrawToggleableIntSlider(
                 leftCol,
-                "PV_Settings_SeamlessZoomNotches".CanTranslate() ? "PV_Settings_SeamlessZoomNotches".Translate(seamlessZoomOverscrollNotches).ToString() : $"Overscroll Notches Required: {seamlessZoomOverscrollNotches}",
+                VigilanceLoc.Tr("PV_Settings_SeamlessZoomNotches", $"Overscroll Notches Required: {seamlessZoomOverscrollNotches}", seamlessZoomOverscrollNotches),
                 ref seamlessZoomOverscrollNotches,
                 1,
                 5,
-                "PV_Settings_SeamlessZoomNotches_Desc".CanTranslate() ? "PV_Settings_SeamlessZoomNotches_Desc".Translate().ToString() : "Number of extra scroll-wheel notches required after hitting the zoom boundary before transitioning between Battlescape and Geoscape.",
+                VigilanceLoc.Tr("PV_Settings_SeamlessZoomNotches_Desc", "Number of extra scroll-wheel notches required after hitting the zoom boundary before transitioning between Battlescape and Geoscape."),
                 enableSeamlessCameraZoom);
 
             if (enableSeamlessCameraZoom)
             {
-                string targetLabel = "PV_Settings_SeamlessZoomTarget".CanTranslate()
-                    ? "PV_Settings_SeamlessZoomTarget".Translate().ToString()
-                    : "Zoom-In Target Priority";
+                string targetLabel = VigilanceLoc.Tr("PV_Settings_SeamlessZoomTarget", "Zoom-In Target Priority");
                 string targetValue = seamlessZoomTargetMode == SeamlessZoomTargetMode.CursorFirst
-                    ? ("PV_Settings_SeamlessZoomTarget_CursorFirst".CanTranslate() ? "PV_Settings_SeamlessZoomTarget_CursorFirst".Translate().ToString() : "Cursor First (Centre Fallback)")
-                    : ("PV_Settings_SeamlessZoomTarget_ScreenCenter".CanTranslate() ? "PV_Settings_SeamlessZoomTarget_ScreenCenter".Translate().ToString() : "Screen Centre Only");
-                string targetDesc = "PV_Settings_SeamlessZoomTarget_Desc".CanTranslate()
-                    ? "PV_Settings_SeamlessZoomTarget_Desc".Translate().ToString()
-                    : "Determines how an active map is chosen when zooming in from the Geoscape when multiple battlescapes or colonies are nearby.";
+                    ? VigilanceLoc.Tr("PV_Settings_SeamlessZoomTarget_CursorFirst", "Cursor First (Centre Fallback)")
+                    : VigilanceLoc.Tr("PV_Settings_SeamlessZoomTarget_ScreenCenter", "Screen Centre Only");
+                string targetDesc = VigilanceLoc.Tr(
+                    "PV_Settings_SeamlessZoomTarget_Desc",
+                    "Determines how an active map is chosen when zooming in from the Geoscape when multiple battlescapes or colonies are nearby.");
                 if (leftCol.ButtonTextLabeled(targetLabel, targetValue, tooltip: targetDesc))
                 {
                     seamlessZoomTargetMode = seamlessZoomTargetMode == SeamlessZoomTargetMode.CursorFirst
@@ -1149,39 +1159,51 @@ public class GeoscapeSettings : ModSettings
 
     private void DrawAboutDiagnosticsTab(Listing_Standard listing)
     {
-        Text.Font = GameFont.Medium;
-        listing.Label("PV_Diag_ArchTitle".CanTranslate() ? "PV_Diag_ArchTitle".Translate().ToString() : "Project Vigilance — Modular Architecture");
-        Text.Font = GameFont.Small;
-        listing.GapLine();
+        VigilanceUiWidgets.DrawSectionHeader(listing, VigilanceLoc.Tr("PV_Diag_ArchTitle", "Project Vigilance — Modular Architecture"));
 
-        Rect descRect = listing.GetRect(46f);
+        string desc = VigilanceLoc.Tr(
+            "PV_Diag_ArchDesc",
+            "Decoupled RimWorld 1.7 framework suite. Modules operate independently and interconnect automatically when active.");
+        float descHeight = Mathf.Max(46f, Text.CalcHeight(desc, Mathf.Max(120f, listing.ColumnWidth - 16f)) + 16f);
+        Rect descRect = listing.GetRect(descHeight);
         Widgets.DrawBoxSolid(descRect, new Color(0.12f, 0.15f, 0.20f, 0.6f));
         Widgets.DrawBox(descRect);
-        string desc = "PV_Diag_ArchDesc".CanTranslate()
-            ? "PV_Diag_ArchDesc".Translate().ToString()
-            : "Decoupled RimWorld 1.7 framework suite. Modules operate independently and interconnect automatically when active.";
         Widgets.Label(descRect.ContractedBy(8f), desc);
 
         listing.Gap(6f);
 
-        Text.Font = GameFont.Medium;
-        listing.Label("PV_Diag_ModulesHeader".CanTranslate() ? "PV_Diag_ModulesHeader".Translate().ToString() : "Installed & Available Modules");
-        Text.Font = GameFont.Small;
-        listing.GapLine();
+        VigilanceUiWidgets.DrawSectionHeader(listing, VigilanceLoc.Tr("PV_Diag_ModulesHeader", "Installed & Available Modules"));
 
         var modules = ProjectVigilance.Core.Modules.VigilanceModuleManager.Modules;
         bool isEmbeddedFallback = ProjectVigilance.Core.Modules.VigilanceModuleManager.IsCoreEmbeddedFallback;
         float rowHeight = 24f;
-        float tableHeight = (modules.Count * rowHeight) + 16f + (isEmbeddedFallback ? 24f : 0f);
+        float modInnerWidth = Mathf.Max(120f, listing.ColumnWidth - 16f);
+
+        string embeddedNote = isEmbeddedFallback
+            ? VigilanceLoc.Tr(
+                "PV_Diag_EmbeddedCoreNote",
+                "Running Geoscape with embedded Core fallback. Subscribe to standalone Core Framework to enable optional modules (Orbital, Aquatics, Thermal).")
+            : string.Empty;
+        float embeddedNoteHeight = 0f;
+        if (isEmbeddedFallback)
+        {
+            using (new VigilanceUiWidgets.ImguiStateScope())
+            {
+                Text.Font = GameFont.Tiny;
+                embeddedNoteHeight = Mathf.Max(22f, Text.CalcHeight(embeddedNote, Mathf.Max(80f, modInnerWidth - 8f)) + 4f);
+            }
+        }
+
+        float tableHeight = (modules.Count * rowHeight) + 16f + embeddedNoteHeight;
 
         Rect modTableRect = listing.GetRect(tableHeight);
         Widgets.DrawBoxSolid(modTableRect, new Color(0.08f, 0.11f, 0.14f, 0.8f));
         Widgets.DrawBox(modTableRect);
         Rect modContentRect = modTableRect.ContractedBy(8f);
 
-        string activeLabel = "PV_Diag_Status_Active".CanTranslate() ? "PV_Diag_Status_Active".Translate().ToString() : "Active";
-        string embeddedLabel = "PV_Diag_Status_Embedded".CanTranslate() ? "PV_Diag_Status_Embedded".Translate().ToString() : "Embedded Fallback";
-        string notInstalledLabel = "PV_Diag_Status_NotInstalled".CanTranslate() ? "PV_Diag_Status_NotInstalled".Translate().ToString() : "Not Installed";
+        string activeLabel = VigilanceLoc.Tr("PV_Diag_Status_Active", "Active");
+        string embeddedLabel = VigilanceLoc.Tr("PV_Diag_Status_Embedded", "Embedded Fallback");
+        string notInstalledLabel = VigilanceLoc.Tr("PV_Diag_Status_NotInstalled", "Not Installed");
 
         float curY = modContentRect.y;
         for (int i = 0; i < modules.Count; i++)
@@ -1209,29 +1231,20 @@ public class GeoscapeSettings : ModSettings
 
             Widgets.Label(new Rect(rowRect.x + 4f, rowRect.y + 2f, leftWidth - 4f, rowHeight - 2f), $"• {mod.DisplayName}{versionInfo}");
 
-            TextAnchor prevAnchor = Text.Anchor;
-            Text.Anchor = TextAnchor.MiddleRight;
-            if (isActive)
+            using (new VigilanceUiWidgets.ImguiStateScope())
             {
-                GUI.color = new Color(0.35f, 0.95f, 0.45f);
-                Widgets.Label(new Rect(rowRect.x + leftWidth, rowRect.y, rightWidth - 6f, rowHeight), activeLabel);
+                Text.Anchor = TextAnchor.MiddleRight;
+                var (statusText, statusColor) = VigilanceUiWidgets.GetModuleStatusBadge(
+                    isActive,
+                    isCoreEmbedded,
+                    activeLabel,
+                    embeddedLabel,
+                    notInstalledLabel);
+                GUI.color = statusColor;
+                Widgets.Label(new Rect(rowRect.x + leftWidth, rowRect.y, rightWidth - 6f, rowHeight), statusText);
             }
-            else if (isCoreEmbedded)
-            {
-                GUI.color = new Color(1f, 0.72f, 0.25f);
-                Widgets.Label(new Rect(rowRect.x + leftWidth, rowRect.y, rightWidth - 6f, rowHeight), embeddedLabel);
-            }
-            else
-            {
-                GUI.color = new Color(0.58f, 0.65f, 0.72f);
-                Widgets.Label(new Rect(rowRect.x + leftWidth, rowRect.y, rightWidth - 6f, rowHeight), notInstalledLabel);
-            }
-            GUI.color = Color.white;
-            Text.Anchor = prevAnchor;
 
-            string tip = "PV_Diag_ModTooltip".CanTranslate()
-                ? "PV_Diag_ModTooltip".Translate(mod.Summary, mod.PackageId).ToString()
-                : $"{mod.Summary}\nPackage ID: {mod.PackageId}";
+            string tip = VigilanceLoc.Tr("PV_Diag_ModTooltip", $"{mod.Summary}\nPackage ID: {mod.PackageId}", mod.Summary, mod.PackageId);
             TooltipHandler.TipRegion(rowRect, tip);
 
             curY += rowHeight;
@@ -1239,14 +1252,12 @@ public class GeoscapeSettings : ModSettings
 
         if (isEmbeddedFallback)
         {
-            Text.Font = GameFont.Tiny;
-            GUI.color = new Color(1f, 0.80f, 0.35f);
-            string note = "PV_Diag_EmbeddedCoreNote".CanTranslate()
-                ? "PV_Diag_EmbeddedCoreNote".Translate().ToString()
-                : "Running Geoscape with embedded Core fallback. Subscribe to standalone Core Framework to enable optional modules (Orbital, Aquatics, Thermal).";
-            Widgets.Label(new Rect(modContentRect.x + 4f, curY + 2f, modContentRect.width - 8f, 22f), note);
-            GUI.color = Color.white;
-            Text.Font = GameFont.Small;
+            using (new VigilanceUiWidgets.ImguiStateScope())
+            {
+                Text.Font = GameFont.Tiny;
+                GUI.color = VigilanceUiWidgets.StatusWarningColor;
+                Widgets.Label(new Rect(modContentRect.x + 4f, curY + 2f, modContentRect.width - 8f, embeddedNoteHeight), embeddedNote);
+            }
         }
 
         listing.Gap(6f);
@@ -1262,10 +1273,7 @@ public class GeoscapeSettings : ModSettings
         Listing_Standard govCol = new() { maxOneColumn = true };
         govCol.Begin(govRect);
         {
-            Text.Font = GameFont.Medium;
-            govCol.Label("PV_Diag_GovernanceHeader".CanTranslate() ? "PV_Diag_GovernanceHeader".Translate().ToString() : "Active Campaign Governance");
-            Text.Font = GameFont.Small;
-            govCol.GapLine();
+            VigilanceUiWidgets.DrawSectionHeader(govCol, VigilanceLoc.Tr("PV_Diag_GovernanceHeader", "Active Campaign Governance"));
 
             if (campaign != null)
             {
@@ -1283,12 +1291,14 @@ public class GeoscapeSettings : ModSettings
                     {
                         govCol.Gap(2f);
                         Rect warnRect = govCol.GetRect(38f);
-                        Widgets.DrawBoxSolid(warnRect, new Color(0.35f, 0.08f, 0.08f, 0.6f));
+                        Widgets.DrawBoxSolid(warnRect, new Color(0.32f, 0.08f, 0.08f, 0.78f));
                         Widgets.DrawBox(warnRect);
-                        GUI.color = new Color(1f, 0.45f, 0.45f);
-                        string safeNote = SanitizeSaveText(lastMod.note, 256);
-                        Widgets.Label(warnRect.ContractedBy(4f), $"[Save Integrity Warning] {safeNote}");
-                        GUI.color = Color.white;
+                        using (new VigilanceUiWidgets.ImguiStateScope())
+                        {
+                            GUI.color = VigilanceUiWidgets.AlertTextColor;
+                            string safeNote = SanitizeSaveText(lastMod.note, 256);
+                            Widgets.Label(warnRect.ContractedBy(4f), $"[Save Integrity Warning] {safeNote}");
+                        }
                     }
                 }
 
@@ -1332,12 +1342,14 @@ public class GeoscapeSettings : ModSettings
             }
             else
             {
-                GUI.color = SubNoteColor;
-                string noSave = "PV_Diag_GovernanceNoSave".CanTranslate()
-                    ? "PV_Diag_GovernanceNoSave".Translate().ToString()
-                    : "No active campaign loaded. Defaults apply to newly started colonies.";
-                govCol.Label(noSave);
-                GUI.color = Color.white;
+                using (new VigilanceUiWidgets.ImguiStateScope())
+                {
+                    GUI.color = SubNoteColor;
+                    string noSave = VigilanceLoc.Tr(
+                        "PV_Diag_GovernanceNoSave",
+                        "No active campaign loaded. Defaults apply to newly started colonies.");
+                    govCol.Label(noSave);
+                }
             }
         }
         govCol.End();
@@ -1345,22 +1357,21 @@ public class GeoscapeSettings : ModSettings
         Listing_Standard cfgCol = new() { maxOneColumn = true };
         cfgCol.Begin(cfgRect);
         {
-            Text.Font = GameFont.Medium;
-            cfgCol.Label("PV_Diag_ConfigHeader".CanTranslate() ? "PV_Diag_ConfigHeader".Translate().ToString() : "Configuration Management");
-            Text.Font = GameFont.Small;
-            cfgCol.GapLine();
+            VigilanceUiWidgets.DrawSectionHeader(cfgCol, VigilanceLoc.Tr("PV_Diag_ConfigHeader", "Configuration Management"));
 
-            GUI.color = SubNoteColor;
-            string cfgDesc = "PV_Diag_ConfigDesc".CanTranslate()
-                ? "PV_Diag_ConfigDesc".Translate().ToString()
-                : "Restore all Geoscape defaults or reset new-campaign rules without altering an active save.";
-            cfgCol.Label(cfgDesc);
-            GUI.color = Color.white;
+            using (new VigilanceUiWidgets.ImguiStateScope())
+            {
+                GUI.color = SubNoteColor;
+                string cfgDesc = VigilanceLoc.Tr(
+                    "PV_Diag_ConfigDesc",
+                    "Restore all Geoscape defaults or reset new-campaign rules without altering an active save.");
+                cfgCol.Label(cfgDesc);
+            }
             cfgCol.Gap(6f);
 
             string resetBtnLabel = campaign != null
-                ? ("PV_Diag_ResetCampaignDefaults".CanTranslate() ? "PV_Diag_ResetCampaignDefaults".Translate().ToString() : "Reset New Campaign Defaults")
-                : ("PV_Diag_ResetDefaults".CanTranslate() ? "PV_Diag_ResetDefaults".Translate().ToString() : "Reset All Geoscape Settings");
+                ? VigilanceLoc.Tr("PV_Diag_ResetCampaignDefaults", "Reset New Campaign Defaults")
+                : VigilanceLoc.Tr("PV_Diag_ResetDefaults", "Reset All Geoscape Settings");
 
             if (cfgCol.ButtonText(resetBtnLabel))
             {
@@ -1392,6 +1403,8 @@ public class GeoscapeSettings : ModSettings
         honeycombGridOpacity = 0.40f;
         useCustomIdentificationColor = false;
         radarIdentificationColor = new Color(1.0f, 0.82f, 0.15f);
+        scoutCustomColor = new Color(1.0f, 0.75f, 0.20f);
+        sonarCustomColor = new Color(0.22f, 0.57f, 1.0f);
         surveillanceDimming = 0.25f;
         colonyScoutRadius = 3.0f;
         colonyIdentificationRadius = 1.0f;
