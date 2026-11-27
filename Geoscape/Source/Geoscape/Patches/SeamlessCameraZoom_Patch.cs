@@ -19,7 +19,7 @@ public static class SeamlessCameraZoomUtility
 {
     public const float TransitionCooldownSeconds = 0.45f;
     public const float OverscrollDecaySeconds = 0.65f;
-    public const float CloudTransitionDurationSeconds = 0.30f;
+    public const float CloudTransitionDurationSeconds = 0.70f;
     public const int DefaultSnapRadiusTiles = 2;
     public const float MapBoundaryEpsilon = 0.35f;
     public const float WorldBoundaryEpsilon = 0.35f;
@@ -709,15 +709,15 @@ public static class SeamlessCameraZoomUtility
 
         float w = UI.screenWidth;
         float h = UI.screenHeight;
-        float density = Mathf.Sin(progress * Mathf.PI);
-        float ease = progress < 0.5f
-            ? 2f * progress * progress
-            : 1f - Mathf.Pow(-2f * progress + 2f, 2f) * 0.5f;
+        // Smooth bell curve so clouds roll in gently, cover the midpoint swap, and part smoothly
+        float sinCurve = Mathf.Sin(progress * Mathf.PI);
+        float density = sinCurve * sinCurve;
+        float ease = progress * progress * (3f - 2f * progress);
 
         using (new VigilanceUiWidgets.ImguiStateScope())
         {
-            // Soft atmospheric cloud-deck veil
-            GUI.color = new Color(0.84f, 0.89f, 0.94f, density * 0.58f);
+            // Muted atmospheric twilight cloud-deck veil (avoids harsh white flashbang glare)
+            GUI.color = new Color(0.20f, 0.25f, 0.31f, density * 0.62f);
             GUI.DrawTexture(new Rect(0f, 0f, w, h), BaseContent.WhiteTex);
 
             float cx = w * 0.5f;
@@ -729,14 +729,18 @@ public static class SeamlessCameraZoomUtility
             {
                 CloudPuffSeed seed = CloudSeeds[i];
                 float radialShift = ascending
-                    ? (0.20f + ease * 1.18f)
-                    : (1.38f - ease * 1.15f);
+                    ? (0.28f + ease * 0.92f)
+                    : (1.20f - ease * 0.92f);
                 float rDist = seed.DistNorm * maxDim * radialShift;
                 float px = cx + seed.CosAngle * rDist;
                 float py = cy + seed.SinAngle * rDist * 0.72f;
-                float radius = seed.BaseRadius * (w / 960f) * (0.90f + density * 0.85f);
+                float radius = seed.BaseRadius * (w / 960f) * (0.95f + density * 0.65f);
 
-                GUI.color = new Color(seed.Shade, Mathf.Min(1f, seed.Shade + 0.03f), 0.99f, density * 0.82f);
+                // Layered cool-slate cloud puffs: darker underside puffs + muted silver-grey mist
+                float r = seed.Shade * 0.92f;
+                float g = seed.Shade * 0.97f;
+                float b = Mathf.Min(1f, seed.Shade * 1.04f);
+                GUI.color = new Color(r, g, b, density * 0.34f);
                 GUI.DrawTexture(new Rect(px - radius, py - radius, radius * 2f, radius * 2f), cachedCloudPuffTex);
             }
         }
@@ -751,7 +755,10 @@ public static class SeamlessCameraZoomUtility
             float angle = (i / (float)count) * Mathf.PI * 2f + (i % 3) * 0.21f;
             float dist = 0.14f + ((i * 37) % 100) / 145f;
             float radius = 140f + ((i * 29) % 110);
-            float shade = (218f + (i % 4) * 9f) / 255f;
+            // Alternate deeper shadow-base cloud puffs and softer silver-slate upper mist
+            float shade = (i % 3 == 0)
+                ? (0.22f + (i % 4) * 0.03f)
+                : (0.44f + (i % 4) * 0.04f);
             seeds[i] = new CloudPuffSeed(angle, dist, radius, shade);
         }
         return seeds;
