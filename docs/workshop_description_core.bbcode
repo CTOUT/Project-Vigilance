@@ -1,0 +1,28 @@
+[h1]Project Vigilance: Core Framework[/h1]
+[b]Shared foundation library, unified Mod Options host, WCAG 2.2 AA accessibility palette system, and safe savegame migration infrastructure for the Project Vigilance suite.[/b]
+Zero gameplay changes on its own. Safe to add mid-save. Required by all Project Vigilance modules.
+[hr][/hr]
+[h2]What This Module Provides[/h2]
+[list]
+[*] [b]Unified Mod Options Host:[/b] Consolidates every installed Project Vigilance module into a single clean [i]Project Vigilance[/i] entry under RimWorld Mod Options (while keeping per-module options links intact in the Mods Manager), with [i]Diagnostics[/i] pinned as the final tab.
+[*] [b]Modular Soft-Hook Architecture:[/b] Decouples [i]Geoscape[/i], [i]Orbital[/i], [i]Aquatics[/i], and [i]Thermal[/i] via shared interfaces ([i]ISensorProvider[/i], [i]IDetectableTarget[/i], [i]IOrbitalEntity[/i]) so you can mix and match optional modules freely without hard cross-dependencies.
+[*] [b]WCAG 2.2 AA Sensory Palette & Accessibility:[/b] Hosts 8 curated high-contrast colour palettes including [i]Protanopia / Deuteranopia[/i], [i]Tritanopia[/i], and [i]High Contrast[/i] presets, keyed localisation helpers, and zero-allocation IMGUI state guards.
+[*] [b]Safe Savegame Migration & Backwards Compatibility:[/b] Includes compile-time Scribe compatibility converters and an interactive migration modal so pre-split saves or saves missing optional modules load with zero red console errors and one-click orphan retirement.
+[*] [b]Modder Extensibility:[/b] Exposes XML [i]DefModExtension_Sensor[/i] and [i]DefModExtension_Detectable[/i] contracts so third-party mods can integrate with Project Vigilance without writing C#.
+[/list]
+[hr][/hr]
+[h2]Compatibility & Load Order[/h2]
+[olist]
+[*] Harmony
+[*] Core
+[*] Official DLCs (Royalty, Ideology, Biotech, Anomaly, Odyssey — all optional)
+[*] [b]Project Vigilance - Core Framework[/b]
+[*] Project Vigilance - Geoscape & Early Warning (and any optional modules: Orbital, Aquatics, Thermal)
+[/olist]
+[hr][/hr]
+[h2]Reporting Bugs & Feedback[/h2]
+[list]
+[*] [b]GitHub Issues (Preferred):[/b] [url=https://github.com/CTOUT/Project-Vigilance/issues]Report an Issue on GitHub[/url] — Please include your [i]Player.log[/i], RimWorld version, active modules, and reproduction steps.
+[*] [b]Official Steam Collection:[/b] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427]View the Project Vigilance Suite[/url]
+[*] [b]GitHub Repository:[/b] [url=https://github.com/CTOUT/Project-Vigilance]Source Code, Roadmap & Releases[/url]
+[/list]

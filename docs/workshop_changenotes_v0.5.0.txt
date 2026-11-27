@@ -1,0 +1,29 @@
+[h2]v0.5.0 (Milestone 1.5) — Modular Suite Architecture, Accessibility & Performance Release[/h2]
+[list]
+[*] [b]Modular 5-Package Architecture & Unified Mod Options:[/b]
+    [list]
+    [*] Split Project Vigilance into 5 cleanly decoupled packages: [i]Core Framework[/i], [i]Geoscape & Early Warning[/i], [i]Orbital Logistics & Satellites[/i], [i]Aquatic Operations & Sonar[/i], and [i]Thermal Integrity & Materials[/i].
+    [*] Consolidated Mod Options into a single [i]Project Vigilance[/i] button under RimWorld Options while keeping per-mod options links in the Mods Manager, with [i]Diagnostics[/i] pinned as the final tab.
+    [*] Added safe Scribe backwards-compatibility stubs and an interactive migration modal so pre-split or partial-module saves load with zero red console errors.
+    [/list]
+[*] [b]Seamless Geoscape / Battlescape Camera Zoom:[/b]
+    [list]
+    [*] Zoom out past maximum map zoom to transition smoothly into the planetary Geoscape centred on your colony, or zoom in past minimum globe altitude to drop into an active map.
+    [*] Configurable over-scroll notches, target priority, transition style, and full [i]Reduce Shroud Motion[/i] support.
+    [/list]
+[*] [b]WCAG 2.2 AA Accessibility, Colourblind Themes & UI Polish:[/b]
+    [list]
+    [*] Upgraded all 32 swatches across all 8 curated themes (plus disabled controls and warning banners) to meet WCAG 2.2 AA (>= 4.5:1) contrast.
+    [*] Selecting [i]Protanopia / Deuteranopia[/i], [i]Tritanopia[/i], or [i]High Contrast[/i] automatically disables [i]Use Player Faction Colour[/i]; scout and sonar globe perimeters now follow the active theme.
+    [*] Replaced dynamic identification-horizon min/max bounds with a greyed-out capped upper range and hover tooltip; compacted [i]Radar & Visuals[/i] to eliminate its scrollbar.
+    [*] Honoured [i]Reduce Shroud Motion[/i] on incursion and outpost construction pulses.
+    [/list]
+[*] [b]Major Performance, Shroud & Stability Fixes:[/b]
+    [list]
+    [*] Fixed a GPU [i]MaterialPool[/i] leak on animated incursion markers and eliminated synchronous radar mesh rebuilds while dragging settings sliders.
+    [*] Fixed a hierarchical shroud chunk mesh bug where exploring a new icosahedron sector could hide its shroud shell until reload.
+    [*] Eliminated the Planetary Surveillance ocean contrast seam on partial-coverage (30% / 50%) globes by dimming un-generated ocean hemispheres in lockstep with generated ocean tiles.
+    [*] Eliminated hot-path LINQ/reflection allocations across radar, sonar, ambush HUD, concealed quest checks, and incursion ticks; stripped debug [i].pdb[/i] files from Release packages.
+    [*] Consolidated legacy shroud spike tools into a single read-only DevMode [i]Dump World Renderer & Shroud Diagnostics[/i] action.
+    [/list]
+[/list]
