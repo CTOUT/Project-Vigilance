@@ -59,9 +59,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private int[] dimTileStartVert = Array.Empty<int>();
     private int[] dimTileVertCount = Array.Empty<int>();
     private bool[] dimTileWasActive = Array.Empty<bool>();
-    private int ungeneratedDimSubMeshIndex = -1;
-    private int ungeneratedDimStartVert;
-    private int ungeneratedDimVertCount;
+    private static bool s_savedUngeneratedColor;
+    private static Color s_originalUngeneratedColor = Color.white;
 
     public static WorldDrawLayer_RadarCoverage? Instance { get; private set; }
 
@@ -317,10 +316,9 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                             }
                         }
                     }
-
-                    // Cover ungenerated ocean hemisphere on partial-coverage globes (< 100%) with matching dimming
-                    AddUngeneratedDimmingCap(planetLayer, grid, dimMaterial, dimColor, ref dimSubMeshIndex);
                 }
+
+                ApplyUngeneratedPlanetPartsDimming(dimAlpha);
 
                 for (int s = 0; s < dimSubMeshes.Count; s++)
                 {
@@ -836,77 +834,67 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         dimTileStartVert = Array.Empty<int>();
         dimTileVertCount = Array.Empty<int>();
         dimTileWasActive = Array.Empty<bool>();
-        ungeneratedDimSubMeshIndex = -1;
-        ungeneratedDimStartVert = 0;
-        ungeneratedDimVertCount = 0;
+        RestoreUngeneratedPlanetPartsColor();
     }
 
-    private void AddUngeneratedDimmingCap(
-        PlanetLayer layer,
-        WorldGrid grid,
-        Material? dimMaterial,
-        Color32 dimColor,
-        ref int dimSubMeshIdx)
+    private static void ApplyUngeneratedPlanetPartsDimming(byte dimAlpha)
     {
-        ungeneratedDimSubMeshIndex = -1;
-        ungeneratedDimStartVert = 0;
-        ungeneratedDimVertCount = 0;
-
-        float surfaceViewAngle = grid.SurfaceViewAngle;
-        Vector3 surfaceViewCenter = grid.SurfaceViewCenter;
-        if (surfaceViewAngle <= 0f || surfaceViewAngle >= 179.9f || surfaceViewCenter.sqrMagnitude <= 0.001f)
+        if (SubMeshMaterialOverride != null || RenderQueueMaterialOverride != null)
         {
             return;
         }
 
-        float ungeneratedAngle = Mathf.Clamp(180f - surfaceViewAngle, 0.5f, 180f);
-        float capRadius = (layer.Radius > 1f ? layer.Radius : 100f) + (RadarAltitudeOffset * 0.5f);
+        try
+        {
+            Material? mat = WorldMaterials.UngeneratedPlanetParts;
+            if (mat == null)
+            {
+                return;
+            }
 
-        SphereGenerator.Generate(
-            5,
-            capRadius,
-            -surfaceViewCenter.normalized,
-            ungeneratedAngle,
-            out List<Vector3> capVerts,
-            out List<int> capTris);
+            if (!s_savedUngeneratedColor)
+            {
+                s_originalUngeneratedColor = mat.color;
+                s_savedUngeneratedColor = true;
+            }
 
-        if (capVerts == null || capTris == null || capVerts.Count < 3 || capTris.Count < 3)
+            float a = dimAlpha / 255f;
+            if (a <= 0.001f)
+            {
+                mat.color = s_originalUngeneratedColor;
+                return;
+            }
+
+            // Approximate alpha-blending Color32(10, 14, 20, dimAlpha) over the ungenerated ocean material
+            // so its pixel-exact hex boundary underneath WorldDrawLayer_Terrain matches dimmed ocean tiles.
+            Color orig = s_originalUngeneratedColor;
+            Color target = new(orig.r * 0.22f, orig.g * 0.22f, orig.b * 0.22f, orig.a);
+            mat.color = Color.Lerp(orig, target, a);
+        }
+        catch
+        {
+            // Headless unit test environment without Unity shader/material native backing
+        }
+    }
+
+    private static void RestoreUngeneratedPlanetPartsColor()
+    {
+        if (!s_savedUngeneratedColor)
         {
             return;
         }
 
-        LayerSubMesh capSubMesh = GetOrCreateDimSubMesh(dimMaterial, capVerts.Count, ref dimSubMeshIdx);
-        int baseIdx = capSubMesh.verts.Count;
-        ungeneratedDimSubMeshIndex = dimSubMeshIdx;
-        ungeneratedDimStartVert = baseIdx;
-        ungeneratedDimVertCount = capVerts.Count;
-
-        for (int v = 0; v < capVerts.Count; v++)
+        try
         {
-            capSubMesh.verts.Add(capVerts[v]);
-            capSubMesh.colors.Add(dimColor);
+            Material? mat = WorldMaterials.UngeneratedPlanetParts;
+            if (mat != null)
+            {
+                mat.color = s_originalUngeneratedColor;
+            }
         }
-
-        for (int t = 0; t + 2 < capTris.Count; t += 3)
+        catch
         {
-            int i0 = capTris[t];
-            int i1 = capTris[t + 1];
-            int i2 = capTris[t + 2];
-            Vector3 v0 = capVerts[i0];
-            Vector3 v1 = capVerts[i1];
-            Vector3 v2 = capVerts[i2];
-            if (Vector3.Dot(Vector3.Cross(v1 - v0, v2 - v0), v0) > 0f)
-            {
-                capSubMesh.tris.Add(baseIdx + i0);
-                capSubMesh.tris.Add(baseIdx + i1);
-                capSubMesh.tris.Add(baseIdx + i2);
-            }
-            else
-            {
-                capSubMesh.tris.Add(baseIdx + i0);
-                capSubMesh.tris.Add(baseIdx + i2);
-                capSubMesh.tris.Add(baseIdx + i1);
-            }
+            // Headless unit test environment
         }
     }
 
@@ -995,18 +983,9 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             dimMeshDirtyFlags[subMeshIdx] = true;
         }
 
-        if (alphaChanged &&
-            ungeneratedDimSubMeshIndex >= 0 &&
-            ungeneratedDimSubMeshIndex < dimSubMeshes.Count &&
-            ungeneratedDimVertCount > 0)
+        if (alphaChanged)
         {
-            List<Color32> capColors = dimSubMeshes[ungeneratedDimSubMeshIndex].colors;
-            int capEnd = Math.Min(capColors.Count, ungeneratedDimStartVert + ungeneratedDimVertCount);
-            for (int v = ungeneratedDimStartVert; v < capEnd; v++)
-            {
-                capColors[v] = dimColor;
-            }
-            dimMeshDirtyFlags[ungeneratedDimSubMeshIndex] = true;
+            ApplyUngeneratedPlanetPartsDimming(dimAlpha);
         }
 
         cachedDimAlpha = dimAlpha;
