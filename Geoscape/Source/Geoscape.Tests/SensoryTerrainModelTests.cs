@@ -76,6 +76,7 @@ public sealed class SensoryTerrainModelTests
             identificationRadiusDish1 = 10,
             identificationRadiusDish2 = 17,
             identificationRadiusDish3 = 22,
+            maxIntelligenceTier = IntelligenceTier.Classified,
             receivesVantageBonus = true
         };
         Assert.AreEqual(10, radarProps.ResolveIdentificationRadius(1, 0), "1-dish radar on flat terrain gives 10 rings ID.");

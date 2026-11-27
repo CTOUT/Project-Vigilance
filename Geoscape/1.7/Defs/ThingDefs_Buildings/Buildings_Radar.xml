@@ -38,9 +38,9 @@
     <comps>
       <li Class="ProjectVigilance.Geoscape.Sensory.CompProperties_Radar">
         <detectionRadius>8</detectionRadius>
-        <identificationRadiusDish1>4</identificationRadiusDish1>
-        <identificationRadiusDish2>4</identificationRadiusDish2>
-        <identificationRadiusDish3>4</identificationRadiusDish3>
+        <identificationRadiusDish1>0</identificationRadiusDish1>
+        <identificationRadiusDish2>0</identificationRadiusDish2>
+        <identificationRadiusDish3>0</identificationRadiusDish3>
         <standbyPowerDraw>0</standbyPowerDraw>
         <activePowerDraw>0</activePowerDraw>
         <receivesVantageBonus>true</receivesVantageBonus>
@@ -101,9 +101,9 @@
       <li Class="CompProperties_Breakdownable"/>
       <li Class="ProjectVigilance.Geoscape.Sensory.CompProperties_Radar">
         <detectionRadius>14</detectionRadius>
-        <identificationRadiusDish1>6</identificationRadiusDish1>
-        <identificationRadiusDish2>6</identificationRadiusDish2>
-        <identificationRadiusDish3>6</identificationRadiusDish3>
+        <identificationRadiusDish1>0</identificationRadiusDish1>
+        <identificationRadiusDish2>0</identificationRadiusDish2>
+        <identificationRadiusDish3>0</identificationRadiusDish3>
         <standbyPowerDraw>350</standbyPowerDraw>
         <activePowerDraw>750</activePowerDraw>
         <receivesVantageBonus>false</receivesVantageBonus>

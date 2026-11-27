@@ -852,7 +852,9 @@ public class SensoryManager : WorldComponent
         for (int i = 0; i < sensors.Count; i++)
         {
             ISensorProvider sensor = sensors[i];
-            int idSteps = sensor.IdentificationRadiusInTiles;
+            int idSteps = sensor.MaxIntelligenceTier >= IntelligenceTier.Classified
+                ? sensor.IdentificationRadiusInTiles
+                : 0;
             if (idSteps > 0 && sensor.SensorTile.Valid && (Find.World?.grid == null || sensor.SensorTile.Layer == tile.Layer))
             {
                 if (sensor.IsOceanicSonar)
@@ -1139,7 +1141,9 @@ public class SensoryManager : WorldComponent
         PlanetTile centerTile = sensor.SensorTile;
         float radius = sensor.DetectionRadiusInTiles;
         int radiusSteps = Mathf.Max(1, Mathf.RoundToInt(radius));
-        int idRadiusSteps = sensor.IdentificationRadiusInTiles;
+        int idRadiusSteps = sensor.MaxIntelligenceTier >= IntelligenceTier.Classified
+            ? sensor.IdentificationRadiusInTiles
+            : 0;
         SensorDomainFlags sensorDomain = GetSensorDomain(sensor);
 
         if (sensor.IsOceanicSonar)

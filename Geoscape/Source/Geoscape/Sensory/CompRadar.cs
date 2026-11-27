@@ -489,7 +489,14 @@ public class CompRadar : ThingComp, ISensorProvider
         }
 
         float detRadius = DetectionRadiusInTiles;
-        sb.AppendLine($"Coverage Rings: Detection {detRadius:F0} tiles, Identification {idRadius} tiles ({dishCount} operational {(dishCount == 1 ? "dish" : "dishes")})");
+        if (idRadius > 0)
+        {
+            sb.AppendLine($"Coverage Rings: Detection {detRadius:F0} tiles, Identification {idRadius} tiles ({dishCount} operational {(dishCount == 1 ? "dish" : "dishes")})");
+        }
+        else
+        {
+            sb.AppendLine($"Coverage: Detection {detRadius:F0} tiles (Early Warning / Contact Only)");
+        }
 
         if (Props.receivesVantageBonus && cachedVantageBonus > 0)
         {
@@ -532,7 +539,14 @@ public class CompRadar : ThingComp, ISensorProvider
         var descBuilder = new StringBuilder();
         descBuilder.AppendLine($"Operational Status: {(IsSensorActive ? "Online" : $"Offline ({offlineReason})")}");
         descBuilder.AppendLine($"Power Mode: {(IsSensorActive ? powerMode : "Offline")} ({(IsSensorActive ? draw : 0f):F0} W)");
-        descBuilder.AppendLine($"Coverage Rings: Detection {detRadius:F0} tiles, Identification {idRadius} tiles");
+        if (idRadius > 0)
+        {
+            descBuilder.AppendLine($"Coverage Rings: Detection {detRadius:F0} tiles, Identification {idRadius} tiles");
+        }
+        else
+        {
+            descBuilder.AppendLine($"Coverage: Detection {detRadius:F0} tiles (Early Warning / Contact Only)");
+        }
         descBuilder.AppendLine($"Interferometry Array: {dishCount} operational {(dishCount == 1 ? "dish" : "dishes")}");
 
         if (Props.receivesVantageBonus && cachedVantageBonus > 0)

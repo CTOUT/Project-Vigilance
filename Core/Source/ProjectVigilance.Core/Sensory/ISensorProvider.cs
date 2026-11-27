@@ -44,8 +44,11 @@ public interface ISensorProvider
     /// <summary>
     /// Maximum optical/electronic classification and identification radius in WorldGrid hex tiles.
     /// Within this inner horizon, targets are identified up to MaxIntelligenceTier.
+    /// Returns 0 for sensors that cannot classify contacts (MaxIntelligenceTier &lt; Classified).
     /// </summary>
-    int IdentificationRadiusInTiles => DetectionRadiusInTiles > 0f ? Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles * 0.45f)) : 0;
+    int IdentificationRadiusInTiles => MaxIntelligenceTier >= IntelligenceTier.Classified && DetectionRadiusInTiles > 0f
+        ? Mathf.Max(1, Mathf.RoundToInt(DetectionRadiusInTiles * 0.45f))
+        : 0;
 
     /// <summary>
     /// The highest intelligence tier this sensor can resolve (e.g. basic lookouts can only provide Contact/Classified, whereas radar decoders can provide Analysed).

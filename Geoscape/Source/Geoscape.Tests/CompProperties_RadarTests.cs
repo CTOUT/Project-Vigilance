@@ -117,6 +117,36 @@ public sealed class CompProperties_RadarTests
     }
 
     [TestMethod]
+    public void ConfigErrors_ContactOnlySensorWithZeroIdentificationRadius_ReturnsZeroErrors()
+    {
+        var props = CreateBaselineProps(
+            detectionRadius: 14,
+            id1: 0,
+            id2: 0,
+            id3: 0,
+            maxTier: IntelligenceTier.Contact);
+
+        var errors = props.ConfigErrors(new ThingDef()).ToList();
+        Assert.AreEqual(0, errors.Count, "Contact-only early warning sensors with 0 identification radius must validate cleanly.");
+        Assert.AreEqual(0, props.ResolveIdentificationRadius(1, vantageBonus: 3));
+    }
+
+    [TestMethod]
+    public void ResolveIdentificationRadius_ContactOnlyTier_AlwaysReturnsZeroEvenIfRadiiConfigured()
+    {
+        var props = CreateBaselineProps(
+            detectionRadius: 14,
+            id1: 6,
+            id2: 6,
+            id3: 6,
+            maxTier: IntelligenceTier.Contact,
+            receivesVantage: true);
+
+        Assert.AreEqual(0, props.ResolveIdentificationRadius(1, vantageBonus: 2));
+        Assert.AreEqual(0, props.ResolveIdentificationRadius(3, vantageBonus: 3));
+    }
+
+    [TestMethod]
     public void CompSigintConsole_GetOfflineReason_Unspawned_ReturnsUnspawned()
     {
         var console = new CompSigintConsole();

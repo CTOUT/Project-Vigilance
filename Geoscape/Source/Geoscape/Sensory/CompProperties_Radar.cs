@@ -44,19 +44,19 @@ public class CompProperties_Radar : CompProperties
             yield return "CompProperties_Radar: detectionRadius must be greater than 0.";
         }
 
-        if (identificationRadiusDish1 <= 0)
+        if (identificationRadiusDish1 < 0)
         {
-            yield return "CompProperties_Radar: identificationRadiusDish1 must be greater than 0.";
+            yield return "CompProperties_Radar: identificationRadiusDish1 cannot be negative.";
         }
 
-        if (identificationRadiusDish2 <= 0)
+        if (identificationRadiusDish2 < 0)
         {
-            yield return "CompProperties_Radar: identificationRadiusDish2 must be greater than 0.";
+            yield return "CompProperties_Radar: identificationRadiusDish2 cannot be negative.";
         }
 
-        if (identificationRadiusDish3 <= 0)
+        if (identificationRadiusDish3 < 0)
         {
-            yield return "CompProperties_Radar: identificationRadiusDish3 must be greater than 0.";
+            yield return "CompProperties_Radar: identificationRadiusDish3 cannot be negative.";
         }
 
         if (identificationRadiusDish1 > detectionRadius)
@@ -111,6 +111,11 @@ public class CompProperties_Radar : CompProperties
     /// </summary>
     public int ResolveIdentificationRadius(int operationalDishCount, int vantageBonus = 0)
     {
+        if (maxIntelligenceTier < IntelligenceTier.Classified)
+        {
+            return 0;
+        }
+
         int baseId;
         if (operationalDishCount >= 3)
         {
@@ -123,6 +128,11 @@ public class CompProperties_Radar : CompProperties
         else
         {
             baseId = identificationRadiusDish1;
+        }
+
+        if (baseId <= 0)
+        {
+            return 0;
         }
 
         if (receivesVantageBonus && vantageBonus > 0)

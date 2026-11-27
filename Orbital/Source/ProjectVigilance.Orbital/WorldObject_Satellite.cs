@@ -83,7 +83,9 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
     public string SensorLabel => LabelCap.NullOrEmpty() ? satelliteCallsign : LabelCap;
     public PlanetTile SensorTile => Tile;
     public float DetectionRadiusInTiles => footprintRadiusInTiles;
-    public int IdentificationRadiusInTiles => Mathf.Max(1, Mathf.RoundToInt(footprintRadiusInTiles * 0.6f));
+    public int IdentificationRadiusInTiles => MaxIntelligenceTier >= IntelligenceTier.Classified
+        ? Mathf.Max(1, Mathf.RoundToInt(footprintRadiusInTiles * 0.6f))
+        : 0;
 
     public IntelligenceTier MaxIntelligenceTier => role switch
     {

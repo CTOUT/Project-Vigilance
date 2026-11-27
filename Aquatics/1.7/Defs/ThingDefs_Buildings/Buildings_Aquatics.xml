@@ -53,7 +53,7 @@
     <modExtensions>
       <li Class="ProjectVigilance.Geoscape.Sensory.DefModExtension_Sensor">
         <detectionRadius>18</detectionRadius>
-        <identificationRadius>8</identificationRadius>
+        <identificationRadius>0</identificationRadius>
         <isTechnological>true</isTechnological>
         <penetratesTerrainMasking>false</penetratesTerrainMasking>
         <sensorDomain>Sonar</sensorDomain>
