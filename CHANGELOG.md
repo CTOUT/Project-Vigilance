@@ -9,10 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Modular 5-Package Architecture & Unified Mod Options (`ProjectVigilance.Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`):**
+  - Separated suite into 5 decoupled packages sharing a single `Project Vigilance` Mod Options entry (`Dialog_Options_ModFilter_Patch`) while retaining per-mod links in `Page_ModsConfig`, with `Diagnostics` pinned as the final tab.
+  - Added savegame backwards-compatibility stubs (`BackCompatibilityConverter_VigilanceModular`) and interactive migration dialog (`Dialog_VigilanceModuleMigration`) with Steam Workshop links and one-click orphan retirement.
+  - Added `VigilanceLoc.Tr` keyed localisation helper and zero-allocation `VigilanceUiWidgets.ImguiStateScope` IMGUI state guard in `Core`.
 - **Seamless Geoscape / Battlescape Camera Zoom (`SeamlessCameraZoomUtility`, `GeoscapeSettings`):**
   - Zooming out past maximum map zoom transitions to the planetary Geoscape centred on `Find.CurrentMap.Tile` at `1.06× MinAltitude`.
   - Zooming in past minimum globe altitude transitions into an active loaded map (`Find.Maps`) within 2 tiles (`CursorFirst` with screen-centre fallback, or `ScreenCenter` only; tie-breaking on `WorldSelector.SingleSelectedObject`), landing at `92%` maximum map zoom-out.
-  - Guarded by configurable over-scroll notches (`1`–`5`, default `2`, clamped to `<= 1` notch per IMGUI scroll event), `0.65 s` over-scroll decay, `0.45 s` post-transition cooldown, and UI/window scroll blocking checks.
+  - Guarded by configurable over-scroll notches (`1`–`5`, default `2`, clamped to `<= 1` notch per IMGUI scroll event), `0.65 s` over-scroll decay, `0.45 s` post-transition cooldown, `Reduce Shroud Motion` compliance, and UI/window scroll blocking checks.
+- **Unified Renderer & Shroud Diagnostics (`DebugActionsRendererDiagnostics`):**
+  - Consolidated legacy `S1a`–`S4` shroud spike actions into a single read-only `Dump World Renderer & Shroud Diagnostics` DevMode tool.
+- **Comprehensive Audit & QA Suite (`docs/audits/2026-11-26-comprehensive-audit.md`, `docs/milestone_1_5_test_plan.md`):**
+  - Completed Waves 0–3 security, performance, accessibility, and DRY/YAGNI/KISS fixes with `511/511` passing Release unit tests (`0` warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`).
+
+### Changed
+
+- **WCAG 2.2 AA Accessibility & Colourblind Support (`SensoryTheme`, `GeoscapeSettings`, `WorldDrawLayer_RadarCoverage`):**
+  - Upgraded all `32/32` curated sensory palette swatches across all 8 themes and warning/disabled UI colours to meet `>= 4.5:1` contrast against dark RimWorld panels (`#21252B`).
+  - Automatically disables `Use Player Faction Colour` when selecting `Protanopia / Deuteranopia`, `Tritanopia`, or `High Contrast` presets; wired `EffectiveSonarColor` and `EffectiveScoutColor` directly into globe perimeter rendering.
+  - Replaced dynamic identification horizon slider min/max bounds with a greyed-out capped upper range and explanatory tooltip on `Sensory & Visibility`; compacted `Radar & Visuals` to remove its vertical scrollbar.
+- **Performance, Rule 14 & Build Hygiene (`Directory.Build.{props,targets}`, `SonarTraversalUtility`, `SensoryManager`, `WorldObject_Incursion`, `MapComponent_OverlandAmbush`, `HazeReconnaissanceManager`):**
+  - Migrated all production `HashSet<PlanetTile>` / `Dictionary<PlanetTile, T>` collections to `int tileId`, eliminated hot-path LINQ/reflection/yielding-iterator allocations, and added `O(1)` quest-index and per-tick colonist caches.
+  - Centralised MSBuild configuration (`net10.0`, `LangVersion 13.0`, deterministic builds, `PathMap`, native `<Delete>`/`<Move>` rotation) and stripped `.pdb` debug symbols from Release assemblies and `dist/` packages.
+  - Consolidated caravan and colony outpost float-menu builders into `OutpostFloatMenuHelper` and `WorldObject_ListeningPost.SpawnNewOutpost`.
+
+### Fixed
+
+- **GPU Material Leak & Slider Frame Stalls (`WorldObject_Incursion`, `WorldDrawLayer_RadarCoverage`):** Replaced per-frame `MaterialPool.MatFrom` allocations with a shared white base material + `MaterialPropertyBlock`; switched radar slider refreshes to `SetDirty()` and decoupled cloud opacity from radar mesh rebuilds.
+- **Hierarchical Shroud Chunk Rebuild (`WorldDrawLayer_ShroudShell`):** Passed `MeshParts.Verts | MeshParts.Colors | MeshParts.Tris` in `RebuildChunkTriangles` so `LayerSubMesh.FinalizeMesh`'s internal `mesh.Clear()` never erases vertices when a shell chunk transitions from coarse to fine.
+- **Planetary Surveillance Ocean Seam (`WorldDrawLayer_RadarCoverage`):** Tinted RimWorld's outer un-generated ocean material in lockstep with `surveillanceDimming` (restored cleanly on mode change) to eliminate the contrast seam along partial-coverage (`30%`/`50%`) ocean edges.
+- **Security, Rule 16 & Gating (`VigilanceModuleManager`, `RuleLedgerSigner`, `SensoryManager`, `WorldSelector_HandleWorldClicks_Patch`):** Enforced `VisibilityMode.Omniscient` on unhooked orbital detection fallback, enforced `SonarGatingUtility` across all expedition menus, honoured `reduceShroudMotion` on incursion/outpost pulses, added Scribe bounds & v3 length-prefixed ledger signing (with legacy v2 fallback), rich-text tag sanitisation, and static cache resets on save load.
 
 ## [0.4.2] - 2026-11-19
 

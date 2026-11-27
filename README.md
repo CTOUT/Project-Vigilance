@@ -39,17 +39,16 @@ In vanilla RimWorld, raids, trade caravans, and roadside encounters instantaneou
 - **Zero Tech Prerequisites:** Completely era-agnostic and standalone. Can be dropped into any tribal, medieval, or industrial playthrough with zero alien content.
 - **Custom Visual Assets & Faction Livery Tinting:** Dedicated orthographic sprites for colony sensory buildings (`LookoutTower`, `RadarDomeSmall`, 4-way `PhasedArrayLarge` & `SigintConsole`, `SonarStation`) and neutral `128×128 RGBA32` grayscale world markers that cleanly inherit runtime faction colours.
 - **Programmatic Thermal Integrity (`ThermalIntegrityPostDefProcessor`):** Eliminates burning steel/gold/silver/plasteel/uranium, sensory radar dishes, all-metal machinery, archotech parts, and Odyssey heavy bridges/substructures at startup while preserving intentional chemical hazards (batteries, wood bridges, Bioferrite gravship hulls).
-- **Configurable Settings:** 5-tab Mod Settings UI with a live tactical CRT radar scope preview, storyteller threat cooldown synchronisation, and transit speed multipliers.
+- **Configurable Settings:** Unified multi-module tabbed Mod Settings UI (`Project Vigilance`) with a live tactical CRT radar scope preview, WCAG 2.2 AA curated & colourblind themes, storyteller threat cooldown synchronisation, and transit speed multipliers.
 
 ### How to Install for Testing
 
 1. Ensure **RimWorld 1.7 (Waylith)** and **Harmony** are installed.
 2. Download or clone this repository.
-3. Link the [`Geoscape/`](Geoscape/) folder to your RimWorld `Mods/` directory using the automated deployment tooling:
+3. Build and link all 5 modular packages (`Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`) into your RimWorld `Mods/` directory using the automated deployment tooling:
    - **Windows (PowerShell):** `npm run deploy:geoscape` (or `./scripts/deploy-geoscape.ps1`)
    - **Linux / Zorin / Ubuntu (Bash):** `npm run deploy:geoscape:linux` (or `./scripts/deploy-geoscape.sh`)
-   - _Manual alternative:_ Copy or symlink `Geoscape/` into your RimWorld `Mods/ProjectVigilance-Geoscape` folder.
-4. Activate **Harmony** first, followed by **Project Vigilance - Overland Incursions** in your mod manager.
+4. Activate **Harmony** first, followed by **Project Vigilance - Core Framework**, **Geoscape & Early Warning**, and any optional modules (**Orbital**, **Aquatics**, **Thermal**) in your mod manager.
 
 💬 **Join the Testing Discussion:** Have feedback, balance notes, or ideas? Join our [GitHub Community Discussions](https://github.com/CTOUT/Project-Vigilance/discussions) or report issues via [GitHub Issues](https://github.com/CTOUT/Project-Vigilance/issues).
 
@@ -112,7 +111,8 @@ To maintain performance, simplicity, and community compatibility, the project is
 
 ### Testing, Roadmap & Operations
 
-- **[Milestone 1.3 Quality Assurance & Playtest Plan (TC-01 – TC-32)](docs/archive/milestone_1_3_test_plan.md)**
+- **[Milestone 1.5 Quality Assurance & Playtest Plan (TC-01 – TC-10)](docs/milestone_1_5_test_plan.md)**
+- **[Comprehensive Security, Accessibility & Architecture Audit (2026-11-26)](docs/audits/2026-11-26-comprehensive-audit.md)**
 - **[Authoritative Release & Publishing Process](docs/release-process.md)**
 - **[Frequently Asked Questions (FAQ)](docs/faq.md)**
 - **[Implementation Roadmap & TODO](TODO.md)**
@@ -127,10 +127,10 @@ This repository provides cross-platform compilation, automated deployment, forma
 ```bash
 # Compile solution (.NET 10 Release)
 npm run build:geoscape
-# or: dotnet build Geoscape/Source/Geoscape.slnx
+# or: dotnet build Geoscape/Source/Geoscape.slnx -c Release
 
-# Run automated test suite (MSTest, 406 tests)
-dotnet test Geoscape/Source/Geoscape.slnx
+# Run automated test suite (MSTest, 511 tests)
+dotnet test Geoscape/Source/Geoscape.slnx -c Release
 
 # Deploy mod to local RimWorld Mods directory
 npm run deploy:geoscape         # Windows (PowerShell / NTFS Junction)

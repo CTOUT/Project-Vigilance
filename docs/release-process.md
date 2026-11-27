@@ -10,12 +10,12 @@ Each release publishes synchronised artifacts across two primary channels:
 
 1. **GitHub Releases:**
    - Source code tag (`vX.Y.Z`).
-   - Distribution archive (`ProjectVigilance-OverlandIncursions-vX.Y.Z.zip`) containing clean staged assets (`About/`, `1.7/Assemblies/`, `1.7/Defs/`, `1.7/Patches/`, `LICENSE`, `README.md`).
+   - Clean modular distribution archives (`dist/ProjectVigilance-Suite-vX.Y.Z.zip` and per-module packages `Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`) containing clean staged runtime assets (`About/`, `1.7/Assemblies/`, `1.7/Defs/`, `1.7/Patches/`, `1.7/Textures/`, `1.7/Languages/`, `LICENSE`, `README.md` — zero `Source/`, build caches, or `.pdb` symbol files).
    - Markdown release notes extracted directly from [CHANGELOG.md](../CHANGELOG.md).
 2. **Steam Workshop & Steam Collection:**
-   - **Mod Item ([#3822378226](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)):** Built assemblies, Defs, Patches, and About metadata uploaded via RimWorld's in-game mod uploader.
-   - **Mod Description:** BBCode formatted overview ([`docs/workshop_description.bbcode`](workshop_description.bbcode)).
-   - **Change Notes:** Versioned changelog entry in BBCode ([`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.4.0.txt)).
+   - **Anchor Mod Item ([#3822378226](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)):** `Geoscape` (`Geoscape/About/PublishedFileId.txt` must never be deleted or overwritten) plus standalone suite items (`Core`, `Orbital`, `Aquatics`, `Thermal`) uploaded via RimWorld's in-game mod uploader.
+   - **Mod Descriptions & Artwork:** Per-module `About/Preview.png` (`< 1 MB`, `640×360` or `16:9`), `About/ModIcon.png` / `About/Icon.png`, and BBCode descriptions ([`docs/workshop_description.bbcode`](workshop_description.bbcode)).
+   - **Change Notes:** Versioned changelog entry in BBCode (`docs/workshop_changenotes_vX.Y.Z.txt`).
    - **Collection Description ([#3822385427](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)):** BBCode overview of active and planned suite modules ([`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode)).
 
 ---
@@ -24,27 +24,28 @@ Each release publishes synchronised artifacts across two primary channels:
 
 Before creating a release, ensure all items in the target milestone are complete:
 
-- [ ] All milestone features implemented and tested.
-- [ ] No compilation warnings or errors: `dotnet build Geoscape/Source/Geoscape.slnx -c Release`.
-- [ ] All automated unit tests passing: `dotnet test Geoscape/Source/Geoscape.slnx`.
-- [ ] No spellcheck errors: `npm run spellcheck`.
+- [ ] All milestone features implemented and verified in-game against `docs/milestone_X_Y_test_plan.md`.
+- [ ] Distinct module artwork ready (`About/Preview.png` `< 1 MB`, `About/ModIcon.png`, `About/Icon.png`) for all 5 packages (`Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`) plus Steam Workshop gallery screenshots.
+- [ ] Zero compilation warnings or errors: `dotnet build Geoscape/Source/Geoscape.slnx -c Release`.
+- [ ] All automated unit tests passing: `dotnet test Geoscape/Source/Geoscape.slnx -c Release`.
+- [ ] Zero `.pdb` files in `*/1.7/Assemblies/` or `dist/ProjectVigilance-*`.
+- [ ] Zero spellcheck or formatting errors: `npm run spellcheck` and `npx prettier --check`.
 - [ ] Working branch (`feat/milestone-X.Y`) merged or fast-forwarded into `main`.
 
 ---
 
-## 3. Version Bump & Synchronization
+## 3. Version Bump & Synchronisation
 
 Update version numbers across the following files (or run `scripts/prepare-release.ps1 -Version X.Y.Z`):
 
-| File                                                                                              | Target Property / Location                                                            |
-| :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------ |
-| [`package.json`](../package.json)                                                                 | `"version": "X.Y.Z"`                                                                  |
-| [`Geoscape/Source/Geoscape/Geoscape.csproj`](../Geoscape/Source/Geoscape/Geoscape.csproj)         | `<Version>`, `<AssemblyVersion>`, `<FileVersion>`                                     |
-| [`Geoscape/Source/Geoscape/GeoscapeSettings.cs`](../Geoscape/Source/Geoscape/GeoscapeSettings.cs) | In-game active module string                                                          |
-| [`CHANGELOG.md`](../CHANGELOG.md)                                                                 | Convert `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` and add footer compare links |
-| [`TODO.md`](../TODO.md)                                                                           | Move shipped milestone items to `## Completed Milestones` and prune active roadmap    |
-| [`README.md`](../README.md) & [`Geoscape/README.md`](../Geoscape/README.md)                       | Release badge (`Release-vX.Y.Z`) and playtest header links                            |
-| [`scripts/package-release.ps1`](../scripts/package-release.ps1)                                   | Default `$Version = 'X.Y.Z'`                                                          |
+| File                                                                        | Target Property / Location                                                            |
+| :-------------------------------------------------------------------------- | :------------------------------------------------------------------------------------ |
+| [`Directory.Build.props`](../Directory.Build.props)                         | Centralised `<Version>`, `<AssemblyVersion>`, `<FileVersion>` across all 5 packages   |
+| [`package.json`](../package.json)                                           | `"version": "X.Y.Z"`                                                                  |
+| [`CHANGELOG.md`](../CHANGELOG.md)                                           | Convert `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` and add footer compare links |
+| [`TODO.md`](../TODO.md)                                                     | Move shipped milestone items to `## Completed Milestones` and prune active roadmap    |
+| [`README.md`](../README.md) & [`Geoscape/README.md`](../Geoscape/README.md) | Release badge (`Release-vX.Y.Z`) and playtest header links                            |
+| [`scripts/package-release.ps1`](../scripts/package-release.ps1)             | Default `$Version = 'X.Y.Z'`                                                          |
 
 ---
 

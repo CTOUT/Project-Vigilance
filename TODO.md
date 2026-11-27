@@ -34,6 +34,9 @@
     - _Rule 10:_ Extensibility & Modder Hooks Mandatory (`DefModExtension` and public lifecycle events).
     - _Rule 11:_ Sensory Palette Customisation & A11y (curated themes, colourblind presets, WCAG AA contrast).
     - _Rule 12:_ Modular Separation & Loose Coupling (interface contracts, soft dependencies).
+- [ ] **Pre-Release Artwork & Steam Workshop Asset Pack (Release Blocker):**
+  - Replace shared placeholder `About/Preview.png` (`< 1 MB`), `About/ModIcon.png`, and `About/Icon.png` across all 5 packages (`Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`) with distinct per-module branding.
+  - Prepare Steam Workshop gallery screenshots, collection banner updates, and per-module Workshop descriptions/changenotes prior to tagging the release.
 - [ ] **Follow-Up Branch (`refactor/wave-4-i18n-and-decomposition` — Post-1.5 Audit Wave 4):**
   - Wire the 51 orphaned XML keys (`Geoscape_Inspect/Letters/Dialog/FloatMenus.xml`), add `Orbital`/`Aquatics` `Keyed/*.xml`, and complete remaining Rule 8 raw English UI extraction (`I18N-01`).
   - Execute low-risk `partial class` / domain splits for `WorldObject_Incursion`, `SensoryManager`, `WorldObject_Visibility_Patch`, and `GeoscapeSettings` tabs per [`docs/audits/2026-11-26-comprehensive-audit.md`](docs/audits/2026-11-26-comprehensive-audit.md).
