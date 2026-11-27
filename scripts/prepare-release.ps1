@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Prepares, validates, and packages a Project Vigilance release across GitHub and Steam Workshop.
 
