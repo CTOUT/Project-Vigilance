@@ -52,6 +52,9 @@
 - [ ] **Odyssey DLC Synergy & Non-Destructive Gravcore Takeoff:**
   - Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
   - Patch gravcore launch sequence to eliminate permanent world tile destruction, preserving planetary terrain integrity during orbital deployments without external mod dependencies.
+- [ ] **Codebase & Naming Terminology Alignment:**
+  - Audit legacy internal identifiers, enums, comments, and XML keys (e.g. `ClassicHazeOfWar`, `HazeOfWar`, `Classic`, `HazeReconnaissanceManager`) against current product terminology (`Fog of War`, `Planetary Surveillance`, `Omniscient`).
+  - Plan safe renames and Scribe backwards-compatibility aliases (`BackCompatibilityConverter_VigilanceModular` / enum parsing shims) so existing saves load cleanly with zero regressions.
 - [ ] **Environmental Thermal Dynamics & Material Phase States (Future Feature):**
   - **Device Operational Temperature Envelopes:**
     - Sub-zero degradation (< -30°C): Sensor antenna rotation slowdown, battery brownout risk, sweep cadence penalty, and mechanical freezing.
