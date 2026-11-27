@@ -21,6 +21,35 @@ public static class SensoryDisruptionUtility
     /// </summary>
     public static bool? EclipseOverride { get; set; }
 
+    private static bool cachedConditionDefsResolved;
+    private static GameConditionDef? cachedSolarFlareDef;
+    private static GameConditionDef? cachedEmiDef;
+    private static GameConditionDef? cachedEclipseDef;
+    private static GameConditionDef? cachedVolcanicDef;
+    private static GameConditionDef? cachedUnnaturalDarknessDef;
+    private static GameConditionDef? cachedSunBlockerDef;
+
+    private static void EnsureConditionDefsCached()
+    {
+        if (cachedConditionDefsResolved)
+        {
+            return;
+        }
+
+        if (DefDatabase<GameConditionDef>.DefCount == 0)
+        {
+            return;
+        }
+
+        cachedSolarFlareDef = DefDatabase<GameConditionDef>.GetNamedSilentFail("SolarFlare");
+        cachedEmiDef = GameConditionDefOf.EMIField ?? DefDatabase<GameConditionDef>.GetNamedSilentFail("EMIField");
+        cachedEclipseDef = GameConditionDefOf.Eclipse ?? DefDatabase<GameConditionDef>.GetNamedSilentFail("Eclipse");
+        cachedVolcanicDef = GameConditionDefOf.VolcanicWinter ?? DefDatabase<GameConditionDef>.GetNamedSilentFail("VolcanicWinter");
+        cachedUnnaturalDarknessDef = DefDatabase<GameConditionDef>.GetNamedSilentFail("UnnaturalDarkness");
+        cachedSunBlockerDef = DefDatabase<GameConditionDef>.GetNamedSilentFail("SunBlocker");
+        cachedConditionDefsResolved = true;
+    }
+
     /// <summary>
     /// Checks whether an intense solar flare, EMI field, or coronal geomagnetic storm is disrupting
     /// electronic telemetry, sensors, or communication grids.
@@ -35,8 +64,9 @@ public static class SensoryDisruptionUtility
 
         try
         {
-            var solarFlareDef = DefDatabase<GameConditionDef>.GetNamedSilentFail("SolarFlare");
-            var emiDef = GameConditionDefOf.EMIField ?? DefDatabase<GameConditionDef>.GetNamedSilentFail("EMIField");
+            EnsureConditionDefsCached();
+            var solarFlareDef = cachedSolarFlareDef;
+            var emiDef = cachedEmiDef;
 
             // 1. World-level solar flare / EMI condition
             if (Find.World?.gameConditionManager != null)
@@ -82,8 +112,11 @@ public static class SensoryDisruptionUtility
 
         try
         {
-            var eclipseDef = GameConditionDefOf.Eclipse ?? DefDatabase<GameConditionDef>.GetNamedSilentFail("Eclipse");
-            var volcanicDef = GameConditionDefOf.VolcanicWinter ?? DefDatabase<GameConditionDef>.GetNamedSilentFail("VolcanicWinter");
+            EnsureConditionDefsCached();
+            var eclipseDef = cachedEclipseDef;
+            var volcanicDef = cachedVolcanicDef;
+            var unnaturalDef = cachedUnnaturalDarknessDef;
+            var sunBlockerDef = cachedSunBlockerDef;
 
             // 1. World-level eclipse or volcanic darkness
             if (Find.World?.gameConditionManager != null)
@@ -103,11 +136,8 @@ public static class SensoryDisruptionUtility
                     {
                         if (eclipseDef != null && mgr.ConditionIsActive(eclipseDef)) return true;
                         if (volcanicDef != null && mgr.ConditionIsActive(volcanicDef)) return true;
-                        if (IsConditionActiveNamed(mgr, "UnnaturalDarkness") ||
-                            IsConditionActiveNamed(mgr, "SunBlocker"))
-                        {
-                            return true;
-                        }
+                        if (unnaturalDef != null && mgr.ConditionIsActive(unnaturalDef)) return true;
+                        if (sunBlockerDef != null && mgr.ConditionIsActive(sunBlockerDef)) return true;
                     }
                 }
             }
@@ -118,18 +148,5 @@ public static class SensoryDisruptionUtility
         }
 
         return false;
-    }
-
-    private static bool IsConditionActiveNamed(GameConditionManager mgr, string defName)
-    {
-        try
-        {
-            var def = DefDatabase<GameConditionDef>.GetNamedSilentFail(defName);
-            return def != null && mgr.ConditionIsActive(def);
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

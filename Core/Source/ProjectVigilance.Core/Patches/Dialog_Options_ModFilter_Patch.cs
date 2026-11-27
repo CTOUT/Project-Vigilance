@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using Verse;
@@ -18,6 +19,9 @@ public static class Dialog_Options_ModFilter_Patch
 {
     private static readonly FieldInfo? CachedModsWithSettingsField =
         AccessTools.Field(typeof(Dialog_Options), "cachedModsWithSettings");
+
+    private static readonly ConditionalWeakTable<Dialog_Options, object> filteredDialogs = new();
+    private static readonly object FilteredSentinel = new();
 
     internal static IEnumerable<Mod> FilterModsForOptionsGrid(IEnumerable<Mod>? mods)
     {
@@ -64,7 +68,13 @@ public static class Dialog_Options_ModFilter_Patch
             return;
         }
 
-        if (CachedModsWithSettingsField.GetValue(instance) is IEnumerable<Mod> current)
+        object? raw = CachedModsWithSettingsField.GetValue(instance);
+        if (filteredDialogs.TryGetValue(instance, out _) && raw != null)
+        {
+            return;
+        }
+
+        if (raw is IEnumerable<Mod> current)
         {
             List<Mod> filtered = FilterModsForOptionsGrid(current).ToList();
             CachedModsWithSettingsField.SetValue(instance, filtered);
@@ -77,6 +87,8 @@ public static class Dialog_Options_ModFilter_Patch
                 .ToList();
             CachedModsWithSettingsField.SetValue(instance, populated);
         }
+
+        filteredDialogs.AddOrUpdate(instance, FilteredSentinel);
     }
 
     [HarmonyPatch(typeof(Dialog_Options), MethodType.Constructor)]

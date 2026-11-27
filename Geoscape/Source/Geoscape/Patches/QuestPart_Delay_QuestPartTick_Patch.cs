@@ -14,15 +14,16 @@ public static class QuestPart_Delay_QuestPartTick_Patch
 {
     public static bool Prefix(QuestPart_Delay __instance, ref int ___enableTick)
     {
-        if (__instance == null || HazeReconnaissanceManager.Instance == null) return true;
+        HazeReconnaissanceManager? mgr = HazeReconnaissanceManager.Instance;
+        if (__instance == null || mgr == null || !mgr.HasAnyConcealedSites) return true;
 
         WorldObject? targetWo = (__instance as QuestPart_WorldObjectTimeout)?.worldObject;
         if (targetWo == null && __instance.quest != null)
         {
-            targetWo = HazeReconnaissanceManager.Instance.GetConcealedSiteForQuest(__instance.quest);
+            targetWo = mgr.GetConcealedSiteForQuest(__instance.quest);
         }
 
-        if (targetWo != null && HazeReconnaissanceManager.Instance.IsSiteConcealed(targetWo))
+        if (targetWo != null && mgr.IsSiteConcealed(targetWo))
         {
             // Freeze quest countdown: advance enableTick in lockstep with current game tick so TicksLeft remains static
             if (___enableTick >= 0)

@@ -43,7 +43,7 @@ public static class VigilanceSettingsRegistry
         {
             lock (syncLock)
             {
-                return tabProviders.OrderBy(t => t.SortOrder).ToList();
+                return tabProviders;
             }
         }
     }
@@ -64,10 +64,15 @@ public static class VigilanceSettingsRegistry
         if (provider == null) return;
         lock (syncLock)
         {
-            if (!tabProviders.Any(t => t.TabKey == provider.TabKey))
+            for (int i = 0; i < tabProviders.Count; i++)
             {
-                tabProviders.Add(provider);
+                if (tabProviders[i].TabKey == provider.TabKey)
+                {
+                    return;
+                }
             }
+            tabProviders.Add(provider);
+            tabProviders.Sort(static (a, b) => a.SortOrder.CompareTo(b.SortOrder));
         }
     }
 

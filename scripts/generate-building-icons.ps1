@@ -5,8 +5,11 @@
 Add-Type -AssemblyName System.Drawing
 
 $outputDir = Join-Path $PSScriptRoot "..\Geoscape\1.7\Textures\ProjectVigilance\Geoscape\Buildings\Sensory"
-if (-not (Test-Path $outputDir)) {
-    New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+$aquaticsBuildingDir = Join-Path $PSScriptRoot "..\Aquatics\1.7\Textures\ProjectVigilance\Geoscape\Buildings\Sensory"
+foreach ($dir in @($outputDir, $aquaticsBuildingDir)) {
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    }
 }
 
 function New-Canvas($w, $h) {
@@ -171,6 +174,8 @@ function Generate-LookoutTower {
 
     $savePath = Join-Path $outputDir "LookoutTower.png"
     $c.Bitmap.Save($savePath, [System.Drawing.Imaging.ImageFormat]::Png)
+    $c.Graphics.Dispose()
+    $c.Bitmap.Dispose()
     Write-Host "Created: $savePath"
 }
 
@@ -296,6 +301,8 @@ function Generate-RadarDomeSmall {
 
     $savePath = Join-Path $outputDir "RadarDomeSmall.png"
     $c.Bitmap.Save($savePath, [System.Drawing.Imaging.ImageFormat]::Png)
+    $c.Graphics.Dispose()
+    $c.Bitmap.Dispose()
     Write-Host "Created: $savePath"
 }
 
@@ -494,6 +501,8 @@ function Generate-PhasedArrayLarge {
 
         $savePath = Join-Path $outputDir "PhasedArrayLarge_$dir.png"
         $c.Bitmap.Save($savePath, [System.Drawing.Imaging.ImageFormat]::Png)
+        $c.Graphics.Dispose()
+        $c.Bitmap.Dispose()
         Write-Host "Created: $savePath"
     }
 }
@@ -667,6 +676,8 @@ function Generate-SigintConsole {
 
         $savePath = Join-Path $outputDir "SigintConsole_$dir.png"
         $c.Bitmap.Save($savePath, [System.Drawing.Imaging.ImageFormat]::Png)
+        $c.Graphics.Dispose()
+        $c.Bitmap.Dispose()
         Write-Host "Created: $savePath"
     }
 }
@@ -787,8 +798,10 @@ function Generate-SonarStation {
     $g.FillEllipse($brushNavLight, 120, 14, 10, 10)
     $g.DrawEllipse($penThin, 120, 14, 10, 10)
 
-    $savePath = Join-Path $outputDir "SonarStation.png"
+    $savePath = Join-Path $aquaticsBuildingDir "SonarStation.png"
     $c.Bitmap.Save($savePath, [System.Drawing.Imaging.ImageFormat]::Png)
+    $c.Graphics.Dispose()
+    $c.Bitmap.Dispose()
     Write-Host "Created: $savePath"
 }
 

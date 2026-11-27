@@ -161,19 +161,19 @@ public sealed class Milestone13FixesTests
 
         SonarTraversalUtility.IsTileWaterCoveredOverride = t => t.tileId == 101 || t.tileId == 103;
 
-        var detectionTiles = new HashSet<PlanetTile>();
-        var idTiles = new HashSet<PlanetTile>();
+        var detectionTiles = new HashSet<int>();
+        var idTiles = new HashSet<int>();
 
         SonarTraversalUtility.PopulateSonarCoverage(
             stationTile,
             maxDetectionRadius: 5,
             maxIdentificationRadius: 2,
-            outDetectionTiles: detectionTiles,
-            outIdentificationTiles: idTiles);
+            outDetectionTileIds: detectionTiles,
+            outIdentificationTileIds: idTiles);
 
-        Assert.IsTrue(detectionTiles.Contains(waterTile1), "Adjacent water tile must be revealed.");
-        Assert.IsFalse(detectionTiles.Contains(landBarrier), "Land barrier must not be revealed by sonar.");
-        Assert.IsFalse(detectionTiles.Contains(isolatedWater), "Isolated water across land barrier must not be revealed.");
+        Assert.IsTrue(detectionTiles.Contains(waterTile1.tileId), "Adjacent water tile must be revealed.");
+        Assert.IsFalse(detectionTiles.Contains(landBarrier.tileId), "Land barrier must not be revealed by sonar.");
+        Assert.IsFalse(detectionTiles.Contains(isolatedWater.tileId), "Isolated water across land barrier must not be revealed.");
     }
 
     [TestMethod]
@@ -288,15 +288,15 @@ public sealed class Milestone13FixesTests
 
         SensoryManager.ActiveSensorsOverride = () => new ISensorProvider[] { visualSensor, radarSensor, sonarSensor };
 
-        var activeTiles = new HashSet<PlanetTile>();
-        var domains = new Dictionary<PlanetTile, SensorDomainFlags>();
+        var activeTiles = new HashSet<int>();
+        var domains = new Dictionary<int, SensorDomainFlags>();
         manager.PopulateActiveVisionTiles(activeTiles, outTileDomains: domains);
 
-        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar, domains[land0], "Land origin should show Visual + Radar without Sonar.");
-        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar, domains[land1], "Land neighbor should show Visual + Radar without Sonar.");
-        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar | SensorDomainFlags.Sonar, domains[water2], "Adjacent coastal water tile should merge all 3 domains.");
-        Assert.AreEqual(SensorDomainFlags.Radar | SensorDomainFlags.Sonar, domains[water3], "Connected outer water tile covered by radar and sonar should merge Radar | Sonar.");
-        Assert.AreEqual("Radar + Sonar", SensoryManager.FormatSensorDomainFlags(domains[water3]));
+        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar, domains[land0.tileId], "Land origin should show Visual + Radar without Sonar.");
+        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar, domains[land1.tileId], "Land neighbor should show Visual + Radar without Sonar.");
+        Assert.AreEqual(SensorDomainFlags.Visual | SensorDomainFlags.Radar | SensorDomainFlags.Sonar, domains[water2.tileId], "Adjacent coastal water tile should merge all 3 domains.");
+        Assert.AreEqual(SensorDomainFlags.Radar | SensorDomainFlags.Sonar, domains[water3.tileId], "Connected outer water tile covered by radar and sonar should merge Radar | Sonar.");
+        Assert.AreEqual("Radar + Sonar", SensoryManager.FormatSensorDomainFlags(domains[water3.tileId]));
     }
 
     [TestMethod]

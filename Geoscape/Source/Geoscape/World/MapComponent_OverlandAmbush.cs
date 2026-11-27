@@ -124,6 +124,16 @@ public class MapComponent_OverlandAmbush : MapComponent
     private int lastCombatNoiseTick = -99999;
     private IntVec3 lastCombatNoisePos = IntVec3.Invalid;
 
+    // Reusable per-tick / per-GUI scratch state to avoid hot-path LINQ allocations
+    private readonly List<Pawn> scratchMobileEnemies = new();
+    private readonly List<Pawn> scratchDownedEnemies = new();
+    private readonly List<Pawn> scratchTrailingAnimals = new();
+    private readonly List<Pawn> scratchExitedPawns = new();
+    private int cachedColonistScanTick = -1;
+    private bool cachedHasAnyColonist;
+    private bool cachedHasMobileColonist;
+    private bool cachedHasDownedColonist;
+
     public int LastCombatNoiseTick => lastCombatNoiseTick;
     public IntVec3 LastCombatNoisePos => lastCombatNoisePos;
 
@@ -442,32 +452,62 @@ public class MapComponent_OverlandAmbush : MapComponent
                     }
 
                     // Check if this specific incursion still has conscious mobile combatants on the map
-                    bool hasHumanlikesOrMechs = record.trackedPawns.Any(p => p != null && (p.RaceProps.Humanlike || p.RaceProps.IsMechanoid));
-                    bool hasMobileCombatants = hasHumanlikesOrMechs
-                        ? record.trackedPawns.Any(p => p != null && p.Spawned && !p.Dead && !p.Downed && (p.RaceProps.Humanlike || p.RaceProps.IsMechanoid))
-                        : record.trackedPawns.Any(p => p != null && p.Spawned && !p.Dead && !p.Downed);
-                    if (hasMobileCombatants)
+                    bool hasHumanlikesOrMechs = false;
+                    bool hasMobileCombatants = false;
+                    bool hasNonAnimalMobile = false;
+                    bool hasAnyExited = false;
+                    for (int pIdx = 0; pIdx < record.trackedPawns.Count; pIdx++)
+                    {
+                        Pawn? tp = record.trackedPawns[pIdx];
+                        if (tp == null) continue;
+                        bool isHumanOrMech = tp.RaceProps.Humanlike || tp.RaceProps.IsMechanoid;
+                        if (isHumanOrMech)
+                        {
+                            hasHumanlikesOrMechs = true;
+                        }
+                        if (tp.Spawned && !tp.Dead && !tp.Downed)
+                        {
+                            hasMobileCombatants = true;
+                            if (isHumanOrMech)
+                            {
+                                hasNonAnimalMobile = true;
+                            }
+                        }
+                        else if (!tp.Spawned && !tp.Dead && !tp.Destroyed)
+                        {
+                            hasAnyExited = true;
+                        }
+                    }
+
+                    if (hasHumanlikesOrMechs ? hasNonAnimalMobile : hasMobileCombatants)
                     {
                         continue;
                     }
 
                     // Handle any remaining conscious animals (e.g. pack camels or war beasts) from this incursion
-                    var remainingConsciousAnimals = record.trackedPawns
-                        .Where(p => p != null && p.Spawned && !p.Dead && !p.Downed && p.RaceProps.Animal)
-                        .ToList();
-
-                    if (remainingConsciousAnimals.Count > 0)
+                    scratchTrailingAnimals.Clear();
+                    for (int pIdx = 0; pIdx < record.trackedPawns.Count; pIdx++)
                     {
-                        if ((record.isTransitOnly && !record.wasEngagedInCombat) || record.escapedPawns.Count > 0 || record.trackedPawns.Any(p => p != null && !p.Spawned && !p.Dead && !p.Destroyed))
+                        Pawn? tp = record.trackedPawns[pIdx];
+                        if (tp != null && tp.Spawned && !tp.Dead && !tp.Downed && tp.RaceProps.Animal)
+                        {
+                            scratchTrailingAnimals.Add(tp);
+                        }
+                    }
+
+                    if (scratchTrailingAnimals.Count > 0)
+                    {
+                        if ((record.isTransitOnly && !record.wasEngagedInCombat) || record.escapedPawns.Count > 0 || hasAnyExited)
                         {
                             // Human handlers/combatants exited the map: despawn and pass trailing pack/war animals to WorldPawns so they stay with their group
-                            IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(remainingConsciousAnimals);
+                            IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(scratchTrailingAnimals);
                         }
                         else
                         {
                             // All human masters were killed/downed: order remaining animals to flee the battlefield
-                            foreach (var p in remainingConsciousAnimals)
+                            for (int aIdx = 0; aIdx < scratchTrailingAnimals.Count; aIdx++)
                             {
+                                Pawn p = scratchTrailingAnimals[aIdx];
                                 if (p.CurJob == null || p.CurJob.def != JobDefOf.Goto)
                                 {
                                     if (RCellFinder.TryFindRandomPawnEntryCell(out IntVec3 exitSpot, map, CellFinder.EdgeRoadChance_Hostile))
@@ -484,10 +524,10 @@ public class MapComponent_OverlandAmbush : MapComponent
                     }
 
                     // No conscious mobile combatants remain for this incursion: resolve survivors
-                    var exitedPawns = record.trackedPawns.Where(p => p != null && !p.Spawned && !p.Dead && !p.Destroyed).ToList();
-                    foreach (var p in exitedPawns)
+                    for (int pIdx = 0; pIdx < record.trackedPawns.Count; pIdx++)
                     {
-                        if (!record.escapedPawns.Contains(p))
+                        Pawn? p = record.trackedPawns[pIdx];
+                        if (p != null && !p.Spawned && !p.Dead && !p.Destroyed && !record.escapedPawns.Contains(p))
                         {
                             record.escapedPawns.Add(p);
                         }
@@ -498,9 +538,23 @@ public class MapComponent_OverlandAmbush : MapComponent
                     if (record.isTransitOnly && !record.wasEngagedInCombat)
                     {
                         // Clean peaceful transit across the sector without taking casualties or joining battle
-                        var survivingPawns = record.escapedPawns.Count > 0
-                            ? record.escapedPawns
-                            : record.trackedPawns.Where(p => p != null && !p.Dead && !p.Destroyed).ToList();
+                        List<Pawn> survivingPawns;
+                        if (record.escapedPawns.Count > 0)
+                        {
+                            survivingPawns = record.escapedPawns;
+                        }
+                        else
+                        {
+                            survivingPawns = new List<Pawn>();
+                            for (int pIdx = 0; pIdx < record.trackedPawns.Count; pIdx++)
+                            {
+                                Pawn? p = record.trackedPawns[pIdx];
+                                if (p != null && !p.Dead && !p.Destroyed)
+                                {
+                                    survivingPawns.Add(p);
+                                }
+                            }
+                        }
                         record.incursion.SetCommittedPawns(survivingPawns);
                         record.incursion.IsEngagedInTacticalMap = false;
                         record.incursion.AdvancePathTile();
@@ -527,13 +581,22 @@ public class MapComponent_OverlandAmbush : MapComponent
                 // Fallback for legacy single-incursion if engagements was empty
                 if ((engagements == null || engagements.Count == 0) && sourceIncursion != null && sourceIncursion.Spawned)
                 {
-                    var livingHostiles = allEnemies.Where(p => p != null && !p.Dead && !p.Downed && p.Spawned).ToList();
-                    if (livingHostiles.Count == 0)
+                    bool hasLivingHostiles = false;
+                    for (int pIdx = 0; pIdx < allEnemies.Count; pIdx++)
                     {
-                        var escapedEnemies = allEnemies.Where(p => p != null && !p.Spawned && !p.Dead && !p.Destroyed).ToList();
-                        foreach (var p in escapedEnemies)
+                        Pawn? p = allEnemies[pIdx];
+                        if (p != null && !p.Dead && !p.Downed && p.Spawned)
                         {
-                            if (!escapedHostiles.Contains(p))
+                            hasLivingHostiles = true;
+                            break;
+                        }
+                    }
+                    if (!hasLivingHostiles)
+                    {
+                        for (int pIdx = 0; pIdx < allEnemies.Count; pIdx++)
+                        {
+                            Pawn? p = allEnemies[pIdx];
+                            if (p != null && !p.Spawned && !p.Dead && !p.Destroyed && !escapedHostiles.Contains(p))
                             {
                                 escapedHostiles.Add(p);
                             }
@@ -569,7 +632,17 @@ public class MapComponent_OverlandAmbush : MapComponent
                     bool isTacticalEncounter = map.Parent is CaravansBattlefield;
                     if (isTacticalEncounter)
                     {
-                        bool anyLivingColonistsOnMap = map.mapPawns.AllPawns.Any(p => p.Faction == Faction.OfPlayer && p.IsColonist && p.Spawned && !p.Dead);
+                        bool anyLivingColonistsOnMap = false;
+                        var mapAllPawns = map.mapPawns.AllPawns;
+                        for (int pIdx = 0; pIdx < mapAllPawns.Count; pIdx++)
+                        {
+                            Pawn p = mapAllPawns[pIdx];
+                            if (p.Faction == Faction.OfPlayer && p.IsColonist && p.Spawned && !p.Dead)
+                            {
+                                anyLivingColonistsOnMap = true;
+                                break;
+                            }
+                        }
                         if (!anyLivingColonistsOnMap)
                         {
                             IncursionTacticalRetreatUtility.CleanUpEncounterMap(map);
@@ -620,14 +693,37 @@ public class MapComponent_OverlandAmbush : MapComponent
         // Clean up dead/destroyed pawns from allEnemies
         allEnemies.RemoveAll(p => p == null || p.Dead || p.Destroyed);
 
-        // Conscious mobile enemies marching across the map
-        bool hasHumanOrMech = allEnemies.Any(p => p != null && (p.RaceProps.Humanlike || p.RaceProps.IsMechanoid));
-        var mobileEnemies = hasHumanOrMech
-            ? allEnemies.Where(p => p.Spawned && !p.Downed && p.Awake() && (p.RaceProps.Humanlike || p.RaceProps.IsMechanoid)).ToList()
-            : allEnemies.Where(p => p.Spawned && !p.Downed && p.Awake()).ToList();
+        // Conscious mobile enemies & downed enemies in a single zero-allocation pass
+        scratchMobileEnemies.Clear();
+        scratchDownedEnemies.Clear();
+        bool hasHumanOrMech = false;
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            Pawn p = allEnemies[i];
+            if (p != null && (p.RaceProps.Humanlike || p.RaceProps.IsMechanoid))
+            {
+                hasHumanOrMech = true;
+                break;
+            }
+        }
 
-        // Downed enemies currently lying on the map
-        var downedEnemies = allEnemies.Where(p => p.Spawned && p.Downed).ToList();
+        for (int i = 0; i < allEnemies.Count; i++)
+        {
+            Pawn p = allEnemies[i];
+            if (!p.Spawned) continue;
+
+            if (p.Downed)
+            {
+                scratchDownedEnemies.Add(p);
+            }
+            else if (p.Awake() && (!hasHumanOrMech || p.RaceProps.Humanlike || p.RaceProps.IsMechanoid))
+            {
+                scratchMobileEnemies.Add(p);
+            }
+        }
+
+        var mobileEnemies = scratchMobileEnemies;
+        var downedEnemies = scratchDownedEnemies;
 
         // Re-track any downed enemies of the primary travelLord who have recovered and stood back up (only if they have no current Lord)
         for (int i = 0; i < mobileEnemies.Count; i++)
@@ -647,18 +743,44 @@ public class MapComponent_OverlandAmbush : MapComponent
         {
             isActive = false;
 
-            var trailingAnimals = allEnemies.Where(p => p != null && p.Spawned && !p.Dead && !p.Downed && p.RaceProps.Animal).ToList();
-            if (trailingAnimals.Count > 0)
+            scratchTrailingAnimals.Clear();
+            scratchExitedPawns.Clear();
+            for (int i = 0; i < allEnemies.Count; i++)
             {
-                IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(trailingAnimals);
+                Pawn p = allEnemies[i];
+                if (p == null || p.Dead || p.Destroyed) continue;
+                if (p.Spawned && !p.Downed && p.RaceProps.Animal)
+                {
+                    scratchTrailingAnimals.Add(p);
+                }
+                else if (!p.Spawned)
+                {
+                    scratchExitedPawns.Add(p);
+                }
             }
 
-            var livingEscaped = allEnemies.Where(p => !p.Spawned && !p.Dead && !p.Destroyed).ToList();
+            if (scratchTrailingAnimals.Count > 0)
+            {
+                IncursionTacticalRetreatUtility.DespawnAndPassHostilesToWorld(scratchTrailingAnimals);
+            }
+
+            var livingEscaped = scratchExitedPawns;
 
             // Hostile incursion continues overland march with pawns that successfully exited
             if (sourceIncursion != null && sourceIncursion.Spawned)
             {
-                var record = engagements.FirstOrDefault(e => e.incursion == sourceIncursion);
+                IncursionEngagementRecord? record = null;
+                if (engagements != null)
+                {
+                    for (int eIdx = 0; eIdx < engagements.Count; eIdx++)
+                    {
+                        if (engagements[eIdx].incursion == sourceIncursion)
+                        {
+                            record = engagements[eIdx];
+                            break;
+                        }
+                    }
+                }
                 if (record != null)
                 {
                     record.isDisengaged = true;
@@ -666,7 +788,7 @@ public class MapComponent_OverlandAmbush : MapComponent
 
                 if (livingEscaped.Count > 0)
                 {
-                    sourceIncursion.SetCommittedPawns(livingEscaped);
+                    sourceIncursion.SetCommittedPawns(new List<Pawn>(livingEscaped));
                     sourceIncursion.IsEngagedInTacticalMap = false;
                     sourceIncursion.AdvancePathTile();
                 }
@@ -949,11 +1071,43 @@ public class MapComponent_OverlandAmbush : MapComponent
         if (!isOverlandEncounter) return;
 
         // Do not render banners if there are no player colonists on the map (e.g. formed into a caravan, escaped, evacuated)
-        bool hasAnyColonist = map.mapPawns?.AllPawns?.Any(p => p.Faction == Faction.OfPlayer && p.IsColonist && p.Spawned) ?? false;
-        if (!hasAnyColonist) return;
+        int currentTick = Find.TickManager?.TicksGame ?? -1;
+        if (currentTick != cachedColonistScanTick)
+        {
+            cachedColonistScanTick = currentTick;
+            cachedHasAnyColonist = false;
+            cachedHasMobileColonist = false;
+            cachedHasDownedColonist = false;
 
-        bool hasMobileColonist = map.mapPawns?.FreeColonistsSpawned?.Any(p => !p.Dead && !p.Downed) ?? false;
-        bool hasDownedColonist = map.mapPawns?.AllPawns?.Any(p => p.Faction == Faction.OfPlayer && p.IsColonist && p.Spawned && p.Downed && !p.Dead) ?? false;
+            var allMapPawns = map.mapPawns?.AllPawnsSpawned;
+            if (allMapPawns != null)
+            {
+                for (int i = 0; i < allMapPawns.Count; i++)
+                {
+                    Pawn p = allMapPawns[i];
+                    if (p.Faction == Faction.OfPlayer && p.IsColonist)
+                    {
+                        cachedHasAnyColonist = true;
+                        if (!p.Dead)
+                        {
+                            if (p.Downed)
+                            {
+                                cachedHasDownedColonist = true;
+                            }
+                            else if (p.IsFreeColonist)
+                            {
+                                cachedHasMobileColonist = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!cachedHasAnyColonist) return;
+
+        bool hasMobileColonist = cachedHasMobileColonist;
+        bool hasDownedColonist = cachedHasDownedColonist;
 
         float topY = 16f;
         var colonistBar = Find.ColonistBar;

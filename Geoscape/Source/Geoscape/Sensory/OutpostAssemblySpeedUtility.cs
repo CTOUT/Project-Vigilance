@@ -157,47 +157,97 @@ public static class OutpostAssemblySpeedUtility
     }
 
     /// <summary>
-    /// Checks if any colonist in the pawn group can construct.
+    /// Checks if any colonist in the pawn group can construct (zero-alloc when backed by List&lt;Pawn&gt;).
     /// </summary>
     public static bool HasCapableBuilder(IEnumerable<Pawn>? pawns)
     {
         if (pawns == null) return false;
-        return pawns.Any(IsCapableBuilder);
+        if (pawns is IReadOnlyList<Pawn> list)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (IsCapableBuilder(list[i]))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        foreach (Pawn p in pawns)
+        {
+            if (IsCapableBuilder(p))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
     /// Computes composite team speed: 100% of the lead builder's speed plus 50% of each assistant.
+    /// Single-pass zero-allocation calculation.
     /// </summary>
     public static (Pawn? leadBuilder, float teamSpeed) CalculateTeamSpeed(IEnumerable<Pawn>? pawns)
     {
         if (pawns == null) return (null, 1f); // Test mock fallback
 
-        var pawnList = pawns.ToList();
-        if (pawnList.Count == 0) return (null, 1f); // Test mock fallback
+        int totalObserved = 0;
+        Pawn? lead = null;
+        float maxSpeed = -1f;
+        float sumAllSpeeds = 0f;
 
-        var capable = pawnList.Where(IsCapableBuilder)
-                              .OrderByDescending(GetBuilderSpeed)
-                              .ToList();
+        if (pawns is IReadOnlyList<Pawn> list)
+        {
+            totalObserved = list.Count;
+            if (totalObserved == 0) return (null, 1f); // Test mock fallback
 
-        if (capable.Count == 0)
+            for (int i = 0; i < totalObserved; i++)
+            {
+                Pawn p = list[i];
+                if (!IsCapableBuilder(p)) continue;
+
+                float spd = GetBuilderSpeed(p);
+                sumAllSpeeds += spd;
+                if (spd > maxSpeed)
+                {
+                    maxSpeed = spd;
+                    lead = p;
+                }
+            }
+        }
+        else
+        {
+            foreach (Pawn p in pawns)
+            {
+                totalObserved++;
+                if (!IsCapableBuilder(p)) continue;
+
+                float spd = GetBuilderSpeed(p);
+                sumAllSpeeds += spd;
+                if (spd > maxSpeed)
+                {
+                    maxSpeed = spd;
+                    lead = p;
+                }
+            }
+
+            if (totalObserved == 0) return (null, 1f);
+        }
+
+        if (lead == null)
         {
             return (null, 0f);
         }
 
-        Pawn lead = capable[0];
-        float totalSpeed = GetBuilderSpeed(lead);
-
-        for (int i = 1; i < capable.Count; i++)
-        {
-            totalSpeed += 0.5f * GetBuilderSpeed(capable[i]);
-        }
-
+        float totalSpeed = maxSpeed + 0.5f * (sumAllSpeeds - maxSpeed);
         return (lead, totalSpeed);
     }
 
     /// <summary>
     /// Computes active composite team speed of builders currently awake and active on-site.
     /// Returns 0 speed if all capable builders are resting for the night or daytime sleep.
+    /// Single-pass zero-allocation calculation.
     /// </summary>
     public static (Pawn? leadBuilder, float activeTeamSpeed, int awakeCount, int totalBuilders) CalculateActiveTeamSpeed(IEnumerable<Pawn>? pawns, PlanetTile tile)
     {
@@ -206,37 +256,63 @@ public static class OutpostAssemblySpeedUtility
             return (null, 1f, 1, 1); // Test harness fallback when caravan pawns are uninitialized
         }
 
-        var pawnList = pawns.ToList();
-        if (pawnList.Count == 0)
+        int totalObserved = 0;
+        int totalBuilders = 0;
+        int awakeCount = 0;
+        Pawn? lead = null;
+        float maxSpeed = -1f;
+        float sumAwakeSpeeds = 0f;
+
+        void EvaluatePawn(Pawn p)
+        {
+            totalObserved++;
+            if (!IsCapableBuilder(p)) return;
+
+            totalBuilders++;
+            if (!IsBuilderAwake(p, tile)) return;
+
+            awakeCount++;
+            float spd = GetBuilderSpeed(p);
+            sumAwakeSpeeds += spd;
+            if (spd > maxSpeed)
+            {
+                maxSpeed = spd;
+                lead = p;
+            }
+        }
+
+        if (pawns is IReadOnlyList<Pawn> list)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                EvaluatePawn(list[i]);
+            }
+        }
+        else
+        {
+            foreach (Pawn p in pawns)
+            {
+                EvaluatePawn(p);
+            }
+        }
+
+        if (totalObserved == 0)
         {
             return (null, 1f, 1, 1); // Test harness fallback
         }
 
-        var capable = pawnList.Where(IsCapableBuilder).ToList();
-        int total = capable.Count;
-        if (total == 0)
+        if (totalBuilders == 0)
         {
             return (null, 0f, 0, 0); // Real caravan present but no capable builders
         }
 
-        var awake = capable.Where(p => IsBuilderAwake(p, tile))
-                           .OrderByDescending(GetBuilderSpeed)
-                           .ToList();
-        int awakeCount = awake.Count;
-        if (awakeCount == 0)
+        if (awakeCount == 0 || lead == null)
         {
-            return (null, 0f, 0, total); // All capable builders are resting
+            return (null, 0f, 0, totalBuilders); // All capable builders are resting
         }
 
-        Pawn lead = awake[0];
-        float totalSpeed = GetBuilderSpeed(lead);
-
-        for (int i = 1; i < awake.Count; i++)
-        {
-            totalSpeed += 0.5f * GetBuilderSpeed(awake[i]);
-        }
-
-        return (lead, totalSpeed, awakeCount, total);
+        float totalSpeed = maxSpeed + 0.5f * (sumAwakeSpeeds - maxSpeed);
+        return (lead, totalSpeed, awakeCount, totalBuilders);
     }
 
     /// <summary>

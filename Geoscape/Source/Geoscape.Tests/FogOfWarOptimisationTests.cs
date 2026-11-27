@@ -424,20 +424,14 @@ public sealed class FogOfWarOptimisationTests : GeoscapeTestBase
     }
 
     [TestMethod]
-    public void Phase0Spikes_NullWorldAndMockTerrain_DoNotThrow()
+    public void RendererDiagnostics_NullWorldAndMockTerrain_DoNotThrow()
     {
         WorldDrawLayer_HazeOfWar.SubMeshMaterialOverride = CreateMockMaterial;
 
-        // 1. Null Find.World safety: none of the Phase 0 spike methods may throw.
-        DebugActionsShroudSpikes.RunAllNonDestructiveSpikes();
-        DebugActionsShroudSpikes.RunSpikeS1a_ToggleTerrainFinalized();
-        DebugActionsShroudSpikes.RunSpikeS1b_ToggleTerrainDisabled();
-        DebugActionsShroudSpikes.ResetSpikeS1_RestoreTerrainSubMeshes();
-        DebugActionsShroudSpikes.RunSpikeS2_TerrainMappingAudit();
-        DebugActionsShroudSpikes.RunSpikeS3_FlushCompatBenchmark();
-        DebugActionsShroudSpikes.RunSpikeS4_GlobeRadiusAndLayerBaseline();
+        // 1. Null Find.World safety: diagnostic dump must bail cleanly without throwing.
+        DebugActionsRendererDiagnostics.RunWorldRendererAndShroudDiagnostics();
 
-        // 2. Mock terrain layer: S1a -> S1b -> Reset preserves and restores original (finalized, disabled) states.
+        // 2. Mock terrain layer with populated draw layers: completes cleanly in read-only mode.
         PlanetLayer surfaceLayer = CreateSurfaceWithTiles(4);
         var terrainLayer = new WorldDrawLayer_Terrain();
         WorldDrawLayerPlanetLayerField!.SetValue(terrainLayer, surfaceLayer);
@@ -451,19 +445,7 @@ public sealed class FogOfWarOptimisationTests : GeoscapeTestBase
         var drawLayers = (List<WorldDrawLayer>)PlanetLayerDrawLayersField!.GetValue(surfaceLayer)!;
         drawLayers.Add(terrainLayer);
 
-        DebugActionsShroudSpikes.RunSpikeS1a_ToggleTerrainFinalized();
-        Assert.IsFalse(sm0.finalized);
-        Assert.IsFalse(sm0.disabled);
-        Assert.IsFalse(sm1.finalized);
-        Assert.IsTrue(sm1.disabled);
-
-        DebugActionsShroudSpikes.RunSpikeS1b_ToggleTerrainDisabled();
-        Assert.IsTrue(sm0.finalized);
-        Assert.IsTrue(sm0.disabled);
-        Assert.IsFalse(sm1.finalized);
-        Assert.IsTrue(sm1.disabled);
-
-        DebugActionsShroudSpikes.ResetSpikeS1_RestoreTerrainSubMeshes();
+        DebugActionsRendererDiagnostics.RunWorldRendererAndShroudDiagnostics();
         Assert.IsTrue(sm0.finalized);
         Assert.IsFalse(sm0.disabled);
         Assert.IsFalse(sm1.finalized);

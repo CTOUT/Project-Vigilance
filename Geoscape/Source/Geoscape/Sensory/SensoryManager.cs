@@ -128,14 +128,14 @@ public class SensoryManager : WorldComponent
     private readonly HashSet<int> currentActiveVisionTileIds = new(256);
     private readonly HashSet<int> currentActiveIdentifiedTileIds = new(256);
     private readonly Dictionary<int, SensorDomainFlags> currentActiveTileDomains = new(256);
-    private readonly HashSet<PlanetTile> stationaryVisionTiles = new(256);
-    private readonly HashSet<PlanetTile> stationaryIdentifiedTiles = new(128);
-    private readonly Dictionary<PlanetTile, SensorDomainFlags> stationaryTileDomains = new(256);
-    private readonly HashSet<PlanetTile> tmpActiveVisionTiles = new(256);
-    private readonly HashSet<PlanetTile> tmpActiveIdentifiedTiles = new(256);
-    private readonly Dictionary<PlanetTile, SensorDomainFlags> tmpActiveTileDomains = new(256);
-    private readonly HashSet<PlanetTile> tmpSonarCoverageTiles = new(128);
-    private readonly HashSet<PlanetTile> tmpShadowCandidateTiles = new(64);
+    private readonly HashSet<int> stationaryVisionTileIds = new(256);
+    private readonly HashSet<int> stationaryIdentifiedTileIds = new(128);
+    private readonly Dictionary<int, SensorDomainFlags> stationaryTileDomains = new(256);
+    private readonly HashSet<int> tmpActiveVisionTileIds = new(256);
+    private readonly HashSet<int> tmpActiveIdentifiedTileIds = new(256);
+    private readonly Dictionary<int, SensorDomainFlags> tmpActiveTileDomains = new(256);
+    private readonly HashSet<int> tmpSonarCoverageTileIds = new(128);
+    private readonly HashSet<int> tmpShadowCandidateTileIds = new(64);
     private readonly HashSet<int> tmpPenetratedMaskedTileIds = new(64);
     private readonly HashSet<int> newActiveVisionTileIds = new(256);
     private readonly List<PlanetTile> tmpNeighbors = new(6);
@@ -1058,25 +1058,28 @@ public class SensoryManager : WorldComponent
         return domains;
     }
 
+    private static PlanetTile ResolveTile(PlanetLayer? surfaceLayer, int tileId) =>
+        surfaceLayer != null ? surfaceLayer.PlanetTileForID(tileId) : new PlanetTile(tileId);
+
     /// <summary>
-    /// Populates the provided set with all planet tiles currently enveloped by active sensors (colonies, caravans, radar stations).
+    /// Populates the provided set with all planet tile IDs currently enveloped by active sensors (colonies, caravans, radar stations).
     /// Used by WorldDrawLayer_RadarCoverage to render tactical perimeter boundaries, identification horizons, and holographic honeycomb grids.
     /// Outputs tiles within optical identification range, closest distance to perimeter using exact topological rings,
     /// mountain-masked radar shadow tiles inside identification range, and per-tile active sensory domains.
     /// </summary>
     public void PopulateActiveVisionTiles(
-        HashSet<PlanetTile> outTiles,
-        HashSet<PlanetTile>? outIdentifiedTiles = null,
-        Dictionary<PlanetTile, float>? outTileDistancesFromPerimeter = null,
-        HashSet<PlanetTile>? outMaskedShadowTiles = null,
-        Dictionary<PlanetTile, SensorDomainFlags>? outTileDomains = null)
+        HashSet<int> outTileIds,
+        HashSet<int>? outIdentifiedTileIds = null,
+        Dictionary<int, float>? outTileDistancesFromPerimeter = null,
+        HashSet<int>? outMaskedShadowTileIds = null,
+        Dictionary<int, SensorDomainFlags>? outTileDomains = null)
     {
-        outTiles.Clear();
-        outIdentifiedTiles?.Clear();
+        outTileIds.Clear();
+        outIdentifiedTileIds?.Clear();
         outTileDistancesFromPerimeter?.Clear();
-        outMaskedShadowTiles?.Clear();
+        outMaskedShadowTileIds?.Clear();
         outTileDomains?.Clear();
-        tmpShadowCandidateTiles.Clear();
+        tmpShadowCandidateTileIds.Clear();
         tmpPenetratedMaskedTileIds.Clear();
 
         if (Find.World?.grid == null && TileNeighborsOverride == null)
@@ -1085,29 +1088,29 @@ public class SensoryManager : WorldComponent
         }
 
         IReadOnlyList<ISensorProvider> sensors = ActiveSensorsOverride != null ? ActiveSensorsOverride() : GetActiveSensors();
-        bool trackMaskedShadow = outMaskedShadowTiles != null;
+        bool trackMaskedShadow = outMaskedShadowTileIds != null;
         for (int i = 0; i < sensors.Count; i++)
         {
-            AccumulateSensorVisionTiles(sensors[i], outTiles, outIdentifiedTiles, outTileDomains, trackMaskedShadow);
+            AccumulateSensorVisionTiles(sensors[i], outTileIds, outIdentifiedTileIds, outTileDomains, trackMaskedShadow);
         }
 
-        if (outMaskedShadowTiles != null)
+        if (outMaskedShadowTileIds != null)
         {
-            foreach (PlanetTile tile in tmpShadowCandidateTiles)
+            foreach (int tileId in tmpShadowCandidateTileIds)
             {
-                if (!tmpPenetratedMaskedTileIds.Contains(tile.tileId))
+                if (!tmpPenetratedMaskedTileIds.Contains(tileId))
                 {
-                    outMaskedShadowTiles.Add(tile);
+                    outMaskedShadowTileIds.Add(tileId);
                 }
             }
         }
 
-        tmpShadowCandidateTiles.Clear();
+        tmpShadowCandidateTileIds.Clear();
         tmpPenetratedMaskedTileIds.Clear();
 
-        if (outTileDistancesFromPerimeter != null && outTiles.Count > 0)
+        if (outTileDistancesFromPerimeter != null && outTileIds.Count > 0)
         {
-            ComputeInwardPerimeterDistances(outTiles, outTileDistancesFromPerimeter);
+            ComputeInwardPerimeterDistances(outTileIds, outTileDistancesFromPerimeter);
         }
     }
 
@@ -1118,9 +1121,9 @@ public class SensoryManager : WorldComponent
 
     private void AccumulateSensorVisionTiles(
         ISensorProvider sensor,
-        HashSet<PlanetTile> outTiles,
-        HashSet<PlanetTile>? outIdentifiedTiles,
-        Dictionary<PlanetTile, SensorDomainFlags>? outTileDomains,
+        HashSet<int> outTileIds,
+        HashSet<int>? outIdentifiedTileIds,
+        Dictionary<int, SensorDomainFlags>? outTileDomains,
         bool trackMaskedShadow = false)
     {
         if (!sensor.SensorTile.Valid)
@@ -1143,21 +1146,21 @@ public class SensoryManager : WorldComponent
         {
             if (outTileDomains != null)
             {
-                tmpSonarCoverageTiles.Clear();
+                tmpSonarCoverageTileIds.Clear();
                 SonarTraversalUtility.PopulateSonarCoverage(
                     centerTile,
                     radiusSteps,
                     idRadiusSteps,
-                    tmpSonarCoverageTiles,
-                    outIdentifiedTiles);
+                    tmpSonarCoverageTileIds,
+                    outIdentifiedTileIds);
 
-                foreach (PlanetTile waterTile in tmpSonarCoverageTiles)
+                foreach (int waterTileId in tmpSonarCoverageTileIds)
                 {
-                    outTiles.Add(waterTile);
-                    outTileDomains.TryGetValue(waterTile, out SensorDomainFlags existing);
-                    outTileDomains[waterTile] = existing | SensorDomainFlags.Sonar;
+                    outTileIds.Add(waterTileId);
+                    outTileDomains.TryGetValue(waterTileId, out SensorDomainFlags existing);
+                    outTileDomains[waterTileId] = existing | SensorDomainFlags.Sonar;
                 }
-                tmpSonarCoverageTiles.Clear();
+                tmpSonarCoverageTileIds.Clear();
             }
             else
             {
@@ -1165,8 +1168,8 @@ public class SensoryManager : WorldComponent
                     centerTile,
                     radiusSteps,
                     idRadiusSteps,
-                    outTiles,
-                    outIdentifiedTiles);
+                    outTileIds,
+                    outIdentifiedTileIds);
             }
             return;
         }
@@ -1180,16 +1183,17 @@ public class SensoryManager : WorldComponent
         while (bfsQueue.Count > 0)
         {
             var (currentTile, currentStep) = bfsQueue.Dequeue();
-            outTiles.Add(currentTile);
+            int currentTileId = currentTile.tileId;
+            outTileIds.Add(currentTileId);
             if (outTileDomains != null)
             {
-                outTileDomains.TryGetValue(currentTile, out SensorDomainFlags existing);
-                outTileDomains[currentTile] = existing | sensorDomain;
+                outTileDomains.TryGetValue(currentTileId, out SensorDomainFlags existing);
+                outTileDomains[currentTileId] = existing | sensorDomain;
             }
 
             if (idRadiusSteps > 0 && currentStep <= idRadiusSteps)
             {
-                outIdentifiedTiles?.Add(currentTile);
+                outIdentifiedTileIds?.Add(currentTileId);
 
                 if (trackMaskedShadow && SensoryTerrainUtility.IsTargetMasked(currentTile))
                 {
@@ -1197,11 +1201,11 @@ public class SensoryManager : WorldComponent
                     bool penetratesAtStep = sensor.PenetratesTerrainMasking && (penSteps <= 0 || currentStep <= penSteps);
                     if (penetratesAtStep || currentStep <= 1)
                     {
-                        tmpPenetratedMaskedTileIds.Add(currentTile.tileId);
+                        tmpPenetratedMaskedTileIds.Add(currentTileId);
                     }
                     else
                     {
-                        tmpShadowCandidateTiles.Add(currentTile);
+                        tmpShadowCandidateTileIds.Add(currentTileId);
                     }
                 }
             }
@@ -1236,16 +1240,18 @@ public class SensoryManager : WorldComponent
     /// from the outer perimeter of the unified sensor envelope.
     /// </summary>
     internal void ComputeInwardPerimeterDistances(
-        HashSet<PlanetTile> activeTiles,
-        Dictionary<PlanetTile, float> outDistances)
+        HashSet<int> activeTileIds,
+        Dictionary<int, float> outDistances)
     {
         outDistances.Clear();
         bfsQueue.Clear();
+        PlanetLayer? surfaceLayer = Find.World?.grid?.Surface;
 
-        // 1. Identify all tiles that lie on the true outer perimeter of activeTiles.
-        // A tile is on the perimeter if at least one of its neighbours is outside activeTiles.
-        foreach (PlanetTile tile in activeTiles)
+        // 1. Identify all tiles that lie on the true outer perimeter of activeTileIds.
+        // A tile is on the perimeter if at least one of its neighbours is outside activeTileIds.
+        foreach (int tileId in activeTileIds)
         {
+            PlanetTile tile = ResolveTile(surfaceLayer, tileId);
             if (TileNeighborsOverride == null && tile.Layer == null)
             {
                 continue;
@@ -1265,7 +1271,7 @@ public class SensoryManager : WorldComponent
             for (int n = 0; n < tmpNeighbors.Count; n++)
             {
                 PlanetTile neighbor = tmpNeighbors[n];
-                if (!neighbor.Valid || !activeTiles.Contains(neighbor))
+                if (!neighbor.Valid || !activeTileIds.Contains(neighbor.tileId))
                 {
                     isPerimeter = true;
                     break;
@@ -1274,17 +1280,17 @@ public class SensoryManager : WorldComponent
 
             if (isPerimeter)
             {
-                outDistances[tile] = 0f;
+                outDistances[tileId] = 0f;
                 bfsQueue.Enqueue((tile, 0));
             }
         }
 
         // Fail-safe for total planetary coverage (all tiles active)
-        if (bfsQueue.Count == 0 && activeTiles.Count > 0)
+        if (bfsQueue.Count == 0 && activeTileIds.Count > 0)
         {
-            foreach (PlanetTile tile in activeTiles)
+            foreach (int tileId in activeTileIds)
             {
-                outDistances[tile] = 3f;
+                outDistances[tileId] = 3f;
             }
             return;
         }
@@ -1312,9 +1318,10 @@ public class SensoryManager : WorldComponent
             for (int n = 0; n < tmpNeighbors.Count; n++)
             {
                 PlanetTile neighbor = tmpNeighbors[n];
-                if (neighbor.Valid && activeTiles.Contains(neighbor) && !outDistances.ContainsKey(neighbor))
+                int neighborId = neighbor.tileId;
+                if (neighbor.Valid && activeTileIds.Contains(neighborId) && !outDistances.ContainsKey(neighborId))
                 {
-                    outDistances[neighbor] = nextDist;
+                    outDistances[neighborId] = nextDist;
                     bfsQueue.Enqueue((neighbor, nextDist));
                 }
             }
@@ -1733,16 +1740,16 @@ public class SensoryManager : WorldComponent
         DeepProfiler.Start("ProjectVigilance.SensorySweep.VisionUpdates");
         try
         {
-            tmpActiveVisionTiles.Clear();
-            tmpActiveIdentifiedTiles.Clear();
+            tmpActiveVisionTileIds.Clear();
+            tmpActiveIdentifiedTileIds.Clear();
             tmpActiveTileDomains.Clear();
             newActiveVisionTileIds.Clear();
 
             if (mobileOnly && stationaryCacheValid)
             {
-                tmpActiveVisionTiles.UnionWith(stationaryVisionTiles);
-                tmpActiveIdentifiedTiles.UnionWith(stationaryIdentifiedTiles);
-                foreach (KeyValuePair<PlanetTile, SensorDomainFlags> kvp in stationaryTileDomains)
+                tmpActiveVisionTileIds.UnionWith(stationaryVisionTileIds);
+                tmpActiveIdentifiedTileIds.UnionWith(stationaryIdentifiedTileIds);
+                foreach (KeyValuePair<int, SensorDomainFlags> kvp in stationaryTileDomains)
                 {
                     tmpActiveTileDomains[kvp.Key] = kvp.Value;
                 }
@@ -1755,15 +1762,15 @@ public class SensoryManager : WorldComponent
                         ISensorProvider sensor = sensors[i];
                         if (!IsStationarySensor(sensor))
                         {
-                            AccumulateSensorVisionTiles(sensor, tmpActiveVisionTiles, tmpActiveIdentifiedTiles, tmpActiveTileDomains, trackMaskedShadow: false);
+                            AccumulateSensorVisionTiles(sensor, tmpActiveVisionTileIds, tmpActiveIdentifiedTileIds, tmpActiveTileDomains, trackMaskedShadow: false);
                         }
                     }
                 }
             }
             else
             {
-                stationaryVisionTiles.Clear();
-                stationaryIdentifiedTiles.Clear();
+                stationaryVisionTileIds.Clear();
+                stationaryIdentifiedTileIds.Clear();
                 stationaryTileDomains.Clear();
 
                 if (Find.World?.grid != null || TileNeighborsOverride != null)
@@ -1774,43 +1781,37 @@ public class SensoryManager : WorldComponent
                         ISensorProvider sensor = sensors[i];
                         if (IsStationarySensor(sensor))
                         {
-                            AccumulateSensorVisionTiles(sensor, stationaryVisionTiles, stationaryIdentifiedTiles, stationaryTileDomains, trackMaskedShadow: false);
+                            AccumulateSensorVisionTiles(sensor, stationaryVisionTileIds, stationaryIdentifiedTileIds, stationaryTileDomains, trackMaskedShadow: false);
                         }
                         else
                         {
-                            AccumulateSensorVisionTiles(sensor, tmpActiveVisionTiles, tmpActiveIdentifiedTiles, tmpActiveTileDomains, trackMaskedShadow: false);
+                            AccumulateSensorVisionTiles(sensor, tmpActiveVisionTileIds, tmpActiveIdentifiedTileIds, tmpActiveTileDomains, trackMaskedShadow: false);
                         }
                     }
                 }
 
                 stationaryCacheValid = true;
-                tmpActiveVisionTiles.UnionWith(stationaryVisionTiles);
-                tmpActiveIdentifiedTiles.UnionWith(stationaryIdentifiedTiles);
-                foreach (KeyValuePair<PlanetTile, SensorDomainFlags> kvp in stationaryTileDomains)
+                tmpActiveVisionTileIds.UnionWith(stationaryVisionTileIds);
+                tmpActiveIdentifiedTileIds.UnionWith(stationaryIdentifiedTileIds);
+                foreach (KeyValuePair<int, SensorDomainFlags> kvp in stationaryTileDomains)
                 {
                     tmpActiveTileDomains.TryGetValue(kvp.Key, out SensorDomainFlags existing);
                     tmpActiveTileDomains[kvp.Key] = existing | kvp.Value;
                 }
             }
 
-            foreach (PlanetTile pt in tmpActiveVisionTiles)
-            {
-                newActiveVisionTileIds.Add(pt.tileId);
-            }
+            newActiveVisionTileIds.UnionWith(tmpActiveVisionTileIds);
 
             bool activeVisionChanged = newActiveVisionTileIds.Count != currentActiveVisionTileIds.Count ||
                 !newActiveVisionTileIds.SetEquals(currentActiveVisionTileIds);
 
             currentActiveIdentifiedTileIds.Clear();
-            foreach (PlanetTile idPt in tmpActiveIdentifiedTiles)
-            {
-                currentActiveIdentifiedTileIds.Add(idPt.tileId);
-            }
+            currentActiveIdentifiedTileIds.UnionWith(tmpActiveIdentifiedTileIds);
 
             currentActiveTileDomains.Clear();
-            foreach (KeyValuePair<PlanetTile, SensorDomainFlags> kvp in tmpActiveTileDomains)
+            foreach (KeyValuePair<int, SensorDomainFlags> kvp in tmpActiveTileDomains)
             {
-                currentActiveTileDomains[kvp.Key.tileId] = kvp.Value;
+                currentActiveTileDomains[kvp.Key] = kvp.Value;
             }
 
             if (activeVisionChanged)
@@ -1893,11 +1894,12 @@ public class SensoryManager : WorldComponent
 
         if (isSonar)
         {
-            var sonarCoverage = new HashSet<PlanetTile>();
-            SonarTraversalUtility.PopulateSonarCoverage(centerTile, maxSteps, maxIdentificationRadius: 0, sonarCoverage);
-            foreach (PlanetTile waterTile in sonarCoverage)
+            tmpSonarCoverageTileIds.Clear();
+            SonarTraversalUtility.PopulateSonarCoverage(centerTile, maxSteps, maxIdentificationRadius: 0, tmpSonarCoverageTileIds);
+            PlanetLayer? surfaceLayer = centerTile.Layer ?? Find.World?.grid?.Surface;
+            foreach (int tileId in tmpSonarCoverageTileIds)
             {
-                int tileId = waterTile.tileId;
+                PlanetTile waterTile = ResolveTile(surfaceLayer, tileId);
                 if ((tileId >> 3) >= exploredBytes.Length)
                 {
                     EnsureExploredArray(tileId + 1);
@@ -2267,12 +2269,16 @@ public class SensoryManager : WorldComponent
 
         if (isSonar)
         {
-            var sonarIdentified = new HashSet<PlanetTile>();
-            SonarTraversalUtility.PopulateSonarCoverage(centerTile, maxSteps, maxIdentificationRadius: maxSteps, outDetectionTiles: new HashSet<PlanetTile>(), outIdentificationTiles: sonarIdentified);
-            foreach (PlanetTile waterTile in sonarIdentified)
+            tmpSonarCoverageTileIds.Clear();
+            tmpShadowCandidateTileIds.Clear();
+            SonarTraversalUtility.PopulateSonarCoverage(centerTile, maxSteps, maxIdentificationRadius: maxSteps, outDetectionTileIds: tmpSonarCoverageTileIds, outIdentificationTileIds: tmpShadowCandidateTileIds);
+            PlanetLayer? surfaceLayer = centerTile.Layer ?? Find.World?.grid?.Surface;
+            foreach (int waterTileId in tmpShadowCandidateTileIds)
             {
-                IdentifyTileAndObjects(waterTile, ref identifiedAnyTile, ref identifiedAnyObject, ref identifiedAnyLandmark);
+                IdentifyTileAndObjects(ResolveTile(surfaceLayer, waterTileId), ref identifiedAnyTile, ref identifiedAnyObject, ref identifiedAnyLandmark);
             }
+            tmpSonarCoverageTileIds.Clear();
+            tmpShadowCandidateTileIds.Clear();
         }
         else
         {

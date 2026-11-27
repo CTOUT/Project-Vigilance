@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 
 Add-Type -AssemblyName System.Drawing
 
-$outputDir = Join-Path $PSScriptRoot "..\Geoscape\1.7\Textures\ProjectVigilance\Geoscape\World\Orbital"
+$outputDir = Join-Path $PSScriptRoot "..\Orbital\1.7\Textures\ProjectVigilance\Geoscape\World\Orbital"
 if (-not (Test-Path $outputDir)) {
     New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 }

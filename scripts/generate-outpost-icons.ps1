@@ -14,8 +14,11 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 
 $outputDir = Join-Path $PSScriptRoot "..\Geoscape\1.7\Textures\ProjectVigilance\Geoscape\World\Outposts"
-if (-not (Test-Path $outputDir)) {
-    New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+$aquaticsOutpostDir = Join-Path $PSScriptRoot "..\Aquatics\1.7\Textures\ProjectVigilance\Geoscape\World\Outposts"
+foreach ($dir in @($outputDir, $aquaticsOutpostDir)) {
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
 }
 
 $outlineColor = [System.Drawing.Color]::FromArgb(255, 28, 30, 32)
@@ -209,7 +212,7 @@ $g.DrawArc($arcPen1, 35, 35, 90, 90, -45, 90)
 $arcPen1.Dispose()
 $arcPen2.Dispose()
 
-$canvas.Bitmap.Save((Join-Path $outputDir "Outpost_Sonar.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+$canvas.Bitmap.Save((Join-Path $aquaticsOutpostDir "Outpost_Sonar.png"), [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose()
 $canvas.Bitmap.Dispose()
 

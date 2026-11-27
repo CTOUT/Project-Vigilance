@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Prepares, validates, and packages a Project Vigilance release across GitHub and Steam Workshop.
 
@@ -38,13 +38,13 @@ Write-Host " Project Vigilance — Release Preparation Pipeline (v$Version)" -Fo
 Write-Host "=====================================================================" -ForegroundColor Cyan
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$geoscapeDir = Join-Path $repoRoot 'Geoscape'
-$csprojPath = Join-Path $geoscapeDir 'Source\Geoscape\Geoscape.csproj'
+$buildPropsPath = Join-Path $repoRoot 'Directory.Build.props'
 $packageJsonPath = Join-Path $repoRoot 'package.json'
 $changelogPath = Join-Path $repoRoot 'CHANGELOG.md'
 $packageReleaseScript = Join-Path $PSScriptRoot 'package-release.ps1'
 $distDir = Join-Path $repoRoot 'dist'
 $docsDir = Join-Path $repoRoot 'docs'
+$moduleDirs = @('Core', 'Geoscape', 'Orbital', 'Aquatics', 'Thermal')
 
 if (-not (Test-Path $distDir)) {
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null
@@ -64,21 +64,20 @@ if (Test-Path $packageJsonPath) {
     }
 }
 
-# 2. Synchronize Geoscape.csproj assembly version tags
-Write-Host "--> [2/6] Synchronizing version in Geoscape.csproj..." -ForegroundColor Yellow
-if (Test-Path $csprojPath) {
-    [xml]$xml = Get-Content $csprojPath
+# 2. Synchronize Directory.Build.props central suite assembly version tags
+Write-Host "--> [2/6] Synchronizing suite version in Directory.Build.props..." -ForegroundColor Yellow
+if (Test-Path $buildPropsPath) {
+    [xml]$xml = Get-Content $buildPropsPath
     $propGroup = $xml.Project.PropertyGroup | Select-Object -First 1
 
-    $updatedCsp = $false
     if ($propGroup.Version -ne $Version) {
         $propGroup.Version = $Version
         $propGroup.AssemblyVersion = "$Version.0"
         $propGroup.FileVersion = "$Version.0"
-        $xml.Save($csprojPath)
-        Write-Host "    Updated Geoscape.csproj <Version> to $Version" -ForegroundColor Gray
+        $xml.Save($buildPropsPath)
+        Write-Host "    Updated Directory.Build.props <Version> to $Version" -ForegroundColor Gray
     } else {
-        Write-Host "    Geoscape.csproj already set to $Version" -ForegroundColor Gray
+        Write-Host "    Directory.Build.props already set to $Version" -ForegroundColor Gray
     }
 }
 
@@ -126,9 +125,9 @@ if (Test-Path $changelogPath) {
         # Append Installation and Bug reporting footer
         $notesLines.Add("")
         $notesLines.Add("### 📦 Installation")
-        $notesLines.Add("1. Download `ProjectVigilance-OverlandIncursions-v$Version.zip` attached below.")
-        $notesLines.Add("2. Extract the `ProjectVigilance-OverlandIncursions` folder into your RimWorld `Mods/` directory (or subscribe on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)).")
-        $notesLines.Add("3. In RimWorld's mod menu, activate **Harmony** followed by **Project Vigilance - Overland Incursions**.")
+        $notesLines.Add("1. Download `ProjectVigilance-Suite-v$Version.zip` attached below.")
+        $notesLines.Add("2. Extract the modular folders you wish to play into your RimWorld `Mods/` directory (or subscribe on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)).")
+        $notesLines.Add("3. In RimWorld's mod menu, activate **Harmony**, **Project Vigilance - Core Framework**, and your chosen modules.")
         $notesLines.Add("")
         $notesLines.Add("### 💬 Feedback & Discussion")
         $notesLines.Add("Please report issues via [GitHub Issues](https://github.com/CTOUT/Project-Vigilance/issues) or join the discussions in [GitHub Discussions](https://github.com/CTOUT/Project-Vigilance/discussions)!")
@@ -140,19 +139,21 @@ if (Test-Path $changelogPath) {
     }
 }
 
-# 5. Validate Steam Workshop assets and BBCode copy files
+# 5. Validate Steam Workshop assets across all 5 modules and BBCode copy files
 Write-Host "--> [5/6] Validating Steam Workshop assets and documentation..." -ForegroundColor Yellow
-$previewPng = Join-Path $geoscapeDir 'About\Preview.png'
-if (Test-Path $previewPng) {
-    $previewItem = Get-Item $previewPng
-    $previewKb = [math]::Round($previewItem.Length / 1KB, 1)
-    if ($previewItem.Length -gt 1MB) {
-        Write-Error "Steam Workshop Preview.png exceeds 1.0 MB ceiling! (Size: $previewKb KB). Compress image before uploading."
+foreach ($modName in $moduleDirs) {
+    $previewPng = Join-Path $repoRoot "$modName\About\Preview.png"
+    if (Test-Path $previewPng) {
+        $previewItem = Get-Item $previewPng
+        $previewKb = [math]::Round($previewItem.Length / 1KB, 1)
+        if ($previewItem.Length -gt 1MB) {
+            Write-Error "[$modName] Steam Workshop Preview.png exceeds 1.0 MB ceiling! (Size: $previewKb KB). Compress image before uploading."
+        } else {
+            Write-Host "    [$modName] Preview.png size OK: $previewKb KB (Max 1024 KB)" -ForegroundColor Gray
+        }
     } else {
-        Write-Host "    Preview.png size OK: $previewKb KB (Max 1024 KB)" -ForegroundColor Gray
+        Write-Warning "[$modName] Preview.png not found at $previewPng"
     }
-} else {
-    Write-Warning "Preview.png not found at $previewPng"
 }
 
 $changenotesFile = Join-Path $docsDir "workshop_changenotes_v$Version.txt"
@@ -212,7 +213,7 @@ Write-Host "   git tag -a v$Version -m `"Release v$Version`"" -ForegroundColor G
 Write-Host "   git push origin v$Version" -ForegroundColor Gray
 
 Write-Host "`n3. Publish GitHub Release via GitHub CLI:" -ForegroundColor Yellow
-Write-Host "   gh release create v$Version dist/ProjectVigilance-OverlandIncursions-v$Version.zip --title `"Project Vigilance: Overland Incursions v$Version`" --notes-file $releaseNotesFile" -ForegroundColor Gray
+Write-Host "   gh release create v$Version dist/ProjectVigilance-Suite-v$Version.zip --title `"Project Vigilance Modular Suite v$Version`" --notes-file $releaseNotesFile" -ForegroundColor Gray
 
 Write-Host "`n4. Steam Workshop Update:" -ForegroundColor Yellow
 Write-Host "   a) Launch RimWorld -> Mods -> Project Vigilance -> Click 'Upload to Steam Workshop'" -ForegroundColor Gray

@@ -29,11 +29,11 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     public static readonly Color32 SonarPerimeterColorRgb = new(0, 210, 255, 255);
     public static readonly Color32 VisualPerimeterColorRgb = new(235, 225, 185, 255);
 
-    private readonly HashSet<PlanetTile> activeTilesCache = new(256);
-    private readonly HashSet<PlanetTile> identifiedTilesCache = new(64);
-    private readonly HashSet<PlanetTile> maskedShadowTilesCache = new(64);
-    private readonly Dictionary<PlanetTile, SensorDomainFlags> tileDomainsCache = new(256);
-    private readonly Dictionary<PlanetTile, float> tileDistancesCache = new(256);
+    private readonly HashSet<int> activeTileIdsCache = new(256);
+    private readonly HashSet<int> identifiedTileIdsCache = new(64);
+    private readonly HashSet<int> maskedShadowTileIdsCache = new(64);
+    private readonly Dictionary<int, SensorDomainFlags> tileDomainsCache = new(256);
+    private readonly Dictionary<int, float> tileDistancesCache = new(256);
     private readonly Dictionary<EdgeKey, EdgeInfo> edgesCache = new(1024);
     private readonly List<int> tmpIndices = new(8);
     private readonly List<Vector3> tmpVerts = new(8);
@@ -170,12 +170,12 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         }
 
         // 1. Gather all tiles currently within active sensor range and optical identification range
-        activeTilesCache.Clear();
-        identifiedTilesCache.Clear();
+        activeTileIdsCache.Clear();
+        identifiedTileIdsCache.Clear();
         tileDistancesCache.Clear();
-        maskedShadowTilesCache.Clear();
+        maskedShadowTileIdsCache.Clear();
         tileDomainsCache.Clear();
-        sensory.PopulateActiveVisionTiles(activeTilesCache, identifiedTilesCache, tileDistancesCache, maskedShadowTilesCache, tileDomainsCache);
+        sensory.PopulateActiveVisionTiles(activeTileIdsCache, identifiedTileIdsCache, tileDistancesCache, maskedShadowTileIdsCache, tileDomainsCache);
 
         int subMeshIndex = 0;
         bool drawOutlines = GeoscapeMod.Settings.radarOutlineStyle != RadarOutlineStyle.None;
@@ -274,7 +274,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                             tmpDimmingVerts[v] = vert + vert.normalized * (RadarAltitudeOffset * 0.5f);
                         }
 
-                        bool isActive = activeTilesCache.Contains(tile);
+                        bool isActive = activeTileIdsCache.Contains(i);
                         dimTileWasActive[i] = isActive;
                         Color32 tileColor = isActive ? transparentColor : dimColor;
 
@@ -325,7 +325,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         }
 
         // 3. Render tactical radar boundary rings, identification horizons, and honeycomb grid
-        if (drawOutlines && activeTilesCache.Count > 0)
+        if (drawOutlines && activeTileIdsCache.Count > 0)
         {
             Color32 baseColor = (Color32)GeoscapeMod.Settings.EffectiveRadarColor;
             Color32 idColor = (Color32)GeoscapeMod.Settings.EffectiveIdentificationColor;
@@ -339,12 +339,13 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 
             // Extract all topological edges across active sensor tiles
             edgesCache.Clear();
-            foreach (PlanetTile tile in activeTilesCache)
+            foreach (int tileId in activeTileIdsCache)
             {
-                bool isIdentified = identifiedTilesCache.Contains(tile);
-                bool isShadow = maskedShadowTilesCache.Contains(tile);
-                tileDistancesCache.TryGetValue(tile, out float hexesFromPerim);
-                if (!tileDomainsCache.TryGetValue(tile, out SensorDomainFlags tileDomain) || tileDomain == SensorDomainFlags.None)
+                PlanetTile tile = planetLayer != null ? planetLayer.PlanetTileForID(tileId) : new PlanetTile(tileId);
+                bool isIdentified = identifiedTileIdsCache.Contains(tileId);
+                bool isShadow = maskedShadowTileIdsCache.Contains(tileId);
+                tileDistancesCache.TryGetValue(tileId, out float hexesFromPerim);
+                if (!tileDomainsCache.TryGetValue(tileId, out SensorDomainFlags tileDomain) || tileDomain == SensorDomainFlags.None)
                 {
                     tileDomain = SensorDomainFlags.Radar;
                 }
@@ -560,7 +561,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             }
 
             // 4. Approach C: Render subtle radar static / diagonal scanline hatch over masked mountain hex surfaces within R_id
-            if (drawCellHatching && maskedShadowTilesCache.Count > 0 && grid != null)
+            if (drawCellHatching && maskedShadowTileIdsCache.Count > 0 && grid != null)
             {
                 Color32 hatchColor = GeoscapeMod.Settings.useCustomIdentificationColor
                     ? (Color32)GeoscapeMod.Settings.radarIdentificationColor
@@ -569,8 +570,9 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
 
                 Color32 staticWashColor = new(28, 20, 8, (byte)(Mathf.Clamp01(GeoscapeMod.Settings.identificationRingOpacity * 0.28f) * 255));
 
-                foreach (PlanetTile shadowTile in maskedShadowTilesCache)
+                foreach (int shadowTileId in maskedShadowTileIdsCache)
                 {
+                    PlanetTile shadowTile = planetLayer != null ? planetLayer.PlanetTileForID(shadowTileId) : new PlanetTile(shadowTileId);
                     RenderShadowCellHatching(grid, shadowTile, hatchColor, staticWashColor, ref subMeshIndex);
                 }
             }
@@ -890,7 +892,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             }
 
             PlanetTile tile = layer.PlanetTileForID(i);
-            bool isActive = !tile.Valid || activeTilesCache.Contains(tile);
+            bool isActive = !tile.Valid || activeTileIdsCache.Contains(i);
             bool stateChanged = isActive != dimTileWasActive[i];
             if (!stateChanged && (!alphaChanged || isActive))
             {

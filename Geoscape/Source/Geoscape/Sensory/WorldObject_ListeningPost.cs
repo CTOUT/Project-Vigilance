@@ -79,7 +79,6 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
 
     public const float UprightQuadRotationAngle = -90f;
     public const float UprightPrintRotationAngle = 90f;
-    private static MaterialPropertyBlock? sharedPropertyBlock;
 
     public override Color ExpandingIconColor
     {
@@ -117,42 +116,6 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             }
             return cachedMat ?? base.Material;
         }
-    }
-
-    public override void Draw()
-    {
-        float averageTileSize = Find.WorldGrid.AverageTileSize;
-        float rawTransitionPct = ExpandableWorldObjectsUtility.RawTransitionPct;
-        Material? mat = Material;
-        if (mat == null)
-        {
-            return;
-        }
-
-        if (def.expandingIcon && rawTransitionPct > 0f)
-        {
-            Color color = mat.color;
-            float num = 1f - rawTransitionPct;
-            sharedPropertyBlock ??= new MaterialPropertyBlock();
-            sharedPropertyBlock.SetColor(ShaderPropertyIDs.Color, new Color(color.r, color.g, color.b, color.a * num));
-            WorldRendererUtility.DrawQuadTangentialToPlanet(
-                DrawPos,
-                0.7f * averageTileSize,
-                DrawAltitude,
-                mat,
-                UprightQuadRotationAngle,
-                counterClockwise: false,
-                useSkyboxLayer: false,
-                sharedPropertyBlock);
-            return;
-        }
-
-        WorldRendererUtility.DrawQuadTangentialToPlanet(
-            DrawPos,
-            0.7f * averageTileSize,
-            DrawAltitude,
-            mat,
-            UprightQuadRotationAngle);
     }
 
     public override string Label
@@ -308,9 +271,43 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
     private bool wasCaravanPresentDuringConstruction = true;
     private float constructionWorkAccumulator = 0f;
     private float dismantleWorkAccumulator = 0f;
+    private float cachedTickSpeedRatio = 1f;
+    private bool cachedTickCanWork = true;
+    private int lastTickSpeedCalcTick = -9999;
 
     public float ConstructionWorkAccumulator => constructionWorkAccumulator;
     public float DismantleWorkAccumulator => dismantleWorkAccumulator;
+
+    private bool ResolveTickWorkSpeed(Caravan? caravan, out float speedRatio)
+    {
+        TickManager? tickManager = Current.Game?.tickManager;
+        int ticksNow = tickManager?.TicksGame ?? -1;
+        if (ticksNow >= 0 && lastTickSpeedCalcTick >= 0 && ticksNow - lastTickSpeedCalcTick < 60)
+        {
+            speedRatio = cachedTickSpeedRatio;
+            return cachedTickCanWork;
+        }
+
+        lastTickSpeedCalcTick = ticksNow;
+        List<Pawn>? pawns = GetCaravanPawns(caravan);
+        var (_, activeTeamSpeed, awakeCount, totalBuilders) =
+            OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, Tile);
+
+        if (totalBuilders > 0 && awakeCount > 0)
+        {
+            var (_, fullTeamSpeed) = OutpostAssemblySpeedUtility.CalculateTeamSpeed(pawns);
+            cachedTickSpeedRatio = fullTeamSpeed > 0f ? Mathf.Clamp01(activeTeamSpeed / fullTeamSpeed) : 1f;
+            cachedTickCanWork = true;
+        }
+        else
+        {
+            cachedTickSpeedRatio = 0f;
+            cachedTickCanWork = false;
+        }
+
+        speedRatio = cachedTickSpeedRatio;
+        return cachedTickCanWork;
+    }
 
     protected override void Tick()
     {
@@ -323,22 +320,15 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
                 if (!wasCaravanPresentDuringConstruction)
                 {
                     wasCaravanPresentDuringConstruction = true;
+                    lastTickSpeedCalcTick = -9999;
                     if (Current.ProgramState == ProgramState.Playing)
                     {
                         Messages.Message($"Caravan on-site. Construction of {LabelCap} at Tile {Tile.tileId} resumed.", MessageTypeDefOf.PositiveEvent, false);
                     }
                 }
 
-                List<Pawn>? pawns = GetCaravanPawns(caravan);
-
-                var (leadAwake, activeTeamSpeed, awakeCount, totalBuilders) =
-                    OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, Tile);
-
-                if (totalBuilders > 0 && awakeCount > 0)
+                if (ResolveTickWorkSpeed(caravan, out float speedRatio))
                 {
-                    var (_, fullTeamSpeed) = OutpostAssemblySpeedUtility.CalculateTeamSpeed(pawns);
-                    float speedRatio = fullTeamSpeed > 0f ? Mathf.Clamp01(activeTeamSpeed / fullTeamSpeed) : 1f;
-
                     constructionWorkAccumulator += speedRatio;
                     while (constructionWorkAccumulator >= 1f)
                     {
@@ -357,6 +347,7 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
                 if (wasCaravanPresentDuringConstruction)
                 {
                     wasCaravanPresentDuringConstruction = false;
+                    lastTickSpeedCalcTick = -9999;
                     if (Current.ProgramState == ProgramState.Playing)
                     {
                         Messages.Message($"Construction of {LabelCap} at Tile {Tile.tileId} paused. Caravan must remain on-site to finish assembly.", MessageTypeDefOf.CautionInput, false);
@@ -368,16 +359,8 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         {
             if (HasPlayerCaravanPresent(out Caravan? caravan))
             {
-                List<Pawn>? pawns = GetCaravanPawns(caravan);
-
-                var (leadAwake, activeTeamSpeed, awakeCount, totalBuilders) =
-                    OutpostAssemblySpeedUtility.CalculateActiveTeamSpeed(pawns, Tile);
-
-                if (totalBuilders > 0 && awakeCount > 0)
+                if (ResolveTickWorkSpeed(caravan, out float speedRatio))
                 {
-                    var (_, fullTeamSpeed) = OutpostAssemblySpeedUtility.CalculateTeamSpeed(pawns);
-                    float speedRatio = fullTeamSpeed > 0f ? Mathf.Clamp01(activeTeamSpeed / fullTeamSpeed) : 1f;
-
                     dismantleWorkAccumulator += speedRatio;
                     while (dismantleWorkAccumulator >= 1f)
                     {
@@ -390,6 +373,10 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
                         }
                     }
                 }
+            }
+            else
+            {
+                lastTickSpeedCalcTick = -9999;
             }
         }
     }

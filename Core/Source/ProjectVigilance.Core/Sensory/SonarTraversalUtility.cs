@@ -160,6 +160,19 @@ public static class SonarTraversalUtility
         return tmpAdjacentWater.Count > 0;
     }
 
+    [ThreadStatic]
+    private static List<PlanetTile>? tsAdjacentWater;
+    [ThreadStatic]
+    private static Queue<(int tileId, int step)>? tsBfsQueue;
+    [ThreadStatic]
+    private static Dictionary<int, int>? tsSectorSteps;
+    [ThreadStatic]
+    private static List<PlanetTile>? tsNeighbors;
+    [ThreadStatic]
+    private static HashSet<int>? tsTryDetectionTileIds;
+    [ThreadStatic]
+    private static Dictionary<int, int>? tsTryMinSteps;
+
     /// <summary>
     /// Computes the merged water-only sonar coverage originating independently from each adjacent WaterCovered tile.
     /// Land acts as an acoustic barrier and blocks propagation; each adjacent water tile projects outward in a
@@ -169,16 +182,17 @@ public static class SonarTraversalUtility
         PlanetTile stationTile,
         int maxDetectionRadius,
         int maxIdentificationRadius,
-        HashSet<PlanetTile> outDetectionTiles,
-        HashSet<PlanetTile>? outIdentificationTiles = null,
-        Dictionary<PlanetTile, int>? outMinSteps = null)
+        HashSet<int> outDetectionTileIds,
+        HashSet<int>? outIdentificationTileIds = null,
+        Dictionary<int, int>? outMinSteps = null)
     {
         if (!stationTile.Valid || maxDetectionRadius <= 0)
         {
             return;
         }
 
-        var adjacentWater = new List<PlanetTile>(8);
+        List<PlanetTile> adjacentWater = tsAdjacentWater ??= new List<PlanetTile>(8);
+        adjacentWater.Clear();
         GetAdjacentWaterTiles(stationTile, adjacentWater);
         if (adjacentWater.Count == 0)
         {
@@ -190,9 +204,10 @@ public static class SonarTraversalUtility
             ? stationCenter.normalized
             : Vector3.up;
 
-        var queue = new Queue<(int tileId, int step)>();
-        var sectorSteps = new Dictionary<int, int>();
-        var neighbors = new List<PlanetTile>(8);
+        Queue<(int tileId, int step)> queue = tsBfsQueue ??= new Queue<(int tileId, int step)>(128);
+        Dictionary<int, int> sectorSteps = tsSectorSteps ??= new Dictionary<int, int>(128);
+        List<PlanetTile> neighbors = tsNeighbors ??= new List<PlanetTile>(8);
+        PlanetLayer? stationLayer = stationTile.Layer;
 
         for (int i = 0; i < adjacentWater.Count; i++)
         {
@@ -219,19 +234,19 @@ public static class SonarTraversalUtility
             while (queue.Count > 0)
             {
                 var (currentId, step) = queue.Dequeue();
-                PlanetTile current = new PlanetTile(currentId);
+                PlanetTile current = stationLayer != null ? stationLayer.PlanetTileForID(currentId) : new PlanetTile(currentId);
 
-                outDetectionTiles.Add(current);
+                outDetectionTileIds.Add(currentId);
                 if (maxIdentificationRadius > 0 && step <= maxIdentificationRadius)
                 {
-                    outIdentificationTiles?.Add(current);
+                    outIdentificationTileIds?.Add(currentId);
                 }
 
                 if (outMinSteps != null)
                 {
-                    if (!outMinSteps.TryGetValue(current, out int prevMin) || step < prevMin)
+                    if (!outMinSteps.TryGetValue(currentId, out int prevMin) || step < prevMin)
                     {
-                        outMinSteps[current] = step;
+                        outMinSteps[currentId] = step;
                     }
                 }
 
@@ -240,6 +255,7 @@ public static class SonarTraversalUtility
                     continue;
                 }
 
+                neighbors.Clear();
                 GetTileNeighbors(current, neighbors);
                 for (int n = 0; n < neighbors.Count; n++)
                 {
@@ -280,6 +296,11 @@ public static class SonarTraversalUtility
                 }
             }
         }
+
+        queue.Clear();
+        sectorSteps.Clear();
+        adjacentWater.Clear();
+        neighbors.Clear();
     }
 
     public static bool TryGetSonarDetectionDistance(
@@ -299,22 +320,29 @@ public static class SonarTraversalUtility
             return false;
         }
 
-        var detectionTiles = new HashSet<PlanetTile>();
-        var minSteps = new Dictionary<PlanetTile, int>();
+        HashSet<int> detectionTiles = tsTryDetectionTileIds ??= new HashSet<int>(128);
+        Dictionary<int, int> minSteps = tsTryMinSteps ??= new Dictionary<int, int>(128);
+        detectionTiles.Clear();
+        minSteps.Clear();
+
         PopulateSonarCoverage(
             stationTile,
             maxRadius,
             maxIdentificationRadius: 0,
-            outDetectionTiles: detectionTiles,
-            outIdentificationTiles: null,
+            outDetectionTileIds: detectionTiles,
+            outIdentificationTileIds: null,
             outMinSteps: minSteps);
 
-        if (minSteps.TryGetValue(targetTile, out int steps))
+        if (minSteps.TryGetValue(targetTile.tileId, out int steps))
         {
             distance = steps;
+            detectionTiles.Clear();
+            minSteps.Clear();
             return true;
         }
 
+        detectionTiles.Clear();
+        minSteps.Clear();
         return false;
     }
 }

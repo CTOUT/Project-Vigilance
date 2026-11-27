@@ -1,4 +1,13 @@
 <Project>
+  <Target Name="RotateLockedAssembly" BeforeTargets="BeforeBuild" Condition="'$(MSBuildProjectName)' != 'Geoscape.Tests'">
+    <Delete Files="$(OutputPath)$(TargetName).dll.old;$(OutputPath)$(TargetName).pdb" ContinueOnError="true" />
+    <Move SourceFiles="$(OutputPath)$(TargetName).dll"
+          DestinationFiles="$(OutputPath)$(TargetName).dll.old"
+          OverwriteReadOnlyFiles="true"
+          Condition="Exists('$(OutputPath)$(TargetName).dll')"
+          ContinueOnError="true" />
+  </Target>
+
   <Target Name="StageCleanDistribution" AfterTargets="Build" Condition="'$(MSBuildProjectName)' != 'Geoscape.Tests'">
     <PropertyGroup>
       <ModRootDir>$([MSBuild]::NormalizeDirectory('$(MSBuildProjectDirectory)/../..'))</ModRootDir>
@@ -6,17 +15,16 @@
       <CleanStagingDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)dist/ProjectVigilance-$(ModFolderName)'))</CleanStagingDir>
     </PropertyGroup>
 
-    <!-- Clean unlocked .old assembly backups and rotate locked staged DLL if RimWorld is running -->
-    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-          IgnoreExitCode="true"
-          StandardOutputImportance="Low"
-          StandardErrorImportance="Low"
-          Command="del /f /q &quot;$(OutputPath)$(TargetName).dll.old&quot; 2&gt;nul &amp; del /f /q &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll.old&quot; 2&gt;nul &amp; if exist &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll&quot; move /y &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll&quot; &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll.old&quot; 2&gt;nul" />
-    <Exec Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
-          IgnoreExitCode="true"
-          StandardOutputImportance="Low"
-          StandardErrorImportance="Low"
-          Command="rm -f &quot;$(OutputPath)$(TargetName).dll.old&quot; &quot;$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll.old&quot; &quot;$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll&quot; 2&gt;/dev/null || true" />
+    <!-- Clean unlocked .old / Release .pdb files and rotate locked staged DLL if RimWorld is running -->
+    <Delete Files="$(OutputPath)$(TargetName).dll.old;$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll.old" ContinueOnError="true" />
+    <Delete Files="$(OutputPath)$(TargetName).pdb;$(CleanStagingDir)1.7/Assemblies/$(TargetName).pdb"
+            Condition="'$(Configuration)' == 'Release'"
+            ContinueOnError="true" />
+    <Move SourceFiles="$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll"
+          DestinationFiles="$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll.old"
+          OverwriteReadOnlyFiles="true"
+          Condition="Exists('$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll')"
+          ContinueOnError="true" />
 
     <!-- Preserve Workshop ID generated/updated in clean staging back into the module source tree -->
     <Copy SourceFiles="$(CleanStagingDir)About/PublishedFileId.txt"
@@ -32,7 +40,7 @@
       <_StagingAbout Include="$(ModRootDir)About/PublishedFileId.txt" Condition="Exists('$(ModRootDir)About/PublishedFileId.txt')" />
 
       <_StagingAssemblies Include="$(OutputPath)$(TargetName).dll" Condition="Exists('$(OutputPath)$(TargetName).dll')" />
-      <_StagingAssemblies Include="$(OutputPath)$(TargetName).pdb" Condition="Exists('$(OutputPath)$(TargetName).pdb')" />
+      <_StagingAssemblies Include="$(OutputPath)$(TargetName).pdb" Condition="'$(Configuration)' != 'Release' and Exists('$(OutputPath)$(TargetName).pdb')" />
 
       <_StagingDefs Include="$(ModRootDir)1.7/Defs/**/*" Condition="Exists('$(ModRootDir)1.7/Defs')" />
       <_StagingPatches Include="$(ModRootDir)1.7/Patches/**/*" Condition="Exists('$(ModRootDir)1.7/Patches')" />
@@ -60,21 +68,15 @@
       <CoreModuleDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)Core'))</CoreModuleDir>
       <EmbeddedCoreDir>$([MSBuild]::NormalizeDirectory('$(CleanStagingDir)1.7/EmbeddedCore'))</EmbeddedCoreDir>
     </PropertyGroup>
-    <Exec Condition="'$(ModFolderName)' == 'Geoscape' and $([MSBuild]::IsOSPlatform('Windows')) and Exists('$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old')"
-          IgnoreExitCode="true"
-          StandardOutputImportance="Low"
-          StandardErrorImportance="Low"
-          Command="del /f /q &quot;$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old&quot; 2&gt;nul" />
-    <Exec Condition="'$(ModFolderName)' == 'Geoscape' and $([MSBuild]::IsOSPlatform('Windows')) and Exists('$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll')"
-          IgnoreExitCode="true"
-          StandardOutputImportance="Low"
-          StandardErrorImportance="Low"
-          Command="move /y &quot;$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll&quot; &quot;$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old&quot; &gt;nul 2&gt;&amp;1" />
-    <Exec Condition="'$(ModFolderName)' == 'Geoscape' and !$([MSBuild]::IsOSPlatform('Windows'))"
-          IgnoreExitCode="true"
-          StandardOutputImportance="Low"
-          StandardErrorImportance="Low"
-          Command="rm -f &quot;$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll.old&quot; &quot;$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll&quot; 2&gt;/dev/null || true" />
+    <Delete Files="$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll.old;$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.pdb"
+            Condition="'$(ModFolderName)' == 'Geoscape'"
+            ContinueOnError="true" />
+    <Move SourceFiles="$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll"
+          DestinationFiles="$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll.old"
+          OverwriteReadOnlyFiles="true"
+          Condition="'$(ModFolderName)' == 'Geoscape' and Exists('$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll')"
+          ContinueOnError="true" />
+
     <ItemGroup Condition="'$(ModFolderName)' == 'Geoscape'">
       <_EmbeddedCoreAssembly Include="$(CoreModuleDir)1.7/Assemblies/ProjectVigilance.Core.dll" Condition="Exists('$(CoreModuleDir)1.7/Assemblies/ProjectVigilance.Core.dll')" />
       <_EmbeddedCoreDefs Include="$(CoreModuleDir)1.7/Defs/**/*" Condition="Exists('$(CoreModuleDir)1.7/Defs')" />
@@ -83,17 +85,11 @@
     <Copy SourceFiles="@(_EmbeddedCoreAssembly)" DestinationFolder="$(EmbeddedCoreDir)Assemblies" SkipUnchangedFiles="true" Condition="'$(ModFolderName)' == 'Geoscape' and '@(_EmbeddedCoreAssembly)' != ''" />
     <Copy SourceFiles="@(_EmbeddedCoreDefs)" DestinationFiles="@(_EmbeddedCoreDefs->'$(EmbeddedCoreDir)Defs/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'$(ModFolderName)' == 'Geoscape' and '@(_EmbeddedCoreDefs)' != ''" />
     <Copy SourceFiles="@(_EmbeddedCoreLanguages)" DestinationFiles="@(_EmbeddedCoreLanguages->'$(EmbeddedCoreDir)Languages/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'$(ModFolderName)' == 'Geoscape' and '@(_EmbeddedCoreLanguages)' != ''" />
-    <Exec Condition="'$(ModFolderName)' == 'Geoscape' and $([MSBuild]::IsOSPlatform('Windows')) and Exists('$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old')"
-          IgnoreExitCode="true"
-          StandardOutputImportance="Low"
-          StandardErrorImportance="Low"
-          Command="del /f /q &quot;$(EmbeddedCoreDir)Assemblies\ProjectVigilance.Core.dll.old&quot; 2&gt;nul" />
+    <Delete Files="$(EmbeddedCoreDir)Assemblies/ProjectVigilance.Core.dll.old"
+            Condition="'$(ModFolderName)' == 'Geoscape'"
+            ContinueOnError="true" />
 
     <!-- Remove rotated staged .old backup immediately if RimWorld is not holding a lock on it -->
-    <Exec Condition="$([MSBuild]::IsOSPlatform('Windows'))"
-          IgnoreExitCode="true"
-          StandardOutputImportance="Low"
-          StandardErrorImportance="Low"
-          Command="del /f /q &quot;$(CleanStagingDir)1.7\Assemblies\$(TargetName).dll.old&quot; 2&gt;nul" />
+    <Delete Files="$(CleanStagingDir)1.7/Assemblies/$(TargetName).dll.old" ContinueOnError="true" />
   </Target>
 </Project>

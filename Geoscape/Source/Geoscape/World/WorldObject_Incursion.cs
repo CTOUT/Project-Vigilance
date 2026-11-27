@@ -62,6 +62,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
     private ThingOwner<Thing>? tradeStock;
     private Caravan? pursuitTargetCaravan;
     private int pursuitTargetCaravanId = -1;
+    private int tacticalWatchdogCooldown;
 
     public IncidentDef? IncidentDef => incidentDef;
     public IncidentParms? IncidentParms => incidentParms;
@@ -1390,6 +1391,13 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
 
         if (isEngagedInTacticalMap)
         {
+            if (tacticalWatchdogCooldown > 0)
+            {
+                tacticalWatchdogCooldown--;
+                return;
+            }
+            tacticalWatchdogCooldown = 250;
+
             // Watchdog: verify that an active tactical map actually exists for this incursion
             bool hasActiveTacticalMap = false;
             if (Find.Maps != null)
@@ -1409,6 +1417,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             {
                 Log.Message($"[Project Vigilance] Incursion {TrackingId} ({LabelCap}) detected orphaned tactical map engagement flag. Self-healing and clearing engagement state.");
                 isEngagedInTacticalMap = false;
+                tacticalWatchdogCooldown = 0;
             }
             else
             {
@@ -1446,9 +1455,22 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
                 {
                     AbortTradeMission("caravan master perished en route");
                 }
-                else if (committedPawns != null && committedPawns.Count > 0 && !committedPawns.Any(p => p != null && !p.Dead && p.RaceProps != null && p.RaceProps.Humanlike))
+                else if (committedPawns != null && committedPawns.Count > 0)
                 {
-                    AbortTradeMission("all merchant personnel lost");
+                    bool hasLivingHumanlike = false;
+                    for (int pIdx = 0; pIdx < committedPawns.Count; pIdx++)
+                    {
+                        Pawn? cp = committedPawns[pIdx];
+                        if (cp != null && !cp.Dead && cp.RaceProps != null && cp.RaceProps.Humanlike)
+                        {
+                            hasLivingHumanlike = true;
+                            break;
+                        }
+                    }
+                    if (!hasLivingHumanlike)
+                    {
+                        AbortTradeMission("all merchant personnel lost");
+                    }
                 }
             }
 
@@ -1457,7 +1479,20 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             {
                 if (pursuitTargetCaravan == null || !pursuitTargetCaravan.Spawned)
                 {
-                    pursuitTargetCaravan = Find.WorldObjects?.Caravans?.FirstOrDefault(c => c.ID == pursuitTargetCaravanId);
+                    pursuitTargetCaravan = null;
+                    var allCaravans = Find.WorldObjects?.Caravans;
+                    if (allCaravans != null)
+                    {
+                        for (int cIdx = 0; cIdx < allCaravans.Count; cIdx++)
+                        {
+                            Caravan cv = allCaravans[cIdx];
+                            if (cv != null && cv.ID == pursuitTargetCaravanId)
+                            {
+                                pursuitTargetCaravan = cv;
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 if (pursuitTargetCaravan != null && pursuitTargetCaravan.Spawned)
@@ -1502,6 +1537,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         float tilesPerTick = (speedTilesPerDay / difficulty) / 60000f;
         tileProgress += tilesPerTick;
 
+        bool didStepTile = false;
         while (tileProgress >= 1f)
         {
             tileProgress -= 1f;
@@ -1510,6 +1546,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             if (currentPathIndex < pathTiles.Count)
             {
                 Tile = pathTiles[currentPathIndex];
+                didStepTile = true;
                 CheckOutpostSabotageOnTile(Tile);
             }
             else
@@ -1519,7 +1556,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             }
         }
 
-        CheckInterceptionsAndPursuits();
+        CheckInterceptionsAndPursuits(checkStaticMapCollisions: didStepTile || (Find.TickManager.TicksGame % 60 == 0));
     }
 
     private void CheckOutpostSabotageOnTile(PlanetTile tile)
@@ -1616,7 +1653,7 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
         Log.Message($"[Project Vigilance] Incursion {TrackingId} ({LabelCap}) reversed course. Reason: {reason ?? "none"}. Returning to tile {destinationTile}.");
     }
 
-    private void CheckInterceptionsAndPursuits()
+    private void CheckInterceptionsAndPursuits(bool checkStaticMapCollisions)
     {
         if (!Spawned)
         {
@@ -1751,6 +1788,11 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             }
         }
 
+        if (!checkStaticMapCollisions)
+        {
+            return;
+        }
+
         // 2. Check for collision with an active player Camp or Settlement or Battlefield on this tile
         Map? tileMap = Current.Game?.FindMap(Tile);
         MapParent? mapParent = Find.WorldObjects?.MapParentAt(Tile);
@@ -1760,9 +1802,22 @@ public class WorldObject_Incursion : WorldObject, IDetectableTarget, ITrader, IT
             var ambushComp = tileMap.GetComponent<MapComponent_OverlandAmbush>();
             int mapId = tileMap.Parent?.ID ?? tileMap.uniqueID;
 
+            bool hasEngagementRecord = false;
+            if (ambushComp != null && !ambushComp.HasTrackedIncursion(this) && ambushComp.Engagements != null)
+            {
+                for (int eIdx = 0; eIdx < ambushComp.Engagements.Count; eIdx++)
+                {
+                    if (ambushComp.Engagements[eIdx].incursion == this)
+                    {
+                        hasEngagementRecord = true;
+                        break;
+                    }
+                }
+            }
+
             bool alreadyHandledByMap = this.IsEngagedInTacticalMap ||
                                        metMapIds.Contains(mapId) ||
-                                       (ambushComp != null && (ambushComp.HasTrackedIncursion(this) || ambushComp.Engagements.Any(e => e.incursion == this)));
+                                       (ambushComp != null && (ambushComp.HasTrackedIncursion(this) || hasEngagementRecord));
 
             if (!alreadyHandledByMap && !isRetreating && !isTurningBack && !IsPursuingCaravan)
             {

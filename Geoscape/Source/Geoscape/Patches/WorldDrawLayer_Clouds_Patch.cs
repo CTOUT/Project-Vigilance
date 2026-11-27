@@ -17,19 +17,20 @@ public static class WorldDrawLayer_Clouds_Patch
 {
     public const int MaxCloudsRenderQueueUnderShroud = WorldDrawLayer_RadarCoverage.DimmingRenderQueue - 1;
 
-    private static readonly FieldInfo? MaterialField =
-        AccessTools.Field(typeof(WorldDrawLayer_Clouds), "material");
+    private static readonly AccessTools.FieldRef<WorldDrawLayer_Clouds, Material>? MaterialFieldRef =
+        AccessTools.FieldRefAccess<WorldDrawLayer_Clouds, Material>("material");
 
     private static int s_originalRenderQueue = -1;
 
     public static void Prefix(WorldDrawLayer_Clouds? __instance)
     {
-        if (__instance == null || MaterialField == null)
+        if (__instance == null || MaterialFieldRef == null)
         {
             return;
         }
 
-        if (MaterialField.GetValue(__instance) is not Material mat)
+        Material mat = MaterialFieldRef(__instance);
+        if (mat == null)
         {
             return;
         }

@@ -43,11 +43,24 @@ public static class SensorDetectionUtility
         }
 
         int maxSteps = Mathf.Max(1, Mathf.RoundToInt(sensor.DetectionRadiusInTiles));
-        int d = VigilanceModuleManager.DistanceCalculationOverrideHook != null
-            ? VigilanceModuleManager.DistanceCalculationOverrideHook(sensor.SensorTile, target.CurrentTile, maxSteps)
-            : (Find.World?.grid != null
-                ? Find.World.grid.TraversalDistanceBetween(sensor.SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps)
-                : Math.Abs(sensor.SensorTile.tileId - target.CurrentTile.tileId));
+        int d;
+        if (VigilanceModuleManager.DistanceCalculationOverrideHook != null)
+        {
+            d = VigilanceModuleManager.DistanceCalculationOverrideHook(sensor.SensorTile, target.CurrentTile, maxSteps);
+        }
+        else if (Find.World?.grid != null)
+        {
+            // Fast spherical reject avoids costly BFS flood-fill when target is well beyond sensor horizon
+            if (Find.World.grid.ApproxDistanceInTiles(sensor.SensorTile, target.CurrentTile) > maxSteps + 2f)
+            {
+                return false;
+            }
+            d = Find.World.grid.TraversalDistanceBetween(sensor.SensorTile, target.CurrentTile, passImpassable: true, maxDist: maxSteps);
+        }
+        else
+        {
+            d = Math.Abs(sensor.SensorTile.tileId - target.CurrentTile.tileId);
+        }
 
         if (d <= maxSteps)
         {

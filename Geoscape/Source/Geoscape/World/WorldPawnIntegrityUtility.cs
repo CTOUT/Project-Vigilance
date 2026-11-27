@@ -81,34 +81,47 @@ public static class WorldPawnIntegrityUtility
             return false;
         }
 
-        var worldObjectsHolder = SafeWorldObjects;
-        if (excludingIncursion == null &&
-            excludingAftermath == null &&
-            worldObjectsHolder != null &&
-            IncursionTrackingHelper.IsTrackedByAnyIncursion(pawn))
+        if (SafeWorldObjects != null)
         {
-            return true;
-        }
-
-        var worldObjects = worldObjectsHolder?.AllWorldObjects;
-        if (worldObjects != null)
-        {
-            for (int i = 0; i < worldObjects.Count; i++)
+            if (excludingIncursion == null &&
+                excludingAftermath == null &&
+                IncursionTrackingHelper.IsTrackedByAnyIncursion(pawn))
             {
-                WorldObject obj = worldObjects[i];
-                if (obj is WorldObject_Incursion inc)
+                return true;
+            }
+
+            if (excludingIncursion != null)
+            {
+                var worldObjects = SafeWorldObjects.AllWorldObjects;
+                if (worldObjects != null)
                 {
-                    if (inc != excludingIncursion && inc.Spawned && IsInIncursion(inc, pawn))
+                    for (int i = 0; i < worldObjects.Count; i++)
                     {
-                        return true;
+                        if (worldObjects[i] is WorldObject_Incursion inc &&
+                            inc != excludingIncursion &&
+                            inc.Spawned &&
+                            IsInIncursion(inc, pawn))
+                        {
+                            return true;
+                        }
                     }
                 }
-                else if (obj is WorldObject_EncounterAftermath aftermath)
+            }
+
+            if (excludingAftermath != null)
+            {
+                var worldObjects = SafeWorldObjects.AllWorldObjects;
+                if (worldObjects != null)
                 {
-                    if (aftermath != excludingAftermath && aftermath.Spawned &&
-                        ListContainsPawn(aftermath.WoundedSurvivors, pawn))
+                    for (int i = 0; i < worldObjects.Count; i++)
                     {
-                        return true;
+                        if (worldObjects[i] is WorldObject_EncounterAftermath aftermath &&
+                            aftermath != excludingAftermath &&
+                            aftermath.Spawned &&
+                            ListContainsPawn(aftermath.WoundedSurvivors, pawn))
+                        {
+                            return true;
+                        }
                     }
                 }
             }
@@ -128,15 +141,19 @@ public static class WorldPawnIntegrityUtility
             return true;
         }
 
-        var maps = SafeMaps;
-        if (maps != null)
+        // Note: IncursionTrackingHelper.IsTrackedByAnyIncursion already checks all Find.Maps overland ambush comps when exclusions are null.
+        if (excludingIncursion != null || excludingAftermath != null || SafeWorldObjects == null)
         {
-            for (int m = 0; m < maps.Count; m++)
+            var maps = SafeMaps;
+            if (maps != null)
             {
-                var comp = maps[m].GetComponent<MapComponent_OverlandAmbush>();
-                if (comp != null && comp.ContainsTrackedPawn(pawn))
+                for (int m = 0; m < maps.Count; m++)
                 {
-                    return true;
+                    var comp = maps[m].GetComponent<MapComponent_OverlandAmbush>();
+                    if (comp != null && comp.ContainsTrackedPawn(pawn))
+                    {
+                        return true;
+                    }
                 }
             }
         }

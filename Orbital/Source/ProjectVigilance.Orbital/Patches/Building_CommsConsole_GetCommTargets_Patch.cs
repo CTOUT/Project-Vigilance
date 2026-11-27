@@ -61,57 +61,84 @@ public static class Building_CommsConsole_GetCommTargets_Patch
 [HarmonyPatch(typeof(Building), nameof(Building.GetGizmos))]
 public static class Building_CommsConsole_GetGizmos_Patch
 {
-    public static IEnumerable<Gizmo> Postfix(IEnumerable<Gizmo> __result, Building __instance)
+    public static void Postfix(ref IEnumerable<Gizmo> __result, Building __instance)
     {
-        if (__result != null)
+        if (__instance is not Building_CommsConsole console || console.Map == null || !console.Map.Tile.Valid)
         {
-            foreach (Gizmo g in __result)
+            return;
+        }
+
+        CompPowerTrader? power = console.GetComp<CompPowerTrader>();
+        if (power != null && !power.PowerOn)
+        {
+            return;
+        }
+
+        List<Satellite_Trade>? activeTradeSats = OrbitalManager.Instance?.GetActiveTradeSatellitesOverTile(console.Map.Tile);
+        if (activeTradeSats == null || activeTradeSats.Count == 0)
+        {
+            return;
+        }
+
+        __result = AppendTradeSatelliteGizmos(__result, console, activeTradeSats);
+    }
+
+    private static IEnumerable<Gizmo> AppendTradeSatelliteGizmos(
+        IEnumerable<Gizmo>? existing,
+        Building_CommsConsole console,
+        List<Satellite_Trade> activeTradeSats)
+    {
+        HashSet<string> existingLabels = new();
+        if (existing != null)
+        {
+            foreach (Gizmo g in existing)
             {
+                if (g is Command cmd && !string.IsNullOrEmpty(cmd.Label))
+                {
+                    existingLabels.Add(cmd.Label);
+                }
                 yield return g;
             }
         }
 
-        if (__instance is Building_CommsConsole console && console.Map != null && console.Map.Tile.Valid)
+        for (int i = 0; i < activeTradeSats.Count; i++)
         {
-            CompPowerTrader? power = console.GetComp<CompPowerTrader>();
-            if (power != null && !power.PowerOn)
+            Satellite_Trade sat = activeTradeSats[i];
+            if (sat == null || !sat.CanTradeNow)
             {
-                yield break;
+                continue;
             }
 
-            List<Satellite_Trade>? activeTradeSats = OrbitalManager.Instance?.GetActiveTradeSatellitesOverTile(console.Map.Tile);
-            if (activeTradeSats != null && activeTradeSats.Count > 0)
+            string label = $"Contact {sat.OrbitalCallsign}";
+            if (!existingLabels.Add(label))
             {
-                HashSet<string> yieldedCallsigns = new();
-                for (int i = 0; i < activeTradeSats.Count; i++)
-                {
-                    Satellite_Trade sat = activeTradeSats[i];
-                    if (sat == null || !sat.CanTradeNow || !yieldedCallsigns.Add(sat.OrbitalCallsign)) continue;
-                    string traderTitle = sat.TraderKind?.label.CapitalizeFirst() ?? "Orbital Trader";
-                    yield return new Command_Action
-                    {
-                        defaultLabel = $"Contact {sat.OrbitalCallsign}",
-                        defaultDesc = $"Open trade communications with {sat.OrbitalCallsign} ({traderTitle}).\nFaction: {sat.Faction?.Name ?? "Independent"}\nFootprint: {sat.FootprintRadiusInTiles:F0} tiles.",
-                        icon = ContentFinder<Texture2D>.Get("UI/Commands/Trade", false) ?? BaseContent.BadTex,
-                        action = () =>
-                        {
-                            Pawn? negotiator = FindBestNegotiator(console.Map, console);
-                            if (negotiator != null)
-                            {
-                                console.GiveUseCommsJob(negotiator, sat);
-                            }
-                            else
-                            {
-                                Pawn? fallback = console.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault();
-                                if (fallback != null)
-                                {
-                                    sat.TryOpenComms(fallback);
-                                }
-                            }
-                        }
-                    };
-                }
+                continue;
             }
+
+            string traderTitle = sat.TraderKind?.label.CapitalizeFirst() ?? "Orbital Trader";
+            yield return new Command_Action
+            {
+                defaultLabel = label,
+                defaultDesc = $"Open trade communications with {sat.OrbitalCallsign} ({traderTitle}).\nFaction: {sat.Faction?.Name ?? "Independent"}\nFootprint: {sat.FootprintRadiusInTiles:F0} tiles.",
+                icon = ContentFinder<Texture2D>.Get("UI/Commands/Trade", false) ?? BaseContent.BadTex,
+                action = () =>
+                {
+                    Pawn? negotiator = FindBestNegotiator(console.Map, console);
+                    if (negotiator != null)
+                    {
+                        console.GiveUseCommsJob(negotiator, sat);
+                    }
+                    else
+                    {
+                        var freeColonists = console.Map.mapPawns.FreeColonistsSpawned;
+                        Pawn? fallback = freeColonists.Count > 0 ? freeColonists[0] : null;
+                        if (fallback != null)
+                        {
+                            sat.TryOpenComms(fallback);
+                        }
+                    }
+                }
+            };
         }
     }
 

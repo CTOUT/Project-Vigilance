@@ -166,13 +166,12 @@ function Copy-CleanModuleLayout {
     $stagingAssemblies = Join-Path $staging17 'Assemblies'
     New-Item -ItemType Directory -Path $stagingAssemblies -Force | Out-Null
 
-    $dllSrc = Join-Path $srcDir "1.7\Assemblies\$($Module.AssemblyBase).dll"
-    Copy-Item -LiteralPath $dllSrc -Destination (Join-Path $stagingAssemblies "$($Module.AssemblyBase).dll") -Force
+    $dllSrc = Join-Path $srcDir "1.7\Assemblies\$($mod.AssemblyBase).dll"
+    Copy-Item -LiteralPath $dllSrc -Destination (Join-Path $stagingAssemblies "$($mod.AssemblyBase).dll") -Force
 
-    $pdbSrc = Join-Path $srcDir "1.7\Assemblies\$($Module.AssemblyBase).pdb"
-    if (Test-Path -LiteralPath $pdbSrc) {
-        Copy-Item -LiteralPath $pdbSrc -Destination (Join-Path $stagingAssemblies "$($Module.AssemblyBase).pdb") -Force
-    }
+    # Strip any stray debug symbols (.pdb) from release staging archives
+    Get-ChildItem -LiteralPath $stagingAssemblies -Filter '*.pdb' -File -ErrorAction SilentlyContinue |
+        Remove-Item -Force -ErrorAction SilentlyContinue
 
     # 1.7 content trees
     foreach ($sub in @('Defs', 'Patches', 'Textures', 'Languages', 'Sounds')) {
@@ -213,6 +212,11 @@ foreach ($mod in $modules) {
 
     Copy-CleanModuleLayout -Module $mod -DestinationRoot $liveStagingPath
     Copy-CleanModuleLayout -Module $mod -DestinationRoot $suiteModPath
+
+    foreach ($cleanDir in @($liveStagingPath, $suiteModPath)) {
+        Get-ChildItem -LiteralPath $cleanDir -Recurse -Filter '*.pdb' -File -ErrorAction SilentlyContinue |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+    }
 
     if (Test-Path -LiteralPath $zipFile) {
         Remove-Item -LiteralPath $zipFile -Force

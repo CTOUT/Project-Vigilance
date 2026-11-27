@@ -19,34 +19,28 @@ public static class Pawn_GetGizmos_EncounterRetreatPatch
     private static Texture2D RetreatIcon => cachedRetreatIcon ??= ContentFinder<Texture2D>.Get("UI/Designators/Cancel", true);
 
     [HarmonyPostfix]
-    public static IEnumerable<Gizmo> Postfix(IEnumerable<Gizmo> __result, Pawn __instance)
+    public static void Postfix(ref IEnumerable<Gizmo> __result, Pawn __instance)
     {
-        foreach (var gizmo in __result)
+        if (__instance == null || !__instance.IsColonistPlayerControlled || __instance.Map == null || __instance.Map.IsPlayerHome)
         {
-            yield return gizmo;
-        }
-
-        if (__instance == null || !__instance.IsColonistPlayerControlled || __instance.Map == null)
-        {
-            yield break;
+            return;
         }
 
         Map map = __instance.Map;
         var ambushComp = map.GetComponent<MapComponent_OverlandAmbush>();
         bool isOverlandEncounter = IncursionTacticalRetreatUtility.IsOverlandEncounterMap(map, ambushComp);
-
         if (!IncursionTacticalRetreatUtility.ShouldShowEncounterRetreatGizmo(map.IsPlayerHome, isOverlandEncounter))
         {
-            yield break;
+            return;
         }
 
         bool hasActiveThreats = GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false);
+        Command_Action? extra = null;
 
-        // 1. If temporary encounter map has no active threats: offer direct "Reform Caravan"
         if (!hasActiveThreats)
         {
             bool hasCombatOrAmbushState = ambushComp != null && ambushComp.HasCombatOrAmbushState;
-            if (!IncursionTacticalRetreatUtility.ShouldShowReformCaravanUi(
+            if (IncursionTacticalRetreatUtility.ShouldShowReformCaravanUi(
                     isPlayerHome: map.IsPlayerHome,
                     isPocketMap: map.IsPocketMap,
                     isSettlementParent: map.Parent is Settlement,
@@ -54,51 +48,63 @@ public static class Pawn_GetGizmos_EncounterRetreatPatch
                     hasActiveThreats: hasActiveThreats,
                     hasCombatOrAmbushState: hasCombatOrAmbushState))
             {
-                yield break;
-            }
-
-            yield return new Command_Action
-            {
-                defaultLabel = "Reform Caravan",
-                defaultDesc = "Reform your caravan and return to the overland geoscape.",
-                icon = CaravanIcon,
-                alsoClickIfOtherInGroupClicked = false,
-                action = () =>
+                extra = new Command_Action
                 {
-                    IncursionTacticalRetreatUtility.OpenReformCaravanDialog(map);
-                }
-            };
-            yield break;
+                    defaultLabel = "Reform Caravan",
+                    defaultDesc = "Reform your caravan and return to the overland geoscape.",
+                    icon = CaravanIcon,
+                    alsoClickIfOtherInGroupClicked = false,
+                    action = () => IncursionTacticalRetreatUtility.OpenReformCaravanDialog(map)
+                };
+            }
         }
-
-        // 2. If in Unaware Ambush Concealment: offer "Quietly Disengage"
-        if (ambushComp != null && ambushComp.IsActive && !ambushComp.AmbushSprung)
+        else if (ambushComp != null && ambushComp.IsActive && !ambushComp.AmbushSprung)
         {
-            yield return new Command_Action
+            extra = new Command_Action
             {
                 defaultLabel = "Quietly Disengage",
                 defaultDesc = "Quietly withdraw your scouting party without alerting the enemy column. Your squad will reform into a caravan on the geoscape while the enemy force continues past.",
                 icon = CaravanIcon,
                 alsoClickIfOtherInGroupClicked = false,
-                action = () =>
-                {
-                    IncursionTacticalRetreatUtility.PromptStealthDisengage(map, ambushComp);
-                }
+                action = () => IncursionTacticalRetreatUtility.PromptStealthDisengage(map, ambushComp)
             };
-            yield break;
+        }
+        else
+        {
+            extra = new Command_Action
+            {
+                defaultLabel = "Attempt Retreat",
+                defaultDesc = "Order your squad to disengage and fall back to the closest map edge to escape.",
+                icon = RetreatIcon,
+                alsoClickIfOtherInGroupClicked = false,
+                action = () => IncursionTacticalRetreatUtility.PromptCombatRetreat(map, ambushComp)
+            };
         }
 
-        // 3. If in Active Combat: offer "Attempt Retreat"
-        yield return new Command_Action
+        if (extra != null)
         {
-            defaultLabel = "Attempt Retreat",
-            defaultDesc = "Order your squad to disengage and fall back to the closest map edge to escape.",
-            icon = RetreatIcon,
-            alsoClickIfOtherInGroupClicked = false,
-            action = () =>
+            __result = AppendWithDeduplication(__result, extra);
+        }
+    }
+
+    private static IEnumerable<Gizmo> AppendWithDeduplication(IEnumerable<Gizmo>? existing, Command_Action added)
+    {
+        bool alreadyPresent = false;
+        if (existing != null)
+        {
+            foreach (var gizmo in existing)
             {
-                IncursionTacticalRetreatUtility.PromptCombatRetreat(map, ambushComp);
+                if (!alreadyPresent && gizmo is Command cmd && cmd.Label == added.Label)
+                {
+                    alreadyPresent = true;
+                }
+                yield return gizmo;
             }
-        };
+        }
+
+        if (!alreadyPresent)
+        {
+            yield return added;
+        }
     }
 }

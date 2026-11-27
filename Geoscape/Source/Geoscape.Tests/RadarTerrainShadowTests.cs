@@ -76,26 +76,26 @@ public sealed class RadarTerrainShadowTests
         SensoryTerrainUtility.TargetMaskedOverride = t => t.tileId == 2 || t.tileId == 3;
 
         var sensory = new SensoryManager(null!);
-        var activeTiles = new HashSet<PlanetTile>();
-        var idTiles = new HashSet<PlanetTile>();
-        var shadowTiles = new HashSet<PlanetTile>();
+        var activeTiles = new HashSet<int>();
+        var idTiles = new HashSet<int>();
+        var shadowTiles = new HashSet<int>();
 
         // Act
         sensory.PopulateActiveVisionTiles(activeTiles, idTiles, null, shadowTiles);
 
         // Assert: All tiles within idRadius = 3 must be in idTiles, even if masked
-        Assert.IsTrue(idTiles.Contains(MakeTile(0)), "Tile 0 must be identified.");
-        Assert.IsTrue(idTiles.Contains(MakeTile(1)), "Tile 1 must be identified.");
-        Assert.IsTrue(idTiles.Contains(MakeTile(2)), "Tile 2 (masked) must be in identified envelope to keep perimeter continuous.");
-        Assert.IsTrue(idTiles.Contains(MakeTile(3)), "Tile 3 (masked) must be in identified envelope to keep perimeter continuous.");
-        Assert.IsFalse(idTiles.Contains(MakeTile(4)), "Tile 4 (distance 4 > 3) must NOT be identified.");
+        Assert.IsTrue(idTiles.Contains(0), "Tile 0 must be identified.");
+        Assert.IsTrue(idTiles.Contains(1), "Tile 1 must be identified.");
+        Assert.IsTrue(idTiles.Contains(2), "Tile 2 (masked) must be in identified envelope to keep perimeter continuous.");
+        Assert.IsTrue(idTiles.Contains(3), "Tile 3 (masked) must be in identified envelope to keep perimeter continuous.");
+        Assert.IsFalse(idTiles.Contains(4), "Tile 4 (distance 4 > 3) must NOT be identified.");
 
         // Mountain-masked shadow tiles must isolate internal masked hexes inside R_id (distance > 1)
-        Assert.IsFalse(shadowTiles.Contains(MakeTile(0)), "Center tile is not masked shadow.");
-        Assert.IsFalse(shadowTiles.Contains(MakeTile(1)), "Tile 1 (unmasked) is not shadow.");
-        Assert.IsTrue(shadowTiles.Contains(MakeTile(2)), "Tile 2 (masked, step 2 > 1) must be in shadow tiles.");
-        Assert.IsTrue(shadowTiles.Contains(MakeTile(3)), "Tile 3 (masked, step 3 > 1) must be in shadow tiles.");
-        Assert.IsFalse(shadowTiles.Contains(MakeTile(4)), "Tile 4 (outside R_id) must NOT be in shadow tiles.");
+        Assert.IsFalse(shadowTiles.Contains(0), "Center tile is not masked shadow.");
+        Assert.IsFalse(shadowTiles.Contains(1), "Tile 1 (unmasked) is not shadow.");
+        Assert.IsTrue(shadowTiles.Contains(2), "Tile 2 (masked, step 2 > 1) must be in shadow tiles.");
+        Assert.IsTrue(shadowTiles.Contains(3), "Tile 3 (masked, step 3 > 1) must be in shadow tiles.");
+        Assert.IsFalse(shadowTiles.Contains(4), "Tile 4 (outside R_id) must NOT be in shadow tiles.");
     }
 
     [TestMethod]
@@ -131,9 +131,9 @@ public sealed class RadarTerrainShadowTests
         SensoryTerrainUtility.TargetMaskedOverride = t => t.tileId == 2 || t.tileId == 3;
 
         var sensory = new SensoryManager(null!);
-        var activeTiles = new HashSet<PlanetTile>();
-        var idTiles = new HashSet<PlanetTile>();
-        var shadowTiles = new HashSet<PlanetTile>();
+        var activeTiles = new HashSet<int>();
+        var idTiles = new HashSet<int>();
+        var shadowTiles = new HashSet<int>();
 
         // Act
         sensory.PopulateActiveVisionTiles(activeTiles, idTiles, null, shadowTiles);
@@ -185,17 +185,17 @@ public sealed class RadarTerrainShadowTests
         SensoryTerrainUtility.TargetMaskedOverride = t => t.tileId == 2 || t.tileId == 3;
 
         var sensory = new SensoryManager(null!);
-        var activeTiles = new HashSet<PlanetTile>();
-        var idTiles = new HashSet<PlanetTile>();
-        var shadowTiles = new HashSet<PlanetTile>();
+        var activeTiles = new HashSet<int>();
+        var idTiles = new HashSet<int>();
+        var shadowTiles = new HashSet<int>();
 
         // Act
         sensory.PopulateActiveVisionTiles(activeTiles, idTiles, null, shadowTiles);
 
         // Tile 2 is illuminated by sensor B (penetration at step 2), so it is cleared.
         // Tile 3 is covered only by sensor A (no penetration), so it remains in shadow.
-        Assert.IsFalse(shadowTiles.Contains(MakeTile(2)), "Tile 2 penetrated by Sensor B must not be in shadow.");
-        Assert.IsTrue(shadowTiles.Contains(MakeTile(3)), "Tile 3 without penetration must remain in shadow.");
+        Assert.IsFalse(shadowTiles.Contains(2), "Tile 2 penetrated by Sensor B must not be in shadow.");
+        Assert.IsTrue(shadowTiles.Contains(3), "Tile 3 without penetration must remain in shadow.");
         Assert.AreEqual(1, shadowTiles.Count);
     }
 
@@ -241,9 +241,9 @@ public sealed class RadarTerrainShadowTests
         SensoryTerrainUtility.TargetMaskedOverride = t => t.tileId == 2;
 
         var sensory = new SensoryManager(null!);
-        var activeTiles = new HashSet<PlanetTile>();
-        var idTiles = new HashSet<PlanetTile>();
-        var shadowTiles = new HashSet<PlanetTile>();
+        var activeTiles = new HashSet<int>();
+        var idTiles = new HashSet<int>();
+        var shadowTiles = new HashSet<int>();
 
         // Act
         sensory.PopulateActiveVisionTiles(activeTiles, idTiles, null, shadowTiles);
@@ -283,14 +283,14 @@ public sealed class RadarTerrainShadowTests
         SensoryTerrainUtility.TargetMaskedOverride = t => t.tileId == 1;
 
         var sensory = new SensoryManager(null!);
-        var activeTiles = new HashSet<PlanetTile>();
-        var idTiles = new HashSet<PlanetTile>();
-        var shadowTiles = new HashSet<PlanetTile>();
+        var activeTiles = new HashSet<int>();
+        var idTiles = new HashSet<int>();
+        var shadowTiles = new HashSet<int>();
 
         sensory.PopulateActiveVisionTiles(activeTiles, idTiles, null, shadowTiles);
 
-        Assert.IsTrue(idTiles.Contains(MakeTile(1)), "Tile 1 is in ID horizon.");
-        Assert.IsFalse(shadowTiles.Contains(MakeTile(1)), "Immediate adjacent hex (step 1) close sightline cannot be concealed by mountain masking.");
+        Assert.IsTrue(idTiles.Contains(1), "Tile 1 is in ID horizon.");
+        Assert.IsFalse(shadowTiles.Contains(1), "Immediate adjacent hex (step 1) close sightline cannot be concealed by mountain masking.");
     }
 
     [TestMethod]
@@ -314,7 +314,7 @@ public sealed class RadarTerrainShadowTests
         SensoryManager.ActiveSensorsOverride = () => new[] { sensor };
 
         var sensory = new SensoryManager(null!);
-        var activeTiles = new HashSet<PlanetTile>();
+        var activeTiles = new HashSet<int>();
 
         sensory.PopulateActiveVisionTiles(activeTiles, null, null, null);
 
@@ -738,22 +738,22 @@ public sealed class RadarTerrainShadowTests
         var sensory = new SensoryManager(null!);
         SensoryManager.Instance = sensory;
 
-        var outTiles = new HashSet<PlanetTile>();
-        var outIdentifiedTiles = new HashSet<PlanetTile>();
-        var outShadowTiles = new HashSet<PlanetTile>();
+        var outTiles = new HashSet<int>();
+        var outIdentifiedTiles = new HashSet<int>();
+        var outShadowTiles = new HashSet<int>();
 
         sensory.PopulateActiveVisionTiles(
             outTiles,
             outIdentifiedTiles,
             outTileDistancesFromPerimeter: null,
-            outMaskedShadowTiles: outShadowTiles);
+            outMaskedShadowTileIds: outShadowTiles);
 
         // Tile 2 is at step 2 (within 2-ring SIGINT radius) -> must NOT be shadowed
-        Assert.IsFalse(outShadowTiles.Any(t => t.tileId == 2),
+        Assert.IsFalse(outShadowTiles.Contains(2),
             "Tile 2 at step 2 must be penetrated by the 2-ring SIGINT correlator.");
 
         // Tile 3 is at step 3 (beyond 2-ring SIGINT radius) -> must BE shadowed
-        Assert.IsTrue(outShadowTiles.Any(t => t.tileId == 3),
+        Assert.IsTrue(outShadowTiles.Contains(3),
             "Tile 3 at step 3 must retain mountain shadow masking beyond the 2-ring SIGINT correlator.");
     }
 

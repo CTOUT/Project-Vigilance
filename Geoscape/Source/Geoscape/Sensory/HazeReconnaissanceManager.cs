@@ -55,8 +55,10 @@ public class ConcealedSiteRecord : IExposable
 public class HazeReconnaissanceManager : WorldComponent
 {
     private Dictionary<int, ConcealedSiteRecord> concealedSites = new();
+    private readonly Dictionary<int, int> concealedWorldObjectIdByQuestId = new();
     private readonly List<WorldObject> tmpUncoveredObjects = new();
     private readonly List<int> tmpStaleIds = new();
+    private readonly List<int> tmpReleaseIds = new();
     private bool isDeliveringSuppressedLetter;
 
     [ThreadStatic]
@@ -181,6 +183,10 @@ public class HazeReconnaissanceManager : WorldComponent
         if (!concealedSites.ContainsKey(wo.ID))
         {
             concealedSites[wo.ID] = new ConcealedSiteRecord(wo, letter, qId);
+            if (qId >= 0)
+            {
+                concealedWorldObjectIdByQuestId[qId] = wo.ID;
+            }
             Log.Message($"[Project Vigilance] Concealed dynamic site '{GetSafeSiteLabel(wo)}' at tile {wo.Tile} in unmonitored Haze. Suspending timeout clock.");
         }
         else
@@ -192,6 +198,7 @@ public class HazeReconnaissanceManager : WorldComponent
             if (qId >= 0 && concealedSites[wo.ID].questId < 0)
             {
                 concealedSites[wo.ID].questId = qId;
+                concealedWorldObjectIdByQuestId[qId] = wo.ID;
             }
         }
 
@@ -303,10 +310,41 @@ public class HazeReconnaissanceManager : WorldComponent
         return false;
     }
 
+    private void RemoveQuestIndexMapping(int questId, int worldObjectId)
+    {
+        if (questId >= 0 &&
+            concealedWorldObjectIdByQuestId.TryGetValue(questId, out int mappedId) &&
+            mappedId == worldObjectId)
+        {
+            concealedWorldObjectIdByQuestId.Remove(questId);
+        }
+    }
+
+    private void RebuildQuestIdIndex()
+    {
+        concealedWorldObjectIdByQuestId.Clear();
+        foreach (var kvp in concealedSites)
+        {
+            if (kvp.Value != null && kvp.Value.questId >= 0)
+            {
+                concealedWorldObjectIdByQuestId[kvp.Value.questId] = kvp.Key;
+            }
+        }
+    }
+
+    public bool IsQuestConcealed(int questId)
+    {
+        return questId >= 0 && concealedWorldObjectIdByQuestId.ContainsKey(questId);
+    }
+
     public void Notify_WorldObjectRemoved(WorldObject wo)
     {
         if (wo == null) return;
-        concealedSites.Remove(wo.ID);
+        if (concealedSites.TryGetValue(wo.ID, out var record))
+        {
+            RemoveQuestIndexMapping(record.questId, wo.ID);
+            concealedSites.Remove(wo.ID);
+        }
     }
 
     public bool UncoverSite(WorldObject wo, bool suppressDiscoveryLetter = false)
@@ -317,6 +355,7 @@ public class HazeReconnaissanceManager : WorldComponent
 
         if (concealedSites.TryGetValue(wo.ID, out var record))
         {
+            RemoveQuestIndexMapping(record.questId, wo.ID);
             concealedSites.Remove(wo.ID);
             string safeLabel = GetSafeSiteLabel(wo);
             Log.Message($"[Project Vigilance] Uncovered dynamic site '{safeLabel}' at tile {wo.Tile}. Resuming timeout clock and dispatching discovery letter.");
@@ -362,17 +401,26 @@ public class HazeReconnaissanceManager : WorldComponent
     {
         if (concealedSites.Count == 0) return;
 
-        List<int> ids = concealedSites.Keys.ToList();
-        for (int i = 0; i < ids.Count; i++)
+        tmpReleaseIds.Clear();
+        foreach (int key in concealedSites.Keys)
         {
-            WorldObject? wo = FindWorldObjectById(ids[i]);
+            tmpReleaseIds.Add(key);
+        }
+        for (int i = 0; i < tmpReleaseIds.Count; i++)
+        {
+            int id = tmpReleaseIds[i];
+            WorldObject? wo = FindWorldObjectById(id);
             if (wo != null && !wo.Destroyed)
             {
                 UncoverSite(wo);
             }
             else
             {
-                concealedSites.Remove(ids[i]);
+                if (concealedSites.TryGetValue(id, out var staleRec))
+                {
+                    RemoveQuestIndexMapping(staleRec.questId, id);
+                    concealedSites.Remove(id);
+                }
             }
         }
     }
@@ -433,9 +481,16 @@ public class HazeReconnaissanceManager : WorldComponent
         return null;
     }
 
+    public bool HasAnyConcealedSites => concealedSites.Count > 0;
+
     public WorldObject? GetConcealedSiteForQuest(Quest quest)
     {
         if (quest == null || concealedSites.Count == 0) return null;
+
+        if (concealedWorldObjectIdByQuestId.TryGetValue(quest.id, out int mappedWoId))
+        {
+            return FindWorldObjectById(mappedWoId);
+        }
 
         foreach (var rec in concealedSites.Values)
         {
@@ -532,7 +587,12 @@ public class HazeReconnaissanceManager : WorldComponent
 
         for (int i = 0; i < tmpStaleIds.Count; i++)
         {
-            concealedSites.Remove(tmpStaleIds[i]);
+            int staleId = tmpStaleIds[i];
+            if (concealedSites.TryGetValue(staleId, out var staleRec))
+            {
+                RemoveQuestIndexMapping(staleRec.questId, staleId);
+                concealedSites.Remove(staleId);
+            }
         }
 
         for (int i = 0; i < tmpUncoveredObjects.Count; i++)
@@ -543,6 +603,11 @@ public class HazeReconnaissanceManager : WorldComponent
 
     public override void WorldComponentTick()
     {
+        if (concealedSites.Count == 0)
+        {
+            return;
+        }
+
         base.WorldComponentTick();
 
         if (Current.Game != null && Find.TickManager != null && Find.TickManager.TicksGame % SensoryManager.SweepIntervalTicks == 0)
@@ -573,5 +638,9 @@ public class HazeReconnaissanceManager : WorldComponent
 
         Scribe_Collections.Look(ref concealedSites, "concealedSites", LookMode.Value, LookMode.Deep);
         concealedSites ??= new Dictionary<int, ConcealedSiteRecord>();
+        if (Scribe.mode == LoadSaveMode.PostLoadInit)
+        {
+            RebuildQuestIdIndex();
+        }
     }
 }
