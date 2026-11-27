@@ -34,6 +34,18 @@
   <PV_Settings_SeamlessZoomTarget_Desc>Determines how an active map is chosen when zooming in from the Geoscape when multiple battlescapes or colonies are nearby.</PV_Settings_SeamlessZoomTarget_Desc>
   <PV_Settings_SeamlessZoomTarget_CursorFirst>Cursor First (Centre Fallback)</PV_Settings_SeamlessZoomTarget_CursorFirst>
   <PV_Settings_SeamlessZoomTarget_ScreenCenter>Screen Centre Only</PV_Settings_SeamlessZoomTarget_ScreenCenter>
+  <PV_Settings_SeamlessZoomIndicator>Boundary Detent Indicator</PV_Settings_SeamlessZoomIndicator>
+  <PV_Settings_SeamlessZoomIndicator_Desc>Visual cue shown when scrolling against the zoom boundary to indicate that scrolling again within the window will switch views.</PV_Settings_SeamlessZoomIndicator_Desc>
+  <PV_Settings_SeamlessZoomIndicator_Off>Off</PV_Settings_SeamlessZoomIndicator_Off>
+  <PV_Settings_SeamlessZoomIndicator_BorderFlash>Border Flash</PV_Settings_SeamlessZoomIndicator_BorderFlash>
+  <PV_Settings_SeamlessZoomIndicator_BottomPill>Bottom Prompt</PV_Settings_SeamlessZoomIndicator_BottomPill>
+  <PV_Settings_SeamlessZoomIndicator_Hybrid>Border Flash + Prompt</PV_Settings_SeamlessZoomIndicator_Hybrid>
+  <PV_Settings_SeamlessZoomTransition>View Transition Style</PV_Settings_SeamlessZoomTransition>
+  <PV_Settings_SeamlessZoomTransition_Desc>Animated cloud-deck sweep when transitioning between Battlescape and Geoscape. Automatically falls back to Instant Cut when Reduce Shroud Motion is enabled.</PV_Settings_SeamlessZoomTransition_Desc>
+  <PV_Settings_SeamlessZoomTransition_ThroughClouds>Through the Clouds</PV_Settings_SeamlessZoomTransition_ThroughClouds>
+  <PV_Settings_SeamlessZoomTransition_Instant>Instant Cut</PV_Settings_SeamlessZoomTransition_Instant>
+  <PV_SeamlessZoom_PromptToGeoscape>Scroll out again → Geoscape</PV_SeamlessZoom_PromptToGeoscape>
+  <PV_SeamlessZoom_PromptToMap>Scroll in again → {0}</PV_SeamlessZoom_PromptToMap>
 
   <!-- Diagnostics & Module Status (en-GB) -->
   <PV_Diag_ArchTitle>Project Vigilance — Modular Architecture</PV_Diag_ArchTitle>

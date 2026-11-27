@@ -28,6 +28,20 @@ public enum SeamlessZoomTargetMode
     ScreenCenter
 }
 
+public enum SeamlessZoomIndicatorStyle
+{
+    Off,
+    BorderFlash,
+    BottomPill,
+    Hybrid
+}
+
+public enum SeamlessZoomTransitionStyle
+{
+    Instant,
+    ThroughClouds
+}
+
 public class GeoscapeSettings : ModSettings
 {
     // =========================================================================
@@ -79,6 +93,8 @@ public class GeoscapeSettings : ModSettings
     public bool enableSeamlessCameraZoom = true;
     public int seamlessZoomOverscrollNotches = 2;
     public SeamlessZoomTargetMode seamlessZoomTargetMode = SeamlessZoomTargetMode.CursorFirst;
+    public SeamlessZoomIndicatorStyle seamlessZoomIndicatorStyle = SeamlessZoomIndicatorStyle.Hybrid;
+    public SeamlessZoomTransitionStyle seamlessZoomTransitionStyle = SeamlessZoomTransitionStyle.ThroughClouds;
 
     // =========================================================================
     // Transient UI State (Tabs, Scrolling & Dynamic Sizing)
@@ -240,6 +256,8 @@ public class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref seamlessZoomOverscrollNotches, "seamlessZoomOverscrollNotches", 2);
         seamlessZoomOverscrollNotches = Mathf.Clamp(seamlessZoomOverscrollNotches, 1, 5);
         Scribe_Values.Look(ref seamlessZoomTargetMode, "seamlessZoomTargetMode", SeamlessZoomTargetMode.CursorFirst);
+        Scribe_Values.Look(ref seamlessZoomIndicatorStyle, "seamlessZoomIndicatorStyle", SeamlessZoomIndicatorStyle.Hybrid);
+        Scribe_Values.Look(ref seamlessZoomTransitionStyle, "seamlessZoomTransitionStyle", SeamlessZoomTransitionStyle.ThroughClouds);
     }
 
     // =========================================================================
@@ -1075,6 +1093,38 @@ public class GeoscapeSettings : ModSettings
                         : SeamlessZoomTargetMode.CursorFirst;
                     SoundDefOf.Click?.PlayOneShotOnCamera();
                 }
+
+                string indicatorLabel = VigilanceLoc.Tr("PV_Settings_SeamlessZoomIndicator", "Boundary Detent Indicator");
+                string indicatorValue = seamlessZoomIndicatorStyle switch
+                {
+                    SeamlessZoomIndicatorStyle.Off => VigilanceLoc.Tr("PV_Settings_SeamlessZoomIndicator_Off", "Off"),
+                    SeamlessZoomIndicatorStyle.BorderFlash => VigilanceLoc.Tr("PV_Settings_SeamlessZoomIndicator_BorderFlash", "Border Flash"),
+                    SeamlessZoomIndicatorStyle.BottomPill => VigilanceLoc.Tr("PV_Settings_SeamlessZoomIndicator_BottomPill", "Bottom Prompt"),
+                    _ => VigilanceLoc.Tr("PV_Settings_SeamlessZoomIndicator_Hybrid", "Border Flash + Prompt")
+                };
+                string indicatorDesc = VigilanceLoc.Tr(
+                    "PV_Settings_SeamlessZoomIndicator_Desc",
+                    "Visual cue shown when scrolling against the zoom boundary to indicate that scrolling again within the window will switch views.");
+                if (leftCol.ButtonTextLabeled(indicatorLabel, indicatorValue, tooltip: indicatorDesc))
+                {
+                    seamlessZoomIndicatorStyle = (SeamlessZoomIndicatorStyle)(((int)seamlessZoomIndicatorStyle + 1) % 4);
+                    SoundDefOf.Click?.PlayOneShotOnCamera();
+                }
+
+                string transitionLabel = VigilanceLoc.Tr("PV_Settings_SeamlessZoomTransition", "View Transition Style");
+                string transitionValue = seamlessZoomTransitionStyle == SeamlessZoomTransitionStyle.ThroughClouds
+                    ? VigilanceLoc.Tr("PV_Settings_SeamlessZoomTransition_ThroughClouds", "Through the Clouds")
+                    : VigilanceLoc.Tr("PV_Settings_SeamlessZoomTransition_Instant", "Instant Cut");
+                string transitionDesc = VigilanceLoc.Tr(
+                    "PV_Settings_SeamlessZoomTransition_Desc",
+                    "Animated cloud-deck sweep when transitioning between Battlescape and Geoscape. Automatically falls back to Instant Cut when Reduce Shroud Motion is enabled.");
+                if (leftCol.ButtonTextLabeled(transitionLabel, transitionValue, tooltip: transitionDesc))
+                {
+                    seamlessZoomTransitionStyle = seamlessZoomTransitionStyle == SeamlessZoomTransitionStyle.ThroughClouds
+                        ? SeamlessZoomTransitionStyle.Instant
+                        : SeamlessZoomTransitionStyle.ThroughClouds;
+                    SoundDefOf.Click?.PlayOneShotOnCamera();
+                }
             }
         }
         leftCol.End();
@@ -1427,6 +1477,8 @@ public class GeoscapeSettings : ModSettings
         enableSeamlessCameraZoom = true;
         seamlessZoomOverscrollNotches = 2;
         seamlessZoomTargetMode = SeamlessZoomTargetMode.CursorFirst;
+        seamlessZoomIndicatorStyle = SeamlessZoomIndicatorStyle.Hybrid;
+        seamlessZoomTransitionStyle = SeamlessZoomTransitionStyle.ThroughClouds;
         WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
         Patches.WorldDrawLayer_Terrain_Cull.RefreshAllSubMeshes();
         NotifyRadarVisualsChanged();

@@ -1,26 +1,71 @@
+using System;
 using System.Collections.Generic;
 using HarmonyLib;
+using ProjectVigilance.Core.Localization;
+using ProjectVigilance.Core.UI;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using Verse.Sound;
 
 namespace ProjectVigilance.Geoscape.Patches;
 
 /// <summary>
 /// Enables seamless scroll-wheel transitions between a tactical battlescape/colony map and the
-/// planetary Geoscape. Requires deliberate overscroll past the zoom boundary plus a cooldown to
-/// prevent accidental view switches or bounce loops.
+/// planetary Geoscape, with configurable boundary detent cues and a "through the clouds" sweep.
 /// </summary>
 public static class SeamlessCameraZoomUtility
 {
     public const float TransitionCooldownSeconds = 0.45f;
     public const float OverscrollDecaySeconds = 0.65f;
+    public const float CloudTransitionDurationSeconds = 0.30f;
     public const int DefaultSnapRadiusTiles = 2;
     public const float MapBoundaryEpsilon = 0.35f;
     public const float WorldBoundaryEpsilon = 0.35f;
     public const float MapLandingSizeRatio = 0.92f;
     public const float WorldLandingAltitudeMultiplier = 1.06f;
+
+    internal enum TransitionDirection
+    {
+        None = 0,
+        ToGeoscape = 1,
+        ToBattlescape = -1
+    }
+
+    internal readonly struct TransitionStepResult
+    {
+        public readonly bool IsActive;
+        public readonly bool ShouldSwapView;
+        public readonly float Progress;
+        public readonly TransitionDirection Direction;
+
+        public TransitionStepResult(bool isActive, bool shouldSwapView, float progress, TransitionDirection direction)
+        {
+            IsActive = isActive;
+            ShouldSwapView = shouldSwapView;
+            Progress = progress;
+            Direction = direction;
+        }
+    }
+
+    private readonly struct CloudPuffSeed
+    {
+        public readonly float CosAngle;
+        public readonly float SinAngle;
+        public readonly float DistNorm;
+        public readonly float BaseRadius;
+        public readonly float Shade;
+
+        public CloudPuffSeed(float angle, float distNorm, float baseRadius, float shade)
+        {
+            CosAngle = Mathf.Cos(angle);
+            SinAngle = Mathf.Sin(angle);
+            DistNorm = distNorm;
+            BaseRadius = baseRadius;
+            Shade = shade;
+        }
+    }
 
     private static readonly AccessTools.FieldRef<CameraDriver, float> CameraDesiredSizeRef =
         AccessTools.FieldRefAccess<CameraDriver, float>("desiredSize");
@@ -28,11 +73,30 @@ public static class SeamlessCameraZoomUtility
     private static readonly AccessTools.FieldRef<WorldCameraDriver, float> WorldDesiredAltitudeRef =
         AccessTools.FieldRefAccess<WorldCameraDriver, float>("desiredAltitude");
 
+    private static readonly CloudPuffSeed[] CloudSeeds = BuildCloudSeeds();
+
     private static float mapOverscrollNotches;
     private static float worldOverscrollNotches;
     private static float lastMapOverscrollTime = -10f;
     private static float lastWorldOverscrollTime = -10f;
     private static float lastTransitionTime = -10f;
+    private static string? armedWorldTargetLabel;
+
+    private static bool isTransitionActive;
+    private static bool transitionSwapped;
+    private static float transitionStartTime = -10f;
+    private static TransitionDirection transitionDirection = TransitionDirection.None;
+    private static PlanetTile pendingGeoscapeTile = PlanetTile.Invalid;
+    private static Map? pendingBattlescapeMap;
+
+    private static Texture2D? cachedCloudPuffTex;
+    private static Texture2D? cachedBorderGradHorizontal;
+    private static Texture2D? cachedBorderGradVertical;
+
+    public static bool IsTransitionActive => isTransitionActive;
+
+    internal static bool HasActiveVisualOverlay =>
+        isTransitionActive || mapOverscrollNotches > 0f || worldOverscrollNotches > 0f;
 
     public static void ResetStateForTesting()
     {
@@ -41,6 +105,14 @@ public static class SeamlessCameraZoomUtility
         lastMapOverscrollTime = -10f;
         lastWorldOverscrollTime = -10f;
         lastTransitionTime = -10f;
+        armedWorldTargetLabel = null;
+
+        isTransitionActive = false;
+        transitionSwapped = false;
+        transitionStartTime = -10f;
+        transitionDirection = TransitionDirection.None;
+        pendingGeoscapeTile = PlanetTile.Invalid;
+        pendingBattlescapeMap = null;
     }
 
     public static bool TryAdvanceMapOverscroll(bool isAtBoundary, bool zoomingOut, float scrollDeltaY, int requiredNotches, float now)
@@ -72,6 +144,57 @@ public static class SeamlessCameraZoomUtility
         lastTransitionTime = now;
         mapOverscrollNotches = 0f;
         worldOverscrollNotches = 0f;
+        armedWorldTargetLabel = null;
+    }
+
+    internal static bool ShouldUseCloudTransition(GeoscapeSettings? settings)
+    {
+        return settings != null
+            && settings.seamlessZoomTransitionStyle == SeamlessZoomTransitionStyle.ThroughClouds
+            && !settings.reduceShroudMotion;
+    }
+
+    internal static void BeginCloudTransition(
+        TransitionDirection direction,
+        PlanetTile geoscapeTile,
+        Map? battlescapeMap,
+        float now)
+    {
+        MarkTransitioned(now);
+        isTransitionActive = true;
+        transitionSwapped = false;
+        transitionStartTime = now;
+        transitionDirection = direction;
+        pendingGeoscapeTile = geoscapeTile;
+        pendingBattlescapeMap = battlescapeMap;
+    }
+
+    internal static TransitionStepResult StepCloudTransition(float now)
+    {
+        if (!isTransitionActive)
+        {
+            return default;
+        }
+
+        float progress = (now - transitionStartTime) / CloudTransitionDurationSeconds;
+        if (progress >= 1f)
+        {
+            bool missedSwap = !transitionSwapped;
+            TransitionDirection dir = transitionDirection;
+            isTransitionActive = false;
+            transitionSwapped = true;
+            transitionDirection = TransitionDirection.None;
+            return new TransitionStepResult(isActive: false, shouldSwapView: missedSwap, progress: 1f, direction: dir);
+        }
+
+        bool shouldSwap = false;
+        if (progress >= 0.5f && !transitionSwapped)
+        {
+            transitionSwapped = true;
+            shouldSwap = true;
+        }
+
+        return new TransitionStepResult(isActive: true, shouldSwapView: shouldSwap, progress: Mathf.Clamp01(progress), direction: transitionDirection);
     }
 
     internal static bool EvaluateBoundaryOverscroll(
@@ -83,7 +206,7 @@ public static class SeamlessCameraZoomUtility
         ref float accumulator,
         ref float lastOverscrollTime)
     {
-        if (now - lastTransitionTime < TransitionCooldownSeconds)
+        if (isTransitionActive || now - lastTransitionTime < TransitionCooldownSeconds)
         {
             accumulator = 0f;
             return false;
@@ -241,30 +364,35 @@ public static class SeamlessCameraZoomUtility
             && desiredSize >= maxSize - MapBoundaryEpsilon;
         bool zoomingOut = current.delta.y > 0f;
 
-        if (!TryAdvanceMapOverscroll(
-                isAtMaxZoomOut,
-                zoomingOut,
-                current.delta.y,
-                settings.seamlessZoomOverscrollNotches,
-                Time.realtimeSinceStartup))
+        float now = Time.realtimeSinceStartup;
+        bool triggered = TryAdvanceMapOverscroll(
+            isAtMaxZoomOut,
+            zoomingOut,
+            current.delta.y,
+            settings.seamlessZoomOverscrollNotches,
+            now);
+
+        if (!triggered)
         {
+            if (mapOverscrollNotches > 0f && settings.seamlessZoomIndicatorStyle != SeamlessZoomIndicatorStyle.Off)
+            {
+                SoundDefOf.Tick_Tiny?.PlayOneShotOnCamera();
+            }
             return;
         }
 
         PlanetTile originTile = Find.CurrentMap.Tile;
         current.Use();
-        MarkTransitioned(Time.realtimeSinceStartup);
 
-        CameraJumper.TryShowWorld();
-        WorldCameraDriver? worldCam = Find.WorldCameraDriver;
-        if (worldCam != null)
+        if (ShouldUseCloudTransition(settings))
         {
-            worldCam.JumpTo(originTile);
-            float landingAltitude = Mathf.Max(
-                WorldCameraDriver.MinAltitude,
-                WorldCameraDriver.MinAltitude * WorldLandingAltitudeMultiplier);
-            worldCam.altitude = landingAltitude;
-            WorldDesiredAltitudeRef(worldCam) = landingAltitude;
+            SoundDefOf.Click?.PlayOneShotOnCamera();
+            BeginCloudTransition(TransitionDirection.ToGeoscape, originTile, null, now);
+        }
+        else
+        {
+            MarkTransitioned(now);
+            ExecuteSwitchToGeoscape(originTile);
         }
     }
 
@@ -303,13 +431,17 @@ public static class SeamlessCameraZoomUtility
             && desiredAlt <= minAlt + WorldBoundaryEpsilon;
         bool zoomingIn = current.delta.y < 0f;
 
-        if (!TryAdvanceWorldOverscroll(
-                isAtMinAlt,
-                zoomingIn,
-                current.delta.y,
-                settings.seamlessZoomOverscrollNotches,
-                Time.realtimeSinceStartup))
+        float now = Time.realtimeSinceStartup;
+        bool triggered = TryAdvanceWorldOverscroll(
+            isAtMinAlt,
+            zoomingIn,
+            current.delta.y,
+            settings.seamlessZoomOverscrollNotches,
+            now);
+
+        if (!triggered && worldOverscrollNotches <= 0f)
         {
+            armedWorldTargetLabel = null;
             return;
         }
 
@@ -325,11 +457,158 @@ public static class SeamlessCameraZoomUtility
         if (targetMap == null)
         {
             worldOverscrollNotches = 0f;
+            armedWorldTargetLabel = null;
+            return;
+        }
+
+        if (!triggered)
+        {
+            armedWorldTargetLabel = targetMap.Parent?.LabelCap ?? "Colony";
+            if (settings.seamlessZoomIndicatorStyle != SeamlessZoomIndicatorStyle.Off)
+            {
+                SoundDefOf.Tick_Tiny?.PlayOneShotOnCamera();
+            }
             return;
         }
 
         current.Use();
-        MarkTransitioned(Time.realtimeSinceStartup);
+
+        if (ShouldUseCloudTransition(settings))
+        {
+            SoundDefOf.Click?.PlayOneShotOnCamera();
+            BeginCloudTransition(TransitionDirection.ToBattlescape, PlanetTile.Invalid, targetMap, now);
+        }
+        else
+        {
+            MarkTransitioned(now);
+            ExecuteSwitchToBattlescape(targetMap);
+        }
+    }
+
+    internal static void DrawOverlayOnGUI()
+    {
+        // O(1) fast-bail when idle
+        if (!HasActiveVisualOverlay)
+        {
+            return;
+        }
+
+        if (Current.ProgramState != ProgramState.Playing || Current.Game == null || Find.World == null)
+        {
+            ResetStateForTesting();
+            return;
+        }
+
+        GeoscapeSettings? settings = GeoscapeMod.Settings;
+        if (settings == null || !settings.enableSeamlessCameraZoom)
+        {
+            ResetStateForTesting();
+            return;
+        }
+
+        float now = Time.realtimeSinceStartup;
+
+        // 1. Advance and render active cloud transition
+        if (isTransitionActive)
+        {
+            TransitionStepResult step = StepCloudTransition(now);
+            if (step.ShouldSwapView)
+            {
+                if (step.Direction == TransitionDirection.ToGeoscape && pendingGeoscapeTile.Valid)
+                {
+                    ExecuteSwitchToGeoscape(pendingGeoscapeTile);
+                }
+                else if (step.Direction == TransitionDirection.ToBattlescape && pendingBattlescapeMap != null)
+                {
+                    ExecuteSwitchToBattlescape(pendingBattlescapeMap);
+                }
+                pendingGeoscapeTile = PlanetTile.Invalid;
+                pendingBattlescapeMap = null;
+            }
+
+            if (step.IsActive && Event.current != null && Event.current.type == EventType.Repaint)
+            {
+                DrawCloudSweepOverlay(step.Progress, step.Direction);
+            }
+            return;
+        }
+
+        // 2. Render boundary detent indicator (Border Flash / Bottom Pill / Hybrid)
+        bool isWorld = WorldRendererUtility.WorldRendered;
+        float notches = isWorld ? worldOverscrollNotches : mapOverscrollNotches;
+        float lastTime = isWorld ? lastWorldOverscrollTime : lastMapOverscrollTime;
+        float elapsed = now - lastTime;
+
+        if (notches <= 0f || elapsed > OverscrollDecaySeconds)
+        {
+            if (isWorld)
+            {
+                worldOverscrollNotches = 0f;
+                armedWorldTargetLabel = null;
+            }
+            else
+            {
+                mapOverscrollNotches = 0f;
+            }
+            return;
+        }
+
+        if (Event.current == null || Event.current.type != EventType.Repaint)
+        {
+            return;
+        }
+
+        SeamlessZoomIndicatorStyle style = settings.seamlessZoomIndicatorStyle;
+        if (style == SeamlessZoomIndicatorStyle.Off)
+        {
+            return;
+        }
+
+        float remainPct = Mathf.Clamp01(1f - elapsed / OverscrollDecaySeconds);
+        Color accent = settings.EffectiveRadarColor;
+
+        using (new VigilanceUiWidgets.ImguiStateScope())
+        {
+            if (style is SeamlessZoomIndicatorStyle.BorderFlash or SeamlessZoomIndicatorStyle.Hybrid)
+            {
+                float alpha = settings.reduceShroudMotion ? 0.55f : (0.20f + remainPct * 0.72f);
+                DrawBorderFlash(accent, alpha);
+            }
+
+            if (style is SeamlessZoomIndicatorStyle.BottomPill or SeamlessZoomIndicatorStyle.Hybrid)
+            {
+                string prompt = isWorld
+                    ? VigilanceLoc.Tr("PV_SeamlessZoom_PromptToMap", $"Scroll in again → {armedWorldTargetLabel ?? "Colony"}", armedWorldTargetLabel ?? "Colony")
+                    : VigilanceLoc.Tr("PV_SeamlessZoom_PromptToGeoscape", "Scroll out again → Geoscape");
+
+                int required = Mathf.Clamp(settings.seamlessZoomOverscrollNotches, 1, 5);
+                int filled = Mathf.Clamp(Mathf.FloorToInt(notches + 0.01f), 1, required);
+                DrawBottomPromptPill(prompt, filled, required, remainPct, accent);
+            }
+        }
+    }
+
+    private static void ExecuteSwitchToGeoscape(PlanetTile originTile)
+    {
+        CameraJumper.TryShowWorld();
+        WorldCameraDriver? worldCam = Find.WorldCameraDriver;
+        if (worldCam != null)
+        {
+            worldCam.JumpTo(originTile);
+            float landingAltitude = Mathf.Max(
+                WorldCameraDriver.MinAltitude,
+                WorldCameraDriver.MinAltitude * WorldLandingAltitudeMultiplier);
+            worldCam.altitude = landingAltitude;
+            WorldDesiredAltitudeRef(worldCam) = landingAltitude;
+        }
+    }
+
+    private static void ExecuteSwitchToBattlescape(Map targetMap)
+    {
+        if (targetMap == null || Find.Maps == null || !Find.Maps.Contains(targetMap))
+        {
+            return;
+        }
 
         CameraJumper.TryHideWorld();
         Current.Game.CurrentMap = targetMap;
@@ -343,6 +622,220 @@ public static class SeamlessCameraZoomUtility
             mapCam.SetRootPosAndSize(targetMap.Center.ToVector3Shifted(), landingSize);
             CameraDesiredSizeRef(mapCam) = landingSize;
         }
+    }
+
+    private static void DrawBorderFlash(Color accent, float alpha)
+    {
+        EnsureBorderGradientTextures();
+        float w = UI.screenWidth;
+        float h = UI.screenHeight;
+        const float glowDepth = 26f;
+        const float rimThickness = 3f;
+
+        // Soft inward border glow on all 4 viewport edges
+        GUI.color = new Color(accent.r, accent.g, accent.b, alpha * 0.55f);
+        if (cachedBorderGradVertical != null)
+        {
+            GUI.DrawTexture(new Rect(0f, 0f, w, glowDepth), cachedBorderGradVertical);
+            GUI.DrawTextureWithTexCoords(new Rect(0f, h - glowDepth, w, glowDepth), cachedBorderGradVertical, new Rect(0f, 1f, 1f, -1f));
+        }
+        if (cachedBorderGradHorizontal != null)
+        {
+            GUI.DrawTexture(new Rect(0f, 0f, glowDepth, h), cachedBorderGradHorizontal);
+            GUI.DrawTextureWithTexCoords(new Rect(w - glowDepth, 0f, glowDepth, h), cachedBorderGradHorizontal, new Rect(1f, 0f, -1f, 1f));
+        }
+
+        // Crisp 3px inner rim for instant peripheral visibility
+        GUI.color = new Color(
+            Mathf.Lerp(accent.r, 1f, 0.35f),
+            Mathf.Lerp(accent.g, 1f, 0.35f),
+            Mathf.Lerp(accent.b, 1f, 0.35f),
+            alpha * 0.90f);
+        GUI.DrawTexture(new Rect(0f, 0f, w, rimThickness), BaseContent.WhiteTex);
+        GUI.DrawTexture(new Rect(0f, h - rimThickness, w, rimThickness), BaseContent.WhiteTex);
+        GUI.DrawTexture(new Rect(0f, 0f, rimThickness, h), BaseContent.WhiteTex);
+        GUI.DrawTexture(new Rect(w - rimThickness, 0f, rimThickness, h), BaseContent.WhiteTex);
+    }
+
+    private static void DrawBottomPromptPill(string label, int filledNotches, int totalNotches, float remainPct, Color accent)
+    {
+        Text.Font = GameFont.Small;
+        Text.Anchor = TextAnchor.MiddleLeft;
+        Text.WordWrap = false;
+
+        float labelWidth = Text.CalcSize(label).x;
+        float pipsWidth = (totalNotches * 10f) + Math.Max(0, totalNotches - 1) * 4f;
+        float pillW = Mathf.Max(230f, labelWidth + pipsWidth + 36f);
+        float pillH = 38f;
+        float x = (UI.screenWidth - pillW) * 0.5f;
+        float y = UI.screenHeight - 96f;
+
+        Rect pillRect = new(x, y, pillW, pillH);
+        Widgets.DrawBoxSolid(pillRect, new Color(0.08f, 0.10f, 0.13f, 0.92f));
+
+        GUI.color = new Color(accent.r, accent.g, accent.b, 0.72f);
+        Widgets.DrawBox(pillRect, 1);
+
+        GUI.color = new Color(0.95f, 0.97f, 0.99f, 1f);
+        Widgets.Label(new Rect(x + 12f, y + 4f, labelWidth + 8f, 22f), label);
+
+        // Segmented notch pips
+        float pipX = pillRect.xMax - 12f - pipsWidth;
+        float pipY = y + 11f;
+        for (int i = 0; i < totalNotches; i++)
+        {
+            Rect pipRect = new(pipX + i * 14f, pipY, 8f, 8f);
+            GUI.color = i < filledNotches ? accent : new Color(0.35f, 0.40f, 0.46f, 0.85f);
+            GUI.DrawTexture(pipRect, BaseContent.WhiteTex);
+        }
+
+        // Shrinking decay timer bar
+        Rect trackRect = new(x + 12f, pillRect.yMax - 7f, pillW - 24f, 3f);
+        GUI.color = new Color(0.25f, 0.30f, 0.36f, 0.85f);
+        GUI.DrawTexture(trackRect, BaseContent.WhiteTex);
+
+        Rect fillRect = new(trackRect.x, trackRect.y, trackRect.width * remainPct, trackRect.height);
+        GUI.color = accent;
+        GUI.DrawTexture(fillRect, BaseContent.WhiteTex);
+    }
+
+    private static void DrawCloudSweepOverlay(float progress, TransitionDirection direction)
+    {
+        EnsureCloudPuffTexture();
+        if (cachedCloudPuffTex == null)
+        {
+            return;
+        }
+
+        float w = UI.screenWidth;
+        float h = UI.screenHeight;
+        float density = Mathf.Sin(progress * Mathf.PI);
+        float ease = progress < 0.5f
+            ? 2f * progress * progress
+            : 1f - Mathf.Pow(-2f * progress + 2f, 2f) * 0.5f;
+
+        using (new VigilanceUiWidgets.ImguiStateScope())
+        {
+            // Soft atmospheric cloud-deck veil
+            GUI.color = new Color(0.84f, 0.89f, 0.94f, density * 0.58f);
+            GUI.DrawTexture(new Rect(0f, 0f, w, h), BaseContent.WhiteTex);
+
+            float cx = w * 0.5f;
+            float cy = h * 0.5f;
+            float maxDim = Mathf.Sqrt(w * w + h * h) * 0.56f;
+            bool ascending = direction == TransitionDirection.ToGeoscape;
+
+            for (int i = 0; i < CloudSeeds.Length; i++)
+            {
+                CloudPuffSeed seed = CloudSeeds[i];
+                float radialShift = ascending
+                    ? (0.20f + ease * 1.18f)
+                    : (1.38f - ease * 1.15f);
+                float rDist = seed.DistNorm * maxDim * radialShift;
+                float px = cx + seed.CosAngle * rDist;
+                float py = cy + seed.SinAngle * rDist * 0.72f;
+                float radius = seed.BaseRadius * (w / 960f) * (0.90f + density * 0.85f);
+
+                GUI.color = new Color(seed.Shade, Mathf.Min(1f, seed.Shade + 0.03f), 0.99f, density * 0.82f);
+                GUI.DrawTexture(new Rect(px - radius, py - radius, radius * 2f, radius * 2f), cachedCloudPuffTex);
+            }
+        }
+    }
+
+    private static CloudPuffSeed[] BuildCloudSeeds()
+    {
+        const int count = 26;
+        var seeds = new CloudPuffSeed[count];
+        for (int i = 0; i < count; i++)
+        {
+            float angle = (i / (float)count) * Mathf.PI * 2f + (i % 3) * 0.21f;
+            float dist = 0.14f + ((i * 37) % 100) / 145f;
+            float radius = 140f + ((i * 29) % 110);
+            float shade = (218f + (i % 4) * 9f) / 255f;
+            seeds[i] = new CloudPuffSeed(angle, dist, radius, shade);
+        }
+        return seeds;
+    }
+
+    private static void EnsureCloudPuffTexture()
+    {
+        if (cachedCloudPuffTex != null)
+        {
+            return;
+        }
+
+        const int size = 64;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, mipChain: false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
+
+        var pixels = new Color32[size * size];
+        float half = (size - 1) * 0.5f;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x - half) / half;
+                float dy = (y - half) / half;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float angle = Mathf.Atan2(dy, dx);
+                // Soft wispy cloud edge modulation
+                float wisp = 1f + 0.10f * Mathf.Sin(angle * 3f) + 0.06f * Mathf.Cos(angle * 5f + 1.1f);
+                float norm = Mathf.Clamp01(dist / wisp);
+                float alpha = Mathf.Pow(1f - norm, 1.85f);
+                byte a = (byte)Mathf.Clamp(Mathf.RoundToInt(alpha * 255f), 0, 255);
+                pixels[y * size + x] = new Color32(255, 255, 255, a);
+            }
+        }
+
+        tex.SetPixels32(pixels);
+        tex.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+        cachedCloudPuffTex = tex;
+    }
+
+    private static void EnsureBorderGradientTextures()
+    {
+        if (cachedBorderGradVertical != null && cachedBorderGradHorizontal != null)
+        {
+            return;
+        }
+
+        const int len = 32;
+        var vert = new Texture2D(1, len, TextureFormat.RGBA32, mipChain: false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
+        var horiz = new Texture2D(len, 1, TextureFormat.RGBA32, mipChain: false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear
+        };
+
+        var vertPixels = new Color32[len];
+        var horizPixels = new Color32[len];
+        for (int i = 0; i < len; i++)
+        {
+            // Unity Texture2D y=0 is bottom, so top-edge fade puts highest alpha at y = len - 1
+            float tTop = i / (float)(len - 1);
+            float alphaTop = tTop * tTop;
+            vertPixels[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alphaTop * 255f));
+
+            // Left-edge fade puts highest alpha at x = 0
+            float tLeft = 1f - tTop;
+            float alphaLeft = tLeft * tLeft;
+            horizPixels[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alphaLeft * 255f));
+        }
+
+        vert.SetPixels32(vertPixels);
+        vert.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+        horiz.SetPixels32(horizPixels);
+        horiz.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+
+        cachedBorderGradVertical = vert;
+        cachedBorderGradHorizontal = horiz;
     }
 }
 
@@ -361,5 +854,14 @@ public static class WorldCameraDriver_SeamlessZoomIn_Patch
     public static void Prefix(WorldCameraDriver __instance)
     {
         SeamlessCameraZoomUtility.HandleWorldScroll(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(UIRoot_Play), nameof(UIRoot_Play.UIRootOnGUI))]
+public static class UIRoot_Play_SeamlessZoomOverlay_Patch
+{
+    public static void Postfix()
+    {
+        SeamlessCameraZoomUtility.DrawOverlayOnGUI();
     }
 }
