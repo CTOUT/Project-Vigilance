@@ -273,7 +273,7 @@ public class GeoscapeSettings : ModSettings
         VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Radar", "PV_Settings_Tab_Radar", "Radar", 20, (l, r) => DrawRadarTab(l)));
         VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Incursions", "PV_Settings_Tab_Incursions", "Incursions", 30, (l, r) => DrawIncursionsTab(l)));
         VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Geoscape", "PV_Settings_Tab_Geoscape", "Geoscape", 40, (l, r) => DrawGeoscapeTab(l)));
-        VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Diagnostics", "PV_Settings_Tab_Diagnostics", "Diagnostics", 50, (l, r) => DrawAboutDiagnosticsTab(l)));
+        VigilanceSettingsRegistry.RegisterTab(new BuiltinTabProvider("Diagnostics", "PV_Settings_Tab_Diagnostics", "Diagnostics", 1000, (l, r) => DrawAboutDiagnosticsTab(l)));
     }
 
     public void DoWindowContents(Rect inRect)

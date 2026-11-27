@@ -4,6 +4,7 @@ using ProjectVigilance.Core.Localization;
 using ProjectVigilance.Core.UI;
 using ProjectVigilance.Geoscape;
 using ProjectVigilance.Geoscape.Sensory;
+using ProjectVigilance.Geoscape.Settings;
 using UnityEngine;
 using Verse;
 
@@ -105,6 +106,34 @@ public sealed class AuditWave3AccessibilityTests : GeoscapeTestBase
         Assert.AreEqual(GameFont.Small, Text.Font);
         Assert.AreEqual(TextAnchor.UpperLeft, Text.Anchor);
         Assert.IsTrue(Text.WordWrap);
+    }
+
+    private sealed class StubModuleTab : ISettingsTabProvider
+    {
+        public string TabKey => "Thermal";
+        public string TabLabelKey => "PV_Settings_Tab_Thermal";
+        public string FallbackTabLabel => "Thermal";
+        public int SortOrder => 60;
+        public void DoTabContents(Listing_Standard listing, Rect inRect) { }
+    }
+
+    [TestMethod]
+    public void VigilanceSettingsRegistry_DiagnosticsTab_AlwaysSortsAfterModuleTabs()
+    {
+        try
+        {
+            var settings = new GeoscapeSettings();
+            settings.EnsureBuiltinTabsRegistered();
+            VigilanceSettingsRegistry.RegisterTab(new StubModuleTab());
+
+            var tabs = VigilanceSettingsRegistry.RegisteredTabs;
+            Assert.IsTrue(tabs.Count >= 2);
+            Assert.AreEqual("Diagnostics", tabs[tabs.Count - 1].TabKey, "Diagnostics tab must always be the last tab.");
+        }
+        finally
+        {
+            VigilanceSettingsRegistry.UnregisterTab("Thermal");
+        }
     }
 
     private static void AssertMeetsWcagAa(SensoryTheme theme, string role, Color color, double bgLum)
