@@ -216,8 +216,8 @@ Write-Host "`n3. Publish GitHub Release via GitHub CLI:" -ForegroundColor Yellow
 Write-Host "   gh release create v$Version dist/ProjectVigilance-Suite-v$Version.zip --title `"Project Vigilance Modular Suite v$Version`" --notes-file $releaseNotesFile" -ForegroundColor Gray
 
 Write-Host "`n4. Steam Workshop Update:" -ForegroundColor Yellow
-Write-Host "   a) Launch RimWorld -> Mods -> Project Vigilance -> Click 'Upload to Steam Workshop'" -ForegroundColor Gray
-Write-Host "   b) Update Workshop Description from: docs/workshop_description.bbcode" -ForegroundColor Gray
+Write-Host "   a) Launch RimWorld -> Mods -> Upload each Project Vigilance package to Steam Workshop" -ForegroundColor Gray
+Write-Host "   b) Update Workshop Descriptions from: docs/workshop_description*.bbcode" -ForegroundColor Gray
 Write-Host "   c) Update Workshop Change Notes from: docs/workshop_changenotes_v$Version.txt" -ForegroundColor Gray
 Write-Host "   d) Update Collection Description from: docs/workshop_collection_description.bbcode" -ForegroundColor Gray
 Write-Host ""

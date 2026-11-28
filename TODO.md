@@ -35,7 +35,7 @@
     - _Rule 11:_ Sensory Palette Customisation & A11y (curated themes, colourblind presets, WCAG AA contrast).
     - _Rule 12:_ Modular Separation & Loose Coupling (interface contracts, soft dependencies).
 - [x] **Pre-Release Artwork & Steam Workshop Asset Pack:**
-  - Replaced shared placeholder `About/Preview.png` (`600×600`, `726–861 KB` `< 1 MB`), `About/ModIcon.png`, and `About/Icon.png` (`256×256` RGBA32 transparent badges) across all 5 packages (`Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`).
+  - Replaced shared placeholder `About/Preview.png` (`16:9`, `< 1 MB`) and `About/ModIcon.png` (`64×64` RGBA32 transparent badges) across all 5 packages (`Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`).
   - Authored per-module Steam Workshop BBCode descriptions (`docs/workshop_description*.bbcode`), updated `docs/workshop_collection_description.bbcode`, and drafted `docs/workshop_changenotes_v0.5.0.txt`.
 - [ ] **Follow-Up Branch (`refactor/wave-4-i18n-and-decomposition` — Post-1.5 Audit Wave 4):**
   - Wire the 51 orphaned XML keys (`Geoscape_Inspect/Letters/Dialog/FloatMenus.xml`), add `Orbital`/`Aquatics` `Keyed/*.xml`, and complete remaining Rule 8 raw English UI extraction (`I18N-01`).

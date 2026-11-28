@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-28
+
+### Milestone 1.5: Modular Suite Architecture, Accessibility & Performance
+
 ### Added
 
 - **Modular 5-Package Architecture & Unified Mod Options (`ProjectVigilance.Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`):**
@@ -404,7 +408,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **In-Game Settings Dialogue:** Added `GeoscapeMod` and `GeoscapeSettings` allowing players to configure threat cooldown resets and transit speed multipliers.
 - **Architectural Specifications & Master Vision:** Comprehensive technical documentation for Geoscape & Radar, Interception, Containment & Biology, Invasion Campaign, Aquatic Operations (TftD), and DLC integrations.
 
-[Unreleased]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/CTOUT/Project-Vigilance/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/CTOUT/Project-Vigilance/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/CTOUT/Project-Vigilance/compare/v0.3.0...v0.4.0

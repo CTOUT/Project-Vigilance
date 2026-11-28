@@ -35,7 +35,6 @@
     <ItemGroup>
       <_StagingAbout Include="$(ModRootDir)About/About.xml" Condition="Exists('$(ModRootDir)About/About.xml')" />
       <_StagingAbout Include="$(ModRootDir)About/Preview.png" Condition="Exists('$(ModRootDir)About/Preview.png')" />
-      <_StagingAbout Include="$(ModRootDir)About/Icon.png" Condition="Exists('$(ModRootDir)About/Icon.png')" />
       <_StagingAbout Include="$(ModRootDir)About/ModIcon.png" Condition="Exists('$(ModRootDir)About/ModIcon.png')" />
       <_StagingAbout Include="$(ModRootDir)About/PublishedFileId.txt" Condition="Exists('$(ModRootDir)About/PublishedFileId.txt')" />
 

@@ -14,7 +14,7 @@ Each release publishes synchronised artifacts across two primary channels:
    - Markdown release notes extracted directly from [CHANGELOG.md](../CHANGELOG.md).
 2. **Steam Workshop & Steam Collection:**
    - **Anchor Mod Item ([#3822378226](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)):** `Geoscape` (`Geoscape/About/PublishedFileId.txt` must never be deleted or overwritten) plus standalone suite items (`Core`, `Orbital`, `Aquatics`, `Thermal`) uploaded via RimWorld's in-game mod uploader.
-   - **Mod Descriptions & Artwork:** Per-module `About/Preview.png` (`< 1 MB`, `640×360` or `16:9`), `About/ModIcon.png` / `About/Icon.png`, and BBCode descriptions ([`docs/workshop_description.bbcode`](workshop_description.bbcode)).
+   - **Mod Descriptions & Artwork:** Per-module `About/Preview.png` (`< 1 MB`, `16:9`), `About/ModIcon.png` (`64×64`), and BBCode descriptions ([`docs/workshop_description.bbcode`](workshop_description.bbcode)).
    - **Change Notes:** Versioned changelog entry in BBCode (`docs/workshop_changenotes_vX.Y.Z.txt`).
    - **Collection Description ([#3822385427](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)):** BBCode overview of active and planned suite modules ([`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode)).
 
@@ -25,7 +25,7 @@ Each release publishes synchronised artifacts across two primary channels:
 Before creating a release, ensure all items in the target milestone are complete:
 
 - [ ] All milestone features implemented and verified in-game against `docs/milestone_X_Y_test_plan.md`.
-- [ ] Distinct module artwork ready (`About/Preview.png` `< 1 MB`, `About/ModIcon.png`, `About/Icon.png`) for all 5 packages (`Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`) plus Steam Workshop gallery screenshots.
+- [ ] Distinct module artwork ready (`About/Preview.png` `16:9` `< 1 MB`, `About/ModIcon.png` `64×64`) for all 5 packages (`Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`) plus Steam Workshop gallery screenshots.
 - [ ] Zero compilation warnings or errors: `dotnet build Geoscape/Source/Geoscape.slnx -c Release`.
 - [ ] All automated unit tests passing: `dotnet test Geoscape/Source/Geoscape.slnx -c Release`.
 - [ ] Zero `.pdb` files in `*/1.7/Assemblies/` or `dist/ProjectVigilance-*`.
@@ -143,3 +143,14 @@ git push origin feat/milestone-X.Y
 ```
 
 All ongoing development work for the next milestone should happen on this feature branch until ready for promotion to `main`.
+
+---
+
+## 9. RimWorld 1.7 (Waylith) References & Verification CLI
+
+- **Isolated Mod Launch:** `RimWorldWin64.exe -mod=brrainz.harmony;ProjectVigilance.Core;ProjectVigilance.Geoscape` (tests exact mod sets without modifying `ModsConfig.xml`).
+- **Log Path:** `AppData\LocalLow\Ludeon Studios\RimWorld by Ludeon Studios\Logs\Player.log`.
+- **Official Modding References:**
+  - [Modding Tutorials — RimWorld Wiki](https://rimworldwiki.com/wiki/Modding_Tutorials)
+  - [RimWorld 1.7 Mod Updates — RimWorld Wiki](https://rimworldwiki.com/wiki/Modding_Tutorials/RimWorld_1.7_Mod_Updates)
+  - [Modder Primer for 1.7 (Ludeon)](https://docs.google.com/document/d/e/2PACX-1vSykw5_DYaaw42nEznI9zmBZVT_Vgg2bxYq_v2XWvAsHC3QSKFuDK2OyiQ5WC9jvVRUcrjpFt7xLLF5/pub)

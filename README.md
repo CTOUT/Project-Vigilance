@@ -13,13 +13,13 @@ Rather than simply adding alien races and high-tier weapons, this project introd
 
 ---
 
-## 🚀 Active Playtest: Project Vigilance - Overland Incursions (v0.4.2)
+## 🚀 Active Playtest: Project Vigilance Modular Suite (v0.5.0)
 
 [![Steam Workshop](https://img.shields.io/badge/Subscribe_on-Steam_Workshop-1b2838?style=for-the-badge&logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)
 [![Steam Collection](https://img.shields.io/badge/View_Official-Collection-1b2838?style=for-the-badge&logo=steam)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)
-[![GitHub Release](https://img.shields.io/badge/Direct_Download-GitHub_Release-238636?style=for-the-badge&logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.4.2)
+[![GitHub Release](https://img.shields.io/badge/Direct_Download-GitHub_Release-238636?style=for-the-badge&logo=github)](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.5.0)
 
-The first standalone module of the suite—**Overland Incursions**—is implemented and ready for community playtesting! Subscribe directly on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226), view the full [Steam Collection](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427), or grab the [v0.4.2 Release](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.4.2).
+The decoupled 5-package suite (**Core**, **Geoscape & Early Warning**, **Orbital**, **Aquatics**, **Thermal**) is live and ready for community playtesting! Subscribe directly on the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226), view the full [Steam Collection](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427), or grab the [v0.5.0 Release](https://github.com/CTOUT/Project-Vigilance/releases/tag/v0.5.0).
 
 ### What Does It Do?
 

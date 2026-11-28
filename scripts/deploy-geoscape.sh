@@ -267,7 +267,7 @@ stage_clean_distribution() {
 	rm -rf "$staging_dir/Source" "$staging_dir/1.7/Defs" "$staging_dir/1.7/Patches" "$staging_dir/1.7/Textures" "$staging_dir/1.7/Languages" "$staging_dir/1.7/Sounds"
 	rm -f "$staging_dir/1.7/Assets.zip" "$staging_dir/1.7/Assets.zip."* "$staging_dir/1.7/Assemblies/"*.old 2>/dev/null || true
 
-	for about_file in About.xml Preview.png Icon.png ModIcon.png PublishedFileId.txt; do
+	for about_file in About.xml Preview.png ModIcon.png PublishedFileId.txt; do
 		if [[ -f "$src_dir/About/$about_file" ]]; then
 			cp -f "$src_dir/About/$about_file" "$staging_dir/About/$about_file"
 		fi

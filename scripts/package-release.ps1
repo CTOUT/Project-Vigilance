@@ -154,7 +154,7 @@ function Copy-CleanModuleLayout {
     New-Item -ItemType Directory -Path $stagingAbout -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $srcDir 'About\About.xml') -Destination (Join-Path $stagingAbout 'About.xml') -Force
 
-    foreach ($asset in @('Preview.png', 'Icon.png', 'ModIcon.png', 'PublishedFileId.txt')) {
+    foreach ($asset in @('Preview.png', 'ModIcon.png', 'PublishedFileId.txt')) {
         $assetPath = Join-Path $srcDir "About\$asset"
         if (Test-Path -LiteralPath $assetPath) {
             Copy-Item -LiteralPath $assetPath -Destination (Join-Path $stagingAbout $asset) -Force
