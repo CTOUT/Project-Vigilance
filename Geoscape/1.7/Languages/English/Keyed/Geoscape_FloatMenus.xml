@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LanguageData>
   <!-- Outpost Construction & Maintenance -->
-  <PV_Menu_DeployListeningPost>Deploy Automated Radar Relay</PV_Menu_DeployListeningPost>
-  <PV_Menu_DeploySonarStation>Deploy Coastal Sonar Hydrophone</PV_Menu_DeploySonarStation>
+  <PV_Menu_DeployListeningPost>Deploy Automated Listening Post</PV_Menu_DeployListeningPost>
+  <PV_Menu_DeploySonarStation>Deploy Automated Sonar Station</PV_Menu_DeploySonarStation>
   <PV_Menu_ConstructBeacon>Construct Signal Beacon</PV_Menu_ConstructBeacon>
   <PV_Menu_DismantleOutpost>Dismantle Outpost</PV_Menu_DismantleOutpost>
-  <PV_Menu_RepairSabotagedStation>Repair Sabotaged Station</PV_Menu_RepairSabotagedStation>
-  <PV_Estimate_AssemblyTime>Estimated Assembly Time: {0}</PV_Estimate_AssemblyTime>
+  <PV_Menu_RepairSabotagedStation>Repair {0}</PV_Menu_RepairSabotagedStation>
 
   <!-- Incursion Interceptions & Encounters -->
   <PV_Menu_InterceptIncursion>Intercept {0}</PV_Menu_InterceptIncursion>
-  <PV_Menu_HailAndTrade>Hail and Trade with {0}</PV_Menu_HailAndTrade>
-  <PV_Menu_WarnAway>Warn away {0}</PV_Menu_WarnAway>
-  <PV_Menu_ScavengeAftermath>Scavenge Aftermath ({0})</PV_Menu_ScavengeAftermath>
+  <PV_Menu_HailAndTrade>Hail &amp; Trade with {0}</PV_Menu_HailAndTrade>
+  <PV_Menu_WarnAway>Warn away / Turn back {0}</PV_Menu_WarnAway>
   <PV_Menu_HoldPositionOutsideSettlement>Hold position outside {0}</PV_Menu_HoldPositionOutsideSettlement>
 </LanguageData>

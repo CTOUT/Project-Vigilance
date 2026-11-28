@@ -5,6 +5,7 @@ using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
 using Verse;
+using ProjectVigilance.Core.Localization;
 using ProjectVigilance.Geoscape.Sensory;
 
 namespace ProjectVigilance.Geoscape.World;
@@ -61,7 +62,7 @@ public partial class WorldObject_Incursion
         bool isHostile = Faction?.HostileTo(Faction.OfPlayer) ?? true;
         if (isHostile)
         {
-            string interceptLabel = $"Intercept {LabelCap}";
+            string interceptLabel = VigilanceLoc.Tr("PV_Menu_InterceptIncursion", $"Intercept {LabelCap}", LabelCap);
             yield return new FloatMenuOption(interceptLabel, () =>
             {
                 ResetCaravanCooldown(caravan.ID);
@@ -73,7 +74,7 @@ public partial class WorldObject_Incursion
         {
             if (GroupKind == IncursionGroupKind.TradeCaravan)
             {
-                string tradeLabel = $"Hail & Trade with {LabelCap}";
+                string tradeLabel = VigilanceLoc.Tr("PV_Menu_HailAndTrade", $"Hail & Trade with {LabelCap}", LabelCap);
                 yield return new FloatMenuOption(tradeLabel, () =>
                 {
                     ResetCaravanCooldown(caravan.ID);
@@ -92,7 +93,7 @@ public partial class WorldObject_Incursion
             }
             else
             {
-                string warnLabel = $"Warn away / Turn back {LabelCap}";
+                string warnLabel = VigilanceLoc.Tr("PV_Menu_WarnAway", $"Warn away / Turn back {LabelCap}", LabelCap);
                 yield return new FloatMenuOption(warnLabel, () =>
                 {
                     IncursionInterceptionUtility.WarnAway(this, caravan);

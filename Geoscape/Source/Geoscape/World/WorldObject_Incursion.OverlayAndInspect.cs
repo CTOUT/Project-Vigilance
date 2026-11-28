@@ -406,7 +406,8 @@ public partial class WorldObject_Incursion
                     string designation = trackingId > 0 ? $"Approaching Strangers #{trackingId}" : "Approaching Strangers";
                     return $"{designation}\nStatus: Masked by rugged terrain\nPace: ~{currentStepSpeed:F0} hexes/day\nObservations: Force is navigating deep mountain valleys and canyons; classification delayed until exiting to open terrain";
                 }
-                return $"{label.CapitalizeFirst()}\nStatus: Terrain Masked\nSpeed: ~{currentStepSpeed:F0} hexes/day\n{domainTag}: Contact signal degraded by mountainous terrain masking; requires open terrain or SIGINT decryption to classify";
+                string maskedStatus = ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Incursion_TerrainMasked", "Status: Terrain Masked");
+                return $"{label.CapitalizeFirst()}\n{maskedStatus}\nSpeed: ~{currentStepSpeed:F0} hexes/day\n{domainTag}: Contact signal degraded by mountainous terrain masking; requires open terrain or SIGINT decryption to classify";
             }
 
             if (SensoryNarrativeUtility.IsLowTech)

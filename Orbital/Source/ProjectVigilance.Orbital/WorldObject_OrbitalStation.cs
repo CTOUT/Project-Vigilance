@@ -259,8 +259,10 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
     public string GetStationInspectString()
     {
         StringBuilder sb = new();
-        sb.Append("Orbital Altitude: ").Append(orbit.AltitudeKm.ToString("F0")).AppendLine(" km");
-        sb.Append("Service Horizon: ").Append(serviceAreaAngularRadiusDeg.ToString("F0")).AppendLine("° angular sector");
+        string alt = orbit.AltitudeKm.ToString("F0");
+        string horizon = serviceAreaAngularRadiusDeg.ToString("F0");
+        sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Station_Altitude", $"Orbital Altitude: {alt} km", alt));
+        sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Station_ServiceHorizon", $"Service Horizon: {horizon}° angular sector", horizon));
 
         int activeChildren = 0;
         int inZoneCount = 0;
@@ -276,15 +278,21 @@ public class WorldObject_OrbitalStation : WorldObject, IOrbitalEntity
             }
         }
 
-        sb.Append("Satellite Constellation: ").Append(activeChildren).Append(" active (")
-          .Append(inZoneCount).Append(" in service corridor)");
+        sb.Append(ProjectVigilance.Core.Localization.VigilanceLoc.Tr(
+            "PV_Inspect_Station_SatellitesInService",
+            $"Satellite Constellation: {activeChildren} active ({inZoneCount} in service corridor)",
+            activeChildren,
+            inZoneCount));
 
         if (replenishmentCountdownTicks > 0)
         {
-            float daysRemaining = (float)replenishmentCountdownTicks / OrbitalFlightModel.TicksPerRimWorldDay;
+            string daysRemaining = ((float)replenishmentCountdownTicks / OrbitalFlightModel.TicksPerRimWorldDay).ToString("F1");
             sb.AppendLine();
-            sb.Append("Fabricating Replacement: ").Append(pendingReplenishmentRole).Append(" (")
-              .Append(daysRemaining.ToString("F1")).Append(" days)");
+            sb.Append(ProjectVigilance.Core.Localization.VigilanceLoc.Tr(
+                "PV_Inspect_Station_Replenishing",
+                $"Fabricating Replacement: {pendingReplenishmentRole} ({daysRemaining} days)",
+                pendingReplenishmentRole.ToString(),
+                daysRemaining));
         }
 
         return sb.ToString().TrimEnd();

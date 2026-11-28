@@ -1,4 +1,5 @@
 using System.Linq;
+using ProjectVigilance.Core.Localization;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -29,7 +30,7 @@ public class CaravanArrivalAction_DismantleOutpost : CaravanArrivalAction
 
     public override string Label => targetOutpost != null
         ? (targetOutpost.IsConstructing ? $"Dismantle {targetOutpost.LabelCap} (Refund 100% Materials)" : $"Dismantle {targetOutpost.LabelCap}")
-        : "Dismantle Outpost";
+        : VigilanceLoc.Tr("PV_Menu_DismantleOutpost", "Dismantle Outpost");
 
     public override string ReportString => targetOutpost != null
         ? (targetOutpost.IsConstructing ? $"travelling to dismantle and recover materials from {targetOutpost.LabelCap}" : $"travelling to dismantle {targetOutpost.LabelCap}")

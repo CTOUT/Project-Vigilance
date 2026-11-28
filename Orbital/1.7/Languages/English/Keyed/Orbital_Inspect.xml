@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <!-- Orbital Satellites -->
+  <PV_Inspect_Satellite_Role>Role: {0}</PV_Inspect_Satellite_Role>
+  <PV_Inspect_Satellite_Altitude>Altitude: {0} km (Period: {1} hrs)</PV_Inspect_Satellite_Altitude>
+  <PV_Inspect_Satellite_Inclination>Inclination: {0}° (Precession: {1}°/day)</PV_Inspect_Satellite_Inclination>
+  <PV_Inspect_Satellite_Velocity>Orbital Velocity: {0} km/s</PV_Inspect_Satellite_Velocity>
+  <PV_Inspect_Satellite_Footprint>Coverage Footprint: {0} tiles</PV_Inspect_Satellite_Footprint>
+  <PV_Inspect_Satellite_ServiceCorridor>Status: In Station Service Corridor (Maintenance &amp; Sync: {0})</PV_Inspect_Satellite_ServiceCorridor>
+  <PV_Inspect_Satellite_Autonomous>Status: Autonomous Mission (Drifting Ground Track)</PV_Inspect_Satellite_Autonomous>
+
+  <!-- Orbital Logistics Hubs -->
+  <PV_Inspect_Station_Altitude>Orbital Altitude: {0} km</PV_Inspect_Station_Altitude>
+  <PV_Inspect_Station_ServiceHorizon>Service Horizon: {0}° angular sector</PV_Inspect_Station_ServiceHorizon>
+  <PV_Inspect_Station_SatellitesInService>Satellite Constellation: {0} active ({1} in service corridor)</PV_Inspect_Station_SatellitesInService>
+  <PV_Inspect_Station_Replenishing>Fabricating Replacement: {0} ({1} days)</PV_Inspect_Station_Replenishing>
+</LanguageData>

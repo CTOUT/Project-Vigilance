@@ -1,3 +1,4 @@
+using ProjectVigilance.Core.Localization;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
@@ -28,7 +29,7 @@ public class CaravanArrivalAction_HoldPosition : CaravanArrivalAction
     public string? LocationLabel => locationLabel;
 
     public override string Label => !string.IsNullOrEmpty(locationLabel)
-        ? $"Hold position outside {locationLabel}"
+        ? VigilanceLoc.Tr("PV_Menu_HoldPositionOutsideSettlement", $"Hold position outside {locationLabel}", locationLabel!)
         : $"Hold position at Tile {destinationTile.tileId}";
 
     public override string ReportString => !string.IsNullOrEmpty(locationLabel)

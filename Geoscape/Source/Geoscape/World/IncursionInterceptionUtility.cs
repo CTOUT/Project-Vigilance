@@ -442,7 +442,9 @@ public static class IncursionInterceptionUtility
                 ? $"\n\nRESCUE MISSION: Captured colonist(s) ({string.Join(", ", kidnappedColonists.Select(c => c.LabelShort))}) are in the enemy marching column! You have the element of surprise to free them before they are taken away."
                 : string.Empty;
 
-            letterLabel = kidnappedColonists.Count > 0 ? "Rescue Ambush: " + contactName : "Ambush Position: " + contactName;
+            letterLabel = kidnappedColonists.Count > 0
+                ? ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Letter_RescueAmbush_Label", $"Rescue Ambush: {contactName}", contactName)
+                : ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Letter_AmbushPosition_Label", $"Ambush Position: {contactName}", contactName);
             letterText = $"{caravan.LabelCap} was stationed in concealment at tile {caravan.Tile} when {contactName} from {factionName} entered your sector!\n\n" +
                          $"TACTICAL ADVANTAGE (SURPRISE):\n" +
                          $"The approaching enemy column is currently unaware of your presence and is marching through the area.\n\n" +
@@ -465,7 +467,7 @@ public static class IncursionInterceptionUtility
         }
         else if (isNightAmbush)
         {
-            letterLabel = "Tactical Ambush: " + contactName;
+            letterLabel = ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Letter_TacticalAmbush_Label", $"Tactical Ambush: {contactName}", contactName);
             letterText = $"{caravan.LabelCap} has intercepted {contactName} from {factionName} while they were camped overnight!\n\n" +
                          $"The enemy forces were caught resting with no sentries prepared. Your combatants have the tactical advantage of surprise.";
             if (hasNightOwl)

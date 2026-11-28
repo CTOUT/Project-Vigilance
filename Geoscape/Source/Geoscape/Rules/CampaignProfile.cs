@@ -41,11 +41,11 @@ public static class CampaignProfileExtensions
 {
     public static string GetDisplayName(this CampaignProfile profile) => profile switch
     {
-        CampaignProfile.FogOfWar              => "Fog of War (Recommended)",
-        CampaignProfile.PlanetarySurveillance => "Planetary Surveillance",
-        CampaignProfile.HardcoreVigilance     => "Hardcore Vigilance",
-        CampaignProfile.Omniscient            => "Omniscient (Vanilla)",
-        CampaignProfile.Custom                => "Custom",
+        CampaignProfile.FogOfWar              => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_FogOfWar_Title", "Fog of War (Recommended)"),
+        CampaignProfile.PlanetarySurveillance => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_PlanetarySurveillance_Title", "Planetary Surveillance"),
+        CampaignProfile.HardcoreVigilance     => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_HardcoreVigilance_Title", "Hardcore Vigilance"),
+        CampaignProfile.Omniscient            => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_Omniscient_Title", "Omniscient (Vanilla)"),
+        CampaignProfile.Custom                => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_Custom_Title", "Custom"),
         _                                     => profile.ToString()
     };
 
@@ -61,11 +61,11 @@ public static class CampaignProfileExtensions
 
     public static string GetTooltipDescription(this CampaignProfile profile) => profile switch
     {
-        CampaignProfile.FogOfWar              => "Standard Project Vigilance experience. Unexplored hexes shrouded in darkness; dynamic charting through caravans, outposts, and radar networks.",
-        CampaignProfile.PlanetarySurveillance => "World geography and biomes known from orbital scans. Dynamic incursions and outposts concealed outside sensor range.",
-        CampaignProfile.HardcoreVigilance     => "Strict sensory limits: planetary shroud, tightened lookout horizons, terrain masking, and nocturnal vigilance penalties.",
-        CampaignProfile.Omniscient            => "Vanilla RimWorld global visibility: all settlements, terrain, and landmarks revealed from day one.",
-        CampaignProfile.Custom                => "Fine-tuned custom ruleset configured through individual simulation toggles.",
+        CampaignProfile.FogOfWar              => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_FogOfWar_Desc", "Standard Project Vigilance experience. Unexplored hexes shrouded in darkness; dynamic charting through caravans, outposts, and radar networks."),
+        CampaignProfile.PlanetarySurveillance => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_PlanetarySurveillance_Desc", "World geography and biomes known from orbital scans. Dynamic incursions and outposts concealed outside sensor range."),
+        CampaignProfile.HardcoreVigilance     => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_HardcoreVigilance_Desc", "Strict sensory limits: planetary shroud, tightened lookout horizons, terrain masking, and nocturnal vigilance penalties."),
+        CampaignProfile.Omniscient            => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_Omniscient_Desc", "Vanilla RimWorld global visibility: all settlements, terrain, and landmarks revealed from day one."),
+        CampaignProfile.Custom                => ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Profile_Custom_Desc", "Fine-tuned custom ruleset configured through individual simulation toggles."),
         _                                     => string.Empty
     };
 }

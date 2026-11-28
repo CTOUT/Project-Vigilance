@@ -2,7 +2,6 @@
 <LanguageData>
   <!-- Shroud Atmosphere & Performance Settings (en-GB) -->
   <PV_Shroud_SectionHeader>SHROUD ATMOSPHERE &amp; PERFORMANCE</PV_Shroud_SectionHeader>
-  <PV_Shroud_SectionDesc>Configure procedural nebula styling along the Fog of War frontier and unexplored terrain rendering optimisation.</PV_Shroud_SectionDesc>
   <PV_Shroud_EffectsLabel>Shroud Visual Style</PV_Shroud_EffectsLabel>
   <PV_Shroud_Effects_Off>Off (Flat Obsidian)</PV_Shroud_Effects_Off>
   <PV_Shroud_Effects_Subtle>Subtle (Recommended)</PV_Shroud_Effects_Subtle>
