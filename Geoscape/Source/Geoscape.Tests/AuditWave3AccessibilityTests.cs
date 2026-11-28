@@ -67,15 +67,15 @@ public sealed class AuditWave3AccessibilityTests : GeoscapeTestBase
             Color32 visual = WorldDrawLayer_RadarCoverage.VisualPerimeterColorRgb;
 
             Color32 expectedSonar = expected.sonar;
-            Color32 expectedScout = expected.scout;
+            Color32 expectedRadar = expected.radar;
 
             Assert.AreEqual(expectedSonar.r, sonar.r);
             Assert.AreEqual(expectedSonar.g, sonar.g);
             Assert.AreEqual(expectedSonar.b, sonar.b);
 
-            Assert.AreEqual(expectedScout.r, visual.r);
-            Assert.AreEqual(expectedScout.g, visual.g);
-            Assert.AreEqual(expectedScout.b, visual.b);
+            Assert.AreEqual(expectedRadar.r, visual.r);
+            Assert.AreEqual(expectedRadar.g, visual.g);
+            Assert.AreEqual(expectedRadar.b, visual.b);
         }
         finally
         {

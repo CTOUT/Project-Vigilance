@@ -15,6 +15,7 @@ namespace ProjectVigilance.Geoscape.Patches;
 /// Enables seamless scroll-wheel transitions between a tactical battlescape/colony map and the
 /// planetary Geoscape, with configurable boundary detent cues and a "through the clouds" sweep.
 /// </summary>
+[StaticConstructorOnStartup]
 public static class SeamlessCameraZoomUtility
 {
     public const float TransitionCooldownSeconds = 0.45f;

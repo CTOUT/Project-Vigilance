@@ -76,8 +76,8 @@ public partial class GeoscapeSettings
                 Widgets.DrawBoxSolid(rowRect, new Color(1f, 1f, 1f, 0.03f));
             }
 
-            float leftWidth = rowRect.width * 0.68f;
-            float rightWidth = rowRect.width - leftWidth;
+            float rightWidth = 115f;
+            float leftWidth = Mathf.Max(200f, rowRect.width - rightWidth);
 
             string versionInfo = string.Empty;
             if (isActive)

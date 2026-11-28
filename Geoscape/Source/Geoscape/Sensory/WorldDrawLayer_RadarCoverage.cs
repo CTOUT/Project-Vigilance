@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -30,7 +30,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         (Color32)(GeoscapeMod.Settings?.EffectiveSonarColor ?? SensoryThemeUtility.GetThemeColors(SensoryTheme.TacticalCyan).sonar);
 
     public static Color32 VisualPerimeterColorRgb =>
-        (Color32)(GeoscapeMod.Settings?.EffectiveScoutColor ?? SensoryThemeUtility.GetThemeColors(SensoryTheme.TacticalCyan).scout);
+        (Color32)(GeoscapeMod.Settings?.EffectiveRadarColor ?? SensoryThemeUtility.GetThemeColors(SensoryTheme.TacticalCyan).radar);
 
     private readonly HashSet<int> activeTileIdsCache = new(256);
     private readonly HashSet<int> identifiedTileIdsCache = new(64);
@@ -868,7 +868,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             // Approximate alpha-blending Color32(10, 14, 20, dimAlpha) over the ungenerated ocean material
             // so its pixel-exact hex boundary underneath WorldDrawLayer_Terrain matches dimmed ocean tiles.
             Color orig = s_originalUngeneratedColor;
-            Color target = new(orig.r * 0.22f, orig.g * 0.22f, orig.b * 0.22f, orig.a);
+            Color target = new(orig.r * 0.08f, orig.g * 0.08f, orig.b * 0.08f, orig.a);
             mat.color = Color.Lerp(orig, target, a);
         }
         catch
