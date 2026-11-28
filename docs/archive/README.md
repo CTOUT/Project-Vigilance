@@ -42,5 +42,6 @@ Active plans, specs, and operations guides reside in the parent `docs/` folder.
 
 ## Milestone 1.5 (v0.5.0)
 
+- **[Workshop Change Notes v0.5.0](workshop_changenotes_v0.5.0.txt):** Steam Workshop release notes for v0.5.0 (modular 5-package suite).
 - **[Milestone 1.5 Test Plan](milestone_1_5_test_plan.md):** Quality assurance and playtest verification suite (`TC-01`–`TC-10`, `511/511` automated tests) for the decoupled 5-package modular release.
 - **[Geoscape Fog of War Optimisation Plan](geoscape_fog_of_war_optimisation_plan.md):** Architectural design and phase-by-phase implementation plan for the hierarchical CSR shroud, GPU terrain culling, atmospheric motion, and partial-coverage seam elimination.

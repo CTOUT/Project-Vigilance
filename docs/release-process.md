@@ -62,7 +62,7 @@ Maintain synchronization for community-facing Steam portals:
    - Update version tags (e.g. `vX.Y LIVE`).
    - Add bullet points under **Key Features** for new capabilities.
    - Verify **Reporting Bugs & Feedback** directs users to GitHub Issues (preferred) and Steam Discussions, specifying `Player.log` and reproduction steps.
-2. **Change Notes ([`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.5.0.txt)):**
+2. **Change Notes (`docs/workshop_changenotes_vX.Y.Z.txt`, e.g. [`v0.5.0`](archive/workshop_changenotes_v0.5.0.txt)):**
    - Create a dedicated BBCode change note formatted with `[h2]`, `[list]`, `[*]`, `[b]`, and `[i]`.
    - Organize into feature categories: new mechanics, tactical behaviors, fixes, and performance optimizations.
 3. **Collection Description ([`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode)):**
@@ -130,7 +130,7 @@ This pipeline will:
 2. **Update Workshop Metadata via Steam:**
    - Visit each Workshop Item Page: [Core (#3847194681)](https://steamcommunity.com/sharedfiles/filedetails/?id=3847194681), [Geoscape (#3822378226)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226), [Orbital (#3847195514)](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195514), [Aquatics (#3847195338)](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195338), and [Thermal (#3847195139)](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195139).
    - Click **Edit title & description** -> Paste contents of each module's `docs/workshop_description_<module>.bbcode` (e.g. [`docs/workshop_description_geoscape.bbcode`](workshop_description_geoscape.bbcode)).
-   - Click **Add / edit change notes** -> Edit the auto-generated update entry and paste contents of [`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.5.0.txt).
+   - Click **Add / edit change notes** -> Edit the auto-generated update entry and paste contents of `docs/workshop_changenotes_vX.Y.Z.txt` (e.g. [`v0.5.0`](archive/workshop_changenotes_v0.5.0.txt)).
 3. **Update Steam Collection:**
    - Visit the [Steam Collection Page](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427).
    - Click **Edit title and description** -> Paste contents of [`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode).
