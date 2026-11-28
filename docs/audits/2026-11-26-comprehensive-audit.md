@@ -83,5 +83,5 @@
 
 ### Follow-Up Branch (`refactor/wave-4-i18n-and-decomposition`)
 
-- [ ] **Wave 4A — Orphan XML Key Wiring (`I18N-01`):** Wire all 51 existing orphan keys (`Geoscape_Inspect.xml`, `Geoscape_Letters.xml`, `Geoscape_Dialog.xml`, `Geoscape_FloatMenus.xml`), create `Keyed/*.xml` for `Orbital` and `Aquatics`, and complete full Rule 8 raw English UI string extraction across `GeoscapeSettings`, `Page_GeoscapeRules`, `GeoscapeRuleSet`, `CompRadar`, and world float menus.
-- [ ] **Wave 4B — Monolith & God-Class Decomposition (`ARCH-06`):** Split `WorldObject_Incursion` and `SensoryManager` via `partial class` seams, split `WorldObject_Visibility_Patch` by domain, and extract `GeoscapeSettings` tabs into `UI/Tabs/*SettingsTab.cs`.
+- [x] **Wave 4A — Orphan XML Key Wiring (`I18N-01`):** Wired all orphan keys (`Geoscape_Inspect.xml`, `Geoscape_Letters.xml`, `Geoscape_Dialog.xml`, `Geoscape_FloatMenus.xml`, `Geoscape_Shroud.xml`), created `Keyed/*.xml` for `Orbital` and `Aquatics`, and locked in automated zero-orphan / zero-missing key enforcement (`HygieneAndLocalizationGuardTests`).
+- [x] **Wave 4B — Monolith & God-Class Decomposition (`ARCH-06`):** Split `WorldObject_Incursion` (5 files), `SensoryManager` (4 files), `WorldObject_Visibility_Patch` (4 domain files), and `GeoscapeSettings` tabs (`UI/Tabs/GeoscapeSettings.*.cs`), enforced via `1,200`-line ceiling guard in `HygieneAndLocalizationGuardTests`.

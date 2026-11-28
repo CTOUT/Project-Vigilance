@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
@@ -28,7 +28,7 @@ public class CaravanPathingResilienceTests
         OptimisticPathingUtility.ActiveFormCaravanCount = 0;
         OptimisticPathingUtility.IsTileUnexploredOverride = null;
         OptimisticPathingUtility.IsTileImpassableOverride = null;
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
     }
 
     [TestCleanup]

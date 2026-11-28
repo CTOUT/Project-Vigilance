@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using ProjectVigilance.Geoscape.Sensory;
 using UnityEngine;
 using Verse;
@@ -196,7 +196,7 @@ public static class CampaignRuleWidgets
         RuleEditContext ctx,
         bool showLockPreview = false)
     {
-        string? rec = (showLockPreview && (option == VisibilityMode.FogOfWar || option == VisibilityMode.ClassicHazeOfWar)) ? " (Recommended)" : null;
+        string? rec = (showLockPreview && (option == VisibilityMode.FogOfWar || option == VisibilityMode.FogOfWar)) ? " (Recommended)" : null;
         DrawRuleOptionRadio(listing, option, label, tooltip, rule, campaign, ctx, rec, " (Locked - Cannot reverse)");
     }
 
@@ -252,10 +252,10 @@ public static class CampaignRuleWidgets
                 string unsafeText = $"WARNING: You are performing an unsafe campaign rule change under developer override:\n\n" +
                                     $"{rule.Label}: {rule.CurrentValueLabel} -> {proposed}\n\n" +
                                     "Forcing this transition may cause:\n" +
-                                    "• Loss of historical caravan exploration data\n" +
-                                    "• Stale incursion intelligence classifications\n" +
-                                    "• Desynchronised multi-vector raid staging states\n" +
-                                    "• Inconsistent dynamic site concealment\n\n" +
+                                    "â€¢ Loss of historical caravan exploration data\n" +
+                                    "â€¢ Stale incursion intelligence classifications\n" +
+                                    "â€¢ Desynchronised multi-vector raid staging states\n" +
+                                    "â€¢ Inconsistent dynamic site concealment\n\n" +
                                     "This change will be recorded in the campaign's permanent audit ledger.\n\n" +
                                     "Are you certain you wish to proceed?";
                 Dialog_MessageBox unsafeBox = Dialog_MessageBox.CreateConfirmation(

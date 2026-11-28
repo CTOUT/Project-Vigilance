@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
@@ -158,7 +158,7 @@ public class HazeReconnaissanceManager : WorldComponent
             return;
         }
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             return;
         }
@@ -216,7 +216,7 @@ public class HazeReconnaissanceManager : WorldComponent
             return false;
         }
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             return false;
         }

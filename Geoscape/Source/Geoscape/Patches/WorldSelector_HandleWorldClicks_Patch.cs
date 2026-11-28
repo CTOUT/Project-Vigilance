@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
@@ -170,7 +170,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
         int maxCaravans = Math.Max(1, GeoscapeMod.Settings?.maxContextualCaravansShown ?? 3);
         int maxColonies = Math.Max(1, GeoscapeMod.Settings?.maxContextualColoniesShown ?? 2);
 
-        bool isUnexplored = GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar &&
+        bool isUnexplored = GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar &&
                             SensoryManager.Instance != null &&
                             !SensoryManager.Instance.IsExplored(clickedTile);
 
@@ -824,7 +824,7 @@ public static class WorldSelector_HandleWorldClicks_Patch
     {
         var options = new List<FloatMenuOption>();
 
-        bool isUnexplored = GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar &&
+        bool isUnexplored = GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar &&
                             SensoryManager.Instance != null &&
                             !SensoryManager.Instance.IsExplored(clickedTile);
 

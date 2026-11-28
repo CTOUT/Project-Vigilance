@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using HarmonyLib;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape;
@@ -22,7 +22,7 @@ public sealed class WorldSearchVisibilityTests
     {
         GeoscapeCampaignRules.ResetStaticDataForTesting();
         originalMode = GeoscapeMod.Settings.visibilityMode;
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.Instance = new SensoryManager(null!);
         SensoryManager.IsExploredOverride = null;
         SensoryManager.IsIdentifiedOverride = null;
@@ -45,7 +45,7 @@ public sealed class WorldSearchVisibilityTests
         Assert.AreEqual(
             WorldSearchElementState.Excluded,
             WorldSearchVisibilityUtility.Classify(
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 hasWorldObject: true,
                 isPlayerFaction: false,
                 isHiddenWorldObject: true,
@@ -61,7 +61,7 @@ public sealed class WorldSearchVisibilityTests
         Assert.AreEqual(
             WorldSearchElementState.VisibleMasked,
             WorldSearchVisibilityUtility.Classify(
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 hasWorldObject: true,
                 isPlayerFaction: false,
                 isHiddenWorldObject: false,
@@ -77,7 +77,7 @@ public sealed class WorldSearchVisibilityTests
         Assert.AreEqual(
             WorldSearchElementState.VisibleMasked,
             WorldSearchVisibilityUtility.Classify(
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 hasWorldObject: false,
                 isPlayerFaction: false,
                 isHiddenWorldObject: false,
@@ -93,7 +93,7 @@ public sealed class WorldSearchVisibilityTests
         Assert.AreEqual(
             WorldSearchElementState.VisibleUnmasked,
             WorldSearchVisibilityUtility.Classify(
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 hasWorldObject: false,
                 isPlayerFaction: false,
                 isHiddenWorldObject: false,
@@ -109,7 +109,7 @@ public sealed class WorldSearchVisibilityTests
         Assert.AreEqual(
             WorldSearchElementState.Excluded,
             WorldSearchVisibilityUtility.Classify(
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 hasWorldObject: false,
                 isPlayerFaction: false,
                 isHiddenWorldObject: false,
@@ -125,7 +125,7 @@ public sealed class WorldSearchVisibilityTests
         Assert.AreEqual(
             WorldSearchElementState.Excluded,
             WorldSearchVisibilityUtility.Classify(
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 hasWorldObject: true,
                 isPlayerFaction: false,
                 isHiddenWorldObject: false,
@@ -140,7 +140,7 @@ public sealed class WorldSearchVisibilityTests
         Assert.AreEqual(
             WorldSearchElementState.VisibleUnmasked,
             WorldSearchVisibilityUtility.Classify(
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 hasWorldObject: true,
                 isPlayerFaction: false,
                 isHiddenWorldObject: false,

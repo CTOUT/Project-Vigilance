@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -96,7 +96,7 @@ public sealed class FogOfWarOptimisationTests : GeoscapeTestBase
         var sensory = new SensoryManager(Find.World!);
         SensoryManager.Instance = sensory;
 
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         GeoscapeMod.Settings.radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
         GeoscapeMod.Settings.showIdentificationHorizon = false;
         GeoscapeMod.Settings.surveillanceDimming = 0.5f;
@@ -215,7 +215,7 @@ public sealed class FogOfWarOptimisationTests : GeoscapeTestBase
         }
 
         // 3. Switching back to ClassicHazeOfWar removes cached dimming submesh cleanly.
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         DrainRegenerate(layer);
 
         Assert.AreEqual(0, layer.DimSubMeshCount);
@@ -233,7 +233,7 @@ public sealed class FogOfWarOptimisationTests : GeoscapeTestBase
         SensoryManager.ActiveSensorsOverride = static () => Array.Empty<ISensorProvider>();
         SensoryManager.TileNeighborsOverride = static (_, list) => list.Clear();
 
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
 
         // Initialise bitsets with tile 0 explored so byte arrays exist.
         sensory.MarkTileExplored(new PlanetTile(0, surfaceLayer));

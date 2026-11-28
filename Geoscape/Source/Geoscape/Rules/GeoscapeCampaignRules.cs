@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using ProjectVigilance.Geoscape.Sensory;
 using ProjectVigilance.Geoscape.World;
@@ -424,7 +424,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
         rules.ApplyProfile(profile);
 
         RuleTransitionEffects effects = RuleTransitionEffects.RebuildWorldLayers | RuleTransitionEffects.RescanSensors;
-        if (rules.Visibility.Value == VisibilityMode.ClassicHazeOfWar)
+        if (rules.Visibility.Value == VisibilityMode.FogOfWar)
         {
             effects |= RuleTransitionEffects.RepathPlayerCaravans;
         }
@@ -442,7 +442,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
     public void ApplyAdoptionCustom(string source)
     {
         RuleTransitionEffects effects = RuleTransitionEffects.RebuildWorldLayers | RuleTransitionEffects.RescanSensors;
-        if (rules.Visibility.Value == VisibilityMode.ClassicHazeOfWar)
+        if (rules.Visibility.Value == VisibilityMode.FogOfWar)
         {
             effects |= RuleTransitionEffects.RepathPlayerCaravans;
         }
@@ -469,7 +469,7 @@ public sealed class GeoscapeCampaignRules : WorldComponent
             }
 
             bool hasHazeData = SensoryManager.Instance?.HasAnyExploredTiles == true;
-            bool notHaze = rules.Visibility.Value != VisibilityMode.ClassicHazeOfWar;
+            bool notHaze = rules.Visibility.Value != VisibilityMode.FogOfWar;
 
             string title = "Project Vigilance: Campaign Rules Bound to Save";
             string text = "Project Vigilance now stores gameplay-affecting campaign rules directly within your save file to prevent cross-campaign contamination.\n\n" +

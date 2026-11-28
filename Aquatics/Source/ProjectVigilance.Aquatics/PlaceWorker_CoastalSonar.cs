@@ -1,3 +1,4 @@
+using ProjectVigilance.Core.Localization;
 using RimWorld;
 using Verse;
 
@@ -21,7 +22,7 @@ public class PlaceWorker_CoastalSonar : PlaceWorker
     {
         if (map == null || !map.Tile.Valid || !SonarTraversalUtility.HasCoastalAccess(map.Tile))
         {
-            return new AcceptanceReport(CoastalAccessRequiredMessage);
+            return new AcceptanceReport(VigilanceLoc.Tr("PV_Aquatics_CoastalAccessRequired", CoastalAccessRequiredMessage));
         }
 
         return AcceptanceReport.WasAccepted;

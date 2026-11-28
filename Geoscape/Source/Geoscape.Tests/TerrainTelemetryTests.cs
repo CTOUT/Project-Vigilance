@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 using HarmonyLib;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -22,7 +22,7 @@ public sealed class TerrainTelemetryTests
     {
         GeoscapeCampaignRules.ResetStaticDataForTesting();
         originalMode = GeoscapeMod.Settings.visibilityMode;
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.Instance = new SensoryManager(null!);
         SensoryManager.IsExploredOverride = null;
         SensoryManager.IsIdentifiedOverride = null;
@@ -43,15 +43,15 @@ public sealed class TerrainTelemetryTests
     {
         Assert.AreEqual(
             TileIntelLevel.Unexplored,
-            TerrainTelemetryUtility.GetTileIntelLevel(VisibilityMode.ClassicHazeOfWar, isExplored: false, isIdentified: false));
+            TerrainTelemetryUtility.GetTileIntelLevel(VisibilityMode.FogOfWar, isExplored: false, isIdentified: false));
 
         Assert.AreEqual(
             TileIntelLevel.DetectedOnly,
-            TerrainTelemetryUtility.GetTileIntelLevel(VisibilityMode.ClassicHazeOfWar, isExplored: true, isIdentified: false));
+            TerrainTelemetryUtility.GetTileIntelLevel(VisibilityMode.FogOfWar, isExplored: true, isIdentified: false));
 
         Assert.AreEqual(
             TileIntelLevel.Identified,
-            TerrainTelemetryUtility.GetTileIntelLevel(VisibilityMode.ClassicHazeOfWar, isExplored: true, isIdentified: true));
+            TerrainTelemetryUtility.GetTileIntelLevel(VisibilityMode.FogOfWar, isExplored: true, isIdentified: true));
 
         Assert.AreEqual(
             TileIntelLevel.Identified,

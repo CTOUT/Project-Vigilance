@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -199,7 +199,7 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
         // 2. Background Surveillance Dimming (PlanetarySurveillance mode only)
         bool drawDimming = drawOutlines &&
                            dimming > 0.005f &&
-                           GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar &&
+                           GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar &&
                            planetLayer != null;
 
         if (!drawDimming)

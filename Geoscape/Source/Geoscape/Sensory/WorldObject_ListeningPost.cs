@@ -865,7 +865,7 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         }
         else if (isSabotaged)
         {
-            sb.AppendLine("Status: Sabotaged / Signal Lost");
+            sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Outpost_Sabotaged", "Status: Sabotaged / Signal Lost"));
             sb.AppendLine("Requires maintenance caravan to repair and restore telemetry.");
         }
         else if (IsDisruptedByEnvironment(out string disruptionReason))
@@ -882,7 +882,7 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
         }
         else
         {
-            sb.AppendLine("Status: Operational");
+            sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Outpost_Operational", "Status: Operational"));
             if (kind == ListeningPostKind.SignalBeacon)
             {
                 sb.AppendLine($"Coverage Rings: Detection {DetectionRadiusInTiles:F0} tiles (Unmanned: 0 tiles identification)");
@@ -999,9 +999,10 @@ public class WorldObject_ListeningPost : WorldObject, ISensorProvider
             if (isSabotaged)
             {
                 bool canRepair = HasRepairMaterials(caravan, out string missingDesc);
+                string repairBase = ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Menu_RepairSabotagedStation", $"Repair {LabelCap}", LabelCap);
                 string repairLabel = canRepair
-                    ? $"Repair {LabelCap}"
-                    : $"Repair {LabelCap} ({missingDesc})";
+                    ? repairBase
+                    : $"{repairBase} ({missingDesc})";
 
                 yield return new FloatMenuOption(repairLabel, () =>
                 {

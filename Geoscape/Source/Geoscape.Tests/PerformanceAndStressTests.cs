@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -29,7 +29,7 @@ public sealed class PerformanceAndStressTests
     public void SensorySweep_HighLoad_20Radars_100Incursions_ExecutesUnder1ms_AndZeroAllocations()
     {
         // 1. Arrange: High-load stress scenario
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.DistanceCalculationOverride = static (a, b, _) => Math.Abs(a.tileId - b.tileId) % 30;
 
         var sensoryManager = new SensoryManager(null!);
@@ -152,7 +152,7 @@ public sealed class PerformanceAndStressTests
     public void CombinedFullTickRare_HighLoad_50ConsecutiveSweeps_ZeroMemoryGrowth()
     {
         // Arrange
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.DistanceCalculationOverride = static (a, b, _) => Math.Abs(a.tileId - b.tileId) % 30;
 
         var sensoryManager = new SensoryManager(null!);
@@ -327,7 +327,7 @@ public sealed class PerformanceAndStressTests
     public void SensorySweep_MultipleRadarsOnSameSettlement_ReachesSteadyState_ZeroAllocationsAndNoSensorsChangedLoop()
     {
         // Arrange: Multiple radar dishes on the SAME colony sharing the same Source WorldObject ID
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.DistanceCalculationOverride = static (a, b, _) => 5;
 
         var sensoryManager = new SensoryManager(null!);

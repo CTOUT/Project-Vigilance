@@ -18,8 +18,9 @@ public enum VisibilityMode
     FogOfWar = 1,
 
     /// <summary>
-    /// Backwards-compatibility alias for FogOfWar.
+    /// Backwards-compatibility alias for FogOfWar (retained for Scribe savegame deserialisation).
     /// </summary>
+    [System.Obsolete("Use VisibilityMode.FogOfWar instead. Retained solely for Scribe backwards compatibility.")]
     ClassicHazeOfWar = 1,
 
     /// <summary>

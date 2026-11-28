@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using RimWorld;
 using RimWorld.Planet;
@@ -79,7 +79,7 @@ public static class BreadcrumbRumourUtility
     /// </summary>
     public static bool TryShareTravellerRumour(Faction? travellerFaction, PlanetTile settlementTile, WorldObject_Incursion? incursion = null)
     {
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             return false;
         }

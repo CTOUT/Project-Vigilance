@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using HarmonyLib;
 using RimWorld;
@@ -30,7 +30,7 @@ public static class CaravanPathingResiliencePatches
             OptimisticPathingUtility.ActiveFormCaravanCount++;
             __state = OptimisticPathingUtility.Active;
 
-            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar)
             {
                 OptimisticPathingUtility.Active = true;
             }
@@ -59,7 +59,7 @@ public static class CaravanPathingResiliencePatches
             OptimisticPathingUtility.ActiveFormCaravanCount++;
             __state = OptimisticPathingUtility.Active;
 
-            if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar)
             {
                 OptimisticPathingUtility.Active = true;
             }

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -109,7 +109,7 @@ public sealed class GeoscapeContactInteractionTests
     [TestMethod]
     public void BuildEntitySelectionOptions_MaskedSite_ProtectsIntelligenceConcealment()
     {
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.Instance = new SensoryManager(null!);
 
         var siteDef = new WorldObjectDef { defName = "OutpostSite", label = "Pirate Outpost" };
@@ -185,7 +185,7 @@ public sealed class GeoscapeContactInteractionTests
     [TestMethod]
     public void BuildIntelligentContextualOptions_UnexploredSector_SuppressesLeaksAndConstruction()
     {
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.Instance = new SensoryManager(null!);
         SensoryManager.IsExploredOverride = t => t.tileId == 100;
 
@@ -279,7 +279,7 @@ public sealed class GeoscapeContactInteractionTests
     [TestMethod]
     public void BuildEntitySelectionOptions_UnidentifiedContact_ConcealsFactionCrestAndColour()
     {
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.Instance = new SensoryManager(null!);
         SensoryManager.IsExploredOverride = t => t.tileId == 350;
         SensoryManager.IsIdentifiedOverride = _ => false;
@@ -305,7 +305,7 @@ public sealed class GeoscapeContactInteractionTests
     [TestMethod]
     public void BuildIntelligentContextualOptions_UnidentifiedTargetSite_HidesRealSiteName()
     {
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.Instance = new SensoryManager(null!);
         SensoryManager.IsExploredOverride = t => t.tileId == 400 || t.tileId == 100;
         SensoryManager.IsIdentifiedOverride = _ => false;
@@ -450,7 +450,7 @@ public sealed class GeoscapeContactInteractionTests
     [TestMethod]
     public void BuildIntelligentContextualOptions_Unexplored_ClampsCaravansAndColonies()
     {
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.Instance = new SensoryManager(null!);
         SensoryManager.IsExploredOverride = _ => false;
 

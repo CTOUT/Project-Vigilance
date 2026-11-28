@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <!-- Coastal Sonar Placement -->
+  <PV_Aquatics_CoastalAccessRequired>Must be constructed at a coastal settlement (requires at least one adjacent water tile on the Geoscape).</PV_Aquatics_CoastalAccessRequired>
+</LanguageData>

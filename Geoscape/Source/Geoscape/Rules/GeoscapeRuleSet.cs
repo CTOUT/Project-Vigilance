@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using ProjectVigilance.Geoscape.Sensory;
@@ -189,7 +189,7 @@ public sealed class GeoscapeRuleSet : IExposable
     /// </summary>
     public static int VisibilityRank(VisibilityMode m) => m switch
     {
-        VisibilityMode.ClassicHazeOfWar      => 0,
+        VisibilityMode.FogOfWar      => 0,
         VisibilityMode.PlanetarySurveillance => 1,
         VisibilityMode.Omniscient            => 2,
         _ => 1
@@ -270,8 +270,8 @@ public sealed class GeoscapeRuleSet : IExposable
     {
         switch (profile)
         {
-            case CampaignProfile.ClassicHaze:
-                Visibility.Value = VisibilityMode.ClassicHazeOfWar;
+            case CampaignProfile.FogOfWar:
+                Visibility.Value = VisibilityMode.FogOfWar;
                 ColonyScoutRadius.Value = 3.0f;
                 ColonyIdentificationRadius.Value = 1.0f;
                 CaravanScoutRadius.Value = 2.0f;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using HarmonyLib;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape;
@@ -20,7 +20,7 @@ public sealed class TileHighlightVisibilityTests
     {
         GeoscapeCampaignRules.ResetStaticDataForTesting();
         originalMode = GeoscapeMod.Settings.visibilityMode;
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         SensoryManager.Instance = new SensoryManager(null!);
         SensoryManager.IsExploredOverride = null;
         SensoryManager.IsIdentifiedOverride = null;
@@ -47,7 +47,7 @@ public sealed class TileHighlightVisibilityTests
         Assert.IsTrue(
             TileHighlightVisibilityUtility.ShouldRenderSingleTileHighlight(
                 PlanetTile.Invalid,
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 isPlaying: true,
                 isExplored: false));
 
@@ -69,7 +69,7 @@ public sealed class TileHighlightVisibilityTests
         Assert.IsTrue(
             TileHighlightVisibilityUtility.ShouldRenderSingleTileHighlight(
                 validTile,
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 isPlaying: false,
                 isExplored: false));
 
@@ -77,7 +77,7 @@ public sealed class TileHighlightVisibilityTests
         Assert.IsTrue(
             TileHighlightVisibilityUtility.ShouldRenderSingleTileHighlight(
                 validTile,
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 isPlaying: true,
                 isExplored: true));
 
@@ -85,7 +85,7 @@ public sealed class TileHighlightVisibilityTests
         Assert.IsFalse(
             TileHighlightVisibilityUtility.ShouldRenderSingleTileHighlight(
                 validTile,
-                VisibilityMode.ClassicHazeOfWar,
+                VisibilityMode.FogOfWar,
                 isPlaying: true,
                 isExplored: false));
     }

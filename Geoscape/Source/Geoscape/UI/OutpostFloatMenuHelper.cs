@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ProjectVigilance.Core.Localization;
 using ProjectVigilance.Geoscape.Sensory;
 using RimWorld;
 using RimWorld.Planet;
@@ -78,10 +79,11 @@ internal static class OutpostFloatMenuHelper
     {
         string actorSuffix = includeCaravanNameInLabel ? $" with caravan {caravan.LabelCap}" : string.Empty;
 
+        string deployRelayBase = VigilanceLoc.Tr("PV_Menu_DeployListeningPost", "Deploy Automated Listening Post");
         bool canAffordRelay = OutpostMaterialUtility.CanDeployAutomatedRelay(caravan, out string missingRelay);
         string relayLabel = canAffordRelay
-            ? $"Deploy Automated Listening Post{actorSuffix} ({OutpostMaterialUtility.AutomatedRelaySteelCost} Steel, {OutpostMaterialUtility.AutomatedRelayComponentCost} Components)"
-            : $"Deploy Automated Listening Post{actorSuffix} ({missingRelay})";
+            ? $"{deployRelayBase}{actorSuffix} ({OutpostMaterialUtility.AutomatedRelaySteelCost} Steel, {OutpostMaterialUtility.AutomatedRelayComponentCost} Components)"
+            : $"{deployRelayBase}{actorSuffix} ({missingRelay})";
 
         options.Add(new FloatMenuOption(relayLabel, () =>
         {
@@ -98,10 +100,11 @@ internal static class OutpostFloatMenuHelper
 
         if (SonarGatingUtility.ShouldOfferSonarDeployment(tile))
         {
+            string deploySonarBase = VigilanceLoc.Tr("PV_Menu_DeploySonarStation", "Deploy Automated Sonar Station");
             bool canAffordSonar = OutpostMaterialUtility.CanDeployAutomatedSonar(caravan, out string missingSonar);
             string sonarLabel = canAffordSonar
-                ? $"Deploy Automated Sonar Station{actorSuffix} ({OutpostMaterialUtility.AutomatedSonarSteelCost} Steel, {OutpostMaterialUtility.AutomatedSonarComponentCost} Components)"
-                : $"Deploy Automated Sonar Station{actorSuffix} ({missingSonar})";
+                ? $"{deploySonarBase}{actorSuffix} ({OutpostMaterialUtility.AutomatedSonarSteelCost} Steel, {OutpostMaterialUtility.AutomatedSonarComponentCost} Components)"
+                : $"{deploySonarBase}{actorSuffix} ({missingSonar})";
 
             options.Add(new FloatMenuOption(sonarLabel, () =>
             {
@@ -122,10 +125,11 @@ internal static class OutpostFloatMenuHelper
             return;
         }
 
+        string constructBeaconBase = VigilanceLoc.Tr("PV_Menu_ConstructBeacon", "Construct Signal Beacon");
         bool canAffordBeacon = OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out string missingBeacon);
         if (!canAffordBeacon)
         {
-            options.Add(new FloatMenuOption($"Construct Signal Beacon ({missingBeacon})", null, MenuOptionPriority.Low)
+            options.Add(new FloatMenuOption($"{constructBeaconBase} ({missingBeacon})", null, MenuOptionPriority.Low)
             {
                 Disabled = true
             });
@@ -148,7 +152,7 @@ internal static class OutpostFloatMenuHelper
             for (int m = 0; m < completeMaterials.Count; m++)
             {
                 ThingDef mat = completeMaterials[m];
-                string beaconLabel = $"Construct Signal Beacon ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} {mat.LabelCap})";
+                string beaconLabel = $"{constructBeaconBase} ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} {mat.LabelCap})";
                 options.Add(new FloatMenuOption(beaconLabel, () =>
                 {
                     if (OutpostMaterialUtility.CountItem(caravan, mat) >= OutpostMaterialUtility.SignalBeaconWoodOrStoneCost)
@@ -163,7 +167,7 @@ internal static class OutpostFloatMenuHelper
         }
         else
         {
-            string beaconLabel = $"Construct Signal Beacon ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} Wood/Stone)";
+            string beaconLabel = $"{constructBeaconBase} ({OutpostMaterialUtility.SignalBeaconWoodOrStoneCost} Wood/Stone)";
             options.Add(new FloatMenuOption(beaconLabel, () =>
             {
                 if (OutpostMaterialUtility.CanDeploySignalBeacon(caravan, out _))

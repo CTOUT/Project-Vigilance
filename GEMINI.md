@@ -108,3 +108,9 @@
 - Package only `About/Preview.png` (`16:9`, `640×360`–`1280×720`, `< 1 MB`) and `About/ModIcon.png` (`64×64` RGBA32 PNG); never ship unused `About/Icon.png`.
 - New shaders in 1.7 must be raw GLSL `#version 450` (`Shaders/*.vert.glsl`, `*.frag.glsl` + `ShaderDef` / `MaterialDef`, live-reloadable via `-WatchShaders`); use `WaylithJobRuntime` for multithreaded C# jobs and `Actions/tools > General > Frame Profiler` (`ModAssembly!*`) or `-mod=<ids>` for isolated performance testing (`Logs/Player.log`).
 - Authoritative references: [RimWorld Wiki Modding Tutorials](https://rimworldwiki.com/wiki/Modding_Tutorials), [RimWorld 1.7 Mod Updates](https://rimworldwiki.com/wiki/Modding_Tutorials/RimWorld_1.7_Mod_Updates), and [Ludeon Modder Primer for 1.7](https://docs.google.com/document/d/e/2PACX-1vSykw5_DYaaw42nEznI9zmBZVT_Vgg2bxYq_v2XWvAsHC3QSKFuDK2OyiQ5WC9jvVRUcrjpFt7xLLF5/pub).
+
+## 19. Automated Anti-Monolith, i18n & Terminology Hygiene Guards
+
+- Keep every new or modified production C# file under `1,200` lines; split cohesive responsibilities cleanly via `partial class` seams or dedicated domain helpers (enforced by `HygieneAndLocalizationGuardTests.ProductionSourceFiles_StayBelowMonolithCeiling`).
+- Every `PV_*` key defined in `*/1.7/Languages/English/Keyed/*.xml` MUST be actively wired in production C#, and every `PV_*` literal referenced in C# MUST exist in XML with zero duplicates (enforced by `HygieneAndLocalizationGuardTests`).
+- Use canonical product terminology (`VisibilityMode.FogOfWar`, `CampaignProfile.FogOfWar`, `PlanetarySurveillance`, `Omniscient`); never reference `[Obsolete]` legacy aliases (`ClassicHazeOfWar`, `ClassicHaze`), which remain strictly for Scribe savegame backwards compatibility.

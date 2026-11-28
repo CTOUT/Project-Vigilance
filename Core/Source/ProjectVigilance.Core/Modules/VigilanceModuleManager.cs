@@ -58,7 +58,7 @@ public static class VigilanceModuleManager
             Id = VigilanceModuleId.Geoscape,
             PackageId = "ProjectVigilance.Geoscape",
             DisplayName = "Project Vigilance - Geoscape & Early Warning",
-            Summary = "Overland incursions, tactical interceptions, 3-tier Haze of War, ground radar networks, and listening posts.",
+            Summary = "Overland incursions, tactical interceptions, 3-tier Fog of War, ground radar networks, and listening posts.",
             WorkshopUrl = "https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226"
         },
         new VigilanceModuleDescriptor

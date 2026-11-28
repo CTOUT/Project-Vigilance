@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
@@ -311,7 +311,7 @@ namespace ProjectVigilance.Geoscape.Patches
         {
             return GeoscapeMod.Settings != null
                 && GeoscapeMod.Settings.optimiseUnexploredTerrain
-                && GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar
+                && GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar
                 && WorldDrawLayer_ShroudShell.Instance != null
                 && WorldDrawLayer_ShroudShell.Instance.IsGeometryBuilt;
         }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using HarmonyLib;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -22,7 +22,7 @@ public sealed class ScoutHorizonDropPodTests
     {
         GeoscapeCampaignRules.ResetStaticDataForTesting();
         originalMode = GeoscapeMod.Settings.visibilityMode;
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
     }
 
     [TestCleanup]

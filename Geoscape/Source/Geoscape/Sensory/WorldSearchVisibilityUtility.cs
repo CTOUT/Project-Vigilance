@@ -1,4 +1,4 @@
-using ProjectVigilance.Geoscape.Orbital;
+﻿using ProjectVigilance.Geoscape.Orbital;
 using ProjectVigilance.Geoscape.Patches;
 using ProjectVigilance.Geoscape.World;
 using RimWorld;
@@ -38,7 +38,7 @@ public static class WorldSearchVisibilityUtility
         bool isTileExplored,
         bool isTileIdentified)
     {
-        if (mode != VisibilityMode.ClassicHazeOfWar)
+        if (mode != VisibilityMode.FogOfWar)
         {
             return WorldSearchElementState.VisibleUnmasked;
         }
@@ -97,7 +97,7 @@ public static class WorldSearchVisibilityUtility
             return WorldSearchElementState.Excluded;
         }
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             return WorldSearchElementState.VisibleUnmasked;
         }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
@@ -41,7 +41,7 @@ public sealed class AuditWave1RegressionTests : GeoscapeTestBase
 
         WorldObject dummyOrbital = new();
 
-        savedMode = VisibilityMode.ClassicHazeOfWar;
+        savedMode = VisibilityMode.FogOfWar;
         Assert.IsFalse(VigilanceModuleManager.IsOrbitalEntityDetected(dummyOrbital));
 
         savedMode = VisibilityMode.PlanetarySurveillance;

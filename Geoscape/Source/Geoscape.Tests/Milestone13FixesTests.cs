@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -314,7 +314,7 @@ public sealed class Milestone13FixesTests
 
         try
         {
-            settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            settings.visibilityMode = VisibilityMode.FogOfWar;
             settings.radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
             settings.usePlayerFactionColor = false;
             settings.radarCustomColor = new Color(0f, 1f, 0.4f); // Distinct green
@@ -455,7 +455,7 @@ public sealed class Milestone13FixesTests
         var origVis = settings.visibilityMode;
         try
         {
-            settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            settings.visibilityMode = VisibilityMode.FogOfWar;
             var coastalTile = MakeTile(50);
             var manager = new SensoryManager(Find.World!);
             SensoryManager.Instance = manager;

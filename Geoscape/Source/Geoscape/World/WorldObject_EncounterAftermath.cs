@@ -375,7 +375,8 @@ public class WorldObject_EncounterAftermath : MapParent, IThingHolder
             if (expiryTick > 0 && Current.Game?.tickManager is { } tm)
             {
                 int remaining = Math.Max(0, expiryTick - tm.TicksGame);
-                sb.Append($"Wilderness decay in: {remaining.ToStringTicksToPeriod()}");
+                string period = remaining.ToStringTicksToPeriod();
+                sb.Append(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Aftermath_ScavengeTime", $"Wilderness decay in: {period}", period));
             }
         }
         catch

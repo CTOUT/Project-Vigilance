@@ -306,23 +306,27 @@ public class WorldObject_Satellite : WorldObject, IOrbitalEntity, ISensorProvide
     public string GetOrbitalInspectString()
     {
         StringBuilder sb = new();
-        sb.Append("Role: ").AppendLine(role.ToString());
-        sb.Append("Altitude: ").Append(orbit.AltitudeKm.ToString("F0")).Append(" km (Period: ")
-          .Append((orbit.PeriodTicks / 2500f).ToString("F1")).AppendLine(" hrs)");
-        sb.Append("Inclination: ").Append(orbit.InclinationDeg.ToString("F1")).Append("° (Precession: ")
-          .Append(orbit.PrecessionRateDegPerDay.ToString("F1")).AppendLine("°/day)");
+        string alt = orbit.AltitudeKm.ToString("F0");
+        string period = (orbit.PeriodTicks / 2500f).ToString("F1");
+        string inc = orbit.InclinationDeg.ToString("F1");
+        string prec = orbit.PrecessionRateDegPerDay.ToString("F1");
+        string vel = OrbitalFlightModel.CalculateOrbitalVelocityKmS(orbit).ToString("F2");
+        string footprint = footprintRadiusInTiles.ToString("F0");
 
-        float vel = OrbitalFlightModel.CalculateOrbitalVelocityKmS(orbit);
-        sb.Append("Orbital Velocity: ").Append(vel.ToString("F2")).AppendLine(" km/s");
-        sb.Append("Coverage Footprint: ").Append(footprintRadiusInTiles.ToString("F0")).AppendLine(" tiles");
+        sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Satellite_Role", $"Role: {role}", role.ToString()));
+        sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Satellite_Altitude", $"Altitude: {alt} km (Period: {period} hrs)", alt, period));
+        sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Satellite_Inclination", $"Inclination: {inc}° (Precession: {prec}°/day)", inc, prec));
+        sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Satellite_Velocity", $"Orbital Velocity: {vel} km/s", vel));
+        sb.AppendLine(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Satellite_Footprint", $"Coverage Footprint: {footprint} tiles", footprint));
 
         if (inServiceArea)
         {
-            sb.Append("Status: In Station Service Corridor (Maintenance & Sync: ").Append(ParentStationName).Append(")");
+            string stationName = ParentStationName;
+            sb.Append(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Satellite_ServiceCorridor", $"Status: In Station Service Corridor (Maintenance & Sync: {stationName})", stationName));
         }
         else
         {
-            sb.Append("Status: Autonomous Mission (Drifting Ground Track)");
+            sb.Append(ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Inspect_Satellite_Autonomous", "Status: Autonomous Mission (Drifting Ground Track)"));
         }
 
         return sb.ToString().TrimEnd();

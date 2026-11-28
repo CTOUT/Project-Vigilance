@@ -100,7 +100,9 @@ public static class SensoryNarrativeUtility
             return trackingId > 0 ? $"Approaching Force #{trackingId}" : "Approaching Force";
         }
 
-        return trackingId > 0 ? $"Contact-{trackingId}" : "Unidentified Contact";
+        return trackingId > 0
+            ? $"Contact-{trackingId}"
+            : ProjectVigilance.Core.Localization.VigilanceLoc.Tr("PV_Contact_Unidentified", "Unidentified Contact");
     }
 
     /// <summary>
