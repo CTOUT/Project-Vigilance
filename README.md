@@ -29,13 +29,13 @@ The decoupled 5-package suite (**Core**, **Geoscape & Early Warning**, **Orbital
 | **Aquatic Operations & Sonar**     | `ProjectVigilance.Aquatics` | [#3847195338](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195338) |
 | **Thermal Integrity & Materials**  | `ProjectVigilance.Thermal`  | [#3847195139](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195139) |
 
-| Module | Package ID | Steam Workshop |
-| --- | --- | --- |
-| **Core Framework** | `ProjectVigilance.Core` | [#3847194681](https://steamcommunity.com/sharedfiles/filedetails/?id=3847194681) |
-| **Geoscape & Early Warning** | `ProjectVigilance.Geoscape` | [#3822378226](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226) |
-| **Orbital Logistics & Satellites** | `ProjectVigilance.Orbital` | [#3847195514](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195514) |
-| **Aquatic Operations & Sonar** | `ProjectVigilance.Aquatics` | [#3847195338](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195338) |
-| **Thermal Integrity & Materials** | `ProjectVigilance.Thermal` | [#3847195139](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195139) |
+| Module                             | Package ID                  | Steam Workshop                                                                   |
+| ---------------------------------- | --------------------------- | -------------------------------------------------------------------------------- |
+| **Core Framework**                 | `ProjectVigilance.Core`     | [#3847194681](https://steamcommunity.com/sharedfiles/filedetails/?id=3847194681) |
+| **Geoscape & Early Warning**       | `ProjectVigilance.Geoscape` | [#3822378226](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226) |
+| **Orbital Logistics & Satellites** | `ProjectVigilance.Orbital`  | [#3847195514](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195514) |
+| **Aquatic Operations & Sonar**     | `ProjectVigilance.Aquatics` | [#3847195338](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195338) |
+| **Thermal Integrity & Materials**  | `ProjectVigilance.Thermal`  | [#3847195139](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195139) |
 
 ### What Does It Do?
 
@@ -127,7 +127,8 @@ To maintain performance, simplicity, and community compatibility, the project is
 
 ### Testing, Roadmap & Operations
 
-- **[Milestone 1.5 Quality Assurance & Playtest Plan (TC-01 – TC-10)](docs/milestone_1_5_test_plan.md)**
+- **[Milestone 1.5 Quality Assurance & Playtest Plan (Archived)](docs/archive/milestone_1_5_test_plan.md)**
+- **[Archived Plans, Blueprints & Release Notes](docs/archive/README.md)**
 - **[Comprehensive Security, Accessibility & Architecture Audit (2026-11-26)](docs/audits/2026-11-26-comprehensive-audit.md)**
 - **[Authoritative Release & Publishing Process](docs/release-process.md)**
 - **[Frequently Asked Questions (FAQ)](docs/faq.md)**
