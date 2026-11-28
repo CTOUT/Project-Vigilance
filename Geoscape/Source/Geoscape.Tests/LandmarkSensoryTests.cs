@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RimWorld;
 using RimWorld.Planet;
@@ -170,7 +170,7 @@ public sealed class LandmarkSensoryTests : GeoscapeTestBase
 
         try
         {
-            GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
 
             var def = new RimWorld.LandmarkDef { defName = "Ruins" };
             var lm = new RimWorld.Landmark { def = def };
@@ -225,7 +225,7 @@ public sealed class LandmarkSensoryTests : GeoscapeTestBase
 
         try
         {
-            GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
             SensoryManager.Instance = new SensoryManager(null!);
 
             PlanetTile exploredUnidentifiedTile = new(101);

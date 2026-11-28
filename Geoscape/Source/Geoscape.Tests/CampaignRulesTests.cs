@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -53,10 +53,10 @@ public class CampaignRulesTests
     }
 
     [TestMethod]
-    [DataRow(VisibilityMode.ClassicHazeOfWar, VisibilityMode.PlanetarySurveillance, false, RuleTransitionVerdict.RequiresEscalationConfirmation)]
-    [DataRow(VisibilityMode.PlanetarySurveillance, VisibilityMode.ClassicHazeOfWar, false, RuleTransitionVerdict.Blocked)]
-    [DataRow(VisibilityMode.PlanetarySurveillance, VisibilityMode.ClassicHazeOfWar, true, RuleTransitionVerdict.RequiresUnsafeConfirmation)]
-    [DataRow(VisibilityMode.ClassicHazeOfWar, VisibilityMode.ClassicHazeOfWar, false, RuleTransitionVerdict.NoChange)]
+    [DataRow(VisibilityMode.FogOfWar, VisibilityMode.PlanetarySurveillance, false, RuleTransitionVerdict.RequiresEscalationConfirmation)]
+    [DataRow(VisibilityMode.PlanetarySurveillance, VisibilityMode.FogOfWar, false, RuleTransitionVerdict.Blocked)]
+    [DataRow(VisibilityMode.PlanetarySurveillance, VisibilityMode.FogOfWar, true, RuleTransitionVerdict.RequiresUnsafeConfirmation)]
+    [DataRow(VisibilityMode.FogOfWar, VisibilityMode.FogOfWar, false, RuleTransitionVerdict.NoChange)]
     public void Evaluate_EscalatableRule_ReturnsExpectedVerdict(
         VisibilityMode initialMode,
         VisibilityMode candidateMode,
@@ -145,8 +145,8 @@ public class CampaignRulesTests
     {
         GeoscapeRuleSet rules = new();
 
-        rules.ApplyProfile(CampaignProfile.ClassicHaze);
-        Assert.AreEqual(VisibilityMode.ClassicHazeOfWar, rules.Visibility.Value);
+        rules.ApplyProfile(CampaignProfile.FogOfWar);
+        Assert.AreEqual(VisibilityMode.FogOfWar, rules.Visibility.Value);
         Assert.AreEqual(3.0f, rules.ColonyScoutRadius.Value, 0.01f);
         Assert.AreEqual(1.0f, rules.ColonyIdentificationRadius.Value, 0.01f);
         Assert.AreEqual(2.0f, rules.CaravanScoutRadius.Value, 0.01f);
@@ -160,7 +160,7 @@ public class CampaignRulesTests
         Assert.AreEqual(1.0f, rules.CaravanIdentificationRadius.Value, 0.01f);
 
         rules.ApplyProfile(CampaignProfile.HardcoreVigilance);
-        Assert.AreEqual(VisibilityMode.ClassicHazeOfWar, rules.Visibility.Value);
+        Assert.AreEqual(VisibilityMode.FogOfWar, rules.Visibility.Value);
         Assert.AreEqual(2.0f, rules.ColonyScoutRadius.Value, 0.01f);
         Assert.AreEqual(1.0f, rules.ColonyIdentificationRadius.Value, 0.01f);
         Assert.AreEqual(1.0f, rules.CaravanScoutRadius.Value, 0.01f);
@@ -172,8 +172,8 @@ public class CampaignRulesTests
     {
         GeoscapeRuleSet rules = new();
 
-        rules.ApplyProfile(CampaignProfile.ClassicHaze);
-        Assert.AreEqual(CampaignProfile.ClassicHaze, rules.DetectCurrentProfile());
+        rules.ApplyProfile(CampaignProfile.FogOfWar);
+        Assert.AreEqual(CampaignProfile.FogOfWar, rules.DetectCurrentProfile());
 
         rules.ApplyProfile(CampaignProfile.PlanetarySurveillance);
         Assert.AreEqual(CampaignProfile.PlanetarySurveillance, rules.DetectCurrentProfile());
@@ -210,7 +210,7 @@ public class CampaignRulesTests
         campaign.Rules.ColonyScoutRadius.Value = 12.0f;
         GeoscapeCampaignRules.TestInstance = campaign;
 
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         GeoscapeMod.Settings.colonyScoutRadius = 5.0f;
 
         Assert.AreEqual(VisibilityMode.Omniscient, GeoscapeRules.VisibilityMode);
@@ -225,7 +225,7 @@ public class CampaignRulesTests
     public void SelectSnapshotSource_ConsumesDraft_OnlyDuringWorldGeneration()
     {
         GeoscapeRuleSet draft = new();
-        draft.Visibility.Value = VisibilityMode.ClassicHazeOfWar;
+        draft.Visibility.Value = VisibilityMode.FogOfWar;
         GeoscapeSettings defaults = new() { visibilityMode = VisibilityMode.PlanetarySurveillance };
 
         var result = GeoscapeCampaignRules.SelectSnapshotSource(
@@ -498,11 +498,11 @@ public class CampaignRulesTests
     public void ApplyAdoptionProfile_ClassicHaze_SetsClassicHazeOfWar()
     {
         GeoscapeCampaignRules campaign = new();
-        campaign.ApplyAdoptionProfile(CampaignProfile.ClassicHaze, "Test User");
+        campaign.ApplyAdoptionProfile(CampaignProfile.FogOfWar, "Test User");
 
         Assert.AreEqual(1, campaign.Ledger.Count);
         Assert.AreEqual(RuleChangeKind.ModAdoption, campaign.Ledger[0].kind);
-        Assert.AreEqual(VisibilityMode.ClassicHazeOfWar, campaign.Rules.Visibility.Value);
+        Assert.AreEqual(VisibilityMode.FogOfWar, campaign.Rules.Visibility.Value);
     }
 
     [TestMethod]

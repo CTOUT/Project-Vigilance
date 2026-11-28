@@ -27,7 +27,7 @@ public static partial class WorldObject_Visibility_Patch
 
         public static bool Prefix(WorldDrawLayer_Landmarks? __instance, Landmark landmark, PlanetTile tile)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
@@ -126,7 +126,7 @@ public static partial class WorldObject_Visibility_Patch
         public static void Postfix(ref List<PlanetTile> __result)
         {
             VisibilityMode mode = GeoscapeRules.VisibilityMode;
-            if (mode != VisibilityMode.ClassicHazeOfWar || __result == null || __result.Count == 0)
+            if (mode != VisibilityMode.FogOfWar || __result == null || __result.Count == 0)
             {
                 return;
             }
@@ -210,7 +210,7 @@ public static partial class WorldObject_Visibility_Patch
 
         public static bool Prefix()
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
@@ -316,7 +316,7 @@ public static partial class WorldObject_Visibility_Patch
     {
         public static bool Prefix(WorldFeatureTextMesh text, WorldFeature feature)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
@@ -342,7 +342,7 @@ public static partial class WorldObject_Visibility_Patch
     {
         public static void Postfix(WorldFeature feature, ref bool __result)
         {
-            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!__result || GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return;
             }

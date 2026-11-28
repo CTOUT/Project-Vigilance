@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using RimWorld.Planet;
@@ -136,7 +136,7 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
     {
         get
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return false;
             }
@@ -366,7 +366,7 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
     {
         Instance = this;
 
-        if (planetLayer == null || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (planetLayer == null || GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             HideAndClearChunkSubMeshes();
             _isGeometryBuilt = false;
@@ -567,7 +567,7 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
         SensoryManager sensory)
     {
         int count = Math.Min(layer.TilesCount, hierarchy.TileCount);
-        bool allClear = GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar;
+        bool allClear = GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar;
 
         for (int t = 0; t < count; t++)
         {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using ProjectVigilance.Core.Localization;
@@ -54,7 +54,7 @@ public partial class GeoscapeSettings : ModSettings
     public bool resetThreatCooldownOnArrival = false;
     public bool enableTacticalIngressFlanking = true;
 
-    public VisibilityMode visibilityMode = VisibilityMode.ClassicHazeOfWar;
+    public VisibilityMode visibilityMode = VisibilityMode.FogOfWar;
     public RadarOutlineStyle radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
     public bool usePlayerFactionColor = true;
     public SensoryTheme sensoryTheme = SensoryTheme.TacticalCyan;
@@ -211,7 +211,7 @@ public partial class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref resetThreatCooldownOnArrival, "resetThreatCooldownOnArrival", false);
         Scribe_Values.Look(ref enableTacticalIngressFlanking, "enableTacticalIngressFlanking", true);
 
-        Scribe_Values.Look(ref visibilityMode, "visibilityMode", VisibilityMode.ClassicHazeOfWar);
+        Scribe_Values.Look(ref visibilityMode, "visibilityMode", VisibilityMode.FogOfWar);
         Scribe_Values.Look(ref radarOutlineStyle, "radarOutlineStyle", RadarOutlineStyle.BoundaryAndGrid);
         Scribe_Values.Look(ref usePlayerFactionColor, "usePlayerFactionColor", true);
         Scribe_Values.Look(ref sensoryTheme, "sensoryTheme", SensoryTheme.TacticalCyan);
@@ -573,7 +573,7 @@ public partial class GeoscapeSettings : ModSettings
         showFactionEmblems = true;
         resetThreatCooldownOnArrival = false;
         enableTacticalIngressFlanking = true;
-        visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        visibilityMode = VisibilityMode.FogOfWar;
         radarOutlineStyle = RadarOutlineStyle.BoundaryAndGrid;
         usePlayerFactionColor = true;
         radarCustomColor = new Color(0f, 0.90f, 1.0f);

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape;
 using ProjectVigilance.Geoscape.Sensory;
@@ -18,7 +18,7 @@ public sealed class EarlyWarningDispatcherTests
     {
         GeoscapeTestHarness.ResetAllStaticState();
         GeoscapeMod.Settings.enableEarlyWarningLetters = true;
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
     }
 
     [TestCleanup]

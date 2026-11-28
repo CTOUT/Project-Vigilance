@@ -125,7 +125,7 @@ public static partial class WorldObject_Visibility_Patch
             return !VigilanceModuleManager.IsOrbitalEntityDetected(wo);
         }
 
-        if (mode != VisibilityMode.ClassicHazeOfWar)
+        if (mode != VisibilityMode.FogOfWar)
         {
             return false;
         }

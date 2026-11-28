@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using RimWorld.Planet;
@@ -84,7 +84,7 @@ namespace ProjectVigilance.Geoscape.Sensory
         {
             get
             {
-                if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+                if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
                 {
                     return false;
                 }
@@ -100,7 +100,7 @@ namespace ProjectVigilance.Geoscape.Sensory
         {
             Instance = this;
 
-            if (planetLayer == null || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (planetLayer == null || GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 HideAndClearAllSubMeshes();
                 _isBuilt = false;
@@ -218,7 +218,7 @@ namespace ProjectVigilance.Geoscape.Sensory
 
         internal void AdvanceFrameWork()
         {
-            if (!_isBuilt || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (!_isBuilt || GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return;
             }

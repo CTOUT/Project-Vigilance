@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using RimWorld;
 using RimWorld.Planet;
@@ -23,7 +23,7 @@ public sealed class CaravanExpeditionTests : GeoscapeTestBase
             float tilesPerRadian = layer.ApproxDistanceInTiles(1.0f);
             float degPerTile = Mathf.Rad2Deg / tilesPerRadian;
             System.Console.WriteLine($"Tiles per radian: {tilesPerRadian:F2}");
-            System.Console.WriteLine($"Actual degrees per tile: {degPerTile:F3}°");
+            System.Console.WriteLine($"Actual degrees per tile: {degPerTile:F3}Â°");
         }
     }
 
@@ -414,7 +414,7 @@ public sealed class CaravanExpeditionTests : GeoscapeTestBase
         {
             GeoscapeTestHarness.EnsureEnvironmentInitialised();
 
-            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
             var sensory = new SensoryManager(null!);
             SensoryManager.Instance = sensory;
             SensoryManager.IsExploredOverride = t => t.tileId == 100; // Only tile 100 is explored
@@ -463,7 +463,7 @@ public sealed class CaravanExpeditionTests : GeoscapeTestBase
     {
         try
         {
-            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
             var unexploredTile = (PlanetTile)501;
             var exploredTile = (PlanetTile)502;
 
@@ -524,7 +524,7 @@ public sealed class CaravanExpeditionTests : GeoscapeTestBase
 
         try
         {
-            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
             SensoryManager.Instance = null;
 
             var nextTile = (PlanetTile)503;
@@ -561,7 +561,7 @@ public sealed class CaravanExpeditionTests : GeoscapeTestBase
     {
         try
         {
-            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
 
             var startTile = (PlanetTile)100;
             var obstacleTile = (PlanetTile)101;
@@ -620,7 +620,7 @@ public sealed class CaravanExpeditionTests : GeoscapeTestBase
     {
         try
         {
-            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+            ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
 
             var startTile = (PlanetTile)100;
             var destTile = (PlanetTile)105;

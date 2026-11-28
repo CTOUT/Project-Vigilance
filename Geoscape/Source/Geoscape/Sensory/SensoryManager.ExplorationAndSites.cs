@@ -33,7 +33,7 @@ public partial class SensoryManager
             return isExploredOverride(new PlanetTile(tileId));
         }
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             return true;
         }
@@ -95,7 +95,7 @@ public partial class SensoryManager
             return isExploredOverride(new PlanetTile(tileId));
         }
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             return true;
         }
@@ -166,7 +166,7 @@ public partial class SensoryManager
             return isExploredOverride(wo.Tile);
         }
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             return true;
         }
@@ -197,7 +197,7 @@ public partial class SensoryManager
         }
 
         VisibilityMode mode = GeoscapeRules.VisibilityMode;
-        if (mode != VisibilityMode.ClassicHazeOfWar)
+        if (mode != VisibilityMode.FogOfWar)
         {
             return false;
         }
@@ -380,7 +380,7 @@ public partial class SensoryManager
         }
 
         VisibilityMode mode = GeoscapeRules.VisibilityMode;
-        if (mode != VisibilityMode.ClassicHazeOfWar)
+        if (mode != VisibilityMode.FogOfWar)
         {
             return true;
         }

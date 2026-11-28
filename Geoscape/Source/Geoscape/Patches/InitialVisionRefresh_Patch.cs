@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -69,7 +69,7 @@ public static class InitialVisionRefresh_Patch
                 return;
             }
 
-            if (Current.ProgramState != ProgramState.Playing || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (Current.ProgramState != ProgramState.Playing || GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return;
             }

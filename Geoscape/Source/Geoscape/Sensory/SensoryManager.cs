@@ -279,7 +279,7 @@ public partial class SensoryManager : WorldComponent
 
         // Responsive movement check: if an active player caravan steps onto a new hex,
         // instantly reveal fog and update active vision without waiting for the 250-tick sweep
-        if (GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar && Find.TickManager.TicksGame % 5 == 0)
+        if (GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar && Find.TickManager.TicksGame % 5 == 0)
         {
             CheckPlayerCaravanMovement();
         }

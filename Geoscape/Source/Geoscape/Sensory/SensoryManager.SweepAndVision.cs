@@ -83,7 +83,7 @@ public partial class SensoryManager
                     sensorsChanged = true;
                 }
 
-                if (mode == VisibilityMode.ClassicHazeOfWar)
+                if (mode == VisibilityMode.FogOfWar)
                 {
                     EnsureExploredArray(currentTile.tileId + 1);
                     if (sensor.IsStationary)
@@ -143,7 +143,7 @@ public partial class SensoryManager
                     }
                 }
 
-                if (mode == VisibilityMode.ClassicHazeOfWar)
+                if (mode == VisibilityMode.FogOfWar)
                 {
                     UpdateHazeActiveVision();
                     var allCaravans = Find.World?.worldObjects?.Caravans;
@@ -162,7 +162,7 @@ public partial class SensoryManager
                 WorldDrawLayer_RadarCoverage.Instance?.SetDirty();
             }
 
-            if (mode == VisibilityMode.ClassicHazeOfWar)
+            if (mode == VisibilityMode.FogOfWar)
             {
                 HazeReconnaissanceManager.Instance?.CheckUncoveredSites();
             }

@@ -21,7 +21,8 @@ public enum CampaignProfile
     /// <summary>Full planetary Fog of War, night rest, multi-vector synchronisation, and tactical flanking.</summary>
     FogOfWar,
 
-    /// <summary>Backwards-compatibility alias for FogOfWar.</summary>
+    /// <summary>Backwards-compatibility alias for FogOfWar (retained for Scribe savegame deserialisation).</summary>
+    [System.Obsolete("Use CampaignProfile.FogOfWar instead. Retained solely for Scribe backwards compatibility.")]
     ClassicHaze = FogOfWar,
 
     /// <summary>Planetary geography known, dynamic incursions hidden outside radar envelopes.</summary>

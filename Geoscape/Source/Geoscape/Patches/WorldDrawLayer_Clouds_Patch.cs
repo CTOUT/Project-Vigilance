@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 using HarmonyLib;
 using ProjectVigilance.Geoscape.Sensory;
@@ -42,7 +42,7 @@ public static class WorldDrawLayer_Clouds_Patch
 
         int targetQueue = ComputeTargetRenderQueue(
             s_originalRenderQueue,
-            GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar);
+            GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar);
 
         if (mat.renderQueue != targetQueue)
         {

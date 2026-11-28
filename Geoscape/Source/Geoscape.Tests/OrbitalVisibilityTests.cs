@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -27,7 +27,7 @@ public sealed class OrbitalVisibilityTests
         GeoscapeTestHarness.ResetAllStaticState();
         GeoscapeTestHarness.EnsureEnvironmentInitialised();
         originalMode = GeoscapeMod.Settings.visibilityMode;
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
     }
 
     [TestCleanup]
@@ -134,7 +134,7 @@ public sealed class OrbitalVisibilityTests
     {
         // Scenario: Day 1 colony without radar or comms console.
         // An NPC satellite drifts overhead. It must be concealed under ClassicHazeOfWar.
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
 
         FactionDef npcDef = new() { defName = "VoidbornEmporium", isPlayer = false };
         Faction npcFaction = new() { def = npcDef };
@@ -157,7 +157,7 @@ public sealed class OrbitalVisibilityTests
     public void WorldObject_Visibility_Patch_ShouldHideWorldObject_RevealsPlayerOrbitalEntity()
     {
         // Scenario: The player owns this orbital station/satellite. It must never be hidden.
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
 
         FactionDef playerDef = new() { defName = "PlayerColony", isPlayer = true };
         Faction playerFaction = new() { def = playerDef };
@@ -503,7 +503,7 @@ public sealed class OrbitalVisibilityTests
         }
 
         // Warm up caches on initial frame.
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         for (int i = 0; i < npcSatellites.Length; i++)
         {
             bool detected = OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[i]);
@@ -534,7 +534,7 @@ public sealed class OrbitalVisibilityTests
         Assert.IsTrue(OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[240]));
 
         // Switching back + advancing tick bucket and SweepRevision recomputes cleanly.
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         Assert.IsFalse(OrbitalVisibilityUtility.IsOrbitalEntityDetected(npcSatellites[240]));
         sensory.MarkTileExplored(new PlanetTile(1, surfaceLayer)); // Bumps SweepRevision++
         AccessTools.Field(typeof(TickManager), "ticksGameInt")!.SetValue(tickManager, 130); // Next 30-tick bucket
@@ -875,7 +875,7 @@ public sealed class OrbitalVisibilityTests
         AccessTools.Field(typeof(WorldSelector), "selected")!.SetValue(selector, selectedList);
 
         // 1. ClassicHazeOfWar (Fog of War) drops undetected NPC satellite but keeps player satellite.
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         int prunedFog = WorldObject_Visibility_Patch.PruneHiddenSelectedObjects(selector);
         Assert.AreEqual(1, prunedFog);
         Assert.AreEqual(1, selector.SelectedObjects.Count);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using ProjectVigilance.Geoscape.Sensory;
 using RimWorld;
@@ -211,7 +211,7 @@ public sealed class HazeConcealmentAndRumourTests
     [TestMethod]
     public void DetectionOnlyLayer_SettlementAndOutpostSite_MaskedAsUnknownUntilIdentified()
     {
-        ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
 
         string harmonyId = $"test.unknown.site.masking.{Guid.NewGuid():N}";
         var harmony = new HarmonyLib.Harmony(harmonyId);
@@ -298,7 +298,7 @@ public sealed class HazeConcealmentAndRumourTests
     [TestMethod]
     public void DynamicSiteSpawnedOnPreviouslyIdentifiedTile_OutsideActiveIdentification_RemainsUnknownUntilRescanned()
     {
-        ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        ProjectVigilance.Geoscape.GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
 
         var sensory = new SensoryManager(null!);
         SensoryManager.Instance = sensory;

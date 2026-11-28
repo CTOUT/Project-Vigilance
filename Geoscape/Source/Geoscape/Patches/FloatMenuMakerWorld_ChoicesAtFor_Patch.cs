@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
 using RimWorld;
@@ -148,7 +148,7 @@ public static class FloatMenuMakerWorld_ChoicesAtFor_Patch
         {
             // 2. Unexplored Tile in Black Shroud: Fog-of-war immersion
             // Do NOT leak impassable terrain, nearest passable tile coordinates, or offer construction expeditions into uncharted territory.
-            bool isUnexplored = GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar &&
+            bool isUnexplored = GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar &&
                                 SensoryManager.Instance != null &&
                                 !SensoryManager.Instance.IsExplored(clickedTile);
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -635,7 +635,7 @@ public sealed class ShroudHierarchyTests : GeoscapeTestBase
 
         var sensory = new SensoryManager(Find.World!);
         SensoryManager.Instance = sensory;
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         WorldDrawLayer_ShroudShell.TimeSecondsOverride = () => 12f;
         WorldDrawLayer_HazeOfWar.SubMeshMaterialOverride = CreateMockMaterial;
         WorldDrawLayer_ShroudShell.SubMeshMaterialOverride = CreateMockMaterial;
@@ -724,7 +724,7 @@ public sealed class ShroudHierarchyTests : GeoscapeTestBase
         Assert.AreEqual(0, hazeLayer.VisibleFineChunkCount);
 
         // Round-trip back to ClassicHazeOfWar restores ShroudShell and Tier F frontier
-        GeoscapeMod.Settings.visibilityMode = VisibilityMode.ClassicHazeOfWar;
+        GeoscapeMod.Settings.visibilityMode = VisibilityMode.FogOfWar;
         WorldDrawLayer_HazeOfWar.InvalidateHierarchySync();
         DrainRegenerate(shellLayer);
         DrainRegenerate(hazeLayer);

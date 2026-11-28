@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
 using System.Text;
 using RimWorld;
@@ -34,7 +34,7 @@ public static class TerrainTelemetryUtility
     /// </summary>
     public static TileIntelLevel GetTileIntelLevel(VisibilityMode mode, bool isExplored, bool isIdentified)
     {
-        if (mode != VisibilityMode.ClassicHazeOfWar)
+        if (mode != VisibilityMode.FogOfWar)
         {
             return TileIntelLevel.Identified;
         }
@@ -52,7 +52,7 @@ public static class TerrainTelemetryUtility
     /// </summary>
     public static TileIntelLevel GetTileIntelLevel(PlanetTile tile)
     {
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
         {
             return TileIntelLevel.Identified;
         }

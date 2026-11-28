@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using RimWorld;
 using RimWorld.Planet;
@@ -191,7 +191,7 @@ public static class OptimisticPathingUtility
     public static bool ShouldUseOptimisticPathing()
     {
         return (Active || ForceActive) &&
-               GeoscapeRules.VisibilityMode == VisibilityMode.ClassicHazeOfWar &&
+               GeoscapeRules.VisibilityMode == VisibilityMode.FogOfWar &&
                (GeoscapeMod.Settings == null || GeoscapeMod.Settings.optimisticCaravanDetours);
     }
 
@@ -300,7 +300,7 @@ public static class OptimisticPathingUtility
             return;
         }
 
-        if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar || (GeoscapeMod.Settings != null && !GeoscapeMod.Settings.optimisticCaravanDetours))
+        if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar || (GeoscapeMod.Settings != null && !GeoscapeMod.Settings.optimisticCaravanDetours))
         {
             return;
         }

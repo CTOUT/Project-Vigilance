@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -45,7 +45,7 @@ public static class WorldSearch_Visibility_Patch
     {
         public static bool Prefix(WorldSearchElement __instance, ref string? __result)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
@@ -72,7 +72,7 @@ public static class WorldSearch_Visibility_Patch
     {
         public static void Postfix(List<WorldSearchElement> ___searchSet)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar || ___searchSet == null)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar || ___searchSet == null)
             {
                 return;
             }
@@ -86,7 +86,7 @@ public static class WorldSearch_Visibility_Patch
     {
         public static void Postfix(WorldSearchElement element, ref bool __result)
         {
-            if (__result || GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (__result || GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return;
             }
@@ -103,7 +103,7 @@ public static class WorldSearch_Visibility_Patch
     {
         public static bool Prefix(Dialog_WorldSearch __instance, WorldSearchElement element, ref bool __result)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar || TextMatchDelegate == null)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar || TextMatchDelegate == null)
             {
                 return true;
             }
@@ -165,7 +165,7 @@ public static class WorldSearch_Visibility_Patch
     {
         public static bool Prefix(WorldSearchElement element, Rect iconRect)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }
@@ -203,7 +203,7 @@ public static class WorldSearch_Visibility_Patch
     {
         public static bool Prefix(WorldSearchElement element, Rect labelRect)
         {
-            if (GeoscapeRules.VisibilityMode != VisibilityMode.ClassicHazeOfWar)
+            if (GeoscapeRules.VisibilityMode != VisibilityMode.FogOfWar)
             {
                 return true;
             }

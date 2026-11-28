@@ -37,9 +37,9 @@
 - [x] **Pre-Release Artwork & Steam Workshop Asset Pack:**
   - Replaced shared placeholder `About/Preview.png` (`16:9`, `< 1 MB`) and `About/ModIcon.png` (`64×64` RGBA32 transparent badges) across all 5 packages (`Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`).
   - Authored per-module Steam Workshop BBCode descriptions (`docs/workshop_description*.bbcode`), updated `docs/workshop_collection_description.bbcode`, and drafted `docs/workshop_changenotes_v0.5.0.txt`.
-- [ ] **Follow-Up Branch (`refactor/wave-4-i18n-and-decomposition` — Post-1.5 Audit Wave 4):**
-  - Wire the 51 orphaned XML keys (`Geoscape_Inspect/Letters/Dialog/FloatMenus.xml`), add `Orbital`/`Aquatics` `Keyed/*.xml`, and complete remaining Rule 8 raw English UI extraction (`I18N-01`).
-  - Execute low-risk `partial class` / domain splits for `WorldObject_Incursion`, `SensoryManager`, `WorldObject_Visibility_Patch`, and `GeoscapeSettings` tabs per [`docs/audits/2026-11-26-comprehensive-audit.md`](docs/audits/2026-11-26-comprehensive-audit.md).
+- [x] **Follow-Up Branch (`refactor/wave-4-i18n-and-decomposition` — Post-1.5 Audit Wave 4):**
+  - Wired all orphaned XML keys (`0` orphans across all 5 modules), added `Orbital`/`Aquatics` `Keyed/*.xml`, and added automated `HygieneAndLocalizationGuardTests` + Rule 19 enforcement.
+  - Completed `partial class` / domain splits for `WorldObject_Incursion`, `SensoryManager`, `WorldObject_Visibility_Patch`, and `GeoscapeSettings` tabs per [`docs/audits/2026-11-26-comprehensive-audit.md`](docs/audits/2026-11-26-comprehensive-audit.md).
 
 ---
 
@@ -55,9 +55,9 @@
 - [ ] **Odyssey DLC Synergy & Non-Destructive Gravcore Takeoff:**
   - Hook into 1.6 gravship components and orbital layer transit (`PlanetLayerDefs`).
   - Patch gravcore launch sequence to eliminate permanent world tile destruction, preserving planetary terrain integrity during orbital deployments without external mod dependencies.
-- [ ] **Codebase & Naming Terminology Alignment:**
-  - Audit legacy internal identifiers, enums, comments, and XML keys (e.g. `ClassicHazeOfWar`, `HazeOfWar`, `Classic`, `HazeReconnaissanceManager`) against current product terminology (`Fog of War`, `Planetary Surveillance`, `Omniscient`).
-  - Plan safe renames and Scribe backwards-compatibility aliases (`BackCompatibilityConverter_VigilanceModular` / enum parsing shims) so existing saves load cleanly with zero regressions.
+- [x] **Codebase & Naming Terminology Alignment:**
+  - Replaced all `VisibilityMode.ClassicHazeOfWar` and `CampaignProfile.ClassicHaze` references across 42 files with canonical `FogOfWar` and updated `Geoscape_Dialog.xml` profile keys.
+  - Marked legacy enum aliases `[Obsolete]` (compile-enforced under `TreatWarningsAsErrors`) while preserving Scribe savegame backwards compatibility (`HygieneAndLocalizationGuardTests`).
 - [ ] **Environmental Thermal Dynamics & Material Phase States (Future Feature):**
   - **Device Operational Temperature Envelopes:**
     - Sub-zero degradation (< -30°C): Sensor antenna rotation slowdown, battery brownout risk, sweep cadence penalty, and mechanical freezing.
