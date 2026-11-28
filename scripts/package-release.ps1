@@ -174,7 +174,7 @@ function Copy-CleanModuleLayout {
         Remove-Item -Force -ErrorAction SilentlyContinue
 
     # 1.7 content trees
-    foreach ($sub in @('Defs', 'Patches', 'Textures', 'Languages', 'Sounds')) {
+    foreach ($sub in @('Defs', 'Patches', 'Textures', 'Languages', 'Sounds', 'Shaders')) {
         Copy-OptionalTree -From (Join-Path $srcDir "1.7\$sub") -To (Join-Path $staging17 $sub)
     }
 

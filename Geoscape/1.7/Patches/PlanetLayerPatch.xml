@@ -8,4 +8,11 @@
       <li>ProjectVigilance.Geoscape.Sensory.WorldDrawLayer_RadarCoverage</li>
     </value>
   </Operation>
+
+  <Operation Class="PatchOperationReplace">
+    <xpath>Defs/ShaderDef[defName="UngeneratedPlanetParts"]/shaderProgram/fragmentShaderFileName</xpath>
+    <value>
+      <fragmentShaderFileName>PV_UngeneratedPlanetParts.frag.glsl</fragmentShaderFileName>
+    </value>
+  </Operation>
 </Patch>

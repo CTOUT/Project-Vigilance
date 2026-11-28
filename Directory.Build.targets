@@ -123,6 +123,7 @@
       <_StagingTextures Include="$(ModRootDir)1.7/Textures/**/*" Condition="Exists('$(ModRootDir)1.7/Textures')" />
       <_StagingLanguages Include="$(ModRootDir)1.7/Languages/**/*" Condition="Exists('$(ModRootDir)1.7/Languages')" />
       <_StagingSounds Include="$(ModRootDir)1.7/Sounds/**/*" Condition="Exists('$(ModRootDir)1.7/Sounds')" />
+      <_StagingShaders Include="$(ModRootDir)1.7/Shaders/**/*" Condition="Exists('$(ModRootDir)1.7/Shaders')" />
 
       <_StagingDocs Include="$(MSBuildThisFileDirectory)LICENSE" Condition="Exists('$(MSBuildThisFileDirectory)LICENSE')" />
       <_StagingDocs Include="$(ModRootDir)README.md" Condition="Exists('$(ModRootDir)README.md')" />
@@ -136,6 +137,7 @@
     <Copy SourceFiles="@(_StagingTextures)" DestinationFiles="@(_StagingTextures->'$(CleanStagingDir)1.7/Textures/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingTextures)' != ''" />
     <Copy SourceFiles="@(_StagingLanguages)" DestinationFiles="@(_StagingLanguages->'$(CleanStagingDir)1.7/Languages/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingLanguages)' != ''" />
     <Copy SourceFiles="@(_StagingSounds)" DestinationFiles="@(_StagingSounds->'$(CleanStagingDir)1.7/Sounds/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingSounds)' != ''" />
+    <Copy SourceFiles="@(_StagingShaders)" DestinationFiles="@(_StagingShaders->'$(CleanStagingDir)1.7/Shaders/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" Condition="'@(_StagingShaders)' != ''" />
     <Copy SourceFiles="@(_StagingDocs)" DestinationFolder="$(CleanStagingDir)" SkipUnchangedFiles="true" Condition="'@(_StagingDocs)' != ''" />
     <Copy SourceFiles="@(_StagingRootFiles)" DestinationFolder="$(CleanStagingDir)" SkipUnchangedFiles="true" Condition="'@(_StagingRootFiles)' != ''" />
 

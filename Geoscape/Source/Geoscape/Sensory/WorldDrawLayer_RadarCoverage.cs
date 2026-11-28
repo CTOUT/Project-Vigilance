@@ -59,8 +59,8 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
     private int[] dimTileStartVert = Array.Empty<int>();
     private int[] dimTileVertCount = Array.Empty<int>();
     private bool[] dimTileWasActive = Array.Empty<bool>();
-    private static bool s_savedUngeneratedColor;
-    private static Color s_originalUngeneratedColor = Color.white;
+    private static int s_dimOverlayPropId = -1;
+    private static bool s_appliedUngeneratedDimming;
 
     public static WorldDrawLayer_RadarCoverage? Instance { get; private set; }
 
@@ -852,34 +852,24 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
                 return;
             }
 
-            if (!s_savedUngeneratedColor)
+            if (s_dimOverlayPropId < 0)
             {
-                s_originalUngeneratedColor = mat.color;
-                s_savedUngeneratedColor = true;
+                s_dimOverlayPropId = Shader.PropertyToID("_DimOverlay");
             }
 
-            float a = dimAlpha / 255f;
-            if (a <= 0.001f)
-            {
-                mat.color = s_originalUngeneratedColor;
-                return;
-            }
-
-            // Approximate alpha-blending Color32(10, 14, 20, dimAlpha) over the ungenerated ocean material
-            // so its pixel-exact hex boundary underneath WorldDrawLayer_Terrain matches dimmed ocean tiles.
-            Color orig = s_originalUngeneratedColor;
-            Color target = new(orig.r * 0.08f, orig.g * 0.08f, orig.b * 0.08f, orig.a);
-            mat.color = Color.Lerp(orig, target, a);
+            float a = Mathf.Clamp01(dimAlpha / 255f);
+            mat.SetVector(s_dimOverlayPropId, new Vector4(10f / 255f, 14f / 255f, 20f / 255f, a));
+            s_appliedUngeneratedDimming = a > 0.001f;
         }
         catch
         {
-            // Headless unit test environment without Unity shader/material native backing
+            // Headless unit test environment without Waylith shader/material native backing
         }
     }
 
     private static void RestoreUngeneratedPlanetPartsColor()
     {
-        if (!s_savedUngeneratedColor)
+        if (!s_appliedUngeneratedDimming)
         {
             return;
         }
@@ -889,8 +879,14 @@ public class WorldDrawLayer_RadarCoverage : WorldDrawLayer
             Material? mat = WorldMaterials.UngeneratedPlanetParts;
             if (mat != null)
             {
-                mat.color = s_originalUngeneratedColor;
+                if (s_dimOverlayPropId < 0)
+                {
+                    s_dimOverlayPropId = Shader.PropertyToID("_DimOverlay");
+                }
+
+                mat.SetVector(s_dimOverlayPropId, new Vector4(10f / 255f, 14f / 255f, 20f / 255f, 0f));
             }
+            s_appliedUngeneratedDimming = false;
         }
         catch
         {

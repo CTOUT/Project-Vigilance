@@ -264,7 +264,7 @@ stage_clean_distribution() {
 	fi
 
 	mkdir -p "$staging_dir/About" "$staging_dir/1.7/Assemblies"
-	rm -rf "$staging_dir/Source" "$staging_dir/1.7/Defs" "$staging_dir/1.7/Patches" "$staging_dir/1.7/Textures" "$staging_dir/1.7/Languages" "$staging_dir/1.7/Sounds"
+	rm -rf "$staging_dir/Source" "$staging_dir/1.7/Defs" "$staging_dir/1.7/Patches" "$staging_dir/1.7/Textures" "$staging_dir/1.7/Languages" "$staging_dir/1.7/Sounds" "$staging_dir/1.7/Shaders"
 	rm -f "$staging_dir/1.7/Assets.zip" "$staging_dir/1.7/Assets.zip."* "$staging_dir/1.7/Assemblies/"*.old 2>/dev/null || true
 
 	for about_file in About.xml Preview.png ModIcon.png PublishedFileId.txt; do
@@ -280,7 +280,7 @@ stage_clean_distribution() {
 		cp -f "$src_dir/1.7/Assemblies/$asm_base.pdb" "$staging_dir/1.7/Assemblies/$asm_base.pdb"
 	fi
 
-	for subdir in Defs Patches Textures Languages Sounds; do
+	for subdir in Defs Patches Textures Languages Sounds Shaders; do
 		if [[ -d "$src_dir/1.7/$subdir" ]]; then
 			mkdir -p "$staging_dir/1.7/$subdir"
 			cp -a "$src_dir/1.7/$subdir"/. "$staging_dir/1.7/$subdir"/
