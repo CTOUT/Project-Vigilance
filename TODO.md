@@ -48,6 +48,9 @@
 - [x] **Deterministic Git Build Numbers & In-Game Provenance:**
   - Replaced wall-clock `DateTime.UtcNow` timestamps in `Geoscape.csproj` with centralised, commit-deterministic `GenerateBuildMetadata` in `Directory.Build.targets` across all 5 modules (`Version`, Git commit height `BuildNumber`, `CommitHash`, `CommitDate`, `IsDirty`).
   - Updated startup console telemetry and `GeoscapeSettings` `Diagnostics` tab to display deterministic `v<Version>.<BuildNumber>+<CommitHash>[-dirty] | <Config> | <CommitDate>` provenance.
+- [ ] **GPU Shroud Atmosphere Shader (`PV_ShroudShell.frag.glsl`) & Intensity Slider:**
+  - Replace CPU per-vertex nebula colour re-uploads in `WorldDrawLayer_ShroudShell` with a native RimWorld 1.7 `#version 450` GLSL fragment shader driven by `_GameSeconds` and a live uniform (`_ShroudParams`) for zero-CPU per-pixel nebula drift and frontier edge glow.
+  - Replace or augment the subtle `ShroudEffectLevel` preset dropdown with a continuous **Shroud Atmosphere Intensity** slider (`0%` flat obsidian to `100%` vivid nebula) with instant uniform sync and zero-motion support (`reduceShroudMotion`).
 - [ ] **Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
   - **Pre-Settlement Survey Phase:** Implement pre-settlement expedition phase for uncharted rim worlds, allowing players to traverse and survey regional geography, waterways, and mountain passes before committing to a permanent settlement hex.
   - **Off-Map Orbital Staging Reserves:** Keep heavy starting supplies (bulk steel, food crates, components, heavy weaponry) off-map in orbital staging pods, preventing caravan encumbrance during initial land exploration.
