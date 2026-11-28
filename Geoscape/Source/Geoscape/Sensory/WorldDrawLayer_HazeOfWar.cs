@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using RimWorld.Planet;
@@ -618,8 +618,7 @@ public class WorldDrawLayer_HazeOfWar : WorldDrawLayer
             return;
         }
 
-        Material? material = ResolveVertexColorMaterial(
-            HazeRenderQueue,
+        Material? material = WorldDrawLayer_ShroudShell.ResolveFineHazeMaterial(
             SubMeshMaterialOverride,
             RenderQueueMaterialOverride);
 

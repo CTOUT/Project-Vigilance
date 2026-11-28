@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ProjectVigilance.Core.Localization;
@@ -87,6 +87,7 @@ public partial class GeoscapeSettings : ModSettings
     public bool optimisticCaravanDetours = true;
     public bool enableInterFactionCollisions = true;
     public ShroudEffectLevel shroudEffects = ShroudEffectLevel.Subtle;
+    public float shroudAtmosphereIntensity = 0.45f;
     public bool reduceShroudMotion = false;
     public bool optimiseUnexploredTerrain = true;
     public bool showGeoscapeClouds = true;
@@ -248,6 +249,23 @@ public partial class GeoscapeSettings : ModSettings
         Scribe_Values.Look(ref optimisticCaravanDetours, "optimisticCaravanDetours", true);
         Scribe_Values.Look(ref enableInterFactionCollisions, "enableInterFactionCollisions", true);
         Scribe_Values.Look(ref shroudEffects, "shroudEffects", ShroudEffectLevel.Subtle);
+        float loadedIntensity = Scribe.mode == LoadSaveMode.LoadingVars ? -1f : shroudAtmosphereIntensity;
+        Scribe_Values.Look(ref loadedIntensity, "shroudAtmosphereIntensity", -1f);
+        if (Scribe.mode == LoadSaveMode.LoadingVars)
+        {
+            shroudAtmosphereIntensity = loadedIntensity >= 0f
+                ? Mathf.Clamp01(loadedIntensity)
+                : shroudEffects switch
+                {
+                    ShroudEffectLevel.Off => 0f,
+                    ShroudEffectLevel.Atmospheric => 0.85f,
+                    _ => 0.45f
+                };
+        }
+        else
+        {
+            shroudAtmosphereIntensity = Mathf.Clamp01(shroudAtmosphereIntensity);
+        }
         Scribe_Values.Look(ref reduceShroudMotion, "reduceShroudMotion", false);
         Scribe_Values.Look(ref optimiseUnexploredTerrain, "optimiseUnexploredTerrain", true);
         Scribe_Values.Look(ref showGeoscapeClouds, "showGeoscapeClouds", true);
@@ -599,6 +617,7 @@ public partial class GeoscapeSettings : ModSettings
         maxContextualCaravansShown = 3;
         maxContextualColoniesShown = 2;
         shroudEffects = ShroudEffectLevel.Subtle;
+        shroudAtmosphereIntensity = 0.45f;
         reduceShroudMotion = false;
         optimiseUnexploredTerrain = true;
         showGeoscapeClouds = true;

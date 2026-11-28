@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+  <ShaderDef>
+    <defName>PV_ShroudShell</defName>
+    <shaderProgram>
+      <vertexShaderFileName>PV_ShroudShell.vert.glsl</vertexShaderFileName>
+      <fragmentShaderFileName>PV_ShroudShell.frag.glsl</fragmentShaderFileName>
+      <useTexture>false</useTexture>
+      <transparent>true</transparent>
+      <depthTest>false</depthTest>
+      <depthWrite>false</depthWrite>
+      <renderQueue>Transparent</renderQueue>
+    </shaderProgram>
+  </ShaderDef>
+
+  <MaterialDef>
+    <defName>PV_ShroudShell</defName>
+    <resourcePath>World/PV_ShroudShell</resourcePath>
+    <shader>PV_ShroudShell</shader>
+  </MaterialDef>
+</Defs>

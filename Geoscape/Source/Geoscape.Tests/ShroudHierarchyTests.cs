@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -624,6 +624,25 @@ public sealed class ShroudHierarchyTests : GeoscapeTestBase
                 Assert.IsTrue(shellContrast >= 8.0f, $"Theme {theme} level {level} shell contrast {shellContrast:F2} < 8.0");
                 Assert.IsTrue(frontierContrast >= 8.0f, $"Theme {theme} level {level} frontier contrast {frontierContrast:F2} < 8.0");
             }
+        }
+    }
+
+    [TestMethod]
+    public void ShroudAtmosphere_GpuThemePalette_AllThemesHaveValidWcgContrastAndRim()
+    {
+        Color32 white = new(255, 255, 255, 255);
+        foreach (SensoryTheme theme in Enum.GetValues(typeof(SensoryTheme)))
+        {
+            ShroudAtmosphere.GetGpuThemePalette(theme, out Vector4 baseObsidian, out Vector4 nebulaTint, out Vector4 rimColor);
+
+            Color32 baseC = new((byte)(baseObsidian.x * 255f), (byte)(baseObsidian.y * 255f), (byte)(baseObsidian.z * 255f), 255);
+            Color32 nebC = new((byte)(nebulaTint.x * 255f), (byte)(nebulaTint.y * 255f), (byte)(nebulaTint.z * 255f), 255);
+            Color32 rimC = new((byte)(rimColor.x * 255f), (byte)(rimColor.y * 255f), (byte)(rimColor.z * 255f), 255);
+
+            float nebContrast = ShroudAtmosphere.ComputeContrastRatio(white, nebC);
+            Assert.IsTrue(nebContrast >= 8.0f, $"GPU nebula tint for {theme} must preserve >= 8:1 WCAG contrast against white UI text (got {nebContrast:F2}).");
+            Assert.IsTrue(ShroudAtmosphere.ComputeRelativeLuminance(nebC) > ShroudAtmosphere.ComputeRelativeLuminance(baseC), $"GPU nebula tint must be brighter than obsidian base for {theme}.");
+            Assert.IsTrue(ShroudAtmosphere.ComputeRelativeLuminance(rimC) > ShroudAtmosphere.ComputeRelativeLuminance(nebC), $"GPU Fresnel rim must be brighter than nebula tint for {theme}.");
         }
     }
 

@@ -323,30 +323,20 @@ public partial class GeoscapeSettings
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
 
-            Rect styleRow = shroudCol.GetRect(24f);
-            Rect styleLabelRect = new Rect(styleRow.x, styleRow.y + 1f, styleRow.width * 0.44f, 22f);
-            Rect styleBtnRect = new Rect(styleLabelRect.xMax + 6f, styleRow.y, styleRow.width * 0.56f - 6f, 22f);
-            Widgets.Label(styleLabelRect, "PV_Shroud_EffectsLabel".Translate());
-            string currentEffectLabel = $"PV_Shroud_Effects_{shroudEffects}".Translate();
-            if (Widgets.ButtonText(styleBtnRect, currentEffectLabel))
+            Rect intensityRow = shroudCol.GetRect(24f);
+            Rect intensityLabelRect = new Rect(intensityRow.x, intensityRow.y + 1f, intensityRow.width * 0.56f, 22f);
+            Rect intensityBarRect = new Rect(intensityLabelRect.xMax + 6f, intensityRow.y + 1f, intensityRow.width * 0.44f - 6f, 22f);
+            Widgets.Label(intensityLabelRect, "PV_Shroud_IntensityLabel".Translate(Mathf.RoundToInt(shroudAtmosphereIntensity * 100f)));
+            float newIntensity = Widgets.HorizontalSlider(intensityBarRect, shroudAtmosphereIntensity, 0f, 1f, middleAlignment: true);
+            if (Mathf.Abs(newIntensity - shroudAtmosphereIntensity) > 0.005f)
             {
-                var options = new List<FloatMenuOption>();
-                foreach (ShroudEffectLevel lvl in Enum.GetValues(typeof(ShroudEffectLevel)))
-                {
-                    ShroudEffectLevel captured = lvl;
-                    string optLabel = $"PV_Shroud_Effects_{captured}".Translate();
-                    options.Add(new FloatMenuOption(optLabel, () =>
-                    {
-                        if (shroudEffects != captured)
-                        {
-                            shroudEffects = captured;
-                            WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
-                        }
-                    }));
-                }
-                Find.WindowStack.Add(new FloatMenu(options));
+                shroudAtmosphereIntensity = Mathf.Clamp01(newIntensity);
+                shroudEffects = shroudAtmosphereIntensity <= 0.01f
+                    ? ShroudEffectLevel.Off
+                    : (shroudAtmosphereIntensity >= 0.65f ? ShroudEffectLevel.Atmospheric : ShroudEffectLevel.Subtle);
+                WorldDrawLayer_ShroudShell.NotifyAtmosphereSettingsChanged();
             }
-            TooltipHandler.TipRegion(styleRow, "PV_Shroud_EffectsTooltip".Translate());
+            TooltipHandler.TipRegion(intensityRow, "PV_Shroud_IntensityTooltip".Translate());
 
             bool prevReduceMotion = reduceShroudMotion;
             DrawToggleableCheckbox(
@@ -354,7 +344,7 @@ public partial class GeoscapeSettings
                 "PV_Shroud_ReduceMotionLabel".Translate(),
                 ref reduceShroudMotion,
                 "PV_Shroud_ReduceMotionTooltip".Translate(),
-                shroudEffects != ShroudEffectLevel.Off);
+                shroudAtmosphereIntensity > 0.01f);
             if (prevReduceMotion != reduceShroudMotion)
             {
                 if (reduceShroudMotion)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using RimWorld.Planet;
@@ -11,6 +11,7 @@ namespace ProjectVigilance.Geoscape.Sensory
     /// Tier S hierarchical shroud layer rendering a 20-chunk subdivision-5 icosphere shell
     /// at altitude +0.062f and render queue 3545 over unexplored terrain regions.
     /// </summary>
+    [StaticConstructorOnStartup]
     public class WorldDrawLayer_ShroudShell : WorldDrawLayer
     {
         public const int ShroudShellRenderQueue = 3545;
@@ -26,10 +27,18 @@ namespace ProjectVigilance.Geoscape.Sensory
         internal static Func<float>? TimeSecondsOverride { get; set; }
 
         private static bool s_timeUnavailable;
+        private static Material? s_gpuShroudMaterial;
+        private static Material? s_gpuHazeMaterial;
+        private static bool s_gpuShroudLoadAttempted;
+        private static int s_propBaseColor = -1;
+        private static int s_propNebulaColor = -1;
+        private static int s_propRimColor = -1;
+        private static int s_propShroudParams = -1;
 
         private readonly bool[] _chunkVertsUploaded = new bool[ShroudGeometry.ShellChunkCount];
         private readonly bool[] _chunkColorsDirtyWhileHidden = new bool[ShroudGeometry.ShellChunkCount];
         private bool _isBuilt;
+        private bool _usingGpuShader;
         private float _shellRadius = 100f + ShellAltitudeOffset;
         private float _lastAnimTime = -1f;
         private int _animChunkCursor;
@@ -113,10 +122,11 @@ namespace ProjectVigilance.Geoscape.Sensory
 
             _shellRadius = ResolvePlanetSurfaceRadius(planetLayer) + ShellAltitudeOffset;
 
-            Material? material = WorldDrawLayer_HazeOfWar.ResolveVertexColorMaterial(
-                ShroudShellRenderQueue,
-                SubMeshMaterialOverride ?? WorldDrawLayer_HazeOfWar.SubMeshMaterialOverride,
-                RenderQueueMaterialOverride ?? WorldDrawLayer_HazeOfWar.RenderQueueMaterialOverride);
+            Material? material = ResolveShroudShellMaterial(out _usingGpuShader);
+            if (_usingGpuShader)
+            {
+                ApplyGpuShaderUniforms();
+            }
 
             EnsureChunkSubMeshes(material);
 
@@ -205,8 +215,16 @@ namespace ProjectVigilance.Geoscape.Sensory
         /// </summary>
         public static void NotifyAtmosphereSettingsChanged()
         {
-            float now = GetTimeSeconds();
-            Instance?.RefreshAllShellColors(now);
+            if (Instance != null && Instance._usingGpuShader)
+            {
+                ApplyGpuShaderUniforms();
+            }
+            else
+            {
+                float now = GetTimeSeconds();
+                Instance?.RefreshAllShellColors(now);
+            }
+
             WorldDrawLayer_HazeOfWar.Instance?.RefreshAtmosphereColors();
         }
 
@@ -224,6 +242,12 @@ namespace ProjectVigilance.Geoscape.Sensory
             }
 
             WorldDrawLayer_HazeOfWar.Instance?.PumpOnePrewarmChunk();
+
+            // When native Waylith 1.7 GPU shader is active, nebula drift runs entirely on the GPU via _GameSeconds (0 ms CPU).
+            if (_usingGpuShader)
+            {
+                return;
+            }
 
             ShroudEffectLevel effectLevel = GetEffectiveShroudLevel();
             bool reduceMotion = GetEffectiveReduceMotion();
@@ -458,6 +482,142 @@ namespace ProjectVigilance.Geoscape.Sensory
             }
 
             return 100f;
+        }
+
+        private static Material? ResolveShroudShellMaterial(out bool usingGpuShader)
+        {
+            usingGpuShader = false;
+
+            if (SubMeshMaterialOverride != null ||
+                WorldDrawLayer_HazeOfWar.SubMeshMaterialOverride != null ||
+                RenderQueueMaterialOverride != null ||
+                WorldDrawLayer_HazeOfWar.RenderQueueMaterialOverride != null)
+            {
+                return WorldDrawLayer_HazeOfWar.ResolveVertexColorMaterial(
+                    ShroudShellRenderQueue,
+                    SubMeshMaterialOverride ?? WorldDrawLayer_HazeOfWar.SubMeshMaterialOverride,
+                    RenderQueueMaterialOverride ?? WorldDrawLayer_HazeOfWar.RenderQueueMaterialOverride);
+            }
+
+            if (!s_gpuShroudLoadAttempted)
+            {
+                s_gpuShroudLoadAttempted = true;
+                try
+                {
+                    s_gpuShroudMaterial = MatLoader.LoadMat("World/PV_ShroudShell", ShroudShellRenderQueue);
+                }
+                catch
+                {
+                    s_gpuShroudMaterial = null;
+                }
+            }
+
+            if (s_gpuShroudMaterial != null)
+            {
+                usingGpuShader = true;
+                return s_gpuShroudMaterial;
+            }
+
+            return WorldDrawLayer_HazeOfWar.ResolveVertexColorMaterial(
+                ShroudShellRenderQueue,
+                null,
+                null);
+        }
+
+        internal static Material? ResolveFineHazeMaterial(
+            Func<Material?>? materialOverride,
+            Func<int, Material?>? queueMaterialOverride)
+        {
+            if (materialOverride != null || queueMaterialOverride != null)
+            {
+                return WorldDrawLayer_HazeOfWar.ResolveVertexColorMaterial(
+                    WorldDrawLayer_HazeOfWar.HazeRenderQueue,
+                    materialOverride,
+                    queueMaterialOverride);
+            }
+
+            // Ensure base GPU shroud material is loaded
+            ResolveShroudShellMaterial(out bool usingGpu);
+            if (usingGpu && s_gpuShroudMaterial != null)
+            {
+                if (s_gpuHazeMaterial == null)
+                {
+                    try
+                    {
+                        s_gpuHazeMaterial = new Material(s_gpuShroudMaterial)
+                        {
+                            renderQueue = WorldDrawLayer_HazeOfWar.HazeRenderQueue
+                        };
+                    }
+                    catch
+                    {
+                        s_gpuHazeMaterial = null;
+                    }
+                }
+
+                if (s_gpuHazeMaterial != null)
+                {
+                    ApplyGpuShaderUniforms();
+                    return s_gpuHazeMaterial;
+                }
+            }
+
+            return WorldDrawLayer_HazeOfWar.ResolveVertexColorMaterial(
+                WorldDrawLayer_HazeOfWar.HazeRenderQueue,
+                null,
+                null);
+        }
+
+        internal static void ApplyGpuShaderUniforms()
+        {
+            Material? shellMat = s_gpuShroudMaterial;
+            Material? hazeMat = s_gpuHazeMaterial;
+            if (shellMat == null && hazeMat == null)
+            {
+                return;
+            }
+
+            try
+            {
+                if (s_propBaseColor < 0)
+                {
+                    s_propBaseColor = Shader.PropertyToID("_BaseColor");
+                    s_propNebulaColor = Shader.PropertyToID("_NebulaColor");
+                    s_propRimColor = Shader.PropertyToID("_RimColor");
+                    s_propShroudParams = Shader.PropertyToID("_ShroudParams");
+                }
+
+                SensoryTheme theme = GetEffectiveTheme();
+                float intensity = GetEffectiveShroudIntensity();
+                float motionScale = GetEffectiveReduceMotion() ? 0f : 1f;
+                Vector4 shroudParams = new Vector4(intensity, motionScale, 1f, 0f);
+
+                ShroudAtmosphere.GetGpuThemePalette(theme, out Vector4 baseObsidian, out Vector4 nebulaTint, out Vector4 rimColor);
+                if (shellMat != null)
+                {
+                    shellMat.SetVector(s_propBaseColor, baseObsidian);
+                    shellMat.SetVector(s_propNebulaColor, nebulaTint);
+                    shellMat.SetVector(s_propRimColor, rimColor);
+                    shellMat.SetVector(s_propShroudParams, shroudParams);
+                }
+
+                if (hazeMat != null)
+                {
+                    hazeMat.SetVector(s_propBaseColor, baseObsidian);
+                    hazeMat.SetVector(s_propNebulaColor, nebulaTint);
+                    hazeMat.SetVector(s_propRimColor, rimColor);
+                    hazeMat.SetVector(s_propShroudParams, shroudParams);
+                }
+            }
+            catch
+            {
+                // Headless unit test environment
+            }
+        }
+
+        private static float GetEffectiveShroudIntensity()
+        {
+            return GeoscapeMod.Settings != null ? Mathf.Clamp01(GeoscapeMod.Settings.shroudAtmosphereIntensity) : 0.45f;
         }
 
         private static ShroudEffectLevel GetEffectiveShroudLevel()
