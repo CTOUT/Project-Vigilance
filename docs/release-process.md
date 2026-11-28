@@ -13,8 +13,13 @@ Each release publishes synchronised artifacts across two primary channels:
    - Clean modular distribution archives (`dist/ProjectVigilance-Suite-vX.Y.Z.zip` and per-module packages `Core`, `Geoscape`, `Orbital`, `Aquatics`, `Thermal`) containing clean staged runtime assets (`About/`, `1.7/Assemblies/`, `1.7/Defs/`, `1.7/Patches/`, `1.7/Textures/`, `1.7/Languages/`, `LICENSE`, `README.md` — zero `Source/`, build caches, or `.pdb` symbol files).
    - Markdown release notes extracted directly from [CHANGELOG.md](../CHANGELOG.md).
 2. **Steam Workshop & Steam Collection:**
-   - **Anchor Mod Item ([#3822378226](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)):** `Geoscape` (`Geoscape/About/PublishedFileId.txt` must never be deleted or overwritten) plus standalone suite items (`Core`, `Orbital`, `Aquatics`, `Thermal`) uploaded via RimWorld's in-game mod uploader.
-   - **Mod Descriptions & Artwork:** Per-module `About/Preview.png` (`< 1 MB`, `16:9`), `About/ModIcon.png` (`64×64`), and BBCode descriptions ([`docs/workshop_description.bbcode`](workshop_description.bbcode)).
+   - **Steam Workshop Suite Items:**
+     - **Core Framework ([#3847194681](https://steamcommunity.com/sharedfiles/filedetails/?id=3847194681)):** `Core/About/PublishedFileId.txt`
+     - **Geoscape & Early Warning ([#3822378226](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226)):** `Geoscape/About/PublishedFileId.txt` (anchor item — never delete or overwrite)
+     - **Orbital Logistics & Satellites ([#3847195514](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195514)):** `Orbital/About/PublishedFileId.txt`
+     - **Aquatic Operations & Sonar ([#3847195338](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195338)):** `Aquatics/About/PublishedFileId.txt`
+     - **Thermal Integrity & Materials ([#3847195139](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195139)):** `Thermal/About/PublishedFileId.txt`
+   - **Mod Descriptions & Artwork:** Per-module `About/Preview.png` (`< 1 MB`, `16:9`), `About/ModIcon.png` (`64×64`), and BBCode descriptions ([`docs/workshop_description_geoscape.bbcode`](workshop_description_geoscape.bbcode) + `_core`, `_orbital`, `_aquatics`, `_thermal`).
    - **Change Notes:** Versioned changelog entry in BBCode (`docs/workshop_changenotes_vX.Y.Z.txt`).
    - **Collection Description ([#3822385427](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427)):** BBCode overview of active and planned suite modules ([`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode)).
 
@@ -53,11 +58,11 @@ Update version numbers across the following files (or run `scripts/prepare-relea
 
 Maintain synchronization for community-facing Steam portals:
 
-1. **Mod Description ([`docs/workshop_description.bbcode`](workshop_description.bbcode)):**
+1. **Mod Descriptions ([`docs/workshop_description_geoscape.bbcode`](workshop_description_geoscape.bbcode) & sibling `workshop_description_*.bbcode`):**
    - Update version tags (e.g. `vX.Y LIVE`).
    - Add bullet points under **Key Features** for new capabilities.
    - Verify **Reporting Bugs & Feedback** directs users to GitHub Issues (preferred) and Steam Discussions, specifying `Player.log` and reproduction steps.
-2. **Change Notes ([`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.4.0.txt)):**
+2. **Change Notes ([`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.5.0.txt)):**
    - Create a dedicated BBCode change note formatted with `[h2]`, `[list]`, `[*]`, `[b]`, and `[i]`.
    - Organize into feature categories: new mechanics, tactical behaviors, fixes, and performance optimizations.
 3. **Collection Description ([`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode)):**
@@ -123,9 +128,9 @@ This pipeline will:
    - Ensure the upload completes with exit code success.
    - _(Optional)_ After uploading, switch back to live repo development if needed via `./scripts/switch-mod-junction.ps1 -Mode Dev` (or `deploy-geoscape.ps1 -Dev` / `deploy-geoscape.sh --dev`).
 2. **Update Workshop Metadata via Steam:**
-   - Visit the [Workshop Item Page](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226).
-   - Click **Edit title & description** -> Paste contents of [`docs/workshop_description.bbcode`](workshop_description.bbcode).
-   - Click **Add / edit change notes** -> Edit the auto-generated update entry and paste contents of [`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.4.0.txt).
+   - Visit each Workshop Item Page: [Core (#3847194681)](https://steamcommunity.com/sharedfiles/filedetails/?id=3847194681), [Geoscape (#3822378226)](https://steamcommunity.com/sharedfiles/filedetails/?id=3822378226), [Orbital (#3847195514)](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195514), [Aquatics (#3847195338)](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195338), and [Thermal (#3847195139)](https://steamcommunity.com/sharedfiles/filedetails/?id=3847195139).
+   - Click **Edit title & description** -> Paste contents of each module's `docs/workshop_description_<module>.bbcode` (e.g. [`docs/workshop_description_geoscape.bbcode`](workshop_description_geoscape.bbcode)).
+   - Click **Add / edit change notes** -> Edit the auto-generated update entry and paste contents of [`docs/workshop_changenotes_vX.Y.Z.txt`](workshop_changenotes_v0.5.0.txt).
 3. **Update Steam Collection:**
    - Visit the [Steam Collection Page](https://steamcommunity.com/sharedfiles/filedetails/?id=3822385427).
    - Click **Edit title and description** -> Paste contents of [`docs/workshop_collection_description.bbcode`](workshop_collection_description.bbcode).

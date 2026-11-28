@@ -51,7 +51,7 @@ public static class VigilanceModuleManager
             PackageId = "ProjectVigilance.Core",
             DisplayName = "Project Vigilance - Core Framework",
             Summary = "Essential foundation contracts, orbital kinematics, unified mod options host, and migration scrubber.",
-            WorkshopUrl = "https://steamcommunity.com/app/294100/workshop/"
+            WorkshopUrl = "https://steamcommunity.com/sharedfiles/filedetails/?id=3847194681"
         },
         new VigilanceModuleDescriptor
         {
@@ -67,7 +67,7 @@ public static class VigilanceModuleManager
             PackageId = "ProjectVigilance.Orbital",
             DisplayName = "Project Vigilance - Orbital Logistics & Satellites",
             Summary = "Orbital Logistics Hubs and drifting Trade, Recon, Navigation, Communication, and Military satellites.",
-            WorkshopUrl = "https://steamcommunity.com/app/294100/workshop/"
+            WorkshopUrl = "https://steamcommunity.com/sharedfiles/filedetails/?id=3847195514"
         },
         new VigilanceModuleDescriptor
         {
@@ -75,7 +75,7 @@ public static class VigilanceModuleManager
             PackageId = "ProjectVigilance.Aquatics",
             DisplayName = "Project Vigilance - Aquatic Operations & Sonar",
             Summary = "Coastal Sonar Stations, Automated Sonar Outposts, and directional water-connected acoustic detection.",
-            WorkshopUrl = "https://steamcommunity.com/app/294100/workshop/"
+            WorkshopUrl = "https://steamcommunity.com/sharedfiles/filedetails/?id=3847195338"
         },
         new VigilanceModuleDescriptor
         {
@@ -83,7 +83,7 @@ public static class VigilanceModuleManager
             PackageId = "ProjectVigilance.Thermal",
             DisplayName = "Project Vigilance - Thermal Integrity & Materials",
             Summary = "Enforces realistic non-combustible flammability across metals, stone, heavy bridges, machinery, and gravship hulls.",
-            WorkshopUrl = "https://steamcommunity.com/app/294100/workshop/"
+            WorkshopUrl = "https://steamcommunity.com/sharedfiles/filedetails/?id=3847195139"
         }
     };
 
