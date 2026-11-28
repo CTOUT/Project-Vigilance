@@ -16,26 +16,4 @@
     <InternalsVisibleTo Include="Geoscape.Tests" />
   </ItemGroup>
 
-  <Target Name="GenerateBuildMetadata" BeforeTargets="BeforeCompile">
-    <PropertyGroup>
-      <BuildTimestamp>$([System.DateTime]::UtcNow.ToString("yyyy-MM-dd HH:mm:ss 'UTC'"))</BuildTimestamp>
-      <BuildInfoFile>$(IntermediateOutputPath)BuildMetadata.g.cs</BuildInfoFile>
-    </PropertyGroup>
-    <ItemGroup>
-      <BuildInfoLines Include="// &lt;auto-generated /&gt;" />
-      <BuildInfoLines Include="namespace ProjectVigilance.Geoscape%3b" />
-      <BuildInfoLines Include="internal static class BuildInfo" />
-      <BuildInfoLines Include="{" />
-      <BuildInfoLines Include="    public const string BuildDate = &quot;$(BuildTimestamp)&quot;%3b" />
-      <BuildInfoLines Include="    public const string Configuration = &quot;$(Configuration)&quot;%3b" />
-      <BuildInfoLines Include="    public const string Version = &quot;$(Version)&quot;%3b" />
-      <BuildInfoLines Include="}" />
-    </ItemGroup>
-    <WriteLinesToFile File="$(BuildInfoFile)" Lines="@(BuildInfoLines)" Overwrite="true" WriteOnlyWhenDifferent="true" />
-    <ItemGroup>
-      <Compile Include="$(BuildInfoFile)" />
-      <FileWrites Include="$(BuildInfoFile)" />
-    </ItemGroup>
-  </Target>
-
 </Project>

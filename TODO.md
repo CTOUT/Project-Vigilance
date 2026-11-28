@@ -45,6 +45,9 @@
 
 ### Milestone 1.6: Planetary Expedition & World Integrity [ACTIVE ROADMAP]
 
+- [x] **Deterministic Git Build Numbers & In-Game Provenance:**
+  - Replaced wall-clock `DateTime.UtcNow` timestamps in `Geoscape.csproj` with centralised, commit-deterministic `GenerateBuildMetadata` in `Directory.Build.targets` across all 5 modules (`Version`, Git commit height `BuildNumber`, `CommitHash`, `CommitDate`, `IsDirty`).
+  - Updated startup console telemetry and `GeoscapeSettings` `Diagnostics` tab to display deterministic `v<Version>.<BuildNumber>+<CommitHash>[-dirty] | <Config> | <CommitDate>` provenance.
 - [ ] **Planetary Expedition Phase & Orbital Landing Reserves (Civilization Settler Paradigm):**
   - **Pre-Settlement Survey Phase:** Implement pre-settlement expedition phase for uncharted rim worlds, allowing players to traverse and survey regional geography, waterways, and mountain passes before committing to a permanent settlement hex.
   - **Off-Map Orbital Staging Reserves:** Keep heavy starting supplies (bulk steel, food crates, components, heavy weaponry) off-map in orbital staging pods, preventing caravan encumbrance during initial land exploration.

@@ -1282,7 +1282,7 @@ public class GeoscapeSettings : ModSettings
             {
                 versionInfo = mod.Id == ProjectVigilance.Core.Modules.VigilanceModuleId.Geoscape
                     ? $" ({GeoscapeMod.FormatBuildDetails()})"
-                    : $" (v{BuildInfo.Version})";
+                    : $" (v{BuildInfo.Version}.{BuildInfo.BuildNumber})";
             }
 
             Widgets.Label(new Rect(rowRect.x + 4f, rowRect.y + 2f, leftWidth - 4f, rowHeight - 2f), $"• {mod.DisplayName}{versionInfo}");

@@ -1,4 +1,81 @@
 <Project>
+  <Target Name="GenerateBuildMetadata" BeforeTargets="BeforeCompile" Condition="'$(MSBuildProjectName)' != 'Geoscape.Tests'">
+    <Exec Command="git rev-list --count HEAD"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low"
+          IgnoreExitCode="true"
+          ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitBuildNumber" />
+    </Exec>
+    <Exec Command="git rev-parse --short=7 HEAD"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low"
+          IgnoreExitCode="true"
+          ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCommitHash" />
+    </Exec>
+    <PropertyGroup>
+      <_GitDateFmt Condition="$([MSBuild]::IsOSPlatform('Windows'))">%25%25cs</_GitDateFmt>
+      <_GitDateFmt Condition="'$(_GitDateFmt)' == ''">%25cs</_GitDateFmt>
+    </PropertyGroup>
+    <Exec Command="git show -s --format=$(_GitDateFmt) HEAD"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low"
+          IgnoreExitCode="true"
+          ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCommitDate" />
+    </Exec>
+    <Exec Command="git status --porcelain"
+          WorkingDirectory="$(MSBuildThisFileDirectory)"
+          ConsoleToMSBuild="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low"
+          IgnoreExitCode="true"
+          ContinueOnError="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitStatusOutput" />
+    </Exec>
+
+    <PropertyGroup>
+      <BuildInfoNamespace Condition="'$(MSBuildProjectName)' == 'Geoscape'">ProjectVigilance.Geoscape</BuildInfoNamespace>
+      <BuildInfoNamespace Condition="'$(BuildInfoNamespace)' == ''">$(MSBuildProjectName)</BuildInfoNamespace>
+      <GitBuildNumber Condition="'$(_GitBuildNumber)' != ''">$(_GitBuildNumber.Trim())</GitBuildNumber>
+      <GitBuildNumber Condition="'$(GitBuildNumber)' == ''">0</GitBuildNumber>
+      <GitCommitHash Condition="'$(_GitCommitHash)' != ''">$(_GitCommitHash.Trim())</GitCommitHash>
+      <GitCommitHash Condition="'$(GitCommitHash)' == ''">unknown</GitCommitHash>
+      <GitCommitDate Condition="'$(_GitCommitDate)' != ''">$(_GitCommitDate.Trim())</GitCommitDate>
+      <GitCommitDate Condition="'$(GitCommitDate)' == ''">unknown</GitCommitDate>
+      <GitIsDirty Condition="'$(_GitStatusOutput)' != ''">true</GitIsDirty>
+      <GitIsDirty Condition="'$(GitIsDirty)' == ''">false</GitIsDirty>
+      <BuildInfoFile>$(IntermediateOutputPath)BuildMetadata.g.cs</BuildInfoFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <BuildInfoLines Include="// &lt;auto-generated /&gt;" />
+      <BuildInfoLines Include="namespace $(BuildInfoNamespace)%3b" />
+      <BuildInfoLines Include="internal static class BuildInfo" />
+      <BuildInfoLines Include="{" />
+      <BuildInfoLines Include="    public const string Version = &quot;$(Version)&quot;%3b" />
+      <BuildInfoLines Include="    public const string BuildNumber = &quot;$(GitBuildNumber)&quot;%3b" />
+      <BuildInfoLines Include="    public const string CommitHash = &quot;$(GitCommitHash)&quot;%3b" />
+      <BuildInfoLines Include="    public const string CommitDate = &quot;$(GitCommitDate)&quot;%3b" />
+      <BuildInfoLines Include="    public const bool IsDirty = $(GitIsDirty)%3b" />
+      <BuildInfoLines Include="    public const string Configuration = &quot;$(Configuration)&quot;%3b" />
+      <BuildInfoLines Include="}" />
+    </ItemGroup>
+
+    <WriteLinesToFile File="$(BuildInfoFile)" Lines="@(BuildInfoLines)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(BuildInfoFile)" />
+      <FileWrites Include="$(BuildInfoFile)" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="RotateLockedAssembly" BeforeTargets="BeforeBuild" Condition="'$(MSBuildProjectName)' != 'Geoscape.Tests'">
     <Delete Files="$(OutputPath)$(TargetName).dll.old;$(OutputPath)$(TargetName).pdb" ContinueOnError="true" />
     <Move SourceFiles="$(OutputPath)$(TargetName).dll"

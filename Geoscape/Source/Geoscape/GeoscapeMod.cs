@@ -44,22 +44,13 @@ public class GeoscapeMod : Mod
 
     public static string FormatBuildDetails()
     {
-        var asm = typeof(GeoscapeMod).Assembly;
-        var infoVer = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        if (!string.IsNullOrEmpty(infoVer) && infoVer.Contains('+'))
-        {
-            var parts = infoVer.Split('+');
-            string ver = parts[0];
-            string hash = parts[1];
-            if (hash.Length > 7)
-            {
-                hash = hash.Substring(0, 7);
-            }
-            infoVer = $"{ver}+{hash}";
-        }
+        string dirtySuffix = BuildInfo.IsDirty ? "-dirty" : string.Empty;
+        string hashPart = !string.IsNullOrEmpty(BuildInfo.CommitHash) && BuildInfo.CommitHash != "unknown"
+            ? $"+{BuildInfo.CommitHash}{dirtySuffix}"
+            : dirtySuffix;
 
-        string versionStr = !string.IsNullOrEmpty(infoVer) ? $"v{infoVer}" : $"v{BuildInfo.Version}";
-        return $"{versionStr} | {BuildInfo.Configuration} | Built {BuildInfo.BuildDate}";
+        string buildTag = $"v{BuildInfo.Version}.{BuildInfo.BuildNumber}{hashPart}";
+        return $"{buildTag} | {BuildInfo.Configuration} | {BuildInfo.CommitDate}";
     }
 
     public static void RegisterModuleHooks()
